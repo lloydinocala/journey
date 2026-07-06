@@ -5,6 +5,7 @@ import Login from './Login'
 import Layout from './Layout'
 import Dashboard from './Dashboard'
 import Organizations from './Organizations'
+import Customers from './Customers'
 
 export default function App() {
   const [session, setSession] = useState(undefined)
