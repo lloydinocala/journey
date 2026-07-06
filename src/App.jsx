@@ -1,21 +1,26 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
+import Login from './Login'
+import Dashboard from './Dashboard'
 
 export default function App() {
-  const [status, setStatus] = useState('checking...')
+  const [session, setSession] = useState(undefined) // undefined = still checking
 
   useEffect(() => {
-    async function checkConnection() {
-      const { error } = await supabase.from('organizations').select('id').limit(1)
-      setStatus(error ? `Error: ${error.message}` : 'Connected to journey-core ✅')
-    }
-    checkConnection()
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+    })
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession)
+    })
+
+    return () => listener.subscription.unsubscribe()
   }, [])
 
-  return (
-    <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-      <h1>Journey</h1>
-      <p>{status}</p>
-    </div>
-  )
+  if (session === undefined) {
+    return null // still checking, avoid a flash of the login screen
+  }
+
+  return session ? <Dashboard session={session} /> : <Login />
 }
