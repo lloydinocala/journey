@@ -42,7 +42,7 @@ export default function Properties({ profile }) {
       supabase.from('customers').select('id, display_name').eq('org_id', orgId).order('display_name'),
       supabase
         .from('properties')
-        .select('id, street_address, unit, city, state, zip, gate_code, created_at, customers(display_name)')
+       .select('id, street_address, unit, city, state, zip, gate_code, created_at, customers!properties_customer_id_fkey(display_name)')
         .eq('org_id', orgId)
         .order('created_at', { ascending: false }),
     ])
