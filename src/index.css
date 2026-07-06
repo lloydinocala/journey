@@ -251,3 +251,35 @@ body {
   padding: 10px 20px;
   margin-top: 0;
 }
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 32px;
+}
+
+.data-table th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--mist);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.field select {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--paper);
+  font-size: 15px;
+}
