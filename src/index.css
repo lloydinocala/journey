@@ -189,3 +189,65 @@ body {
 .nav-link:hover {
   color: var(--paper);
 }
+.page-title {
+  font-size: 20px;
+  margin: 0 0 20px;
+}
+
+.org-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 32px;
+}
+
+.org-table th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--mist);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.org-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-trial { background: rgba(242, 169, 60, 0.15); color: var(--amber); }
+.status-active { background: rgba(76, 217, 123, 0.15); color: #4CD97B; }
+.status-past_due { background: rgba(255, 107, 107, 0.15); color: #FF9C9C; }
+.status-canceled { background: rgba(138, 147, 166, 0.15); color: var(--mist); }
+
+.inline-form {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.inline-form .field {
+  margin-bottom: 0;
+  min-width: 180px;
+}
+
+.inline-form .auth-button {
+  width: auto;
+  padding: 10px 20px;
+  margin-top: 0;
+}
