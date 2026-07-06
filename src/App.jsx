@@ -47,6 +47,7 @@ export default function App() {
         <Route element={<Layout profile={profile} />}>
           <Route path="/" element={<Dashboard profile={profile} />} />
           <Route path="/customers" element={<Customers profile={profile} />} />
+          <Route path="/properties" element={<Properties profile={profile} />} />
           {profile.role === 'super_admin' && (
             <Route path="/organizations" element={<Organizations />} />
           )}
