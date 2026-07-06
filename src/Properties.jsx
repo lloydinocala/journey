@@ -1,0 +1,200 @@
+import { useState, useEffect } from 'react'
+import { supabase } from './utils/supabase'
+
+export default function Properties({ profile }) {
+  const [orgs, setOrgs] = useState([])
+  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [customers, setCustomers] = useState([])
+  const [properties, setProperties] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const [customerId, setCustomerId] = useState('')
+  const [street, setStreet] = useState('')
+  const [unit, setUnit] = useState('')
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('FL')
+  const [zip, setZip] = useState('')
+  const [gateCode, setGateCode] = useState('')
+  const [tenantName, setTenantName] = useState('')
+  const [tenantPhone, setTenantPhone] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const isSuperAdmin = profile.role === 'super_admin'
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      supabase
+        .from('organizations')
+        .select('id, name')
+        .order('name')
+        .then(({ data }) => {
+          setOrgs(data || [])
+          if (!selectedOrg && data && data.length > 0) setSelectedOrg(data[0].id)
+        })
+    }
+  }, [])
+
+  async function loadData(orgId) {
+    if (!orgId) return
+    setLoading(true)
+    const [customersRes, propertiesRes] = await Promise.all([
+      supabase.from('customers').select('id, display_name').eq('org_id', orgId).order('display_name'),
+      supabase
+        .from('properties')
+        .select('id, street_address, unit, city, state, zip, gate_code, created_at, customers(display_name)')
+        .eq('org_id', orgId)
+        .order('created_at', { ascending: false }),
+    ])
+    setCustomers(customersRes.data || [])
+    setProperties(propertiesRes.data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadData(selectedOrg)
+  }, [selectedOrg])
+
+  async function handleAdd(e) {
+    e.preventDefault()
+    setError('')
+    if (!customerId || !street.trim()) return
+
+    setSaving(true)
+
+    const { data: property, error: propError } = await supabase
+      .from('properties')
+      .insert({
+        org_id: selectedOrg,
+        customer_id: customerId,
+        street_address: street.trim(),
+        unit: unit.trim() || null,
+        city: city.trim() || null,
+        state: state.trim() || null,
+        zip: zip.trim() || null,
+        gate_code: gateCode.trim() || null,
+      })
+      .select()
+      .single()
+
+    if (propError) {
+      setError(propError.message)
+      setSaving(false)
+      return
+    }
+
+    if (tenantName.trim()) {
+      await supabase.from('property_tenants').insert({
+        org_id: selectedOrg,
+        property_id: property.id,
+        name: tenantName.trim(),
+        phone: tenantPhone.trim() || null,
+      })
+    }
+
+    setSaving(false)
+    setCustomerId('')
+    setStreet('')
+    setUnit('')
+    setCity('')
+    setZip('')
+    setGateCode('')
+    setTenantName('')
+    setTenantPhone('')
+    loadData(selectedOrg)
+  }
+
+  return (
+    <div>
+      <h2 className="page-title">Properties</h2>
+
+      {isSuperAdmin && (
+        <div className="field" style={{ maxWidth: 320, marginBottom: 20 }}>
+          <label htmlFor="orgPicker">Viewing organization</label>
+          <select id="orgPicker" value={selectedOrg} onChange={(e) => setSelectedOrg(e.target.value)}>
+            {orgs.map((org) => (
+              <option key={org.id} value={org.id}>{org.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 28, flexWrap: 'wrap' }}>
+        <div className="field">
+          <label htmlFor="custPick">Customer</label>
+          <select id="custPick" value={customerId} onChange={(e) => setCustomerId(e.target.value)} required>
+            <option value="">Select…</option>
+            {customers.map((c) => (
+              <option key={c.id} value={c.id}>{c.display_name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="street">Street address</label>
+          <input id="street" type="text" value={street} onChange={(e) => setStreet(e.target.value)} placeholder="123 SE 91st Court Rd" required />
+        </div>
+        <div className="field">
+          <label htmlFor="unit">Unit</label>
+          <input id="unit" type="text" value={unit} onChange={(e) => setUnit(e.target.value)} style={{ width: 80 }} />
+        </div>
+        <div className="field">
+          <label htmlFor="city">City</label>
+          <input id="city" type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Summerfield" />
+        </div>
+        <div className="field">
+          <label htmlFor="state">State</label>
+          <input id="state" type="text" value={state} onChange={(e) => setState(e.target.value)} style={{ width: 60 }} />
+        </div>
+        <div className="field">
+          <label htmlFor="zip">Zip</label>
+          <input id="zip" type="text" value={zip} onChange={(e) => setZip(e.target.value)} style={{ width: 90 }} />
+        </div>
+        <div className="field">
+          <label htmlFor="gateCode">Gate code</label>
+          <input id="gateCode" type="text" value={gateCode} onChange={(e) => setGateCode(e.target.value)} style={{ width: 100 }} />
+        </div>
+        <div className="field">
+          <label htmlFor="tenantName">Tenant (optional)</label>
+          <input id="tenantName" type="text" value={tenantName} onChange={(e) => setTenantName(e.target.value)} placeholder="if rental" />
+        </div>
+        <div className="field">
+          <label htmlFor="tenantPhone">Tenant phone</label>
+          <input id="tenantPhone" type="tel" value={tenantPhone} onChange={(e) => setTenantPhone(e.target.value)} />
+        </div>
+        <button className="auth-button" type="submit" disabled={saving}>
+          {saving ? 'Adding…' : 'Add property'}
+        </button>
+      </form>
+
+      {error && <div className="auth-error">{error}</div>}
+
+      {loading ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Address</th>
+              <th>City/State/Zip</th>
+              <th>Customer</th>
+              <th>Gate code</th>
+            </tr>
+          </thead>
+          <tbody>
+            {properties.map((p) => (
+              <tr key={p.id}>
+                <td>{p.street_address}{p.unit ? ` #${p.unit}` : ''}</td>
+                <td>{[p.city, p.state, p.zip].filter(Boolean).join(', ')}</td>
+                <td>{p.customers?.display_name || '—'}</td>
+                <td>{p.gate_code || '—'}</td>
+              </tr>
+            ))}
+            {properties.length === 0 && (
+              <tr><td colSpan="4" style={{ color: 'var(--mist)' }}>No properties yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
