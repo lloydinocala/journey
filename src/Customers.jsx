@@ -1,0 +1,157 @@
+import { useState, useEffect } from 'react'
+import { supabase } from './utils/supabase'
+
+export default function Customers({ profile }) {
+  const [orgs, setOrgs] = useState([])
+  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [customers, setCustomers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [displayName, setDisplayName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const isSuperAdmin = profile.role === 'super_admin'
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      supabase
+        .from('organizations')
+        .select('id, name')
+        .order('name')
+        .then(({ data }) => {
+          setOrgs(data || [])
+          if (!selectedOrg && data && data.length > 0) setSelectedOrg(data[0].id)
+        })
+    }
+  }, [])
+
+  async function loadCustomers(orgId) {
+    if (!orgId) return
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('customers')
+      .select('id, display_name, primary_phone, email_1, created_at')
+      .eq('org_id', orgId)
+      .order('created_at', { ascending: false })
+    if (!error) setCustomers(data)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadCustomers(selectedOrg)
+  }, [selectedOrg])
+
+  async function handleAdd(e) {
+    e.preventDefault()
+    setError('')
+    if (!displayName.trim() || !selectedOrg) return
+
+    setSaving(true)
+    const { error } = await supabase.from('customers').insert({
+      org_id: selectedOrg,
+      display_name: displayName.trim(),
+      primary_phone: phone.trim() || null,
+      email_1: email.trim() || null,
+    })
+    setSaving(false)
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setDisplayName('')
+      setPhone('')
+      setEmail('')
+      loadCustomers(selectedOrg)
+    }
+  }
+
+  return (
+    <div>
+      <h2 className="page-title">Customers</h2>
+
+      {isSuperAdmin && (
+        <div className="field" style={{ maxWidth: 320, marginBottom: 20 }}>
+          <label htmlFor="orgPicker">Viewing organization</label>
+          <select
+            id="orgPicker"
+            value={selectedOrg}
+            onChange={(e) => setSelectedOrg(e.target.value)}
+          >
+            {orgs.map((org) => (
+              <option key={org.id} value={org.id}>{org.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 28 }}>
+        <div className="field">
+          <label htmlFor="custName">Name</label>
+          <input
+            id="custName"
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="e.g. William Gaal"
+            required
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="custPhone">Phone</label>
+          <input
+            id="custPhone"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="(352) 555-0100"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="custEmail">Email</label>
+          <input
+            id="custEmail"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="optional"
+          />
+        </div>
+        <button className="auth-button" type="submit" disabled={saving}>
+          {saving ? 'Adding…' : 'Add customer'}
+        </button>
+      </form>
+
+      {error && <div className="auth-error">{error}</div>}
+
+      {loading ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>Added</th>
+            </tr>
+          </thead>
+          <tbody>
+            {customers.map((c) => (
+              <tr key={c.id}>
+                <td>{c.display_name}</td>
+                <td>{c.primary_phone || '—'}</td>
+                <td>{c.email_1 || '—'}</td>
+                <td>{new Date(c.created_at).toLocaleDateString()}</td>
+              </tr>
+            ))}
+            {customers.length === 0 && (
+              <tr><td colSpan="4" style={{ color: 'var(--mist)' }}>No customers yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
