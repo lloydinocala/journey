@@ -14,6 +14,7 @@ export default function Layout({ profile }) {
           {profile?.role === 'super_admin' && <span className="badge">Super Admin</span>}
           <Link to="/" className="nav-link">Dashboard</Link>
           <Link to="/customers" className="nav-link">Customers</Link>
+          <Link to="/properties" className="nav-link">Properties</Link>
           {profile?.role === 'super_admin' && (
             <Link to="/organizations" className="nav-link">Organizations</Link>
           )}
