@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import Login from './Login'
+import Layout from './Layout'
 import Dashboard from './Dashboard'
+import Organizations from './Organizations'
 
 export default function App() {
-  const [session, setSession] = useState(undefined) // undefined = still checking
+  const [session, setSession] = useState(undefined)
+  const [profile, setProfile] = useState(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -18,9 +22,34 @@ export default function App() {
     return () => listener.subscription.unsubscribe()
   }, [])
 
-  if (session === undefined) {
-    return null // still checking, avoid a flash of the login screen
-  }
+  useEffect(() => {
+    if (!session) {
+      setProfile(null)
+      return
+    }
+    supabase
+      .from('users')
+      .select('full_name, role, org_id')
+      .eq('id', session.user.id)
+      .single()
+      .then(({ data }) => setProfile(data))
+  }, [session])
 
-  return session ? <Dashboard session={session} /> : <Login />
+  if (session === undefined) return null
+  if (!session) return <Login />
+  if (!profile) return null
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Layout profile={profile} />}>
+          <Route path="/" element={<Dashboard profile={profile} />} />
+          {profile.role === 'super_admin' && (
+            <Route path="/organizations" element={<Organizations />} />
+          )}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  )
 }
