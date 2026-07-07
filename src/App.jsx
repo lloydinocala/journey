@@ -8,6 +8,7 @@ import Organizations from './Organizations'
 import Customers from './Customers'
 import Properties from './Properties'
 import Jobs from './Jobs'
+import Settings from './Settings'
 
 export default function App() {
   const [session, setSession] = useState(undefined)
