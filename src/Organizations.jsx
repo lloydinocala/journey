@@ -19,6 +19,7 @@ export default function Organizations() {
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
   const [editSlug, setEditSlug] = useState('')
+  const [slugTouched, setSlugTouched] = useState(false)
 
   async function loadOrgs() {
     setLoading(true)
@@ -71,10 +72,12 @@ export default function Organizations() {
     setEditingId(org.id)
     setEditName(org.name)
     setEditSlug(org.slug)
+    setSlugTouched(false)
   }
 
   function handleEditNameChange(value) {
     setEditName(value)
+    if (!slugTouched) setEditSlug(slugify(value))
   }
 
   async function saveEdit(id) {
@@ -127,7 +130,7 @@ export default function Organizations() {
               editingId === org.id ? (
                 <tr key={org.id}>
                   <td><input type="text" value={editName} onChange={(e) => handleEditNameChange(e.target.value)} /></td>
-                  <td><input type="text" value={editSlug} onChange={(e) => setEditSlug(e.target.value)} /></td>
+                  <td><input type="text" value={editSlug} onChange={(e) => { setEditSlug(e.target.value); setSlugTouched(true) }} /></td>
                   <td>
                     <span className={`status-pill status-${org.billing_status}`}>
                       {org.billing_status}
