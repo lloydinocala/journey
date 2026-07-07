@@ -160,6 +160,16 @@ export default function Organizations() {
 
       {error && <div className="auth-error">{error}</div>}
 
+     <div className="field" style={{ maxWidth: 220, marginBottom: 20 }}>
+        <label htmlFor="statusFilter">Show</label>
+        <select id="statusFilter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="current">Active &amp; frozen</option>
+          <option value="frozen">Frozen only</option>
+          <option value="archived">Archived only</option>
+          <option value="all">All</option>
+        </select>
+      </div>
+
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
@@ -174,7 +184,14 @@ export default function Organizations() {
             </tr>
           </thead>
           <tbody>
-            {orgs.map((org) =>
+            {orgs
+              .filter((org) => {
+                if (statusFilter === 'all') return true
+                if (statusFilter === 'frozen') return org.billing_status === 'suspended'
+                if (statusFilter === 'archived') return org.billing_status === 'canceled'
+                return org.billing_status !== 'canceled'
+              })
+              .map((org) =>
               editingId === org.id ? (
                 <tr key={org.id}>
                   <td><input type="text" value={editName} onChange={(e) => handleEditNameChange(e.target.value)} /></td>
