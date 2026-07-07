@@ -8,6 +8,7 @@ export default function Jobs({ profile }) {
   const [properties, setProperties] = useState([])
   const [users, setUsers] = useState([])
   const [jobs, setJobs] = useState([])
+  const [jobTypes, setJobTypes] = useState([])
   const [loading, setLoading] = useState(true)
 
   const [propertyId, setPropertyId] = useState('')
@@ -15,11 +16,19 @@ export default function Jobs({ profile }) {
   const [startTime, setStartTime] = useState('')
   const [durationHours, setDurationHours] = useState('1')
   const [jobType, setJobType] = useState('')
-  const [jobTypes, setJobTypes] = useState([])
   const [serviceComplaint, setServiceComplaint] = useState('')
   const [technicianId, setTechnicianId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const [editingId, setEditingId] = useState(null)
+  const [editJobDate, setEditJobDate] = useState('')
+  const [editStartTime, setEditStartTime] = useState('')
+  const [editDuration, setEditDuration] = useState('')
+  const [editJobType, setEditJobType] = useState('')
+  const [editComplaint, setEditComplaint] = useState('')
+  const [editTechnicianId, setEditTechnicianId] = useState('')
+  const [editStatus, setEditStatus] = useState('')
 
   const isSuperAdmin = profile.role === 'super_admin'
 
@@ -44,7 +53,7 @@ export default function Jobs({ profile }) {
       supabase.from('users').select('id, full_name').eq('org_id', orgId).order('full_name'),
       supabase
         .from('jobs')
-        .select('id, job_number, status, job_date, start_time, duration_hours, job_type, service_complaint, properties(street_address), technician_1:technician_1_id(full_name)')
+        .select('id, job_number, status, job_date, start_time, duration_hours, job_type, service_complaint, technician_1_id, properties(street_address), technician_1:technician_1_id(full_name)')
         .eq('org_id', orgId)
         .order('job_date', { ascending: false }),
       supabase.from('job_types').select('id, name').eq('org_id', orgId).eq('is_active', true).order('sort_order'),
@@ -107,6 +116,35 @@ export default function Jobs({ profile }) {
     }
   }
 
+  function startEdit(j) {
+    setEditingId(j.id)
+    setEditJobDate(j.job_date || '')
+    setEditStartTime(j.start_time ? j.start_time.slice(11, 16) : '')
+    setEditDuration(j.duration_hours != null ? String(j.duration_hours) : '')
+    setEditJobType(j.job_type || '')
+    setEditComplaint(j.service_complaint || '')
+    setEditTechnicianId(j.technician_1_id || '')
+    setEditStatus(j.status)
+  }
+
+  async function saveEdit(id) {
+    const startTimestamp = editStartTime ? `${editJobDate}T${editStartTime}:00` : null
+    await supabase
+      .from('jobs')
+      .update({
+        job_date: editJobDate,
+        start_time: startTimestamp,
+        duration_hours: editDuration ? parseFloat(editDuration) : null,
+        job_type: editJobType,
+        service_complaint: editComplaint.trim() || null,
+        technician_1_id: editTechnicianId || null,
+        status: editStatus,
+      })
+      .eq('id', id)
+    setEditingId(null)
+    loadData(selectedOrg)
+  }
+
   return (
     <div>
       <h2 className="page-title">Jobs</h2>
@@ -165,44 +203,3 @@ export default function Jobs({ profile }) {
         </div>
         <button className="auth-button" type="submit" disabled={saving}>
           {saving ? 'Adding…' : 'Add job'}
-        </button>
-      </form>
-
-      {error && <div className="auth-error">{error}</div>}
-
-      {loading ? (
-        <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Job #</th>
-              <th>Date</th>
-              <th>Address</th>
-              <th>Type</th>
-              <th>Complaint</th>
-              <th>Technician</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.map((j) => (
-              <tr key={j.id}>
-                <td>{j.job_number}</td>
-                <td>{j.job_date}</td>
-                <td>{j.properties?.street_address || '—'}</td>
-                <td>{j.job_type}</td>
-                <td>{j.service_complaint || '—'}</td>
-                <td>{j.technician_1?.full_name || 'Unassigned'}</td>
-                <td><span className={`status-pill status-${j.status}`}>{j.status}</span></td>
-              </tr>
-            ))}
-            {jobs.length === 0 && (
-              <tr><td colSpan="7" style={{ color: 'var(--mist)' }}>No jobs yet.</td></tr>
-            )}
-          </tbody>
-        </table>
-      )}
-    </div>
-  )
-}
