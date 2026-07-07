@@ -46,8 +46,7 @@ const [jobType, setJobType] = useState('')
         .select('id, job_number, status, job_date, start_time, duration_hours, job_type, service_complaint, properties(street_address), technician_1:technician_1_id(full_name)')
         .eq('org_id', orgId)
         .order('job_date', { ascending: false }),
-    ])
-    supabase.from('job_types').select('id, name').eq('org_id', orgId).eq('is_active', true).order('sort_order'),
+      supabase.from('job_types').select('id, name').eq('org_id', orgId).eq('is_active', true).order('sort_order'),
     ])
     setProperties(propsRes.data || [])
     setUsers(usersRes.data || [])
