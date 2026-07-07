@@ -25,7 +25,7 @@ export default function Organizations() {
     setLoading(true)
     const { data, error } = await supabase
       .from('organizations')
-      .select('id, name, slug, billing_status, created_at')
+      .select('id, name, slug, billing_status, created_at, frozen_reason')
       .order('created_at', { ascending: false })
     if (!error) setOrgs(data)
     setLoading(false)
