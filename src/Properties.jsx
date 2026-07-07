@@ -247,77 +247,72 @@ export default function Properties({ profile }) {
 
       {error && <div className="auth-error">{error}</div>}
 
-      {loading ? (
+     {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Address</th>
-              <th>City/State/Zip</th>
-              <th>Customer</th>
-              <th>Gate code</th>
-              <th>Tenant</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {properties.map((p) =>
-              editingId === p.id ? (
-                <tr key={p.id}>
-                  <td className="edit-stack">
-                    <input type="text" value={editStreet} onChange={(e) => setEditStreet(e.target.value)} placeholder="Street" />
-                    <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} placeholder="Unit" />
-                  </td>
-                  <td className="edit-stack">
-                    <input type="text" value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="City" />
-                    <input type="text" value={editState} onChange={(e) => setEditState(e.target.value)} placeholder="State" />
-                    <input type="text" value={editZip} onChange={(e) => setEditZip(e.target.value)} placeholder="Zip" />
-                  </td>
-                  <td>
-                    <select value={editCustomerId} onChange={(e) => setEditCustomerId(e.target.value)}>
-                      {customers.map((c) => (
-                        <option key={c.id} value={c.id}>{c.display_name}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <input type="text" value={editGateCode} onChange={(e) => setEditGateCode(e.target.value)} />
-                  </td>
-                  <td className="edit-stack">
-                    <input type="text" value={editTenantName} onChange={(e) => setEditTenantName(e.target.value)} placeholder="Tenant name" />
-                    <input type="tel" value={editTenantPhone} onChange={(e) => setEditTenantPhone(e.target.value)} placeholder="Phone" />
-                  </td>
-                  <td style={{ display: 'flex', gap: 8 }}>
-                    <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(p.id)}>Save</button>
-                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
-                  </td>
-                </tr>
-              ) : (
-                <tr key={p.id}>
-                  <td>{p.street_address}{p.unit ? ` #${p.unit}` : ''}{!p.is_active && <span className="status-pill status-canceled" style={{ marginLeft: 6 }}>Archived</span>}</td>
-                  <td>{[p.city, p.state, p.zip].filter(Boolean).join(', ')}</td>
-                  <td>{p.customers?.display_name || '—'}</td>
-                  <td>{p.gate_code || '—'}</td>
-                  <td>
-                    {p.property_tenants && p.property_tenants[0]
-                      ? `${p.property_tenants[0].name}${p.property_tenants[0].phone ? ' — ' + p.property_tenants[0].phone : ''}`
-                      : '—'}
-                  </td>
-                  <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button className="logout-button" onClick={() => startEdit(p)}>Edit</button>
-                    <button className="logout-button" onClick={() => toggleArchive(p)}>
-                      {p.is_active ? 'Archive' : 'Reactivate'}
-                    </button>
-                  </td>
-                </tr>
-              )
-            )}
-            {properties.length === 0 && (
-              <tr><td colSpan="6" style={{ color: 'var(--mist)' }}>No properties found.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <div className="grid-table">
+          <div className="grid-cell grid-head">Address</div>
+          <div className="grid-cell grid-head">City/State/Zip</div>
+          <div className="grid-cell grid-head">Customer</div>
+          <div className="grid-cell grid-head">Gate code</div>
+          <div className="grid-cell grid-head">Tenant</div>
+          <div className="grid-cell grid-head"></div>
+
+          {properties.map((p) =>
+            editingId === p.id ? (
+              <>
+                <div className="grid-cell">
+                  <input type="text" value={editStreet} onChange={(e) => setEditStreet(e.target.value)} placeholder="Street" />
+                  <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} placeholder="Unit" />
+                </div>
+                <div className="grid-cell">
+                  <input type="text" value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="City" />
+                  <input type="text" value={editState} onChange={(e) => setEditState(e.target.value)} placeholder="State" />
+                  <input type="text" value={editZip} onChange={(e) => setEditZip(e.target.value)} placeholder="Zip" />
+                </div>
+                <div className="grid-cell">
+                  <select value={editCustomerId} onChange={(e) => setEditCustomerId(e.target.value)}>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>{c.display_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid-cell">
+                  <input type="text" value={editGateCode} onChange={(e) => setEditGateCode(e.target.value)} />
+                </div>
+                <div className="grid-cell">
+                  <input type="text" value={editTenantName} onChange={(e) => setEditTenantName(e.target.value)} placeholder="Tenant name" />
+                  <input type="tel" value={editTenantPhone} onChange={(e) => setEditTenantPhone(e.target.value)} placeholder="Phone" />
+                </div>
+                <div className="grid-cell grid-actions">
+                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(p.id)}>Save</button>
+                  <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid-cell">{p.street_address}{p.unit ? ` #${p.unit}` : ''}{!p.is_active && <span className="status-pill status-canceled" style={{ marginLeft: 6 }}>Archived</span>}</div>
+                <div className="grid-cell">{[p.city, p.state, p.zip].filter(Boolean).join(', ')}</div>
+                <div className="grid-cell">{p.customers?.display_name || '—'}</div>
+                <div className="grid-cell">{p.gate_code || '—'}</div>
+                <div className="grid-cell">
+                  {p.property_tenants && p.property_tenants[0]
+                    ? `${p.property_tenants[0].name}${p.property_tenants[0].phone ? ' — ' + p.property_tenants[0].phone : ''}`
+                    : '—'}
+                </div>
+                <div className="grid-cell grid-actions">
+                  <button className="logout-button" onClick={() => startEdit(p)}>Edit</button>
+                  <button className="logout-button" onClick={() => toggleArchive(p)}>
+                    {p.is_active ? 'Archive' : 'Reactivate'}
+                  </button>
+                </div>
+              </>
+            )
+          )}
+          {properties.length === 0 && (
+            <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No properties found.</div>
+          )}
+        </div>
       )}
     </div>
   )
