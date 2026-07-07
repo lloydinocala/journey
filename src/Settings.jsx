@@ -11,6 +11,9 @@ export default function Settings({ profile }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const [editingId, setEditingId] = useState(null)
+  const [editName, setEditName] = useState('')
+
   const isSuperAdmin = profile.role === 'super_admin'
 
   useEffect(() => {
@@ -65,6 +68,18 @@ export default function Settings({ profile }) {
     loadJobTypes(selectedOrg)
   }
 
+  function startEdit(t) {
+    setEditingId(t.id)
+    setEditName(t.name)
+  }
+
+  async function saveEdit(id) {
+    if (!editName.trim()) return
+    await supabase.from('job_types').update({ name: editName.trim() }).eq('id', id)
+    setEditingId(null)
+    loadJobTypes(selectedOrg)
+  }
+
   return (
     <div>
       <h2 className="page-title">Settings</h2>
@@ -104,32 +119,45 @@ export default function Settings({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {jobTypes.map((t) => (
-              <tr key={t.id}>
-                <td>{t.name}</td>
-                <td>
+        <div className="grid-table" style={{ gridTemplateColumns: '1.5fr 1fr 1.5fr' }}>
+          <div className="grid-cell grid-head">Name</div>
+          <div className="grid-cell grid-head">Status</div>
+          <div className="grid-cell grid-head"></div>
+
+          {jobTypes.map((t) =>
+            editingId === t.id ? (
+              <>
+                <div className="grid-cell">
+                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                </div>
+                <div className="grid-cell">
                   <span className={`status-pill ${t.is_active ? 'status-active' : 'status-canceled'}`}>
                     {t.is_active ? 'Active' : 'Off'}
                   </span>
-                </td>
-                <td>
+                </div>
+                <div className="grid-cell grid-actions">
+                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(t.id)}>Save</button>
+                  <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid-cell">{t.name}</div>
+                <div className="grid-cell">
+                  <span className={`status-pill ${t.is_active ? 'status-active' : 'status-canceled'}`}>
+                    {t.is_active ? 'Active' : 'Off'}
+                  </span>
+                </div>
+                <div className="grid-cell grid-actions">
+                  <button className="logout-button" onClick={() => startEdit(t)}>Rename</button>
                   <button className="logout-button" onClick={() => toggleActive(t.id, t.is_active)}>
                     {t.is_active ? 'Turn off' : 'Turn on'}
                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              </>
+            )
+          )}
+        </div>
       )}
     </div>
   )
