@@ -164,8 +164,11 @@ export default function Organizations() {
                 <tr key={org.id}>
                   <td>{org.name}</td>
                   <td>{org.slug}</td>
-                  <td>
-                    <span className={`status-pill status-${org.billing_status}`}>
+                 <td>
+                    <span
+                      className={`status-pill status-${org.billing_status}`}
+                      title={org.billing_status === 'suspended' ? (org.frozen_reason || 'No reason recorded') : ''}
+                    >
                       {org.billing_status}
                     </span>
                   </td>
