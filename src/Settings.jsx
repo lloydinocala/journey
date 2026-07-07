@@ -113,3 +113,104 @@ export default function Settings({ profile }) {
 
   return (
     <div>
+<h2 className="page-title">Settings</h2>
+
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+        </div>
+      )}
+
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Business hours</h3>
+      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
+        Controls how the Calendar displays your day — 15-minute slots during these hours,
+        30-minute slots outside them for after-hours calls.
+      </p>
+
+      <form className="inline-form" onSubmit={saveBusinessHours} style={{ marginBottom: 28 }}>
+        <div className="field">
+          <label htmlFor="bStart">Opens</label>
+          <input id="bStart" type="time" value={businessStart} onChange={(e) => setBusinessStart(e.target.value)} required />
+        </div>
+        <div className="field">
+          <label htmlFor="bEnd">Closes</label>
+          <input id="bEnd" type="time" value={businessEnd} onChange={(e) => setBusinessEnd(e.target.value)} required />
+        </div>
+        <button className="auth-button" type="submit" disabled={savingHours}>
+          {savingHours ? 'Saving…' : 'Save hours'}
+        </button>
+        {hoursSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
+      </form>
+
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Job types</h3>
+      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
+        These show up in the Type dropdown when creating a job. Turn one off instead of
+        deleting it if past jobs still reference it.
+      </p>
+
+      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 28 }}>
+        <div className="field">
+          <label htmlFor="newType">Add a job type</label>
+          <input
+            id="newType"
+            type="text"
+            value={newType}
+            onChange={(e) => setNewType(e.target.value)}
+            placeholder="e.g. New Construction"
+            required
+          />
+        </div>
+        <button className="auth-button" type="submit" disabled={saving}>
+          {saving ? 'Adding…' : 'Add'}
+        </button>
+      </form>
+
+      {error && <div className="auth-error">{error}</div>}
+
+      {loading ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : (
+        <div className="grid-table" style={{ gridTemplateColumns: '1.5fr 1fr 1.5fr' }}>
+          <div className="grid-cell grid-head">Name</div>
+          <div className="grid-cell grid-head">Status</div>
+          <div className="grid-cell grid-head"></div>
+
+          {jobTypes.map((t) =>
+            editingId === t.id ? (
+              <>
+                <div className="grid-cell">
+                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                </div>
+                <div className="grid-cell">
+                  <span className={`status-pill ${t.is_active ? 'status-active' : 'status-canceled'}`}>
+                    {t.is_active ? 'Active' : 'Off'}
+                  </span>
+                </div>
+                <div className="grid-cell grid-actions">
+                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(t.id)}>Save</button>
+                  <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid-cell">{t.name}</div>
+                <div className="grid-cell">
+                  <span className={`status-pill ${t.is_active ? 'status-active' : 'status-canceled'}`}>
+                    {t.is_active ? 'Active' : 'Off'}
+                  </span>
+                </div>
+                <div className="grid-cell grid-actions">
+                  <button className="logout-button" onClick={() => startEdit(t)}>Rename</button>
+                  <button className="logout-button" onClick={() => toggleActive(t.id, t.is_active)}>
+                    {t.is_active ? 'Turn off' : 'Turn on'}
+                  </button>
+                </div>
+              </>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
