@@ -66,4 +66,50 @@ export default function Settings({ profile }) {
     setHoursSaved(false)
     await supabase
       .from('organizations')
-      .update({ business_hours_start: businessStart, business_hours_end:
+      .update({ business_hours_start: businessStart, business_hours_end: businessEnd })
+      .eq('id', selectedOrg)
+    setSavingHours(false)
+    setHoursSaved(true)
+  }
+
+  async function handleAdd(e) {
+    e.preventDefault()
+    setError('')
+    if (!newType.trim()) return
+
+    setSaving(true)
+    const nextSort = jobTypes.length > 0 ? Math.max(...jobTypes.map((t) => t.sort_order)) + 1 : 1
+    const { error } = await supabase.from('job_types').insert({
+      org_id: selectedOrg,
+      name: newType.trim(),
+      sort_order: nextSort,
+    })
+    setSaving(false)
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setNewType('')
+      loadJobTypes(selectedOrg)
+    }
+  }
+
+  async function toggleActive(id, current) {
+    await supabase.from('job_types').update({ is_active: !current }).eq('id', id)
+    loadJobTypes(selectedOrg)
+  }
+
+  function startEdit(t) {
+    setEditingId(t.id)
+    setEditName(t.name)
+  }
+
+  async function saveEdit(id) {
+    if (!editName.trim()) return
+    await supabase.from('job_types').update({ name: editName.trim() }).eq('id', id)
+    setEditingId(null)
+    loadJobTypes(selectedOrg)
+  }
+
+  return (
+    <div>
