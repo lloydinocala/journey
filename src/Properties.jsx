@@ -282,9 +282,9 @@ export default function Properties({ profile }) {
                     </select>
                   </td>
                   <td><input type="text" value={editGateCode} onChange={(e) => setEditGateCode(e.target.value)} style={{ width: 80 }} /></td>
-                  <td style={{ display: 'flex', gap: 6 }}>
-                    <input type="text" value={editTenantName} onChange={(e) => setEditTenantName(e.target.value)} placeholder="Tenant name" style={{ width: 110 }} />
-                    <input type="tel" value={editTenantPhone} onChange={(e) => setEditTenantPhone(e.target.value)} placeholder="Phone" style={{ width: 110 }} />
+                  <td className="edit-stack">
+                    <input type="text" value={editTenantName} onChange={(e) => setEditTenantName(e.target.value)} placeholder="Tenant name" />
+                    <input type="tel" value={editTenantPhone} onChange={(e) => setEditTenantPhone(e.target.value)} placeholder="Phone" />
                   </td>
                   <td style={{ display: 'flex', gap: 8 }}>
                     <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(p.id)}>Save</button>
