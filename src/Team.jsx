@@ -21,6 +21,7 @@ export default function Team({ profile }) {
   const [editName, setEditName] = useState('')
   const [editRole, setEditRole] = useState('tech')
   const [editColor, setEditColor] = useState('#2F5DE3')
+  const [editEmail, setEditEmail] = useState('')
 
   const isSuperAdmin = profile.role === 'super_admin'
 
@@ -62,6 +63,7 @@ export default function Team({ profile }) {
 
     const { data, error } = await supabase.functions.invoke('create-team-member', {
       body: {
+        action: 'invite',
         email: email.trim(),
         full_name: fullName.trim(),
         role,
@@ -91,13 +93,33 @@ export default function Team({ profile }) {
     setEditName(member.full_name)
     setEditRole(member.role)
     setEditColor(member.calendar_color || '#2F5DE3')
+    setEditEmail(member.email)
   }
 
-  async function saveEdit(id) {
+  async function saveEdit(member) {
+    setError('')
     await supabase
       .from('users')
       .update({ full_name: editName.trim(), role: editRole, calendar_color: editColor })
-      .eq('id', id)
+      .eq('id', member.id)
+
+    if (editEmail.trim() !== member.email) {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session.access_token
+      const { data, error } = await supabase.functions.invoke('create-team-member', {
+        body: { action: 'update_email', user_id: member.id, new_email: editEmail.trim() },
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (error) {
+        setError(error.message)
+        return
+      }
+      if (data?.error) {
+        setError(data.error)
+        return
+      }
+    }
+
     setEditingId(null)
     loadMembers(selectedOrg)
   }
@@ -156,66 +178,65 @@ export default function Team({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((m) =>
-              editingId === m.id ? (
-                <tr key={m.id}>
-                  <td>
-                    <input type="color" value={editColor} onChange={(e) => setEditColor(e.target.value)} style={{ width: 40, height: 32, padding: 2 }} />
-                  </td>
-                  <td><input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} /></td>
-                  <td style={{ color: 'var(--mist)' }}>{m.email}</td>
-                  <td>
-                    <select value={editRole} onChange={(e) => setEditRole(e.target.value)}>
-                      <option value="tech">Technician</option>
-                      <option value="csr">CSR / Office</option>
-                      <option value="org_admin">Admin</option>
-                    </select>
-                  </td>
-                  <td>{m.is_active ? 'Active' : 'Deactivated'}</td>
-                  <td style={{ display: 'flex', gap: 8 }}>
-                    <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(m.id)}>Save</button>
-                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
-                  </td>
-                </tr>
-              ) : (
-                <tr key={m.id}>
-                  <td><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: m.calendar_color || 'var(--mist)' }} /></td>
-                  <td>{m.full_name}</td>
-                  <td>{m.email}</td>
-                  <td>{m.role}</td>
-                  <td>
-                    <span className={`status-pill ${m.is_active ? 'status-active' : 'status-canceled'}`}>
-                      {m.is_active ? 'Active' : 'Deactivated'}
-                    </span>
-                  </td>
-                  <td style={{ display: 'flex', gap: 8 }}>
-                    <button className="logout-button" onClick={() => startEdit(m)}>Edit</button>
-                    {m.id !== currentUserId && (
-                      <button className="logout-button" onClick={() => toggleActive(m)}>
-                        {m.is_active ? 'Deactivate' : 'Reactivate'}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              )
-            )}
-            {members.length === 0 && (
-              <tr><td colSpan="6" style={{ color: 'var(--mist)' }}>No team members yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <div className="grid-table" style={{ gridTemplateColumns: '0.4fr 1.3fr 1.5fr 1fr 1fr 1.5fr' }}>
+          <div className="grid-cell grid-head"></div>
+          <div className="grid-cell grid-head">Name</div>
+          <div className="grid-cell grid-head">Email</div>
+          <div className="grid-cell grid-head">Role</div>
+          <div className="grid-cell grid-head">Status</div>
+          <div className="grid-cell grid-head"></div>
+
+          {members.map((m) =>
+            editingId === m.id ? (
+              <>
+                <div className="grid-cell">
+                  <input type="color" value={editColor} onChange={(e) => setEditColor(e.target.value)} style={{ width: 40, height: 32, padding: 2 }} />
+                </div>
+                <div className="grid-cell">
+                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                </div>
+                <div className="grid-cell">
+                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+                </div>
+                <div className="grid-cell">
+                  <select value={editRole} onChange={(e) => setEditRole(e.target.value)}>
+                    <option value="tech">Technician</option>
+                    <option value="csr">CSR / Office</option>
+                    <option value="org_admin">Admin</option>
+                  </select>
+                </div>
+                <div className="grid-cell">{m.is_active ? 'Active' : 'Deactivated'}</div>
+                <div className="grid-cell grid-actions">
+                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(m)}>Save</button>
+                  <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid-cell"><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: m.calendar_color || 'var(--mist)' }} /></div>
+                <div className="grid-cell">{m.full_name}</div>
+                <div className="grid-cell">{m.email}</div>
+                <div className="grid-cell">{m.role}</div>
+                <div className="grid-cell">
+                  <span className={`status-pill ${m.is_active ? 'status-active' : 'status-canceled'}`}>
+                    {m.is_active ? 'Active' : 'Deactivated'}
+                  </span>
+                </div>
+                <div className="grid-cell grid-actions">
+                  <button className="logout-button" onClick={() => startEdit(m)}>Edit</button>
+                  {m.id !== currentUserId && (
+                    <button className="logout-button" onClick={() => toggleActive(m)}>
+                      {m.is_active ? 'Deactivate' : 'Reactivate'}
+                    </button>
+                  )}
+                </div>
+              </>
+            )
+          )}
+          {members.length === 0 && (
+            <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No team members yet.</div>
+          )}
+        </div>
       )}
     </div>
   )
