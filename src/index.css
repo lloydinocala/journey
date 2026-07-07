@@ -2,12 +2,15 @@
   --ink: #EEF1F6;
   --panel: #FFFFFF;
   --border: rgba(15, 23, 42, 0.1);
+  --line-strong: #B8C2D6;
   --route-blue: #2F5DE3;
   --amber: #B8720A;
   --mist: #64748B;
   --paper: #152238;
+  --nav-bg: #10192B;
+  --nav-text: #F7F8FA;
+  --nav-mist: #8A93A6;
 }
-
 * {
   box-sizing: border-box;
 }
