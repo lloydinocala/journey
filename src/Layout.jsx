@@ -1,5 +1,6 @@
 import { Outlet, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import AnnouncementBanner from './AnnouncementBanner'
 
 export default function Layout({ profile }) {
   async function handleLogout() {
@@ -7,7 +8,8 @@ export default function Layout({ profile }) {
   }
 
   return (
-    <div className="dashboard">
+    <div className="app-shell">
+      <AnnouncementBanner profile={profile} />
       <div className="dashboard-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <h1 className="wordmark" style={{ fontSize: 22, margin: 0 }}>Journey</h1>
@@ -22,10 +24,15 @@ export default function Layout({ profile }) {
           {profile?.role === 'super_admin' && (
             <Link to="/organizations" className="nav-link">Organizations</Link>
           )}
+          {profile?.role === 'super_admin' && (
+            <Link to="/announcements" className="nav-link">Announcements</Link>
+          )}
         </div>
         <button className="logout-button" onClick={handleLogout}>Sign out</button>
       </div>
-      <Outlet />
+      <div className="dashboard-content">
+        <Outlet />
+      </div>
     </div>
   )
 }
