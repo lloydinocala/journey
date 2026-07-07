@@ -112,13 +112,9 @@ export default function Jobs({ profile }) {
       <h2 className="page-title">Jobs</h2>
 
       {isSuperAdmin && (
-        <div className="field" style={{ maxWidth: 320, marginBottom: 20 }}>
-          <label htmlFor="orgPicker">Viewing organization</label>
-          <select id="orgPicker" value={selectedOrg} onChange={(e) => setSelectedOrg(e.target.value)}>
-            {orgs.map((org) => (
-              <option key={org.id} value={org.id}>{org.name}</option>
-            ))}
-          </select>
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
         </div>
       )}
 
