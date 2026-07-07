@@ -226,7 +226,7 @@ body {
 
 .status-trial { background: rgba(242, 169, 60, 0.15); color: var(--amber); }
 .status-active { background: rgba(76, 217, 123, 0.15); color: #4CD97B; }
-.status-past_due { background: rgba(255, 107, 107, 0.15); color: #FF9C9C; }
+.status-past_due { background: rgba(255, 107, 107, 0.15); color: #C0392B; }
 .status-canceled { background: rgba(138, 147, 166, 0.15); color: var(--mist); }
 
 .inline-form {
