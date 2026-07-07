@@ -6,6 +6,7 @@ export default function Customers({ profile }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [customers, setCustomers] = useState([])
+  const [showArchived, setShowArchived] = useState(false)
   const [loading, setLoading] = useState(true)
   const [displayName, setDisplayName] = useState('')
   const [phone, setPhone] = useState('')
@@ -19,6 +20,8 @@ export default function Customers({ profile }) {
   const [editEmail, setEditEmail] = useState('')
 
   const isSuperAdmin = profile.role === 'super_admin'
+  const isOrgAdmin = profile.role === 'org_admin'
+  const canManageBans = isSuperAdmin || isOrgAdmin
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -38,8 +41,9 @@ export default function Customers({ profile }) {
     setLoading(true)
     const { data, error } = await supabase
       .from('customers')
-      .select('id, display_name, primary_phone, email_1, created_at')
+      .select('id, display_name, primary_phone, email_1, created_at, is_active, is_banned, banned_reason')
       .eq('org_id', orgId)
+      .eq('is_active', !showArchived)
       .order('created_at', { ascending: false })
     if (!error) setCustomers(data)
     setLoading(false)
@@ -47,7 +51,7 @@ export default function Customers({ profile }) {
 
   useEffect(() => {
     loadCustomers(selectedOrg)
-  }, [selectedOrg])
+  }, [selectedOrg, showArchived])
 
   async function handleAdd(e) {
     e.preventDefault()
@@ -93,6 +97,38 @@ export default function Customers({ profile }) {
     loadCustomers(selectedOrg)
   }
 
+  async function toggleArchive(c) {
+    const action = c.is_active ? 'archive' : 'reactivate'
+    if (!window.confirm(`Are you sure you want to ${action} ${c.display_name}?`)) return
+    await supabase.from('customers').update({ is_active: !c.is_active }).eq('id', c.id)
+    loadCustomers(selectedOrg)
+  }
+
+  async function fireCustomer(c) {
+    const reason = window.prompt(
+      `You're flagging ${c.display_name} as Do Not Service.\nThis blocks scheduling new jobs for them until an admin lifts it.\n\nReason (optional):`
+    )
+    if (reason === null) return // cancelled
+
+    const { data: sessionData } = await supabase.auth.getUser()
+    await supabase
+      .from('customers')
+      .update({
+        is_banned: true,
+        banned_reason: reason.trim() || null,
+        banned_at: new Date().toISOString(),
+        banned_by: sessionData.user.id,
+      })
+      .eq('id', c.id)
+    loadCustomers(selectedOrg)
+  }
+
+  async function liftBan(c) {
+    if (!window.confirm(`Lift the Do Not Service flag on ${c.display_name}? They'll be schedulable again.`)) return
+    await supabase.from('customers').update({ is_banned: false }).eq('id', c.id)
+    loadCustomers(selectedOrg)
+  }
+
   return (
     <div>
       <h2 className="page-title">Customers</h2>
@@ -104,7 +140,7 @@ export default function Customers({ profile }) {
         </div>
       )}
 
-      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 28 }}>
+      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20 }}>
         <div className="field">
           <label htmlFor="custName">Name</label>
           <input
@@ -141,6 +177,18 @@ export default function Customers({ profile }) {
         </button>
       </form>
 
+      <div style={{ marginBottom: 20 }}>
+        <label className="nav-link" style={{ cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+            style={{ marginRight: 6 }}
+          />
+          Show archived customers
+        </label>
+      </div>
+
       {error && <div className="auth-error">{error}</div>}
 
       {loading ? (
@@ -153,6 +201,7 @@ export default function Customers({ profile }) {
               <th>Phone</th>
               <th>Email</th>
               <th>Added</th>
+              <th>Flags</th>
               <th></th>
             </tr>
           </thead>
@@ -164,6 +213,7 @@ export default function Customers({ profile }) {
                   <td><input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} /></td>
                   <td><input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} /></td>
                   <td>{new Date(c.created_at).toLocaleDateString()}</td>
+                  <td></td>
                   <td style={{ display: 'flex', gap: 8 }}>
                     <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(c.id)}>Save</button>
                     <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
@@ -176,13 +226,34 @@ export default function Customers({ profile }) {
                   <td>{c.email_1 || '—'}</td>
                   <td>{new Date(c.created_at).toLocaleDateString()}</td>
                   <td>
+                    {!c.is_active && <span className="status-pill status-canceled" style={{ marginRight: 6 }}>Archived</span>}
+                    {c.is_banned && (
+                      <span
+                        className="status-pill status-past_due"
+                        title={c.banned_reason || 'No reason given'}
+                      >
+                        Do Not Service
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button className="logout-button" onClick={() => startEdit(c)}>Edit</button>
+                    <button className="logout-button" onClick={() => toggleArchive(c)}>
+                      {c.is_active ? 'Archive' : 'Reactivate'}
+                    </button>
+                    {canManageBans && (
+                      c.is_banned ? (
+                        <button className="logout-button" onClick={() => liftBan(c)}>Lift Ban</button>
+                      ) : (
+                        <button className="logout-button" onClick={() => fireCustomer(c)}>Fire Customer</button>
+                      )
+                    )}
                   </td>
                 </tr>
               )
             )}
             {customers.length === 0 && (
-              <tr><td colSpan="5" style={{ color: 'var(--mist)' }}>No customers yet.</td></tr>
+              <tr><td colSpan="6" style={{ color: 'var(--mist)' }}>No customers found.</td></tr>
             )}
           </tbody>
         </table>
