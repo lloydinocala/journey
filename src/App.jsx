@@ -11,6 +11,7 @@ import Properties from './Properties'
 import Jobs from './Jobs'
 import Settings from './Settings'
 import Team from './Team'
+import Calendar from './Calendar'
 
 export default function App() {
   const [session, setSession] = useState(undefined)
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/jobs" element={<Jobs profile={profile} />} />
           <Route path="/settings" element={<Settings profile={profile} />} />
           <Route path="/team" element={<Team profile={profile} />} />
+          <Route path="/calendar" element={<Calendar profile={profile} />} />
           {profile.role === 'super_admin' && (
             <Route path="/organizations" element={<Organizations />} />
           )}
