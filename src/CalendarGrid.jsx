@@ -42,3 +42,64 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
   }
 
   return (
+<div className="calendar-grid-wrap">
+      <div className="calendar-grid" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
+        <div
+          className="calendar-header-row"
+          style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)`, gridColumn: '1 / -1' }}
+        >
+          <div className="calendar-header-cell"></div>
+          {days.map((day) => (
+            <div key={toLocalDateStr(day)} className="calendar-header-cell">
+              {formatDayLabel(day)}
+            </div>
+          ))}
+        </div>
+
+        <div
+          className="calendar-body-row"
+          style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)`, gridColumn: '1 / -1', height: totalHeight }}
+        >
+          <div className="calendar-time-col" style={{ height: totalHeight }}>
+            {hourMarkers.map((m) => (
+              <div key={m.hour} className="calendar-hour-label" style={{ top: m.pixelY }}>
+                {m.label}
+              </div>
+            ))}
+          </div>
+
+          {days.map((day) => (
+            <div key={toLocalDateStr(day)} className="calendar-day-col" style={{ height: totalHeight }}>
+              {hourMarkers.map((m) => (
+                <div key={m.hour} className="calendar-hour-line" style={{ top: m.pixelY }} />
+              ))}
+              {isSameDay(day, today) && (
+                <div
+                  className="calendar-now-line"
+                  style={{
+                    top: timeToPixelY(
+                      `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`,
+                      businessStart,
+                      businessEnd
+                    ),
+                  }}
+                />
+              )}
+              {jobsForDay(day).map((job) => (
+                <div
+                  key={job.id}
+                  className={`job-block${job.is_banned ? ' banned' : ''}`}
+                  style={blockStyle(job)}
+                  onClick={() => onJobClick(job)}
+                >
+                  <strong>{formatTimeLabel(job)}</strong>
+                  {job.customer_name}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
