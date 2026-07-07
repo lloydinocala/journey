@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import Login from './Login'
+import SetPassword from './SetPassword'
 import Layout from './Layout'
 import Dashboard from './Dashboard'
 import Organizations from './Organizations'
@@ -14,6 +15,9 @@ import Team from './Team'
 export default function App() {
   const [session, setSession] = useState(undefined)
   const [profile, setProfile] = useState(null)
+  const [needsPassword, setNeedsPassword] = useState(
+    window.location.hash.includes('type=invite') || window.location.hash.includes('type=recovery')
+  )
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -42,6 +46,7 @@ export default function App() {
 
   if (session === undefined) return null
   if (!session) return <Login />
+  if (needsPassword) return <SetPassword onDone={() => setNeedsPassword(false)} />
   if (!profile) return null
 
   return (
