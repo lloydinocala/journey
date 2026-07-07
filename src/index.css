@@ -135,13 +135,12 @@ body {
 .auth-error {
   background: rgba(255, 107, 107, 0.12);
   border: 1px solid rgba(255, 107, 107, 0.3);
-  color: #FF9C9C;
+  color: #C0392B;
   font-size: 13px;
   padding: 10px 12px;
   border-radius: 8px;
   margin-bottom: 16px;
 }
-
 .dashboard {
   min-height: 100vh;
   padding: 32px;
