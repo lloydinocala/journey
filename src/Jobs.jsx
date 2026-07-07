@@ -280,3 +280,12 @@ export default function Jobs({ profile }) {
               )
             )}
             {jobs.length === 0 && (
+                        <tr><td colSpan="8" style={{ color: 'var(--mist)' }}>No jobs yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
