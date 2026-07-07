@@ -11,6 +11,8 @@ function slugify(name) {
 
 export default function Organizations() {
   const [orgs, setOrgs] = useState([])
+  const [statusFilter, setStatusFilter] = useState('current')
+ 
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
