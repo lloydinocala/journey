@@ -177,7 +177,7 @@ export default function Properties({ profile }) {
 
   return (
     <div>
-<h2 className="page-title">Properties</h2>
+      <h2 className="page-title">Properties</h2>
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>
@@ -265,7 +265,7 @@ export default function Properties({ profile }) {
             {properties.map((p) =>
               editingId === p.id ? (
                 <tr key={p.id}>
-                 <td className="edit-stack">
+                  <td className="edit-stack">
                     <input type="text" value={editStreet} onChange={(e) => setEditStreet(e.target.value)} placeholder="Street" />
                     <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} placeholder="Unit" />
                   </td>
@@ -281,7 +281,9 @@ export default function Properties({ profile }) {
                       ))}
                     </select>
                   </td>
-                  <td><input type="text" value={editGateCode} onChange={(e) => setEditGateCode(e.target.value)} style={{ width: 80 }} /></td>
+                  <td>
+                    <input type="text" value={editGateCode} onChange={(e) => setEditGateCode(e.target.value)} />
+                  </td>
                   <td className="edit-stack">
                     <input type="text" value={editTenantName} onChange={(e) => setEditTenantName(e.target.value)} placeholder="Tenant name" />
                     <input type="tel" value={editTenantPhone} onChange={(e) => setEditTenantPhone(e.target.value)} placeholder="Phone" />
