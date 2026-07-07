@@ -13,7 +13,7 @@ export default function Jobs({ profile }) {
   const [jobDate, setJobDate] = useState('')
   const [startTime, setStartTime] = useState('')
   const [durationHours, setDurationHours] = useState('1')
-const [jobType, setJobType] = useState('')
+  const [jobType, setJobType] = useState('')
   const [jobTypes, setJobTypes] = useState([])
   const [serviceComplaint, setServiceComplaint] = useState('')
   const [technicianId, setTechnicianId] = useState('')
@@ -156,56 +156,3 @@ const [jobType, setJobType] = useState('')
         <div className="field">
           <label htmlFor="complaint">Service complaint</label>
           <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling" />
-        </div>
-        <div className="field">
-          <label htmlFor="tech">Technician</label>
-          <select id="tech" value={technicianId} onChange={(e) => setTechnicianId(e.target.value)}>
-            <option value="">Unassigned</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.full_name}</option>
-            ))}
-          </select>
-        </div>
-        <button className="auth-button" type="submit" disabled={saving}>
-          {saving ? 'Adding…' : 'Add job'}
-        </button>
-      </form>
-
-      {error && <div className="auth-error">{error}</div>}
-
-      {loading ? (
-        <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Job #</th>
-              <th>Date</th>
-              <th>Address</th>
-              <th>Type</th>
-              <th>Complaint</th>
-              <th>Technician</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.map((j) => (
-              <tr key={j.id}>
-                <td>{j.job_number}</td>
-                <td>{j.job_date}</td>
-                <td>{j.properties?.street_address || '—'}</td>
-                <td>{j.job_type}</td>
-                <td>{j.service_complaint || '—'}</td>
-                <td>{j.technician_1?.full_name || 'Unassigned'}</td>
-                <td><span className={`status-pill status-${j.status}`}>{j.status}</span></td>
-              </tr>
-            ))}
-            {jobs.length === 0 && (
-              <tr><td colSpan="7" style={{ color: 'var(--mist)' }}>No jobs yet.</td></tr>
-            )}
-          </tbody>
-        </table>
-      )}
-    </div>
-  )
-}
