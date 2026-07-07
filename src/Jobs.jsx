@@ -34,7 +34,7 @@ const [jobType, setJobType] = useState('')
   async function loadData(orgId) {
     if (!orgId) return
     setLoading(true)
-    const [propsRes, usersRes, jobsRes] = await Promise.all([
+    const [propsRes, usersRes, jobsRes, jobTypesRes] = await Promise.all([
       supabase
         .from('properties')
         .select('id, street_address, customer_id, customers!properties_customer_id_fkey(display_name)')
@@ -47,9 +47,13 @@ const [jobType, setJobType] = useState('')
         .eq('org_id', orgId)
         .order('job_date', { ascending: false }),
     ])
+    supabase.from('job_types').select('id, name').eq('org_id', orgId).eq('is_active', true).order('sort_order'),
+    ])
     setProperties(propsRes.data || [])
     setUsers(usersRes.data || [])
     setJobs(jobsRes.data || [])
+    setJobTypes(jobTypesRes.data || [])
+    if (jobTypesRes.data && jobTypesRes.data.length > 0) setJobType(jobTypesRes.data[0].name)
     setLoading(false)
   }
 
