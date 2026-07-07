@@ -1,6 +1,8 @@
-import { formatDayLabel, isSameDay, timeToPixelY, getTotalGridHeight, getHourMarkers } from './utils/dateHelpers'
+import { useState } from 'react'
+import { formatDayLabel, isSameDay, timeToPixelY, pixelYToTimeString, getTotalGridHeight, getHourMarkers } from './utils/dateHelpers'
 
-export default function CalendarGrid({ days, jobs, businessStart, businessEnd, onJobClick }) {
+export default function CalendarGrid({ days, jobs, businessStart, businessEnd, onJobClick, onJobDrop }) {
+  const [draggingId, setDraggingId] = useState(null)
   const totalHeight = getTotalGridHeight(businessStart, businessEnd)
   const hourMarkers = getHourMarkers(businessStart, businessEnd)
   const today = new Date()
@@ -41,8 +43,28 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
     return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
   }
 
+  function handleDragStart(e, job) {
+    e.dataTransfer.setData('text/plain', job.id)
+    setDraggingId(job.id)
+  }
+
+  function handleDragEnd() {
+    setDraggingId(null)
+  }
+
+  function handleDrop(e, day) {
+    e.preventDefault()
+    const jobId = e.dataTransfer.getData('text/plain')
+    if (!jobId || !onJobDrop) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const offsetY = e.clientY - rect.top
+    const newTime = pixelYToTimeString(offsetY, businessStart, businessEnd)
+    onJobDrop(jobId, toLocalDateStr(day), newTime)
+    setDraggingId(null)
+  }
+
   return (
-<div className="calendar-grid-wrap">
+    <div className="calendar-grid-wrap">
       <div className="calendar-grid" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
         <div
           className="calendar-header-row"
@@ -69,7 +91,13 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
           </div>
 
           {days.map((day) => (
-            <div key={toLocalDateStr(day)} className="calendar-day-col" style={{ height: totalHeight }}>
+            <div
+              key={toLocalDateStr(day)}
+              className="calendar-day-col"
+              style={{ height: totalHeight }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => handleDrop(e, day)}
+            >
               {hourMarkers.map((m) => (
                 <div key={m.hour} className="calendar-hour-line" style={{ top: m.pixelY }} />
               ))}
@@ -88,8 +116,11 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
               {jobsForDay(day).map((job) => (
                 <div
                   key={job.id}
-                  className={`job-block${job.is_banned ? ' banned' : ''}`}
+                  className={`job-block${job.is_banned ? ' banned' : ''}${draggingId === job.id ? ' dragging' : ''}`}
                   style={blockStyle(job)}
+                  draggable="true"
+                  onDragStart={(e) => handleDragStart(e, job)}
+                  onDragEnd={handleDragEnd}
                   onClick={() => onJobClick(job)}
                 >
                   <strong>{formatTimeLabel(job)}</strong>
