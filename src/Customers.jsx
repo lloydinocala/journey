@@ -13,6 +13,11 @@ export default function Customers({ profile }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const [editingId, setEditingId] = useState(null)
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+
   const isSuperAdmin = profile.role === 'super_admin'
 
   useEffect(() => {
@@ -68,11 +73,31 @@ export default function Customers({ profile }) {
     }
   }
 
+  function startEdit(c) {
+    setEditingId(c.id)
+    setEditName(c.display_name)
+    setEditPhone(c.primary_phone || '')
+    setEditEmail(c.email_1 || '')
+  }
+
+  async function saveEdit(id) {
+    await supabase
+      .from('customers')
+      .update({
+        display_name: editName.trim(),
+        primary_phone: editPhone.trim() || null,
+        email_1: editEmail.trim() || null,
+      })
+      .eq('id', id)
+    setEditingId(null)
+    loadCustomers(selectedOrg)
+  }
+
   return (
     <div>
       <h2 className="page-title">Customers</h2>
 
-     {isSuperAdmin && (
+      {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>
           <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
           <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
@@ -128,19 +153,36 @@ export default function Customers({ profile }) {
               <th>Phone</th>
               <th>Email</th>
               <th>Added</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {customers.map((c) => (
-              <tr key={c.id}>
-                <td>{c.display_name}</td>
-                <td>{c.primary_phone || '—'}</td>
-                <td>{c.email_1 || '—'}</td>
-                <td>{new Date(c.created_at).toLocaleDateString()}</td>
-              </tr>
-            ))}
+            {customers.map((c) =>
+              editingId === c.id ? (
+                <tr key={c.id}>
+                  <td><input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} /></td>
+                  <td><input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} /></td>
+                  <td><input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} /></td>
+                  <td>{new Date(c.created_at).toLocaleDateString()}</td>
+                  <td style={{ display: 'flex', gap: 8 }}>
+                    <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(c.id)}>Save</button>
+                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={c.id}>
+                  <td>{c.display_name}</td>
+                  <td>{c.primary_phone || '—'}</td>
+                  <td>{c.email_1 || '—'}</td>
+                  <td>{new Date(c.created_at).toLocaleDateString()}</td>
+                  <td>
+                    <button className="logout-button" onClick={() => startEdit(c)}>Edit</button>
+                  </td>
+                </tr>
+              )
+            )}
             {customers.length === 0 && (
-              <tr><td colSpan="4" style={{ color: 'var(--mist)' }}>No customers yet.</td></tr>
+              <tr><td colSpan="5" style={{ color: 'var(--mist)' }}>No customers yet.</td></tr>
             )}
           </tbody>
         </table>
