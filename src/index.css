@@ -315,3 +315,8 @@ body {
 .org-picker-item:hover {
   background: var(--ink);
 }
+.edit-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
