@@ -320,3 +320,23 @@ body {
   flex-direction: column;
   gap: 6px;
 }
+.data-table {
+  table-layout: fixed;
+}
+
+.data-table th,
+.data-table td {
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.data-table th:first-child,
+.data-table td:first-child {
+  border-left: none;
+}
+
+.data-table td input,
+.data-table td select {
+  width: 100%;
+  box-sizing: border-box;
+}
