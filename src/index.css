@@ -340,3 +340,44 @@ body {
   width: 100%;
   box-sizing: border-box;
 }
+.grid-table {
+  display: grid;
+  grid-template-columns: 1.3fr 1.1fr 1fr 0.8fr 1.2fr 1fr;
+  width: 100%;
+  margin-bottom: 32px;
+}
+
+.grid-table .grid-cell {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+
+.grid-table .grid-cell:nth-child(6n+1) {
+  border-left: none;
+}
+
+.grid-table .grid-head {
+  font-size: 12px;
+  color: var(--mist);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.grid-table .grid-cell input,
+.grid-table .grid-cell select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.grid-actions {
+  flex-direction: row !important;
+  gap: 8px !important;
+  flex-wrap: wrap;
+}
