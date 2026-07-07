@@ -124,9 +124,22 @@ export default function Calendar({ profile }) {
     else setCurrentDate((d) => addDays(d, 1))
   }
 
+async function handleGridDrop(jobId, newDateStr, newTimeStr) {
+    await supabase
+      .from('jobs')
+      .update({ job_date: newDateStr, start_time: `${newDateStr}T${newTimeStr}:00` })
+      .eq('id', jobId)
+    loadJobs()
+  }
+
   function handleDayClick(day) {
     setCurrentDate(day)
     setViewMode('day')
+  }
+
+  async function handleMonthDrop(jobId, newDateStr) {
+    await supabase.from('jobs').update({ job_date: newDateStr }).eq('id', jobId)
+    loadJobs()
   }
 
   const dateLabel =
