@@ -286,7 +286,7 @@ body {
 .status-on_my_way { background: rgba(242, 169, 60, 0.15); color: var(--amber); }
 .status-in_progress { background: rgba(242, 169, 60, 0.15); color: var(--amber); }
 .status-completed { background: rgba(76, 217, 123, 0.15); color: #4CD97B; }
-.status-suspended { background: rgba(255, 107, 107, 0.15); color: #FF9C9C; }
+.status-suspended { background: rgba(255, 107, 107, 0.15); color: #C0392B; }
 .org-picker-wrap {
   position: relative;
   max-width: 320px;
