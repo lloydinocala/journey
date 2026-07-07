@@ -18,10 +18,12 @@ export default function Jobs({ profile }) {
   const [jobType, setJobType] = useState('')
   const [serviceComplaint, setServiceComplaint] = useState('')
   const [technicianId, setTechnicianId] = useState('')
+  const [overrideBan, setOverrideBan] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const [editingId, setEditingId] = useState(null)
+  const [editPropertyId, setEditPropertyId] = useState('')
   const [editJobDate, setEditJobDate] = useState('')
   const [editStartTime, setEditStartTime] = useState('')
   const [editDuration, setEditDuration] = useState('')
@@ -31,6 +33,7 @@ export default function Jobs({ profile }) {
   const [editStatus, setEditStatus] = useState('')
 
   const isSuperAdmin = profile.role === 'super_admin'
+  const canOverrideBan = profile.role === 'super_admin' || profile.role === 'org_admin'
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -47,13 +50,14 @@ export default function Jobs({ profile }) {
     const [propsRes, usersRes, jobsRes, jobTypesRes] = await Promise.all([
       supabase
         .from('properties')
-        .select('id, street_address, customer_id, customers!properties_customer_id_fkey(display_name)')
+        .select('id, street_address, customer_id, customers!properties_customer_id_fkey(display_name, is_banned)')
         .eq('org_id', orgId)
+        .eq('is_active', true)
         .order('street_address'),
       supabase.from('users').select('id, full_name').eq('org_id', orgId).order('full_name'),
       supabase
         .from('jobs')
-        .select('id, job_number, status, job_date, start_time, duration_hours, job_type, service_complaint, technician_1_id, properties(street_address), technician_1:technician_1_id(full_name)')
+        .select('id, job_number, status, job_date, start_time, duration_hours, job_type, service_complaint, technician_1_id, property_id, properties(street_address), technician_1:technician_1_id(full_name)')
         .eq('org_id', orgId)
         .order('job_date', { ascending: false }),
       supabase.from('job_types').select('id, name').eq('org_id', orgId).eq('is_active', true).order('sort_order'),
@@ -70,10 +74,22 @@ export default function Jobs({ profile }) {
     loadData(selectedOrg)
   }, [selectedOrg])
 
+  const selectedProperty = properties.find((p) => p.id === propertyId)
+  const isBannedSelected = selectedProperty?.customers?.is_banned
+
   async function handleAdd(e) {
     e.preventDefault()
     setError('')
     if (!propertyId || !jobDate) return
+
+    if (isBannedSelected && (!canOverrideBan || !overrideBan)) {
+      setError(
+        canOverrideBan
+          ? 'This customer is flagged Do Not Service. Check the override box to proceed.'
+          : 'This customer is flagged Do Not Service. An admin must schedule this job.'
+      )
+      return
+    }
 
     setSaving(true)
 
@@ -112,12 +128,14 @@ export default function Jobs({ profile }) {
       setDurationHours('1')
       setServiceComplaint('')
       setTechnicianId('')
+      setOverrideBan(false)
       loadData(selectedOrg)
     }
   }
 
   function startEdit(j) {
     setEditingId(j.id)
+    setEditPropertyId(j.property_id)
     setEditJobDate(j.job_date || '')
     setEditStartTime(j.start_time ? j.start_time.slice(11, 16) : '')
     setEditDuration(j.duration_hours != null ? String(j.duration_hours) : '')
@@ -129,9 +147,12 @@ export default function Jobs({ profile }) {
 
   async function saveEdit(id) {
     const startTimestamp = editStartTime ? `${editJobDate}T${editStartTime}:00` : null
+    const editProperty = properties.find((p) => p.id === editPropertyId)
     await supabase
       .from('jobs')
       .update({
+        property_id: editPropertyId,
+        customer_id: editProperty ? editProperty.customer_id : undefined,
         job_date: editJobDate,
         start_time: startTimestamp,
         duration_hours: editDuration ? parseFloat(editDuration) : null,
@@ -147,145 +168,3 @@ export default function Jobs({ profile }) {
 
   return (
     <div>
-      <h2 className="page-title">Jobs</h2>
-
-      {isSuperAdmin && (
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
-          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
-        </div>
-      )}
-
-      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 28, flexWrap: 'wrap' }}>
-        <div className="field">
-          <label htmlFor="propPick">Property</label>
-          <select id="propPick" value={propertyId} onChange={(e) => setPropertyId(e.target.value)} required>
-            <option value="">Select…</option>
-            {properties.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.street_address} — {p.customers?.display_name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="jobDate">Date</label>
-          <input id="jobDate" type="date" value={jobDate} onChange={(e) => setJobDate(e.target.value)} required />
-        </div>
-        <div className="field">
-          <label htmlFor="startTime">Start time</label>
-          <input id="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-        </div>
-        <div className="field">
-          <label htmlFor="duration">Duration (hrs)</label>
-          <input id="duration" type="number" step="0.5" value={durationHours} onChange={(e) => setDurationHours(e.target.value)} style={{ width: 80 }} />
-        </div>
-        <div className="field">
-          <label htmlFor="jobType">Type</label>
-          <select id="jobType" value={jobType} onChange={(e) => setJobType(e.target.value)}>
-            {jobTypes.map((t) => (
-              <option key={t.id} value={t.name}>{t.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="complaint">Service complaint</label>
-          <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling" />
-        </div>
-        <div className="field">
-          <label htmlFor="tech">Technician</label>
-          <select id="tech" value={technicianId} onChange={(e) => setTechnicianId(e.target.value)}>
-            <option value="">Unassigned</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.full_name}</option>
-            ))}
-          </select>
-        </div>
-        <button className="auth-button" type="submit" disabled={saving}>
-          {saving ? 'Adding…' : 'Add job'}
-        </button>
-      </form>
-
-      {error && <div className="auth-error">{error}</div>}
-
-      {loading ? (
-        <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Job #</th>
-              <th>Date</th>
-              <th>Address</th>
-              <th>Type</th>
-              <th>Complaint</th>
-              <th>Technician</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.map((j) =>
-              editingId === j.id ? (
-                <tr key={j.id}>
-                  <td>{j.job_number}</td>
-                  <td style={{ display: 'flex', gap: 6 }}>
-                    <input type="date" value={editJobDate} onChange={(e) => setEditJobDate(e.target.value)} />
-                    <input type="time" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} />
-                  </td>
-                  <td>{j.properties?.street_address || '—'}</td>
-                  <td>
-                    <select value={editJobType} onChange={(e) => setEditJobType(e.target.value)}>
-                      {jobTypes.map((t) => (
-                        <option key={t.id} value={t.name}>{t.name}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td><input type="text" value={editComplaint} onChange={(e) => setEditComplaint(e.target.value)} /></td>
-                  <td>
-                    <select value={editTechnicianId} onChange={(e) => setEditTechnicianId(e.target.value)}>
-                      <option value="">Unassigned</option>
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>{u.full_name}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
-                      <option value="scheduled">Scheduled</option>
-                      <option value="on_my_way">On my way</option>
-                      <option value="in_progress">In progress</option>
-                      <option value="completed">Completed</option>
-                      <option value="canceled">Canceled</option>
-                    </select>
-                  </td>
-                  <td style={{ display: 'flex', gap: 8 }}>
-                    <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(j.id)}>Save</button>
-                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
-                  </td>
-                </tr>
-              ) : (
-                <tr key={j.id}>
-                  <td>{j.job_number}</td>
-                  <td>{j.job_date}</td>
-                  <td>{j.properties?.street_address || '—'}</td>
-                  <td>{j.job_type}</td>
-                  <td>{j.service_complaint || '—'}</td>
-                  <td>{j.technician_1?.full_name || 'Unassigned'}</td>
-                  <td><span className={`status-pill status-${j.status}`}>{j.status}</span></td>
-                  <td>
-                    <button className="logout-button" onClick={() => startEdit(j)}>Edit</button>
-                  </td>
-                </tr>
-              )
-            )}
-            {jobs.length === 0 && (
-                        <tr><td colSpan="8" style={{ color: 'var(--mist)' }}>No jobs yet.</td></tr>
-            )}
-          </tbody>
-        </table>
-      )}
-    </div>
-  )
-}
-
