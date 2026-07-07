@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
+import OrgPicker from './OrgPicker'
 
 export default function Properties({ profile }) {
   const [orgs, setOrgs] = useState([])
