@@ -2,7 +2,16 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import CalendarGrid from './CalendarGrid'
-import { startOfWeek, addDays, formatWeekRangeLabel, formatDayLabel } from './utils/dateHelpers'
+import CalendarMonth from './CalendarMonth'
+import {
+  startOfWeek,
+  addDays,
+  addMonths,
+  formatWeekRangeLabel,
+  formatDayLabel,
+  formatMonthLabel,
+  getMonthGridDays,
+} from './utils/dateHelpers'
 
 export default function Calendar({ profile }) {
   const [orgs, setOrgs] = useState([])
@@ -17,6 +26,7 @@ export default function Calendar({ profile }) {
   const [selectedJob, setSelectedJob] = useState(null)
 
   const isSuperAdmin = profile.role === 'super_admin'
+  const effectiveView = isMobile ? 'day' : viewMode
 
   useEffect(() => {
     function handleResize() {
@@ -50,19 +60,24 @@ export default function Calendar({ profile }) {
       })
   }, [selectedOrg])
 
-  const days = isMobile || viewMode === 'day' ? [currentDate] : getWeekDays(currentDate)
-
-  function getWeekDays(date) {
-    const start = startOfWeek(date)
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i))
-  }
-
   function toLocalDateStr(d) {
     const year = d.getFullYear()
     const month = String(d.getMonth() + 1).padStart(2, '0')
     const date = String(d.getDate()).padStart(2, '0')
     return `${year}-${month}-${date}`
   }
+
+  function getWeekDays(date) {
+    const start = startOfWeek(date)
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i))
+  }
+
+  const days =
+    effectiveView === 'month'
+      ? getMonthGridDays(currentDate)
+      : effectiveView === 'week'
+      ? getWeekDays(currentDate)
+      : [currentDate]
 
   async function loadJobs() {
     if (!selectedOrg || days.length === 0) return
@@ -91,88 +106,34 @@ export default function Calendar({ profile }) {
 
   useEffect(() => {
     loadJobs()
-  }, [selectedOrg, currentDate, viewMode, isMobile])
+  }, [selectedOrg, currentDate, effectiveView])
 
   function goToday() {
     setCurrentDate(new Date())
   }
 
   function goPrev() {
-    const step = isMobile || viewMode === 'day' ? 1 : 7
-    setCurrentDate((d) => addDays(d, -step))
+    if (effectiveView === 'month') setCurrentDate((d) => addMonths(d, -1))
+    else if (effectiveView === 'week') setCurrentDate((d) => addDays(d, -7))
+    else setCurrentDate((d) => addDays(d, -1))
   }
 
   function goNext() {
-    const step = isMobile || viewMode === 'day' ? 1 : 7
-    setCurrentDate((d) => addDays(d, step))
+    if (effectiveView === 'month') setCurrentDate((d) => addMonths(d, 1))
+    else if (effectiveView === 'week') setCurrentDate((d) => addDays(d, 7))
+    else setCurrentDate((d) => addDays(d, 1))
+  }
+
+  function handleDayClick(day) {
+    setCurrentDate(day)
+    setViewMode('day')
   }
 
   const dateLabel =
-    isMobile || viewMode === 'day' ? formatDayLabel(currentDate) : formatWeekRangeLabel(startOfWeek(currentDate))
+    effectiveView === 'month'
+      ? formatMonthLabel(currentDate)
+      : effectiveView === 'week'
+      ? formatWeekRangeLabel(startOfWeek(currentDate))
+      : formatDayLabel(currentDate)
 
   return (
-<div>
-      <h2 className="page-title">Calendar</h2>
-
-      {isSuperAdmin && (
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
-          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
-        </div>
-      )}
-
-      <div className="calendar-toolbar">
-        <div className="calendar-nav-group">
-          <button className="calendar-nav-btn" onClick={goPrev}>‹</button>
-          <button className="logout-button" onClick={goToday}>Today</button>
-          <button className="calendar-nav-btn" onClick={goNext}>›</button>
-          <div className="calendar-date-label">{dateLabel}</div>
-        </div>
-
-        {!isMobile && (
-          <div className="calendar-view-toggle">
-            <button
-              className={`calendar-view-btn${viewMode === 'week' ? ' active' : ''}`}
-              onClick={() => setViewMode('week')}
-            >
-              Week
-            </button>
-            <button
-              className={`calendar-view-btn${viewMode === 'day' ? ' active' : ''}`}
-              onClick={() => setViewMode('day')}
-            >
-              Day
-            </button>
-          </div>
-        )}
-      </div>
-
-      {loading ? (
-        <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : (
-        <CalendarGrid
-          days={days}
-          jobs={jobs}
-          businessStart={businessStart}
-          businessEnd={businessEnd}
-          onJobClick={setSelectedJob}
-        />
-      )}
-
-      {selectedJob && (
-        <div className="auth-card" style={{ maxWidth: 420, marginTop: 20 }}>
-          <h3 style={{ marginTop: 0 }}>{selectedJob.job_number}</h3>
-          <p style={{ margin: '4px 0' }}><strong>{selectedJob.customer_name}</strong></p>
-          <p style={{ margin: '4px 0', color: 'var(--mist)' }}>{selectedJob.address}</p>
-          <p style={{ margin: '4px 0' }}>{selectedJob.job_date} — {selectedJob.job_type}</p>
-          <p style={{ margin: '4px 0' }}>{selectedJob.service_complaint || 'No complaint noted'}</p>
-          <p style={{ margin: '4px 0' }}>Tech: {selectedJob.technician_1?.full_name || 'Unassigned'}</p>
-          <p style={{ margin: '4px 0' }}>
-            <span className={`status-pill status-${selectedJob.status}`}>{selectedJob.status}</span>
-          </p>
-          <button className="logout-button" onClick={() => setSelectedJob(null)} style={{ marginTop: 8 }}>Close</button>
-        </div>
-      )}
-    </div>
-  )
-}
