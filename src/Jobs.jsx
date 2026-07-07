@@ -144,10 +144,9 @@ export default function Jobs({ profile }) {
         <div className="field">
           <label htmlFor="jobType">Type</label>
           <select id="jobType" value={jobType} onChange={(e) => setJobType(e.target.value)}>
-            <option>Job</option>
-            <option>Recurring job</option>
-            <option>Estimate</option>
-            <option>Event</option>
+            {jobTypes.map((t) => (
+              <option key={t.id} value={t.name}>{t.name}</option>
+            ))}
           </select>
         </div>
         <div className="field">
