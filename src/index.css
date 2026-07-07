@@ -1,11 +1,11 @@
 :root {
-  --ink: #10192B;
-  --panel: #16213A;
-  --border: rgba(255, 255, 255, 0.08);
+  --ink: #EEF1F6;
+  --panel: #FFFFFF;
+  --border: rgba(15, 23, 42, 0.1);
   --route-blue: #2F5DE3;
-  --amber: #F2A93C;
-  --mist: #8A93A6;
-  --paper: #F7F8FA;
+  --amber: #B8720A;
+  --mist: #64748B;
+  --paper: #152238;
 }
 
 * {
