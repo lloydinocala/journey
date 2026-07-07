@@ -111,3 +111,68 @@ export default function Calendar({ profile }) {
     isMobile || viewMode === 'day' ? formatDayLabel(currentDate) : formatWeekRangeLabel(startOfWeek(currentDate))
 
   return (
+<div>
+      <h2 className="page-title">Calendar</h2>
+
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+        </div>
+      )}
+
+      <div className="calendar-toolbar">
+        <div className="calendar-nav-group">
+          <button className="calendar-nav-btn" onClick={goPrev}>‹</button>
+          <button className="logout-button" onClick={goToday}>Today</button>
+          <button className="calendar-nav-btn" onClick={goNext}>›</button>
+          <div className="calendar-date-label">{dateLabel}</div>
+        </div>
+
+        {!isMobile && (
+          <div className="calendar-view-toggle">
+            <button
+              className={`calendar-view-btn${viewMode === 'week' ? ' active' : ''}`}
+              onClick={() => setViewMode('week')}
+            >
+              Week
+            </button>
+            <button
+              className={`calendar-view-btn${viewMode === 'day' ? ' active' : ''}`}
+              onClick={() => setViewMode('day')}
+            >
+              Day
+            </button>
+          </div>
+        )}
+      </div>
+
+      {loading ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : (
+        <CalendarGrid
+          days={days}
+          jobs={jobs}
+          businessStart={businessStart}
+          businessEnd={businessEnd}
+          onJobClick={setSelectedJob}
+        />
+      )}
+
+      {selectedJob && (
+        <div className="auth-card" style={{ maxWidth: 420, marginTop: 20 }}>
+          <h3 style={{ marginTop: 0 }}>{selectedJob.job_number}</h3>
+          <p style={{ margin: '4px 0' }}><strong>{selectedJob.customer_name}</strong></p>
+          <p style={{ margin: '4px 0', color: 'var(--mist)' }}>{selectedJob.address}</p>
+          <p style={{ margin: '4px 0' }}>{selectedJob.job_date} — {selectedJob.job_type}</p>
+          <p style={{ margin: '4px 0' }}>{selectedJob.service_complaint || 'No complaint noted'}</p>
+          <p style={{ margin: '4px 0' }}>Tech: {selectedJob.technician_1?.full_name || 'Unassigned'}</p>
+          <p style={{ margin: '4px 0' }}>
+            <span className={`status-pill status-${selectedJob.status}`}>{selectedJob.status}</span>
+          </p>
+          <button className="logout-button" onClick={() => setSelectedJob(null)} style={{ marginTop: 8 }}>Close</button>
+        </div>
+      )}
+    </div>
+  )
+}
