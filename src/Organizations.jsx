@@ -86,6 +86,34 @@ export default function Organizations() {
     loadOrgs()
   }
 
+  async function archiveOrg(org) {
+    const reason = window.prompt(
+      `Archive ${org.name}? This ends their license permanently (they can still be reinstated later if they return).\n\nA reason is required and will be kept on record:`
+    )
+    if (reason === null) return
+    if (!reason.trim()) {
+      alert('A reason is required to archive an organization.')
+      return
+    }
+
+    const { data: userData } = await supabase.auth.getUser()
+    await supabase
+      .from('organizations')
+      .update({
+        billing_status: 'canceled',
+        canceled_reason: reason.trim(),
+        canceled_at: new Date().toISOString(),
+        canceled_by: userData.user.id,
+      })
+      .eq('id', org.id)
+    loadOrgs()
+  }
+
+  async function reinstateOrg(org) {
+    if (!window.confirm(`Reinstate ${org.name}? They'll be restored to active status.`)) return
+    await supabase.from('organizations').update({ billing_status: 'active' }).eq('id', org.id)
+    loadOrgs()
+  }
   function startEdit(org) {
     setEditingId(org.id)
     setEditName(org.name)
