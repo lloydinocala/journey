@@ -57,14 +57,32 @@ export default function Organizations() {
   }
 
   async function toggleFreeze(org) {
-    const nextStatus = org.billing_status === 'suspended' ? 'active' : 'suspended'
-    const confirmMsg =
-      nextStatus === 'suspended'
-        ? `Freeze ${org.name}? Every user there will be locked out immediately.`
-        : `Unfreeze ${org.name}? Access will be restored immediately.`
-    if (!window.confirm(confirmMsg)) return
+    if (org.billing_status === 'suspended') {
+      if (!window.confirm(`Unfreeze ${org.name}? Access will be restored immediately.`)) return
+      await supabase.from('organizations').update({ billing_status: 'active' }).eq('id', org.id)
+      loadOrgs()
+      return
+    }
 
-    await supabase.from('organizations').update({ billing_status: nextStatus }).eq('id', org.id)
+    const reason = window.prompt(
+      `Freeze ${org.name}? Every user there will be locked out immediately.\n\nA reason is required and will be kept on record:`
+    )
+    if (reason === null) return // cancelled
+    if (!reason.trim()) {
+      alert('A reason is required to freeze an organization.')
+      return
+    }
+
+    const { data: userData } = await supabase.auth.getUser()
+    await supabase
+      .from('organizations')
+      .update({
+        billing_status: 'suspended',
+        frozen_reason: reason.trim(),
+        frozen_at: new Date().toISOString(),
+        frozen_by: userData.user.id,
+      })
+      .eq('id', org.id)
     loadOrgs()
   }
 
