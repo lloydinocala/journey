@@ -66,3 +66,53 @@ export function minutesToTimeString(minutes) {
   const m = minutes % 60
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
+export const SLOT_HEIGHT_PX = 20
+
+export function timeToPixelY(timeStr, businessStart, businessEnd) {
+  const t = timeStringToMinutes(timeStr)
+  const bStart = timeStringToMinutes(businessStart)
+  const bEnd = timeStringToMinutes(businessEnd)
+
+  if (t <= bStart) {
+    return (t / 30) * SLOT_HEIGHT_PX
+  }
+  const preBusiness = (bStart / 30) * SLOT_HEIGHT_PX
+  if (t <= bEnd) {
+    return preBusiness + ((t - bStart) / 15) * SLOT_HEIGHT_PX
+  }
+  const businessSpan = ((bEnd - bStart) / 15) * SLOT_HEIGHT_PX
+  const postBusiness = ((t - bEnd) / 30) * SLOT_HEIGHT_PX
+  return preBusiness + businessSpan + postBusiness
+}
+
+export function getTotalGridHeight(businessStart, businessEnd) {
+  return timeToPixelY('24:00', businessStart, businessEnd)
+}
+
+export function pixelYToTimeString(pixelY, businessStart, businessEnd) {
+  const bStart = timeStringToMinutes(businessStart)
+  const bEnd = timeStringToMinutes(businessEnd)
+  const preBusiness = (bStart / 30) * SLOT_HEIGHT_PX
+  const businessSpan = ((bEnd - bStart) / 15) * SLOT_HEIGHT_PX
+
+  let minutes
+  if (pixelY <= preBusiness) {
+    minutes = Math.round(((pixelY / SLOT_HEIGHT_PX) * 30) / 30) * 30
+  } else if (pixelY <= preBusiness + businessSpan) {
+    minutes = bStart + Math.round((((pixelY - preBusiness) / SLOT_HEIGHT_PX) * 15) / 15) * 15
+  } else {
+    minutes = bEnd + Math.round((((pixelY - preBusiness - businessSpan) / SLOT_HEIGHT_PX) * 30) / 30) * 30
+  }
+  minutes = Math.max(0, Math.min(1439, minutes))
+  return minutesToTimeString(minutes)
+}
+
+export function getHourMarkers(businessStart, businessEnd) {
+  const markers = []
+  for (let h = 0; h < 24; h++) {
+    const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`
+    const timeStr = `${String(h).padStart(2, '0')}:00`
+    markers.push({ hour: h, label, pixelY: timeToPixelY(timeStr, businessStart, businessEnd) })
+  }
+  return markers
+}
