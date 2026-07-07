@@ -192,20 +192,33 @@ export default function Organizations() {
                 <tr key={org.id}>
                   <td>{org.name}</td>
                   <td>{org.slug}</td>
-                 <td>
+                <td>
                     <span
                       className={`status-pill status-${org.billing_status}`}
-                      title={org.billing_status === 'suspended' ? (org.frozen_reason || 'No reason recorded') : ''}
+                      title={
+                        org.billing_status === 'suspended'
+                          ? (org.frozen_reason || 'No reason recorded')
+                          : org.billing_status === 'canceled'
+                          ? (org.canceled_reason || 'No reason recorded')
+                          : ''
+                      }
                     >
                       {org.billing_status}
                     </span>
                   </td>
                   <td>{new Date(org.created_at).toLocaleDateString()}</td>
-                  <td style={{ display: 'flex', gap: 8 }}>
+                  <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button className="logout-button" onClick={() => startEdit(org)}>Edit</button>
-                    <button className="logout-button" onClick={() => toggleFreeze(org)}>
-                      {org.billing_status === 'suspended' ? 'Unfreeze' : 'Freeze'}
-                    </button>
+                    {org.billing_status === 'canceled' ? (
+                      <button className="logout-button" onClick={() => reinstateOrg(org)}>Reinstate</button>
+                    ) : (
+                      <>
+                        <button className="logout-button" onClick={() => toggleFreeze(org)}>
+                          {org.billing_status === 'suspended' ? 'Unfreeze' : 'Freeze'}
+                        </button>
+                        <button className="logout-button" onClick={() => archiveOrg(org)}>Archive</button>
+                      </>
+                    )}
                   </td>
                 </tr>
               )
