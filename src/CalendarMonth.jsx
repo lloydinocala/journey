@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function toLocalDateStr(d) {
@@ -7,7 +9,8 @@ function toLocalDateStr(d) {
   return `${year}-${month}-${date}`
 }
 
-export default function CalendarMonth({ monthDate, gridDays, jobs, onJobClick, onDayClick }) {
+export default function CalendarMonth({ monthDate, gridDays, jobs, onJobClick, onDayClick, onJobDrop }) {
+  const [draggingId, setDraggingId] = useState(null)
   const today = new Date()
   const currentMonth = monthDate.getMonth()
 
@@ -21,6 +24,19 @@ export default function CalendarMonth({ monthDate, gridDays, jobs, onJobClick, o
     const ampm = h >= 12 ? 'PM' : 'AM'
     const h12 = h % 12 === 0 ? 12 : h % 12
     return `${h12}:${String(m).padStart(2, '0')}`
+  }
+
+  function handleDragStart(e, job) {
+    e.dataTransfer.setData('text/plain', job.id)
+    setDraggingId(job.id)
+  }
+
+  function handleDrop(e, day) {
+    e.preventDefault()
+    const jobId = e.dataTransfer.getData('text/plain')
+    if (!jobId || !onJobDrop) return
+    onJobDrop(jobId, toLocalDateStr(day))
+    setDraggingId(null)
   }
 
   return (
@@ -39,6 +55,8 @@ export default function CalendarMonth({ monthDate, gridDays, jobs, onJobClick, o
           <div
             key={toLocalDateStr(day)}
             className={`calendar-month-cell${isOutside ? ' outside-month' : ''}${isToday ? ' is-today' : ''}`}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => handleDrop(e, day)}
           >
             <div className="calendar-month-day-number" style={{ cursor: 'pointer' }} onClick={() => onDayClick(day)}>
               {day.getDate()}
@@ -47,7 +65,13 @@ export default function CalendarMonth({ monthDate, gridDays, jobs, onJobClick, o
               <div
                 key={job.id}
                 className="calendar-month-job-pill"
-                style={{ backgroundColor: job.technician_1?.calendar_color || '#8A93A6' }}
+                style={{
+                  backgroundColor: job.technician_1?.calendar_color || '#8A93A6',
+                  opacity: draggingId === job.id ? 0.5 : 1,
+                }}
+                draggable="true"
+                onDragStart={(e) => handleDragStart(e, job)}
+                onDragEnd={() => setDraggingId(null)}
                 onClick={() => onJobClick(job)}
               >
                 {formatJobTime(job)} {job.customer_name}
