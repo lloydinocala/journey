@@ -51,6 +51,18 @@ export default function Organizations() {
     }
   }
 
+  async function toggleFreeze(org) {
+    const nextStatus = org.billing_status === 'suspended' ? 'active' : 'suspended'
+    const confirmMsg =
+      nextStatus === 'suspended'
+        ? `Freeze ${org.name}? Every user there will be locked out immediately.`
+        : `Unfreeze ${org.name}? Access will be restored immediately.`
+    if (!window.confirm(confirmMsg)) return
+
+    await supabase.from('organizations').update({ billing_status: nextStatus }).eq('id', org.id)
+    loadOrgs()
+  }
+
   return (
     <div>
       <h2 className="page-title">Organizations</h2>
@@ -84,6 +96,7 @@ export default function Organizations() {
               <th>Slug</th>
               <th>Status</th>
               <th>Created</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -97,6 +110,11 @@ export default function Organizations() {
                   </span>
                 </td>
                 <td>{new Date(org.created_at).toLocaleDateString()}</td>
+                <td>
+                  <button className="logout-button" onClick={() => toggleFreeze(org)}>
+                    {org.billing_status === 'suspended' ? 'Unfreeze' : 'Freeze'}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
