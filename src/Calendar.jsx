@@ -195,12 +195,13 @@ async function handleGridDrop(jobId, newDateStr, newTimeStr) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : effectiveView === 'month' ? (
-        <CalendarMonth
+       <CalendarMonth
           monthDate={currentDate}
           gridDays={days}
           jobs={jobs}
           onJobClick={setSelectedJob}
           onDayClick={handleDayClick}
+          onJobDrop={handleMonthDrop}
         />
       ) : (
         <CalendarGrid
@@ -209,6 +210,7 @@ async function handleGridDrop(jobId, newDateStr, newTimeStr) {
           businessStart={businessStart}
           businessEnd={businessEnd}
           onJobClick={setSelectedJob}
+          onJobDrop={handleGridDrop}
         />
       )}
 
