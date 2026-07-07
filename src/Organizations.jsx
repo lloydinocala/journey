@@ -16,6 +16,10 @@ export default function Organizations() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const [editingId, setEditingId] = useState(null)
+  const [editName, setEditName] = useState('')
+  const [editSlug, setEditSlug] = useState('')
+
   async function loadOrgs() {
     setLoading(true)
     const { data, error } = await supabase
@@ -63,6 +67,25 @@ export default function Organizations() {
     loadOrgs()
   }
 
+  function startEdit(org) {
+    setEditingId(org.id)
+    setEditName(org.name)
+    setEditSlug(org.slug)
+  }
+
+  function handleEditNameChange(value) {
+    setEditName(value)
+  }
+
+  async function saveEdit(id) {
+    await supabase
+      .from('organizations')
+      .update({ name: editName.trim(), slug: editSlug.trim() })
+      .eq('id', id)
+    setEditingId(null)
+    loadOrgs()
+  }
+
   return (
     <div>
       <h2 className="page-title">Organizations</h2>
@@ -100,23 +123,41 @@ export default function Organizations() {
             </tr>
           </thead>
           <tbody>
-            {orgs.map((org) => (
-              <tr key={org.id}>
-                <td>{org.name}</td>
-                <td>{org.slug}</td>
-                <td>
-                  <span className={`status-pill status-${org.billing_status}`}>
-                    {org.billing_status}
-                  </span>
-                </td>
-                <td>{new Date(org.created_at).toLocaleDateString()}</td>
-                <td>
-                  <button className="logout-button" onClick={() => toggleFreeze(org)}>
-                    {org.billing_status === 'suspended' ? 'Unfreeze' : 'Freeze'}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {orgs.map((org) =>
+              editingId === org.id ? (
+                <tr key={org.id}>
+                  <td><input type="text" value={editName} onChange={(e) => handleEditNameChange(e.target.value)} /></td>
+                  <td><input type="text" value={editSlug} onChange={(e) => setEditSlug(e.target.value)} /></td>
+                  <td>
+                    <span className={`status-pill status-${org.billing_status}`}>
+                      {org.billing_status}
+                    </span>
+                  </td>
+                  <td>{new Date(org.created_at).toLocaleDateString()}</td>
+                  <td style={{ display: 'flex', gap: 8 }}>
+                    <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(org.id)}>Save</button>
+                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={org.id}>
+                  <td>{org.name}</td>
+                  <td>{org.slug}</td>
+                  <td>
+                    <span className={`status-pill status-${org.billing_status}`}>
+                      {org.billing_status}
+                    </span>
+                  </td>
+                  <td>{new Date(org.created_at).toLocaleDateString()}</td>
+                  <td style={{ display: 'flex', gap: 8 }}>
+                    <button className="logout-button" onClick={() => startEdit(org)}>Edit</button>
+                    <button className="logout-button" onClick={() => toggleFreeze(org)}>
+                      {org.billing_status === 'suspended' ? 'Unfreeze' : 'Freeze'}
+                    </button>
+                  </td>
+                </tr>
+              )
+            )}
           </tbody>
         </table>
       )}
