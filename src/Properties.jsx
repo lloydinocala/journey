@@ -265,14 +265,14 @@ export default function Properties({ profile }) {
             {properties.map((p) =>
               editingId === p.id ? (
                 <tr key={p.id}>
-                  <td style={{ display: 'flex', gap: 6 }}>
-                    <input type="text" value={editStreet} onChange={(e) => setEditStreet(e.target.value)} placeholder="Street" style={{ flex: 1 }} />
-                    <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} placeholder="Unit" style={{ width: 60 }} />
+                 <td className="edit-stack">
+                    <input type="text" value={editStreet} onChange={(e) => setEditStreet(e.target.value)} placeholder="Street" />
+                    <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} placeholder="Unit" />
                   </td>
-                  <td style={{ display: 'flex', gap: 6 }}>
-                    <input type="text" value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="City" style={{ width: 100 }} />
-                    <input type="text" value={editState} onChange={(e) => setEditState(e.target.value)} placeholder="ST" style={{ width: 40 }} />
-                    <input type="text" value={editZip} onChange={(e) => setEditZip(e.target.value)} placeholder="Zip" style={{ width: 70 }} />
+                  <td className="edit-stack">
+                    <input type="text" value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="City" />
+                    <input type="text" value={editState} onChange={(e) => setEditState(e.target.value)} placeholder="State" />
+                    <input type="text" value={editZip} onChange={(e) => setEditZip(e.target.value)} placeholder="Zip" />
                   </td>
                   <td>
                     <select value={editCustomerId} onChange={(e) => setEditCustomerId(e.target.value)}>
