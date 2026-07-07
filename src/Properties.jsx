@@ -177,3 +177,146 @@ export default function Properties({ profile }) {
 
   return (
     <div>
+<h2 className="page-title">Properties</h2>
+
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+        </div>
+      )}
+
+      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
+        <div className="field">
+          <label htmlFor="custPick">Customer</label>
+          <select id="custPick" value={customerId} onChange={(e) => setCustomerId(e.target.value)} required>
+            <option value="">Select…</option>
+            {customers.map((c) => (
+              <option key={c.id} value={c.id}>{c.display_name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="street">Street address</label>
+          <input id="street" type="text" value={street} onChange={(e) => setStreet(e.target.value)} placeholder="123 SE 91st Court Rd" required />
+        </div>
+        <div className="field">
+          <label htmlFor="unit">Unit</label>
+          <input id="unit" type="text" value={unit} onChange={(e) => setUnit(e.target.value)} style={{ width: 80 }} />
+        </div>
+        <div className="field">
+          <label htmlFor="city">City</label>
+          <input id="city" type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Summerfield" />
+        </div>
+        <div className="field">
+          <label htmlFor="state">State</label>
+          <input id="state" type="text" value={state} onChange={(e) => setState(e.target.value)} style={{ width: 60 }} />
+        </div>
+        <div className="field">
+          <label htmlFor="zip">Zip</label>
+          <input id="zip" type="text" value={zip} onChange={(e) => setZip(e.target.value)} style={{ width: 90 }} />
+        </div>
+        <div className="field">
+          <label htmlFor="gateCode">Gate code</label>
+          <input id="gateCode" type="text" value={gateCode} onChange={(e) => setGateCode(e.target.value)} style={{ width: 100 }} />
+        </div>
+        <div className="field">
+          <label htmlFor="tenantName">Tenant (optional)</label>
+          <input id="tenantName" type="text" value={tenantName} onChange={(e) => setTenantName(e.target.value)} placeholder="if rental" />
+        </div>
+        <div className="field">
+          <label htmlFor="tenantPhone">Tenant phone</label>
+          <input id="tenantPhone" type="tel" value={tenantPhone} onChange={(e) => setTenantPhone(e.target.value)} />
+        </div>
+        <button className="auth-button" type="submit" disabled={saving}>
+          {saving ? 'Adding…' : 'Add property'}
+        </button>
+      </form>
+
+      <div style={{ marginBottom: 20 }}>
+        <label className="nav-link" style={{ cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+            style={{ marginRight: 6 }}
+          />
+          Show archived properties
+        </label>
+      </div>
+
+      {error && <div className="auth-error">{error}</div>}
+
+      {loading ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Address</th>
+              <th>City/State/Zip</th>
+              <th>Customer</th>
+              <th>Gate code</th>
+              <th>Tenant</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {properties.map((p) =>
+              editingId === p.id ? (
+                <tr key={p.id}>
+                  <td style={{ display: 'flex', gap: 6 }}>
+                    <input type="text" value={editStreet} onChange={(e) => setEditStreet(e.target.value)} placeholder="Street" style={{ flex: 1 }} />
+                    <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} placeholder="Unit" style={{ width: 60 }} />
+                  </td>
+                  <td style={{ display: 'flex', gap: 6 }}>
+                    <input type="text" value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="City" style={{ width: 100 }} />
+                    <input type="text" value={editState} onChange={(e) => setEditState(e.target.value)} placeholder="ST" style={{ width: 40 }} />
+                    <input type="text" value={editZip} onChange={(e) => setEditZip(e.target.value)} placeholder="Zip" style={{ width: 70 }} />
+                  </td>
+                  <td>
+                    <select value={editCustomerId} onChange={(e) => setEditCustomerId(e.target.value)}>
+                      {customers.map((c) => (
+                        <option key={c.id} value={c.id}>{c.display_name}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td><input type="text" value={editGateCode} onChange={(e) => setEditGateCode(e.target.value)} style={{ width: 80 }} /></td>
+                  <td style={{ display: 'flex', gap: 6 }}>
+                    <input type="text" value={editTenantName} onChange={(e) => setEditTenantName(e.target.value)} placeholder="Tenant name" style={{ width: 110 }} />
+                    <input type="tel" value={editTenantPhone} onChange={(e) => setEditTenantPhone(e.target.value)} placeholder="Phone" style={{ width: 110 }} />
+                  </td>
+                  <td style={{ display: 'flex', gap: 8 }}>
+                    <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(p.id)}>Save</button>
+                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={p.id}>
+                  <td>{p.street_address}{p.unit ? ` #${p.unit}` : ''}{!p.is_active && <span className="status-pill status-canceled" style={{ marginLeft: 6 }}>Archived</span>}</td>
+                  <td>{[p.city, p.state, p.zip].filter(Boolean).join(', ')}</td>
+                  <td>{p.customers?.display_name || '—'}</td>
+                  <td>{p.gate_code || '—'}</td>
+                  <td>
+                    {p.property_tenants && p.property_tenants[0]
+                      ? `${p.property_tenants[0].name}${p.property_tenants[0].phone ? ' — ' + p.property_tenants[0].phone : ''}`
+                      : '—'}
+                  </td>
+                  <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button className="logout-button" onClick={() => startEdit(p)}>Edit</button>
+                    <button className="logout-button" onClick={() => toggleArchive(p)}>
+                      {p.is_active ? 'Archive' : 'Reactivate'}
+                    </button>
+                  </td>
+                </tr>
+              )
+            )}
+            {properties.length === 0 && (
+              <tr><td colSpan="6" style={{ color: 'var(--mist)' }}>No properties found.</td></tr>
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
