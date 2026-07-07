@@ -21,6 +21,14 @@ export default function Properties({ profile }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const [editingId, setEditingId] = useState(null)
+  const [editStreet, setEditStreet] = useState('')
+  const [editUnit, setEditUnit] = useState('')
+  const [editCity, setEditCity] = useState('')
+  const [editState, setEditState] = useState('')
+  const [editZip, setEditZip] = useState('')
+  const [editGateCode, setEditGateCode] = useState('')
+
   const isSuperAdmin = profile.role === 'super_admin'
 
   useEffect(() => {
@@ -43,7 +51,7 @@ export default function Properties({ profile }) {
       supabase.from('customers').select('id, display_name').eq('org_id', orgId).order('display_name'),
       supabase
         .from('properties')
-       .select('id, street_address, unit, city, state, zip, gate_code, created_at, customers!properties_customer_id_fkey(display_name)')
+        .select('id, street_address, unit, city, state, zip, gate_code, created_at, customers!properties_customer_id_fkey(display_name)')
         .eq('org_id', orgId)
         .order('created_at', { ascending: false }),
     ])
@@ -102,6 +110,32 @@ export default function Properties({ profile }) {
     setGateCode('')
     setTenantName('')
     setTenantPhone('')
+    loadData(selectedOrg)
+  }
+
+  function startEdit(p) {
+    setEditingId(p.id)
+    setEditStreet(p.street_address)
+    setEditUnit(p.unit || '')
+    setEditCity(p.city || '')
+    setEditState(p.state || '')
+    setEditZip(p.zip || '')
+    setEditGateCode(p.gate_code || '')
+  }
+
+  async function saveEdit(id) {
+    await supabase
+      .from('properties')
+      .update({
+        street_address: editStreet.trim(),
+        unit: editUnit.trim() || null,
+        city: editCity.trim() || null,
+        state: editState.trim() || null,
+        zip: editZip.trim() || null,
+        gate_code: editGateCode.trim() || null,
+      })
+      .eq('id', id)
+    setEditingId(null)
     loadData(selectedOrg)
   }
 
@@ -175,19 +209,43 @@ export default function Properties({ profile }) {
               <th>City/State/Zip</th>
               <th>Customer</th>
               <th>Gate code</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {properties.map((p) => (
-              <tr key={p.id}>
-                <td>{p.street_address}{p.unit ? ` #${p.unit}` : ''}</td>
-                <td>{[p.city, p.state, p.zip].filter(Boolean).join(', ')}</td>
-                <td>{p.customers?.display_name || '—'}</td>
-                <td>{p.gate_code || '—'}</td>
-              </tr>
-            ))}
+            {properties.map((p) =>
+              editingId === p.id ? (
+                <tr key={p.id}>
+                  <td style={{ display: 'flex', gap: 6 }}>
+                    <input type="text" value={editStreet} onChange={(e) => setEditStreet(e.target.value)} placeholder="Street" style={{ flex: 1 }} />
+                    <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} placeholder="Unit" style={{ width: 60 }} />
+                  </td>
+                  <td style={{ display: 'flex', gap: 6 }}>
+                    <input type="text" value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="City" style={{ width: 100 }} />
+                    <input type="text" value={editState} onChange={(e) => setEditState(e.target.value)} placeholder="ST" style={{ width: 40 }} />
+                    <input type="text" value={editZip} onChange={(e) => setEditZip(e.target.value)} placeholder="Zip" style={{ width: 70 }} />
+                  </td>
+                  <td>{p.customers?.display_name || '—'}</td>
+                  <td><input type="text" value={editGateCode} onChange={(e) => setEditGateCode(e.target.value)} style={{ width: 80 }} /></td>
+                  <td style={{ display: 'flex', gap: 8 }}>
+                    <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(p.id)}>Save</button>
+                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={p.id}>
+                  <td>{p.street_address}{p.unit ? ` #${p.unit}` : ''}</td>
+                  <td>{[p.city, p.state, p.zip].filter(Boolean).join(', ')}</td>
+                  <td>{p.customers?.display_name || '—'}</td>
+                  <td>{p.gate_code || '—'}</td>
+                  <td>
+                    <button className="logout-button" onClick={() => startEdit(p)}>Edit</button>
+                  </td>
+                </tr>
+              )
+            )}
             {properties.length === 0 && (
-              <tr><td colSpan="4" style={{ color: 'var(--mist)' }}>No properties yet.</td></tr>
+              <tr><td colSpan="5" style={{ color: 'var(--mist)' }}>No properties yet.</td></tr>
             )}
           </tbody>
         </table>
