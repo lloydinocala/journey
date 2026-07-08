@@ -91,7 +91,8 @@ export default function Invoice({ profile }) {
     setDiscountType(existingInvoice.discount_type || 'dollar')
     setDiscountAmount(String(existingInvoice.discount_amount || 0))
 
-    await loadLineItems(existingInvoice.id)
+   await loadLineItems(existingInvoice.id)
+    await loadApprovals(jobId)
 
     const { data: cats } = await supabase
       .from('services')
