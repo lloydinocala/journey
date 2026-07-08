@@ -63,6 +63,7 @@ export default function App() {
           <Route path="/settings" element={<Settings profile={profile} />} />
           <Route path="/team" element={<Team profile={profile} />} />
           <Route path="/calendar" element={<Calendar profile={profile} />} />
+          <Route path="/pricebook" element={<Pricebook profile={profile} />} />
           {profile.role === 'super_admin' && (
             <Route path="/announcements" element={<Announcements />} />
           )}
