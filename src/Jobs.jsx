@@ -428,8 +428,9 @@ export default function Jobs({ profile }) {
                 <div className="grid-cell">{j.service_complaint || '—'}</div>
                 <div className="grid-cell">{techNames(j)}</div>
                 <div className="grid-cell"><span className={`status-pill status-${j.status}`}>{j.status}</span></div>
-                <div className="grid-cell grid-actions">
+               <div className="grid-cell grid-actions">
                   <button className="logout-button" onClick={() => startEdit(j)}>Edit</button>
+                  <Link to={`/invoice/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Invoice</Link>
                 </div>
               </>
             )
