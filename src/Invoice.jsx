@@ -70,8 +70,9 @@ export default function Invoice({ profile }) {
 
       if (jobData.trip_charge_price_id && jobData.trip_charge) {
         const tc = jobData.trip_charge
-        await supabase.from('invoice_line_items').insert({
+       await supabase.from('invoice_line_items').insert({
           invoice_id: created.id,
+          org_id: jobData.org_id,
           description: tc.customer_display,
           unit_price: tc.price,
           quantity: 1,
