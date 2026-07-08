@@ -3,6 +3,26 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import SignaturePad from './SignaturePad'
 
+function ApprovalSignatureImage({ path }) {
+  const [url, setUrl] = useState(null)
+
+  useEffect(() => {
+    if (!path) return
+    supabase.storage.from('signatures').createSignedUrl(path, 3600).then(({ data }) => {
+      if (data) setUrl(data.signedUrl)
+    })
+  }, [path])
+
+  if (!url) return null
+  return (
+    <img
+      src={url}
+      alt="Signature"
+      style={{ maxWidth: 200, border: '1px solid var(--border)', borderRadius: 6, marginTop: 6, background: 'white' }}
+    />
+  )
+}
+
 export default function Invoice({ profile }) {
   const { jobId } = useParams()
   const [job, setJob] = useState(null)
