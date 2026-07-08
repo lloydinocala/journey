@@ -47,6 +47,7 @@ export default function Invoice({ profile }) {
 
   const [discountType, setDiscountType] = useState('dollar')
   const [discountAmount, setDiscountAmount] = useState('0')
+  const [taxRate, setTaxRate] = useState(0)
 
   const [approvals, setApprovals] = useState([])
   const [approvingStage, setApprovingStage] = useState(null)
@@ -58,7 +59,7 @@ export default function Invoice({ profile }) {
     setLoading(true)
     const { data: jobData } = await supabase
       .from('jobs')
-.select('id, job_number, job_date, org_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
+      .select('id, job_number, job_date, org_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
       .eq('id', jobId)
       .single()
     setJob(jobData)
@@ -97,7 +98,7 @@ export default function Invoice({ profile }) {
 
       if (jobData.trip_charge_price_id && jobData.trip_charge) {
         const tc = jobData.trip_charge
-       await supabase.from('invoice_line_items').insert({
+        await supabase.from('invoice_line_items').insert({
           invoice_id: created.id,
           org_id: jobData.org_id,
           description: tc.customer_display,
@@ -114,7 +115,7 @@ export default function Invoice({ profile }) {
     setDiscountType(existingInvoice.discount_type || 'dollar')
     setDiscountAmount(String(existingInvoice.discount_amount || 0))
 
-   await loadLineItems(existingInvoice.id)
+    await loadLineItems(existingInvoice.id)
     await loadApprovals(jobId)
 
     const { data: cats } = await supabase
@@ -125,10 +126,20 @@ export default function Invoice({ profile }) {
       .neq('category', 'TRIP CHARGES')
     setCategories([...new Set((cats || []).map((c) => c.category))].sort())
 
+    const { data: orgData } = await supabase
+      .from('organizations')
+      .select('sales_tax_rate, services_taxable_by_default')
+      .eq('id', jobData.org_id)
+      .single()
+    if (orgData) {
+      setTaxRate(orgData.sales_tax_rate || 0)
+      setCustomTaxable(orgData.services_taxable_by_default)
+    }
+
     setLoading(false)
   }
 
-async function loadLineItems(invoiceId) {
+  async function loadLineItems(invoiceId) {
     const { data } = await supabase
       .from('invoice_line_items')
       .select('*')
@@ -141,10 +152,12 @@ async function loadLineItems(invoiceId) {
     const { data } = await supabase.from('job_approvals').select('*').eq('job_id', jId).order('created_at')
     setApprovals(data || [])
   }
+
   useEffect(() => {
     loadJobAndInvoice()
   }, [jobId])
-useEffect(() => {
+
+  useEffect(() => {
     if (!pickCategory || !job) {
       setServicesInCategory([])
       return
@@ -188,7 +201,7 @@ useEffect(() => {
     setAddingService(true)
     const svc = servicesInCategory.find((s) => s.id === pickServiceId)
     const nextSort = lineItems.length > 0 ? Math.max(...lineItems.map((li) => li.sort_order)) + 1 : 1
- await supabase.from('invoice_line_items').insert({
+    await supabase.from('invoice_line_items').insert({
       invoice_id: invoice.id,
       org_id: job.org_id,
       description: resolvedVariant.customer_display,
@@ -210,7 +223,7 @@ useEffect(() => {
     if (!customDesc.trim() || !customPrice) return
     setAddingCustom(true)
     const nextSort = lineItems.length > 0 ? Math.max(...lineItems.map((li) => li.sort_order)) + 1 : 1
-await supabase.from('invoice_line_items').insert({
+    await supabase.from('invoice_line_items').insert({
       invoice_id: invoice.id,
       org_id: job.org_id,
       description: customDesc.trim(),
@@ -295,237 +308,21 @@ await supabase.from('invoice_line_items').insert({
       .update({ discount_type: discountType, discount_amount: parseFloat(discountAmount) || 0 })
       .eq('id', invoice.id)
   }
+
   const subtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
+  const taxableSubtotal = lineItems.filter((li) => li.taxable).reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
+  const salesTax = taxableSubtotal * (taxRate / 100)
   const discountValue =
     discountType === 'percent' ? subtotal * ((parseFloat(discountAmount) || 0) / 100) : parseFloat(discountAmount) || 0
-  const totalDue = Math.max(subtotal - discountValue, 0)
+  const totalDue = Math.max(subtotal + salesTax - discountValue, 0)
 
   useEffect(() => {
     if (!invoice) return
     supabase
       .from('invoices')
-      .update({ subtotal, job_total: totalDue, amount_due: totalDue, balance: totalDue })
+      .update({ subtotal, sales_tax: salesTax, job_total: totalDue, amount_due: totalDue, balance: totalDue })
       .eq('id', invoice.id)
       .then(() => {})
-  }, [subtotal, totalDue, invoice])
+  }, [subtotal, salesTax, totalDue, invoice])
 
   return (
-    <div>
-      {loading ? (
-        <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : !job ? (
-        <p style={{ color: 'var(--mist)' }}>Job not found.</p>
-      ) : (
-        <>
-          <Link to="/jobs" className="nav-link">← Back to Jobs</Link>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '16px 0 24px' }}>
-            <div>
-              <h2 className="page-title" style={{ marginBottom: 4 }}>{invoice.invoice_number} — Job {job.job_number}</h2>
-              <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.display_name}</p>
-              <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.street_address}</p>
-              <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.primary_phone} · {job.properties?.customers?.email_1}</p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              {job.trip_charge ? (
-                <p style={{ fontSize: 13, color: 'var(--mist)' }}>
-                  Trip charge: {job.trip_charge.services?.name}<br />
-                  {job.trip_charge.location} / {job.trip_charge.access} / {job.trip_charge.hours}
-                </p>
-              ) : (
-                <p style={{ fontSize: 13, color: '#C0392B' }}>No trip charge set on this job — set it on the Jobs page to enable pricebook lookups.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid-table" style={{ gridTemplateColumns: '2fr 0.6fr 0.9fr 0.9fr 0.6fr 0.6fr', marginBottom: 20 }}>
-            <div className="grid-cell grid-head">Description</div>
-            <div className="grid-cell grid-head">Qty</div>
-            <div className="grid-cell grid-head">Unit Price</div>
-            <div className="grid-cell grid-head">Extension</div>
-            <div className="grid-cell grid-head">Tax</div>
-            <div className="grid-cell grid-head"></div>
-
-            {lineItems.map((li) => (
-              <>
-                <div className="grid-cell">{li.description}</div>
-                <div className="grid-cell">
-                  <input
-                    type="number"
-                    step="1"
-                    value={li.quantity}
-                    onChange={(e) => updateLineItem(li.id, 'quantity', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="grid-cell">
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={li.unit_price}
-                    onChange={(e) => updateLineItem(li.id, 'unit_price', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="grid-cell">${(li.quantity * li.unit_price).toFixed(2)}</div>
-                <div className="grid-cell">{li.taxable ? 'Yes' : 'No'}</div>
-                <div className="grid-cell grid-actions">
-                  <button className="logout-button" onClick={() => removeLineItem(li.id)}>Remove</button>
-                </div>
-              </>
-            ))}
-            {lineItems.length === 0 && (
-              <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No line items yet.</div>
-            )}
-          </div>
-
-          <div className="auth-card" style={{ maxWidth: 500, marginBottom: 24 }}>
-            <h3 style={{ marginTop: 0, fontSize: 15 }}>Add Service</h3>
-            <div className="field">
-              <label>Category</label>
-              <select value={pickCategory} onChange={(e) => { setPickCategory(e.target.value); setPickServiceId('') }}>
-                <option value="">Select…</option>
-                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            {pickCategory && (
-              <div className="field">
-                <label>Service</label>
-                <select value={pickServiceId} onChange={(e) => setPickServiceId(e.target.value)}>
-                  <option value="">Select…</option>
-                  {servicesInCategory.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-            )}
-            {pickServiceId && matchingVariants.length > 1 && (
-              <div className="field">
-                <label>Part source</label>
-                <select value={pickPartSource} onChange={(e) => setPickPartSource(e.target.value)}>
-                  <option value="">Select…</option>
-                  {matchingVariants.map((v) => (
-                    <option key={v.id} value={v.part_source || ''}>{v.part_source || 'N/A'}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {pickServiceId && matchingVariants.length === 0 && job.trip_charge && (
-              <p style={{ color: '#C0392B', fontSize: 13 }}>No price found for this service at the job's Location/Access/Hours.</p>
-            )}
-            {resolvedVariant && (
-              <p style={{ fontWeight: 600, color: 'var(--route-blue)' }}>${resolvedVariant.price.toFixed(2)}</p>
-            )}
-            <button className="auth-button" onClick={handleAddService} disabled={!resolvedVariant || addingService} style={{ width: 'auto', padding: '8px 20px' }}>
-              {addingService ? 'Adding…' : 'Add to invoice'}
-            </button>
-          </div>
-
-          <div className="auth-card" style={{ maxWidth: 500, marginBottom: 24 }}>
-            <h3 style={{ marginTop: 0, fontSize: 15 }}>Add Custom Service</h3>
-            <form onSubmit={handleAddCustom}>
-              <div className="field">
-                <label>Description</label>
-                <input type="text" value={customDesc} onChange={(e) => setCustomDesc(e.target.value)} required />
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <div className="field" style={{ flex: 1 }}>
-                  <label>Qty</label>
-                  <input type="number" step="1" value={customQty} onChange={(e) => setCustomQty(e.target.value)} />
-                </div>
-                <div className="field" style={{ flex: 1 }}>
-                  <label>Unit price</label>
-                  <input type="number" step="0.01" value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} required />
-                </div>
-              </div>
-              <label style={{ display: 'block', marginBottom: 12, cursor: 'pointer', fontSize: 14 }}>
-                <input type="checkbox" checked={customTaxable} onChange={(e) => setCustomTaxable(e.target.checked)} style={{ marginRight: 6 }} />
-                Taxable
-              </label>
-              <button className="auth-button" type="submit" disabled={addingCustom} style={{ width: 'auto', padding: '8px 20px' }}>
-                {addingCustom ? 'Adding…' : 'Add to invoice'}
-              </button>
-            </form>
-          </div>
-
-          <div className="auth-card" style={{ maxWidth: 400 }}>
-            <div className="field">
-              <label>Discount</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} style={{ flex: 1 }}>
-                  <option value="dollar">$</option>
-                  <option value="percent">%</option>
-                </select>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={discountAmount}
-                  onChange={(e) => setDiscountAmount(e.target.value)}
-                  onBlur={saveDiscount}
-                  style={{ flex: 2 }}
-                />
-              </div>
-            </div>
-            <p style={{ margin: '8px 0' }}>Subtotal: ${subtotal.toFixed(2)}</p>
-            <p style={{ margin: '8px 0' }}>Discount: -${discountValue.toFixed(2)}</p>
-            <h3 style={{ margin: '12px 0 0' }}>Total Due: ${totalDue.toFixed(2)}</h3>
-          </div>
-
-          <div className="auth-card" style={{ maxWidth: 500, marginTop: 24 }}>
-            <h3 style={{ marginTop: 0, fontSize: 15 }}>Approvals</h3>
-            {STAGE_ORDER.map((stage) => {
-              const existing = approvals.find((a) => a.stage === stage)
-              return (
-                <div key={stage} style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 12 }}>
-                  <strong style={{ fontSize: 14 }}>{STAGE_LABELS[stage]}</strong>
-                  {existing ? (
-                    <div style={{ marginTop: 4 }}>
-                      <p style={{ fontSize: 13, color: 'var(--mist)', margin: 0 }}>
-                        Approved by {existing.approved_by} on {new Date(existing.approved_at).toLocaleDateString()} — ${existing.amount?.toFixed(2)}
-                      </p>
-                      {existing.signature_url ? (
-                        <ApprovalSignatureImage path={existing.signature_url} />
-                      ) : (
-                        <p style={{ fontSize: 12, color: 'var(--mist)', fontStyle: 'italic' }}>Typed approval, no signature on file</p>
-                      )}
-                    </div>
-                  ) : approvingStage === stage ? (
-                    <div style={{ marginTop: 8 }}>
-                      <input
-                        type="text"
-                        value={approverName}
-                        onChange={(e) => setApproverName(e.target.value)}
-                        placeholder="Customer name"
-                        style={{ width: '100%', padding: '8px 10px', background: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--paper)', marginBottom: 8, boxSizing: 'border-box' }}
-                      />
-                      <label style={{ display: 'block', fontSize: 13, marginBottom: 8, cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={useTypedFallback}
-                          onChange={(e) => { setUseTypedFallback(e.target.checked); setSignatureDataUrl(null) }}
-                          style={{ marginRight: 6 }}
-                        />
-                        Customer not present (typed approval, no signature)
-                      </label>
-                      {!useTypedFallback && (
-                        <div style={{ marginBottom: 8 }}>
-                          <SignaturePad onChange={setSignatureDataUrl} />
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button className="auth-button" style={{ width: 'auto', padding: '8px 16px', margin: 0 }} onClick={() => submitApproval(stage)}>Confirm</button>
-                        <button
-                          className="logout-button"
-                          onClick={() => { setApprovingStage(null); setApproverName(''); setSignatureDataUrl(null); setUseTypedFallback(false) }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button className="logout-button" style={{ marginTop: 8 }} onClick={() => { setApprovingStage(stage); setApproverName('') }}>Approve</button>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
