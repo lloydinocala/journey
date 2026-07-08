@@ -31,7 +31,7 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
     return {
       top,
       height,
-      backgroundColor: job.technician_1?.calendar_color || '#8A93A6',
+      backgroundColor: job.status === 'completed' ? '#9CA3AF' : job.primary_technician?.calendar_color || '#8A93A6',
     }
   }
 
