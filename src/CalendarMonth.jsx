@@ -66,7 +66,7 @@ export default function CalendarMonth({ monthDate, gridDays, jobs, onJobClick, o
                 key={job.id}
                 className="calendar-month-job-pill"
                 style={{
-                  backgroundColor: job.technician_1?.calendar_color || '#8A93A6',
+                  backgroundColor: job.status === 'completed' ? '#9CA3AF' : job.primary_technician?.calendar_color || '#8A93A6',
                   opacity: draggingId === job.id ? 0.5 : 1,
                 }}
                 draggable="true"
