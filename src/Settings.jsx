@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import PricebookImport from './PricebookImport'
 
 export default function Settings({ profile }) {
   const [orgs, setOrgs] = useState([])
