@@ -113,7 +113,7 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
                   }}
                 />
               )}
-              {jobsForDay(day).map((job) => (
+             {jobsForDay(day).map((job) => (
                 <div
                   key={job.id}
                   className={`job-block${job.is_banned ? ' banned' : ''}${draggingId === job.id ? ' dragging' : ''}`}
@@ -125,6 +125,12 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
                 >
                   <strong>{formatTimeLabel(job)}</strong>
                   {job.customer_name}
+                  <div className="job-tooltip">
+                    <strong>{job.customer_name}</strong>
+                    {formatTimeLabel(job)} · {job.job_type}<br />
+                    {job.technician_names}<br />
+                    <span className={`status-pill status-${job.status}`} style={{ marginTop: 4 }}>{job.status}</span>
+                  </div>
                 </div>
               ))}
             </div>
