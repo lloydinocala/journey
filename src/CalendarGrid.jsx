@@ -123,8 +123,10 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
                   onDragEnd={handleDragEnd}
                   onClick={() => onJobClick(job)}
                 >
-                  <strong>{formatTimeLabel(job)}</strong>
-                  {job.customer_name}
+                 <div className="job-block-label">
+                    <strong>{formatTimeLabel(job)}</strong>
+                    {job.customer_name}
+                  </div>
                   <div className="job-tooltip">
                     <strong>{job.customer_name}</strong>
                     {formatTimeLabel(job)} · {job.job_type}<br />
