@@ -202,6 +202,12 @@ useEffect(() => {
     loadLineItems(invoice.id)
   }
 
+  async function saveDiscount() {
+    await supabase
+      .from('invoices')
+      .update({ discount_type: discountType, discount_amount: parseFloat(discountAmount) || 0 })
+      .eq('id', invoice.id)
+  }
   const subtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const discountValue =
     discountType === 'percent' ? subtotal * ((parseFloat(discountAmount) || 0) / 100) : parseFloat(discountAmount) || 0
