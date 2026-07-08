@@ -13,6 +13,7 @@ import Settings from './Settings'
 import Team from './Team'
 import Calendar from './Calendar'
 import Pricebook from './Pricebook'
+import Invoice from './Invoice'
 import Announcements from './Announcements'
 
 export default function App() {
