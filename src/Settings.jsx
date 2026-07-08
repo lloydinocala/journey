@@ -51,13 +51,27 @@ export default function Settings({ profile }) {
     if (!orgId) return
     const { data } = await supabase
       .from('organizations')
-      .select('business_hours_start, business_hours_end')
+      .select('business_hours_start, business_hours_end, services_taxable_by_default, sales_tax_rate')
       .eq('id', orgId)
       .single()
     if (data) {
       setBusinessStart(data.business_hours_start.slice(0, 5))
       setBusinessEnd(data.business_hours_end.slice(0, 5))
+      setTaxableByDefault(data.services_taxable_by_default)
+      setSalesTaxRate(String(data.sales_tax_rate))
     }
+  }
+
+  async function saveTaxSettings(e) {
+    e.preventDefault()
+    setSavingTax(true)
+    setTaxSaved(false)
+    await supabase
+      .from('organizations')
+      .update({ services_taxable_by_default: taxableByDefault, sales_tax_rate: parseFloat(salesTaxRate) || 0 })
+      .eq('id', selectedOrg)
+    setSavingTax(false)
+    setTaxSaved(true)
   }
 
   useEffect(() => {
