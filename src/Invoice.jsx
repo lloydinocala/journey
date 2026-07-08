@@ -111,3 +111,98 @@ export default function Invoice({ profile }) {
   useEffect(() => {
     loadJobAndInvoice()
   }, [jobId])
+useEffect(() => {
+    if (!pickCategory || !job) {
+      setServicesInCategory([])
+      return
+    }
+    supabase
+      .from('services')
+      .select('id, name, is_tax_exempt')
+      .eq('org_id', job.org_id)
+      .eq('category', pickCategory)
+      .eq('is_active', true)
+      .order('name')
+      .then(({ data }) => setServicesInCategory(data || []))
+  }, [pickCategory, job])
+
+  useEffect(() => {
+    if (!pickServiceId || !job?.trip_charge) {
+      setMatchingVariants([])
+      return
+    }
+    supabase
+      .from('service_prices')
+      .select('id, part_source, customer_display, price')
+      .eq('service_id', pickServiceId)
+      .eq('location', job.trip_charge.location)
+      .eq('access', job.trip_charge.access)
+      .eq('hours', job.trip_charge.hours)
+      .eq('is_active', true)
+      .then(({ data }) => {
+        setMatchingVariants(data || [])
+        setPickPartSource('')
+      })
+  }, [pickServiceId, job])
+
+  const resolvedVariant =
+    matchingVariants.length === 1
+      ? matchingVariants[0]
+      : matchingVariants.find((v) => (v.part_source || '') === pickPartSource) || null
+
+  async function handleAddService() {
+    if (!resolvedVariant) return
+    setAddingService(true)
+    const svc = servicesInCategory.find((s) => s.id === pickServiceId)
+    const nextSort = lineItems.length > 0 ? Math.max(...lineItems.map((li) => li.sort_order)) + 1 : 1
+    await supabase.from('invoice_line_items').insert({
+      invoice_id: invoice.id,
+      description: resolvedVariant.customer_display,
+      unit_price: resolvedVariant.price,
+      quantity: 1,
+      taxable: !svc?.is_tax_exempt,
+      is_custom: false,
+      sort_order: nextSort,
+    })
+    setAddingService(false)
+    setPickCategory('')
+    setPickServiceId('')
+    setMatchingVariants([])
+    loadLineItems(invoice.id)
+  }
+
+  async function handleAddCustom(e) {
+    e.preventDefault()
+    if (!customDesc.trim() || !customPrice) return
+    setAddingCustom(true)
+    const nextSort = lineItems.length > 0 ? Math.max(...lineItems.map((li) => li.sort_order)) + 1 : 1
+    await supabase.from('invoice_line_items').insert({
+      invoice_id: invoice.id,
+      description: customDesc.trim(),
+      unit_price: parseFloat(customPrice) || 0,
+      quantity: parseFloat(customQty) || 1,
+      taxable: customTaxable,
+      is_custom: true,
+      sort_order: nextSort,
+    })
+    setAddingCustom(false)
+    setCustomDesc('')
+    setCustomQty('1')
+    setCustomPrice('')
+    loadLineItems(invoice.id)
+  }
+
+  async function removeLineItem(id) {
+    await supabase.from('invoice_line_items').delete().eq('id', id)
+    loadLineItems(invoice.id)
+  }
+
+  async function updateLineItem(id, field, value) {
+    await supabase.from('invoice_line_items').update({ [field]: value }).eq('id', id)
+    loadLineItems(invoice.id)
+  }
+
+  const subtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
+  const discountValue =
+    discountType === 'percent' ? subtotal * ((parseFloat(discountAmount) || 0) / 100) : parseFloat(discountAmount) || 0
+  const totalDue = Math.max(subtotal -
