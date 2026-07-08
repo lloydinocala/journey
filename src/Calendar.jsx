@@ -159,3 +159,84 @@ export default function Calendar({ profile }) {
       : formatDayLabel(currentDate)
 
   return (
+<div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h2 className="page-title" style={{ marginBottom: 0 }}>Calendar</h2>
+        <NewItemDropdown onSelect={setNewItemMode} />
+      </div>
+
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+        </div>
+      )}
+
+      <div className="calendar-toolbar">
+        <div className="calendar-nav-group">
+          <button className="calendar-nav-btn" onClick={goPrev}>‹</button>
+          <button className="logout-button" onClick={goToday}>Today</button>
+          <button className="calendar-nav-btn" onClick={goNext}>›</button>
+          <div className="calendar-date-label">{dateLabel}</div>
+        </div>
+
+        {!isMobile && (
+          <div className="calendar-view-toggle">
+            <button
+              className={`calendar-view-btn${viewMode === 'week' ? ' active' : ''}`}
+              onClick={() => setViewMode('week')}
+            >
+              Week
+            </button>
+            <button
+              className={`calendar-view-btn${viewMode === 'day' ? ' active' : ''}`}
+              onClick={() => setViewMode('day')}
+            >
+              Day
+            </button>
+            <button
+              className={`calendar-view-btn${viewMode === 'month' ? ' active' : ''}`}
+              onClick={() => setViewMode('month')}
+            >
+              Month
+            </button>
+          </div>
+        )}
+      </div>
+
+      {loading ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : effectiveView === 'month' ? (
+        <CalendarMonth
+          monthDate={currentDate}
+          gridDays={days}
+          jobs={jobs}
+          onJobClick={setSelectedJob}
+          onDayClick={handleDayClick}
+          onJobDrop={handleMonthDrop}
+        />
+      ) : (
+        <CalendarGrid
+          days={days}
+          jobs={jobs}
+          businessStart={businessStart}
+          businessEnd={businessEnd}
+          onJobClick={setSelectedJob}
+          onJobDrop={handleGridDrop}
+        />
+      )}
+
+      <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)} />
+
+      {newItemMode && (
+        <QuickAddModal
+          mode={newItemMode}
+          orgId={selectedOrg}
+          profile={profile}
+          onClose={() => setNewItemMode(null)}
+          onCreated={loadJobs}
+        />
+      )}
+    </div>
+  )
+}
