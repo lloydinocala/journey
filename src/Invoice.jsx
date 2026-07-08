@@ -474,20 +474,48 @@ await supabase.from('invoice_line_items').insert({
                 <div key={stage} style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 12 }}>
                   <strong style={{ fontSize: 14 }}>{STAGE_LABELS[stage]}</strong>
                   {existing ? (
-                    <p style={{ fontSize: 13, color: 'var(--mist)', margin: '4px 0 0' }}>
-                      Approved by {existing.approved_by} on {new Date(existing.approved_at).toLocaleDateString()} — ${existing.amount?.toFixed(2)}
-                    </p>
+                    <div style={{ marginTop: 4 }}>
+                      <p style={{ fontSize: 13, color: 'var(--mist)', margin: 0 }}>
+                        Approved by {existing.approved_by} on {new Date(existing.approved_at).toLocaleDateString()} — ${existing.amount?.toFixed(2)}
+                      </p>
+                      {existing.signature_url ? (
+                        <ApprovalSignatureImage path={existing.signature_url} />
+                      ) : (
+                        <p style={{ fontSize: 12, color: 'var(--mist)', fontStyle: 'italic' }}>Typed approval, no signature on file</p>
+                      )}
+                    </div>
                   ) : approvingStage === stage ? (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                    <div style={{ marginTop: 8 }}>
                       <input
                         type="text"
                         value={approverName}
                         onChange={(e) => setApproverName(e.target.value)}
                         placeholder="Customer name"
-                        style={{ flex: 1, minWidth: 160, padding: '8px 10px', background: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--paper)' }}
+                        style={{ width: '100%', padding: '8px 10px', background: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--paper)', marginBottom: 8, boxSizing: 'border-box' }}
                       />
-                      <button className="auth-button" style={{ width: 'auto', padding: '8px 16px', margin: 0 }} onClick={() => submitApproval(stage)}>Confirm</button>
-                      <button className="logout-button" onClick={() => { setApprovingStage(null); setApproverName('') }}>Cancel</button>
+                      <label style={{ display: 'block', fontSize: 13, marginBottom: 8, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={useTypedFallback}
+                          onChange={(e) => { setUseTypedFallback(e.target.checked); setSignatureDataUrl(null) }}
+                          style={{ marginRight: 6 }}
+                        />
+                        Customer not present (typed approval, no signature)
+                      </label>
+                      {!useTypedFallback && (
+                        <div style={{ marginBottom: 8 }}>
+                          <SignaturePad onChange={setSignatureDataUrl} />
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="auth-button" style={{ width: 'auto', padding: '8px 16px', margin: 0 }} onClick={() => submitApproval(stage)}>Confirm</button>
+                        <button
+                          className="logout-button"
+                          onClick={() => { setApprovingStage(null); setApproverName(''); setSignatureDataUrl(null); setUseTypedFallback(false) }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <button className="logout-button" style={{ marginTop: 8 }} onClick={() => { setApprovingStage(stage); setApproverName('') }}>Approve</button>
