@@ -27,6 +27,10 @@ export default function Invoice({ profile }) {
   const [discountType, setDiscountType] = useState('dollar')
   const [discountAmount, setDiscountAmount] = useState('0')
 
+  const [approvals, setApprovals] = useState([])
+  const [approvingStage, setApprovingStage] = useState(null)
+  const [approverName, setApproverName] = useState('')
+
   async function loadJobAndInvoice() {
     setLoading(true)
     const { data: jobData } = await supabase
