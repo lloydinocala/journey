@@ -224,8 +224,35 @@ await supabase.from('invoice_line_items').insert({
   }
   const STAGE_ORDER = ['work_approved_to_begin', 'work_finished', 'payment']
 
+  function dataUrlToBlob(dataUrl) {
+    const [meta, base64] = dataUrl.split(',')
+    const mime = meta.match(/:(.*?);/)[1]
+    const binary = atob(base64)
+    const array = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i)
+    return new Blob([array], { type: mime })
+  }
+
   async function submitApproval(stage) {
     if (!approverName.trim()) return
+    if (!useTypedFallback && !signatureDataUrl) {
+      setError('Please capture a signature, or check "Customer not present" to use a typed approval instead.')
+      return
+    }
+    setError('')
+
+    let signaturePath = null
+    if (!useTypedFallback && signatureDataUrl) {
+      const blob = dataUrlToBlob(signatureDataUrl)
+      const path = `${job.org_id}/${jobId}/${stage}-${Date.now()}.png`
+      const { error: uploadErr } = await supabase.storage.from('signatures').upload(path, blob, { contentType: 'image/png' })
+      if (uploadErr) {
+        setError(uploadErr.message)
+        return
+      }
+      signaturePath = path
+    }
+
     await supabase.from('job_approvals').insert({
       job_id: jobId,
       org_id: job.org_id,
@@ -233,9 +260,12 @@ await supabase.from('invoice_line_items').insert({
       approved_by: approverName.trim(),
       approved_at: new Date().toISOString(),
       amount: totalDue,
+      signature_url: signaturePath,
     })
     setApprovingStage(null)
     setApproverName('')
+    setSignatureDataUrl(null)
+    setUseTypedFallback(false)
     loadApprovals(jobId)
   }
 
