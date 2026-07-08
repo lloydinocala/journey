@@ -741,3 +741,74 @@ export default function Layout({ profile }) {
   background: var(--route-blue);
   border-color: var(--route-blue);
 }
+.job-tooltip {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--paper);
+  white-space: normal;
+  min-width: 190px;
+  max-width: 240px;
+  z-index: 20;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  pointer-events: none;
+  line-height: 1.5;
+}
+
+.job-block:hover .job-tooltip {
+  display: block;
+}
+
+.job-tooltip strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+}
+
+.modal-card {
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 32px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+}
+
+.modal-card h3 {
+  margin-top: 0;
+  font-size: 22px;
+}
+
+.modal-row {
+  margin: 10px 0;
+  font-size: 15px;
+}
+
+.modal-row .label {
+  color: var(--mist);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: block;
+  margin-bottom: 2px;
+}
