@@ -211,8 +211,19 @@ useEffect(() => {
   const subtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const discountValue =
     discountType === 'percent' ? subtotal * ((parseFloat(discountAmount) || 0) / 100) : parseFloat(discountAmount) || 0
-  const totalDue = Math.max(subtotal -
-<div>
+  const totalDue = Math.max(subtotal - discountValue, 0)
+
+  useEffect(() => {
+    if (!invoice) return
+    supabase
+      .from('invoices')
+      .update({ subtotal, job_total: totalDue, amount_due: totalDue, balance: totalDue })
+      .eq('id', invoice.id)
+      .then(() => {})
+  }, [subtotal, totalDue, invoice])
+
+  return (
+    <div>
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : !job ? (
