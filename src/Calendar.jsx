@@ -3,6 +3,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import CalendarGrid from './CalendarGrid'
 import CalendarMonth from './CalendarMonth'
+import JobDetailModal from './JobDetailModal'
 import {
   startOfWeek,
   addDays,
