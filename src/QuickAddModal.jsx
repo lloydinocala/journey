@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
+import TripChargePicker from './TripChargePicker'
 
 export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated }) {
   const [customers, setCustomers] = useState([])
