@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import SignaturePad from './SignaturePad'
 
 export default function Invoice({ profile }) {
   const { jobId } = useParams()
