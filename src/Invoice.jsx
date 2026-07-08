@@ -326,3 +326,42 @@ export default function Invoice({ profile }) {
   }, [subtotal, salesTax, totalDue, invoice])
 
   return (
+<div>
+      {loading ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : !job ? (
+        <p style={{ color: 'var(--mist)' }}>Job not found.</p>
+      ) : (
+        <>
+          <Link to="/jobs" className="nav-link">← Back to Jobs</Link>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '16px 0 24px' }}>
+            <div>
+              <h2 className="page-title" style={{ marginBottom: 4 }}>{invoice.invoice_number} — Job {job.job_number}</h2>
+              <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.display_name}</p>
+              <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.street_address}</p>
+              <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.primary_phone} · {job.properties?.customers?.email_1}</p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              {job.trip_charge ? (
+                <p style={{ fontSize: 13, color: 'var(--mist)' }}>
+                  Trip charge: {job.trip_charge.services?.name}<br />
+                  {job.trip_charge.location} / {job.trip_charge.access} / {job.trip_charge.hours}
+                </p>
+              ) : (
+                <p style={{ fontSize: 13, color: '#C0392B' }}>No trip charge set on this job — set it on the Jobs page to enable pricebook lookups.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid-table" style={{ gridTemplateColumns: '2fr 0.6fr 0.9fr 0.9fr 0.6fr 0.6fr', marginBottom: 20 }}>
+            <div className="grid-cell grid-head">Description</div>
+            <div className="grid-cell grid-head">Qty</div>
+            <div className="grid-cell grid-head">Unit Price</div>
+            <div className="grid-cell grid-head">Extension</div>
+            <div className="grid-cell grid-head">Tax</div>
+            <div className="grid-cell grid-head"></div>
+
+            {lineItems.map((li) => (
+              <>
+                <div className="grid-cell">{li.description}</div>
+                <div
