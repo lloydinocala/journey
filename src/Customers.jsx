@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import NewItemDropdown from './NewItemDropdown'
+import QuickAddModal from './QuickAddModal'
 
 export default function Customers({ profile }) {
   const [orgs, setOrgs] = useState([])
@@ -13,6 +15,7 @@ export default function Customers({ profile }) {
   const [email, setEmail] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [newItemMode, setNewItemMode] = useState(null)
 
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
@@ -108,7 +111,7 @@ export default function Customers({ profile }) {
     const reason = window.prompt(
       `You're flagging ${c.display_name} as Do Not Service.\nThis blocks scheduling new jobs for them until an admin lifts it.\n\nReason (optional):`
     )
-    if (reason === null) return // cancelled
+    if (reason === null) return
 
     const { data: sessionData } = await supabase.auth.getUser()
     await supabase
@@ -131,7 +134,10 @@ export default function Customers({ profile }) {
 
   return (
     <div>
-      <h2 className="page-title">Customers</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h2 className="page-title" style={{ marginBottom: 0 }}>Customers</h2>
+        <NewItemDropdown onSelect={setNewItemMode} />
+      </div>
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>
@@ -228,10 +234,7 @@ export default function Customers({ profile }) {
                   <td>
                     {!c.is_active && <span className="status-pill status-canceled" style={{ marginRight: 6 }}>Archived</span>}
                     {c.is_banned && (
-                      <span
-                        className="status-pill status-past_due"
-                        title={c.banned_reason || 'No reason given'}
-                      >
+                      <span className="status-pill status-past_due" title={c.banned_reason || 'No reason given'}>
                         Do Not Service
                       </span>
                     )}
@@ -257,6 +260,16 @@ export default function Customers({ profile }) {
             )}
           </tbody>
         </table>
+      )}
+
+      {newItemMode && (
+        <QuickAddModal
+          mode={newItemMode}
+          orgId={selectedOrg}
+          profile={profile}
+          onClose={() => setNewItemMode(null)}
+          onCreated={() => loadCustomers(selectedOrg)}
+        />
       )}
     </div>
   )
