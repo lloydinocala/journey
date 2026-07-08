@@ -206,3 +206,163 @@ useEffect(() => {
   const discountValue =
     discountType === 'percent' ? subtotal * ((parseFloat(discountAmount) || 0) / 100) : parseFloat(discountAmount) || 0
   const totalDue = Math.max(subtotal -
+<div>
+      {loading ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : !job ? (
+        <p style={{ color: 'var(--mist)' }}>Job not found.</p>
+      ) : (
+        <>
+          <Link to="/jobs" className="nav-link">← Back to Jobs</Link>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '16px 0 24px' }}>
+            <div>
+              <h2 className="page-title" style={{ marginBottom: 4 }}>{invoice.invoice_number} — Job {job.job_number}</h2>
+              <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.display_name}</p>
+              <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.street_address}</p>
+              <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.primary_phone} · {job.properties?.customers?.email_1}</p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              {job.trip_charge ? (
+                <p style={{ fontSize: 13, color: 'var(--mist)' }}>
+                  Trip charge: {job.trip_charge.services?.name}<br />
+                  {job.trip_charge.location} / {job.trip_charge.access} / {job.trip_charge.hours}
+                </p>
+              ) : (
+                <p style={{ fontSize: 13, color: '#C0392B' }}>No trip charge set on this job — set it on the Jobs page to enable pricebook lookups.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid-table" style={{ gridTemplateColumns: '2fr 0.6fr 0.9fr 0.9fr 0.6fr 0.6fr', marginBottom: 20 }}>
+            <div className="grid-cell grid-head">Description</div>
+            <div className="grid-cell grid-head">Qty</div>
+            <div className="grid-cell grid-head">Unit Price</div>
+            <div className="grid-cell grid-head">Extension</div>
+            <div className="grid-cell grid-head">Tax</div>
+            <div className="grid-cell grid-head"></div>
+
+            {lineItems.map((li) => (
+              <>
+                <div className="grid-cell">{li.description}</div>
+                <div className="grid-cell">
+                  <input
+                    type="number"
+                    step="1"
+                    value={li.quantity}
+                    onChange={(e) => updateLineItem(li.id, 'quantity', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="grid-cell">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={li.unit_price}
+                    onChange={(e) => updateLineItem(li.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="grid-cell">${(li.quantity * li.unit_price).toFixed(2)}</div>
+                <div className="grid-cell">{li.taxable ? 'Yes' : 'No'}</div>
+                <div className="grid-cell grid-actions">
+                  <button className="logout-button" onClick={() => removeLineItem(li.id)}>Remove</button>
+                </div>
+              </>
+            ))}
+            {lineItems.length === 0 && (
+              <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No line items yet.</div>
+            )}
+          </div>
+
+          <div className="auth-card" style={{ maxWidth: 500, marginBottom: 24 }}>
+            <h3 style={{ marginTop: 0, fontSize: 15 }}>Add Service</h3>
+            <div className="field">
+              <label>Category</label>
+              <select value={pickCategory} onChange={(e) => { setPickCategory(e.target.value); setPickServiceId('') }}>
+                <option value="">Select…</option>
+                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            {pickCategory && (
+              <div className="field">
+                <label>Service</label>
+                <select value={pickServiceId} onChange={(e) => setPickServiceId(e.target.value)}>
+                  <option value="">Select…</option>
+                  {servicesInCategory.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            )}
+            {pickServiceId && matchingVariants.length > 1 && (
+              <div className="field">
+                <label>Part source</label>
+                <select value={pickPartSource} onChange={(e) => setPickPartSource(e.target.value)}>
+                  <option value="">Select…</option>
+                  {matchingVariants.map((v) => (
+                    <option key={v.id} value={v.part_source || ''}>{v.part_source || 'N/A'}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {pickServiceId && matchingVariants.length === 0 && job.trip_charge && (
+              <p style={{ color: '#C0392B', fontSize: 13 }}>No price found for this service at the job's Location/Access/Hours.</p>
+            )}
+            {resolvedVariant && (
+              <p style={{ fontWeight: 600, color: 'var(--route-blue)' }}>${resolvedVariant.price.toFixed(2)}</p>
+            )}
+            <button className="auth-button" onClick={handleAddService} disabled={!resolvedVariant || addingService} style={{ width: 'auto', padding: '8px 20px' }}>
+              {addingService ? 'Adding…' : 'Add to invoice'}
+            </button>
+          </div>
+
+          <div className="auth-card" style={{ maxWidth: 500, marginBottom: 24 }}>
+            <h3 style={{ marginTop: 0, fontSize: 15 }}>Add Custom Service</h3>
+            <form onSubmit={handleAddCustom}>
+              <div className="field">
+                <label>Description</label>
+                <input type="text" value={customDesc} onChange={(e) => setCustomDesc(e.target.value)} required />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Qty</label>
+                  <input type="number" step="1" value={customQty} onChange={(e) => setCustomQty(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Unit price</label>
+                  <input type="number" step="0.01" value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} required />
+                </div>
+              </div>
+              <label style={{ display: 'block', marginBottom: 12, cursor: 'pointer', fontSize: 14 }}>
+                <input type="checkbox" checked={customTaxable} onChange={(e) => setCustomTaxable(e.target.checked)} style={{ marginRight: 6 }} />
+                Taxable
+              </label>
+              <button className="auth-button" type="submit" disabled={addingCustom} style={{ width: 'auto', padding: '8px 20px' }}>
+                {addingCustom ? 'Adding…' : 'Add to invoice'}
+              </button>
+            </form>
+          </div>
+
+          <div className="auth-card" style={{ maxWidth: 400 }}>
+            <div className="field">
+              <label>Discount</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} style={{ flex: 1 }}>
+                  <option value="dollar">$</option>
+                  <option value="percent">%</option>
+                </select>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={discountAmount}
+                  onChange={(e) => setDiscountAmount(e.target.value)}
+                  onBlur={saveDiscount}
+                  style={{ flex: 2 }}
+                />
+              </div>
+            </div>
+            <p style={{ margin: '8px 0' }}>Subtotal: ${subtotal.toFixed(2)}</p>
+            <p style={{ margin: '8px 0' }}>Discount: -${discountValue.toFixed(2)}</p>
+            <h3 style={{ margin: '12px 0 0' }}>Total Due: ${totalDue.toFixed(2)}</h3>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
