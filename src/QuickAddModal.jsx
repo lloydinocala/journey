@@ -30,7 +30,8 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
   const [durationHours, setDurationHours] = useState('1')
   const [jobType, setJobType] = useState('')
   const [serviceComplaint, setServiceComplaint] = useState('')
-  const [technicianId, setTechnicianId] = useState('')
+const [technicianId, setTechnicianId] = useState('')
+  const [tripChargeId, setTripChargeId] = useState(null)
   const [overrideBan, setOverrideBan] = useState(false)
 
   const [saving, setSaving] = useState(false)
