@@ -190,3 +190,242 @@ export default function Pricebook({ profile }) {
     URL.revokeObjectURL(url)
     setExporting(false)
   }
+async function loadVariants(serviceId) {
+    setLoadingVariants(true)
+    const { data } = await supabase
+      .from('service_prices')
+      .select('id, location, access, hours, part_source, customer_display, price, cost, task_hours, is_active')
+      .eq('service_id', serviceId)
+      .order('location')
+      .order('access')
+      .order('hours')
+    setVariants(data || [])
+    setLoadingVariants(false)
+  }
+
+  function selectService(s) {
+    setSelectedServiceId(s.id)
+    setSelectedServiceInfo(s)
+    setEditingVariantId(null)
+    loadVariants(s.id)
+  }
+
+  async function handleAddVariant(e) {
+    e.preventDefault()
+    setVariantError('')
+    if (!newPrice) return
+    setSavingVariant(true)
+    const { error } = await supabase.from('service_prices').insert({
+      org_id: selectedOrg,
+      service_id: selectedServiceId,
+      location: newLocation,
+      access: newAccess,
+      hours: newHours,
+      part_source: newPartSource || null,
+      customer_display: newDisplay.trim() || selectedServiceInfo.name,
+      price: parseFloat(newPrice) || 0,
+      cost: parseFloat(newCost) || 0,
+      task_hours: parseFloat(newTaskHours) || 0,
+    })
+    setSavingVariant(false)
+    if (error) {
+      setVariantError(error.message)
+    } else {
+      setNewDisplay('')
+      setNewPrice('')
+      setNewCost('')
+      setNewTaskHours('')
+      loadVariants(selectedServiceId)
+    }
+  }
+
+  function startEditVariant(v) {
+    setEditingVariantId(v.id)
+    setEditLocation(v.location || LOCATIONS[0])
+    setEditAccess(v.access || ACCESS_OPTS[0])
+    setEditHours(v.hours || HOURS_OPTS[0])
+    setEditPartSource(v.part_source || '')
+    setEditDisplay(v.customer_display || '')
+    setEditPrice(String(v.price))
+    setEditCost(String(v.cost))
+    setEditTaskHours(String(v.task_hours))
+  }
+
+  async function saveEditVariant(id) {
+    await supabase
+      .from('service_prices')
+      .update({
+        location: editLocation,
+        access: editAccess,
+        hours: editHours,
+        part_source: editPartSource || null,
+        customer_display: editDisplay.trim() || selectedServiceInfo.name,
+        price: parseFloat(editPrice) || 0,
+        cost: parseFloat(editCost) || 0,
+        task_hours: parseFloat(editTaskHours) || 0,
+      })
+      .eq('id', id)
+    setEditingVariantId(null)
+    loadVariants(selectedServiceId)
+  }
+
+  async function toggleVariantActive(v) {
+    await supabase.from('service_prices').update({ is_active: !v.is_active }).eq('id', v.id)
+    loadVariants(selectedServiceId)
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h2 className="page-title" style={{ marginBottom: 0 }}>Pricebook</h2>
+        <button className="logout-button" onClick={handleExport} disabled={exporting || !selectedOrg}>
+          {exporting ? 'Exporting…' : 'Export CSV'}
+        </button>
+      </div>
+
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+        </div>
+      )}
+
+      <form className="inline-form" onSubmit={handleAddService} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
+        <div className="field">
+          <label htmlFor="svcCategory">Category</label>
+          {useNewCategory ? (
+            <input
+              id="svcCategory"
+              type="text"
+              value={newServiceCategory}
+              onChange={(e) => setNewServiceCategory(e.target.value)}
+              placeholder="New category name"
+              required
+            />
+          ) : (
+            <select
+              id="svcCategory"
+              value={newServiceCategory}
+              onChange={(e) => {
+                if (e.target.value === '__new__') {
+                  setUseNewCategory(true)
+                  setNewServiceCategory('')
+                } else {
+                  setNewServiceCategory(e.target.value)
+                }
+              }}
+              required
+            >
+              <option value="">Select…</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+              <option value="__new__">+ New category…</option>
+            </select>
+          )}
+          {useNewCategory && (
+            <button
+              type="button"
+              className="logout-button"
+              style={{ marginTop: 4, fontSize: 12, padding: '2px 8px' }}
+              onClick={() => { setUseNewCategory(false); setNewServiceCategory('') }}
+            >
+              Use existing category
+            </button>
+          )}
+        </div>
+        <div className="field">
+          <label htmlFor="svcName">Service name</label>
+          <input id="svcName" type="text" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} placeholder="e.g. 5 mf Run Capacitor" required />
+        </div>
+        <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 0 }}>
+          <label style={{ marginBottom: 0, cursor: 'pointer' }}>
+            <input type="checkbox" checked={!newServiceExempt} onChange={(e) => setNewServiceExempt(!e.target.checked)} style={{ marginRight: 4 }} />
+            Taxable
+          </label>
+        </div>
+        <button className="auth-button" type="submit" disabled={savingService}>
+          {savingService ? 'Adding…' : 'Add service'}
+        </button>
+      </form>
+
+      {serviceError && <div className="auth-error">{serviceError}</div>}
+
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="field" style={{ marginBottom: 0, minWidth: 200 }}>
+          <label htmlFor="catFilter">Category</label>
+          <select id="catFilter" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <option value="">All categories</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field" style={{ marginBottom: 0, minWidth: 240 }}>
+          <label htmlFor="serviceJump">Service</label>
+          <select
+            id="serviceJump"
+            value={selectedServiceId || ''}
+            onChange={(e) => {
+              const svc = services.find((s) => s.id === e.target.value)
+              if (svc) selectService(svc)
+            }}
+            disabled={!categoryFilter}
+          >
+            <option value="">{categoryFilter ? 'Select a service…' : 'Choose a category first'}</option>
+            {services
+              .filter((s) => s.category === categoryFilter)
+              .map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+          </select>
+        </div>
+        <label className="nav-link" style={{ cursor: 'pointer' }}>
+          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} style={{ marginRight: 6 }} />
+          Show archived
+        </label>
+      </div>
+
+      {loadingServices ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : (
+        <div className="grid-table" style={{ gridTemplateColumns: '1.2fr 1.6fr 0.8fr 0.8fr 1fr' }}>
+          <div className="grid-cell grid-head">Category</div>
+          <div className="grid-cell grid-head">Service</div>
+          <div className="grid-cell grid-head">Taxable</div>
+          <div className="grid-cell grid-head">Status</div>
+          <div className="grid-cell grid-head"></div>
+
+          {filteredServices.map((s) =>
+            editingServiceId === s.id ? (
+              <>
+                <div className="grid-cell"><input type="text" value={editServiceCategory} onChange={(e) => setEditServiceCategory(e.target.value)} /></div>
+                <div className="grid-cell"><input type="text" value={editServiceName} onChange={(e) => setEditServiceName(e.target.value)} /></div>
+                <div className="grid-cell">{s.is_tax_exempt ? 'No' : 'Yes'}</div>
+                <div className="grid-cell">{s.is_active ? 'Active' : 'Archived'}</div>
+                <div className="grid-cell grid-actions">
+                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEditService(s.id)}>Save</button>
+                  <button className="logout-button" onClick={() => setEditingServiceId(null)}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid-cell">{s.category}</div>
+                <div className="grid-cell">{s.name}</div>
+                <div className="grid-cell">{s.is_tax_exempt ? 'No' : 'Yes'}</div>
+                <div className="grid-cell">
+                  <span className={`status-pill ${s.is_active ? 'status-active' : 'status-canceled'}`}>{s.is_active ? 'Active' : 'Archived'}</span>
+                </div>
+                <div className="grid-cell grid-actions">
+                  <button className="logout-button" onClick={() => selectService(s)}>Prices</button>
+                  <button className="logout-button" onClick={() => startEditService(s)}>Rename</button>
+                  <button className="logout-button" onClick={() => toggleServiceActive(s)}>{s.is_active ? 'Archive' : 'Reactivate'}</button>
+                </div>
+              </>
+            )
+          )}
+          {filteredServices.length === 0 && (
+            <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No services found.</div>
+          )}
+        </div>
+      )}
