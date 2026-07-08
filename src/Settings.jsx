@@ -20,6 +20,10 @@ export default function Settings({ profile }) {
   const [savingHours, setSavingHours] = useState(false)
   const [hoursSaved, setHoursSaved] = useState(false)
 
+  const [taxableByDefault, setTaxableByDefault] = useState(false)
+  const [salesTaxRate, setSalesTaxRate] = useState('0')
+  const [savingTax, setSavingTax] = useState(false)
+  const [taxSaved, setTaxSaved] = useState(false)
   const isSuperAdmin = profile.role === 'super_admin'
 
   useEffect(() => {
