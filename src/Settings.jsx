@@ -123,6 +123,7 @@ export default function Settings({ profile }) {
         </div>
       )}
 
+      <PricebookImport orgId={selectedOrg} />
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Business hours</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
         Controls how the Calendar displays your day — 15-minute slots during these hours,
