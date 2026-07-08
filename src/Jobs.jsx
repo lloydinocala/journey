@@ -177,13 +177,18 @@ export default function Jobs({ profile }) {
 
   async function addTechnicianToJob(jobId) {
     if (!addTechChoice) return
+    setError('')
     const nextSort = editTechnicians.length > 0 ? Math.max(...editTechnicians.map((t) => t.sort_order)) + 1 : 1
-    await supabase.from('job_technicians').insert({
+    const { error } = await supabase.from('job_technicians').insert({
       org_id: selectedOrg,
       job_id: jobId,
       user_id: addTechChoice,
       sort_order: nextSort,
     })
+    if (error) {
+      setError(error.message)
+      return
+    }
     setAddTechChoice('')
     loadTechniciansForJob(jobId)
   }
