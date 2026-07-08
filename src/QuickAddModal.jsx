@@ -175,7 +175,7 @@ const [technicianId, setTechnicianId] = useState('')
       const jobNumber = `J-${String((count || 0) + 1).padStart(4, '0')}`
       const startTimestamp = startTime ? `${jobDate}T${startTime}:00` : null
 
-      const { data: newJob, error: jobErr } = await supabase
+     const { data: newJob, error: jobErr } = await supabase
         .from('jobs')
         .insert({
           org_id: orgId,
@@ -187,8 +187,10 @@ const [technicianId, setTechnicianId] = useState('')
           duration_hours: durationHours ? parseFloat(durationHours) : null,
           job_type: jobType,
           service_complaint: serviceComplaint.trim() || null,
+          trip_charge_price_id: tripChargeId || null,
         })
         .select()
+        .single()
         .single()
       if (jobErr) throw jobErr
 
