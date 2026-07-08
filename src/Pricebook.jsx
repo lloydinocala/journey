@@ -260,3 +260,45 @@ export default function Pricebook({ profile }) {
     loadVariants(selectedServiceId)
   }
   return (
+<div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h2 className="page-title" style={{ marginBottom: 0 }}>Pricebook</h2>
+        <button className="logout-button" onClick={handleExport} disabled={exporting || !selectedOrg}>
+          {exporting ? 'Exporting…' : 'Export CSV'}
+        </button>
+      </div>
+
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+        </div>
+      )}
+
+      <form className="inline-form" onSubmit={handleAddService} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
+        <div className="field">
+          <label htmlFor="svcCategory">Category</label>
+          <input id="svcCategory" type="text" value={newServiceCategory} onChange={(e) => setNewServiceCategory(e.target.value)} placeholder="e.g. Single Capacitors" required />
+        </div>
+        <div className="field">
+          <label htmlFor="svcName">Service name</label>
+          <input id="svcName" type="text" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} placeholder="e.g. 5 mf Run Capacitor" required />
+        </div>
+        <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 0 }}>
+          <label style={{ marginBottom: 0, cursor: 'pointer' }}>
+            <input type="checkbox" checked={newServiceExempt} onChange={(e) => setNewServiceExempt(e.target.checked)} style={{ marginRight: 4 }} />
+            Tax exempt
+          </label>
+        </div>
+        <button className="auth-button" type="submit" disabled={savingService}>
+          {savingService ? 'Adding…' : 'Add service'}
+        </button>
+      </form>
+
+      {serviceError && <div className="auth-error">{serviceError}</div>}
+
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="field" style={{ marginBottom: 0, minWidth: 200 }}>
+          <label htmlFor="catFilter">Category</label>
+          <select id="catFilter" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <option value="">All categories</option>
