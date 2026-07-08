@@ -236,3 +236,52 @@ export default function Jobs({ profile }) {
   }
 
   return (
+<div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h2 className="page-title" style={{ marginBottom: 0 }}>Jobs</h2>
+        <NewItemDropdown onSelect={setNewItemMode} />
+      </div>
+
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+        </div>
+      )}
+
+      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap', flexDirection: 'column', alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div className="field">
+            <label htmlFor="propPick">Property</label>
+            <select id="propPick" value={propertyId} onChange={(e) => setPropertyId(e.target.value)} required>
+              <option value="">Select…</option>
+              {properties.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.customers?.is_banned ? '⚠️ DO NOT SERVICE — ' : ''}{p.street_address} — {p.customers?.display_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="jobDate">Date</label>
+            <input id="jobDate" type="date" value={jobDate} onChange={(e) => setJobDate(e.target.value)} required />
+          </div>
+          <div className="field">
+            <label htmlFor="startTime">Start time</label>
+            <input id="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="duration">Duration (hrs)</label>
+            <input id="duration" type="number" step="0.5" value={durationHours} onChange={(e) => setDurationHours(e.target.value)} style={{ width: 80 }} />
+          </div>
+          <div className="field">
+            <label htmlFor="jobType">Type</label>
+            <select id="jobType" value={jobType} onChange={(e) => setJobType(e.target.value)}>
+              {jobTypes.map((t) => (
+                <option key={t.id} value={t.name}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="complaint">Service complaint</label>
+            <input id="complaint" type="text" value={serviceComplaint} onChange={(e)
