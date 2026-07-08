@@ -162,6 +162,33 @@ export default function Settings({ profile }) {
         </button>
         {hoursSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
       </form>
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Sales tax</h3>
+      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
+        In Florida, flat-rate labor typically isn't taxed again (tax was already paid on parts at
+        wholesale) — only retail items like filters are. Other states may work the other way; set
+        what fits here.
+      </p>
+      <form className="inline-form" onSubmit={saveTaxSettings} style={{ marginBottom: 28 }}>
+        <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 0 }}>
+          <label style={{ marginBottom: 0, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={taxableByDefault}
+              onChange={(e) => setTaxableByDefault(e.target.checked)}
+              style={{ marginRight: 6 }}
+            />
+            New pricebook items are taxable by default
+          </label>
+        </div>
+        <div className="field">
+          <label htmlFor="taxRate">Sales tax rate (%)</label>
+          <input id="taxRate" type="number" step="0.001" value={salesTaxRate} onChange={(e) => setSalesTaxRate(e.target.value)} style={{ width: 100 }} />
+        </div>
+        <button className="auth-button" type="submit" disabled={savingTax}>
+          {savingTax ? 'Saving…' : 'Save'}
+        </button>
+        {taxSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
+      </form>
 
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Job types</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
