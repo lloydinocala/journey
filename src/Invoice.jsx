@@ -31,6 +31,8 @@ export default function Invoice({ profile }) {
   const [approvals, setApprovals] = useState([])
   const [approvingStage, setApprovingStage] = useState(null)
   const [approverName, setApproverName] = useState('')
+  const [signatureDataUrl, setSignatureDataUrl] = useState(null)
+  const [useTypedFallback, setUseTypedFallback] = useState(false)
 
   async function loadJobAndInvoice() {
     setLoading(true)
