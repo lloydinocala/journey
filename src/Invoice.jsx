@@ -104,7 +104,7 @@ export default function Invoice({ profile }) {
     setLoading(false)
   }
 
-  async function loadLineItems(invoiceId) {
+async function loadLineItems(invoiceId) {
     const { data } = await supabase
       .from('invoice_line_items')
       .select('*')
@@ -113,6 +113,10 @@ export default function Invoice({ profile }) {
     setLineItems(data || [])
   }
 
+  async function loadApprovals(jId) {
+    const { data } = await supabase.from('job_approvals').select('*').eq('job_id', jId).order('created_at')
+    setApprovals(data || [])
+  }
   useEffect(() => {
     loadJobAndInvoice()
   }, [jobId])
