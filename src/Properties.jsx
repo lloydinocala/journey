@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import NewItemDropdown from './NewItemDropdown'
+import QuickAddModal from './QuickAddModal'
 
 export default function Properties({ profile }) {
   const [orgs, setOrgs] = useState([])
@@ -9,6 +11,7 @@ export default function Properties({ profile }) {
   const [properties, setProperties] = useState([])
   const [showArchived, setShowArchived] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [newItemMode, setNewItemMode] = useState(null)
 
   const [customerId, setCustomerId] = useState('')
   const [street, setStreet] = useState('')
@@ -177,7 +180,10 @@ export default function Properties({ profile }) {
 
   return (
     <div>
-      <h2 className="page-title">Properties</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h2 className="page-title" style={{ marginBottom: 0 }}>Properties</h2>
+        <NewItemDropdown onSelect={setNewItemMode} />
+      </div>
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>
@@ -247,10 +253,10 @@ export default function Properties({ profile }) {
 
       {error && <div className="auth-error">{error}</div>}
 
-     {loading ? (
+      {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div className="grid-table">
+        <div className="grid-table" style={{ gridTemplateColumns: '1.4fr 1.2fr 1.2fr 0.8fr 1.4fr 1fr' }}>
           <div className="grid-cell grid-head">Address</div>
           <div className="grid-cell grid-head">City/State/Zip</div>
           <div className="grid-cell grid-head">Customer</div>
@@ -313,6 +319,16 @@ export default function Properties({ profile }) {
             <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No properties found.</div>
           )}
         </div>
+      )}
+
+      {newItemMode && (
+        <QuickAddModal
+          mode={newItemMode}
+          orgId={selectedOrg}
+          profile={profile}
+          onClose={() => setNewItemMode(null)}
+          onCreated={() => loadData(selectedOrg)}
+        />
       )}
     </div>
   )
