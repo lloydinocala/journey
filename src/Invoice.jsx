@@ -178,8 +178,9 @@ useEffect(() => {
     if (!customDesc.trim() || !customPrice) return
     setAddingCustom(true)
     const nextSort = lineItems.length > 0 ? Math.max(...lineItems.map((li) => li.sort_order)) + 1 : 1
-    await supabase.from('invoice_line_items').insert({
+await supabase.from('invoice_line_items').insert({
       invoice_id: invoice.id,
+      org_id: job.org_id,
       description: customDesc.trim(),
       unit_price: parseFloat(customPrice) || 0,
       quantity: parseFloat(customQty) || 1,
