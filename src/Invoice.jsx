@@ -412,6 +412,37 @@ await supabase.from('invoice_line_items').insert({
             <p style={{ margin: '8px 0' }}>Discount: -${discountValue.toFixed(2)}</p>
             <h3 style={{ margin: '12px 0 0' }}>Total Due: ${totalDue.toFixed(2)}</h3>
           </div>
+
+          <div className="auth-card" style={{ maxWidth: 500, marginTop: 24 }}>
+            <h3 style={{ marginTop: 0, fontSize: 15 }}>Approvals</h3>
+            {STAGE_ORDER.map((stage) => {
+              const existing = approvals.find((a) => a.stage === stage)
+              return (
+                <div key={stage} style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 12 }}>
+                  <strong style={{ fontSize: 14 }}>{STAGE_LABELS[stage]}</strong>
+                  {existing ? (
+                    <p style={{ fontSize: 13, color: 'var(--mist)', margin: '4px 0 0' }}>
+                      Approved by {existing.approved_by} on {new Date(existing.approved_at).toLocaleDateString()} — ${existing.amount?.toFixed(2)}
+                    </p>
+                  ) : approvingStage === stage ? (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        value={approverName}
+                        onChange={(e) => setApproverName(e.target.value)}
+                        placeholder="Customer name"
+                        style={{ flex: 1, minWidth: 160, padding: '8px 10px', background: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--paper)' }}
+                      />
+                      <button className="auth-button" style={{ width: 'auto', padding: '8px 16px', margin: 0 }} onClick={() => submitApproval(stage)}>Confirm</button>
+                      <button className="logout-button" onClick={() => { setApprovingStage(null); setApproverName('') }}>Cancel</button>
+                    </div>
+                  ) : (
+                    <button className="logout-button" style={{ marginTop: 8 }} onClick={() => { setApprovingStage(stage); setApproverName('') }}>Approve</button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </>
       )}
     </div>
