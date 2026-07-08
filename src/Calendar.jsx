@@ -86,21 +86,26 @@ export default function Calendar({ profile }) {
     const rangeStart = toLocalDateStr(days[0])
     const rangeEnd = toLocalDateStr(days[days.length - 1])
 
-    const { data } = await supabase
+   const { data } = await supabase
       .from('jobs')
       .select(
-        'id, job_number, job_date, start_time, duration_hours, status, job_type, service_complaint, technician_1_id, property_id, technician_1:technician_1_id(full_name, calendar_color), properties(street_address, customers!properties_customer_id_fkey(display_name, is_banned))'
+        'id, job_number, job_date, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, customers!properties_customer_id_fkey(display_name, is_banned))'
       )
       .eq('org_id', selectedOrg)
       .gte('job_date', rangeStart)
       .lte('job_date', rangeEnd)
 
-    const mapped = (data || []).map((j) => ({
-      ...j,
-      customer_name: j.properties?.customers?.display_name || 'Unknown',
-      address: j.properties?.street_address || '',
-      is_banned: j.properties?.customers?.is_banned || false,
-    }))
+    const mapped = (data || []).map((j) => {
+      const techs = (j.job_technicians || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+      return {
+        ...j,
+        customer_name: j.properties?.customers?.display_name || 'Unknown',
+        address: j.properties?.street_address || '',
+        is_banned: j.properties?.customers?.is_banned || false,
+        primary_technician: techs[0]?.users || null,
+        technician_names: techs.length > 0 ? techs.map((t) => t.users?.full_name).join(', ') : 'Unassigned',
+      }
+    })
     setJobs(mapped)
     setLoading(false)
   }
