@@ -214,6 +214,28 @@ await supabase.from('invoice_line_items').insert({
     loadLineItems(invoice.id)
   }
 
+  const STAGE_LABELS = {
+    work_approved_to_begin: 'Work Approved to Begin',
+    work_finished: 'Work Finished',
+    payment: 'Payment',
+  }
+  const STAGE_ORDER = ['work_approved_to_begin', 'work_finished', 'payment']
+
+  async function submitApproval(stage) {
+    if (!approverName.trim()) return
+    await supabase.from('job_approvals').insert({
+      job_id: jobId,
+      org_id: job.org_id,
+      stage,
+      approved_by: approverName.trim(),
+      approved_at: new Date().toISOString(),
+      amount: totalDue,
+    })
+    setApprovingStage(null)
+    setApproverName('')
+    loadApprovals(jobId)
+  }
+
   async function saveDiscount() {
     await supabase
       .from('invoices')
