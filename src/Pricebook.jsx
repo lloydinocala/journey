@@ -176,4 +176,87 @@ export default function Pricebook({ profile }) {
     setExporting(false)
   }
 
+  async function loadVariants(serviceId) {
+    setLoadingVariants(true)
+    const { data } = await supabase
+      .from('service_prices')
+      .select('id, location, access, hours, part_source, customer_display, price, cost, task_hours, is_active')
+      .eq('service_id', serviceId)
+      .order('location')
+      .order('access')
+      .order('hours')
+    setVariants(data || [])
+    setLoadingVariants(false)
+  }
+
+  function selectService(s) {
+    setSelectedServiceId(s.id)
+    setSelectedServiceInfo(s)
+    setEditingVariantId(null)
+    loadVariants(s.id)
+  }
+
+  async function handleAddVariant(e) {
+    e.preventDefault()
+    setVariantError('')
+    if (!newPrice) return
+    setSavingVariant(true)
+    const { error } = await supabase.from('service_prices').insert({
+      org_id: selectedOrg,
+      service_id: selectedServiceId,
+      location: newLocation,
+      access: newAccess,
+      hours: newHours,
+      part_source: newPartSource || null,
+      customer_display: newDisplay.trim() || selectedServiceInfo.name,
+      price: parseFloat(newPrice) || 0,
+      cost: parseFloat(newCost) || 0,
+      task_hours: parseFloat(newTaskHours) || 0,
+    })
+    setSavingVariant(false)
+    if (error) {
+      setVariantError(error.message)
+    } else {
+      setNewDisplay('')
+      setNewPrice('')
+      setNewCost('')
+      setNewTaskHours('')
+      loadVariants(selectedServiceId)
+    }
+  }
+
+  function startEditVariant(v) {
+    setEditingVariantId(v.id)
+    setEditLocation(v.location || LOCATIONS[0])
+    setEditAccess(v.access || ACCESS_OPTS[0])
+    setEditHours(v.hours || HOURS_OPTS[0])
+    setEditPartSource(v.part_source || '')
+    setEditDisplay(v.customer_display || '')
+    setEditPrice(String(v.price))
+    setEditCost(String(v.cost))
+    setEditTaskHours(String(v.task_hours))
+  }
+
+  async function saveEditVariant(id) {
+    await supabase
+      .from('service_prices')
+      .update({
+        location: editLocation,
+        access: editAccess,
+        hours: editHours,
+        part_source: editPartSource || null,
+        customer_display: editDisplay.trim() || selectedServiceInfo.name,
+        price: parseFloat(editPrice) || 0,
+        cost: parseFloat(editCost) || 0,
+        task_hours: parseFloat(editTaskHours) || 0,
+      })
+      .eq('id', id)
+    setEditingVariantId(null)
+    loadVariants(selectedServiceId)
+  }
+
+  async function toggleVariantActive(v) {
+    await supabase.from('service_prices').update({ is_active: !v.is_active }).eq('id', v.id)
+    loadVariants(selectedServiceId)
+  }
   return (
