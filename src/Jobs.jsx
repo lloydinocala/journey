@@ -282,9 +282,7 @@ export default function Jobs({ profile }) {
               ))}
             </select>
           </div>
-          <div className="field">
-            <label htmlFor="complaint">Service complaint</label>
- <div className="field">
+         <div className="field">
             <label htmlFor="complaint">Service complaint</label>
             <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling" />
           </div>
