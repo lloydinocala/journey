@@ -429,3 +429,129 @@ async function loadVariants(serviceId) {
           )}
         </div>
       )}
+{selectedServiceId && (
+        <div style={{ marginTop: 32 }}>
+          <h3 style={{ fontSize: 16, marginBottom: 4 }}>{selectedServiceInfo?.category} — {selectedServiceInfo?.name}</h3>
+          <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0, marginBottom: 16 }}>Price variants for this service</p>
+
+          <form className="inline-form" onSubmit={handleAddVariant} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
+            <div className="field">
+              <label htmlFor="vLoc">Location</label>
+              <select id="vLoc" value={newLocation} onChange={(e) => setNewLocation(e.target.value)}>
+                {LOCATIONS.map((l) => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="vAcc">Access</label>
+              <select id="vAcc" value={newAccess} onChange={(e) => setNewAccess(e.target.value)}>
+                {ACCESS_OPTS.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="vHrs">Hours</label>
+              <select id="vHrs" value={newHours} onChange={(e) => setNewHours(e.target.value)}>
+                {HOURS_OPTS.map((h) => <option key={h} value={h}>{h}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="vPart">Part source</label>
+              <select id="vPart" value={newPartSource} onChange={(e) => setNewPartSource(e.target.value)}>
+                {PART_SOURCES.map((p) => <option key={p} value={p}>{p || 'N/A'}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="vDisplay">Customer display text</label>
+              <input id="vDisplay" type="text" value={newDisplay} onChange={(e) => setNewDisplay(e.target.value)} placeholder={selectedServiceInfo?.name} />
+            </div>
+            <div className="field">
+              <label htmlFor="vPrice">Price</label>
+              <input id="vPrice" type="number" step="0.01" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} required style={{ width: 90 }} />
+            </div>
+            <div className="field">
+              <label htmlFor="vCost">Cost</label>
+              <input id="vCost" type="number" step="0.01" value={newCost} onChange={(e) => setNewCost(e.target.value)} style={{ width: 90 }} />
+            </div>
+            <div className="field">
+              <label htmlFor="vTaskHrs">Task hrs</label>
+              <input id="vTaskHrs" type="number" step="0.01" value={newTaskHours} onChange={(e) => setNewTaskHours(e.target.value)} style={{ width: 90 }} />
+            </div>
+            <button className="auth-button" type="submit" disabled={savingVariant}>
+              {savingVariant ? 'Adding…' : 'Add variant'}
+            </button>
+          </form>
+
+          {variantError && <div className="auth-error">{variantError}</div>}
+
+          {loadingVariants ? (
+            <p style={{ color: 'var(--mist)' }}>Loading…</p>
+          ) : (
+            <div className="grid-table" style={{ gridTemplateColumns: '1fr 1fr 1fr 0.8fr 1.4fr 0.8fr 0.8fr 0.8fr 1.2fr' }}>
+              <div className="grid-cell grid-head">Location</div>
+              <div className="grid-cell grid-head">Access</div>
+              <div className="grid-cell grid-head">Hours</div>
+              <div className="grid-cell grid-head">Part</div>
+              <div className="grid-cell grid-head">Display text</div>
+              <div className="grid-cell grid-head">Price</div>
+              <div className="grid-cell grid-head">Cost</div>
+              <div className="grid-cell grid-head">Task hrs</div>
+              <div className="grid-cell grid-head"></div>
+
+              {variants.map((v) =>
+                editingVariantId === v.id ? (
+                  <>
+                    <div className="grid-cell">
+                      <select value={editLocation} onChange={(e) => setEditLocation(e.target.value)}>
+                        {LOCATIONS.map((l) => <option key={l} value={l}>{l}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid-cell">
+                      <select value={editAccess} onChange={(e) => setEditAccess(e.target.value)}>
+                        {ACCESS_OPTS.map((a) => <option key={a} value={a}>{a}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid-cell">
+                      <select value={editHours} onChange={(e) => setEditHours(e.target.value)}>
+                        {HOURS_OPTS.map((h) => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid-cell">
+                      <select value={editPartSource} onChange={(e) => setEditPartSource(e.target.value)}>
+                        {PART_SOURCES.map((p) => <option key={p} value={p}>{p || 'N/A'}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid-cell"><input type="text" value={editDisplay} onChange={(e) => setEditDisplay(e.target.value)} /></div>
+                    <div className="grid-cell"><input type="number" step="0.01" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} /></div>
+                    <div className="grid-cell"><input type="number" step="0.01" value={editCost} onChange={(e) => setEditCost(e.target.value)} /></div>
+                    <div className="grid-cell"><input type="number" step="0.01" value={editTaskHours} onChange={(e) => setEditTaskHours(e.target.value)} /></div>
+                    <div className="grid-cell grid-actions">
+                      <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEditVariant(v.id)}>Save</button>
+                      <button className="logout-button" onClick={() => setEditingVariantId(null)}>Cancel</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid-cell">{v.location || '—'}</div>
+                    <div className="grid-cell">{v.access || '—'}</div>
+                    <div className="grid-cell">{v.hours || '—'}</div>
+                    <div className="grid-cell">{v.part_source || 'N/A'}</div>
+                    <div className="grid-cell">{v.customer_display}</div>
+                    <div className="grid-cell">${v.price.toFixed(2)}</div>
+                    <div className="grid-cell">${v.cost.toFixed(2)}</div>
+                    <div className="grid-cell">{v.task_hours}</div>
+                    <div className="grid-cell grid-actions">
+                      <button className="logout-button" onClick={() => startEditVariant(v)}>Edit</button>
+                      <button className="logout-button" onClick={() => toggleVariantActive(v)}>{v.is_active ? 'Off' : 'On'}</button>
+                    </div>
+                  </>
+                )
+              )}
+              {variants.length === 0 && (
+                <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No price variants yet.</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
