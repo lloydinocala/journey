@@ -220,20 +220,7 @@ async function handleGridDrop(jobId, newDateStr, newTimeStr) {
         />
       )}
 
-      {selectedJob && (
-        <div className="auth-card" style={{ maxWidth: 420, marginTop: 20 }}>
-          <h3 style={{ marginTop: 0 }}>{selectedJob.job_number}</h3>
-          <p style={{ margin: '4px 0' }}><strong>{selectedJob.customer_name}</strong></p>
-          <p style={{ margin: '4px 0', color: 'var(--mist)' }}>{selectedJob.address}</p>
-          <p style={{ margin: '4px 0' }}>{selectedJob.job_date} — {selectedJob.job_type}</p>
-          <p style={{ margin: '4px 0' }}>{selectedJob.service_complaint || 'No complaint noted'}</p>
-          <p style={{ margin: '4px 0' }}>Tech: {selectedJob.technician_1?.full_name || 'Unassigned'}</p>
-          <p style={{ margin: '4px 0' }}>
-            <span className={`status-pill status-${selectedJob.status}`}>{selectedJob.status}</span>
-          </p>
-          <button className="logout-button" onClick={() => setSelectedJob(null)} style={{ marginTop: 8 }}>Close</button>
-        </div>
-      )}
+     <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)} />
     </div>
   )
 }
