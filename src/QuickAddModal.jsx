@@ -364,6 +364,10 @@ const [technicianId, setTechnicianId] = useState('')
                   ))}
                 </select>
               </div>
+              <div className="field">
+                <label>Trip charge (sets Location/Access/Time for this job)</label>
+                <TripChargePicker orgId={orgId} value={tripChargeId} onChange={setTripChargeId} />
+              </div>
 
               {selectedCustomerIsBanned && (
                 <div className="auth-error">
