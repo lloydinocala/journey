@@ -209,3 +209,42 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
   }
 
   return (
+<div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+        <h3>{mode === 'job' ? 'New Job' : mode === 'property' ? 'New Property' : 'New Customer'}</h3>
+
+        <form onSubmit={handleSubmit}>
+          {(mode === 'property' || mode === 'job') && (
+            <div className="field">
+              <label>Customer</label>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+                <label style={{ fontSize: 13, cursor: 'pointer' }}>
+                  <input type="radio" checked={customerMode === 'existing'} onChange={() => setCustomerMode('existing')} /> Existing
+                </label>
+                <label style={{ fontSize: 13, cursor: 'pointer' }}>
+                  <input type="radio" checked={customerMode === 'new'} onChange={() => setCustomerMode('new')} /> New
+                </label>
+              </div>
+            </div>
+          )}
+
+          {(mode === 'property' || mode === 'job') && customerMode === 'existing' && (
+            <div className="field">
+              <select value={existingCustomerId} onChange={(e) => setExistingCustomerId(e.target.value)} required>
+                <option value="">Select a customer…</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.is_banned ? '⚠️ DO NOT SERVICE — ' : ''}{c.display_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {(mode === 'customer' || ((mode === 'property' || mode === 'job') && customerMode === 'new')) && (
+            <>
+              <div className="field">
+                <label htmlFor="newCustName">Customer name</label>
+                <input id="newCustName" type="text" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} placeholder="e.g. William Gaal" required />
+              </div>
+              <div className="field">
