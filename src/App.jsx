@@ -12,6 +12,7 @@ import Jobs from './Jobs'
 import Settings from './Settings'
 import Team from './Team'
 import Calendar from './Calendar'
+import Pricebook from './Pricebook'
 import Announcements from './Announcements'
 
 export default function App() {
