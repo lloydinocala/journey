@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import NewItemDropdown from './NewItemDropdown'
+import QuickAddModal from './QuickAddModal'
 import CalendarGrid from './CalendarGrid'
 import CalendarMonth from './CalendarMonth'
 import JobDetailModal from './JobDetailModal'
@@ -25,6 +27,7 @@ export default function Calendar({ profile }) {
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState(null)
+  const [newItemMode, setNewItemMode] = useState(null)
 
   const isSuperAdmin = profile.role === 'super_admin'
   const effectiveView = isMobile ? 'day' : viewMode
@@ -86,7 +89,7 @@ export default function Calendar({ profile }) {
     const rangeStart = toLocalDateStr(days[0])
     const rangeEnd = toLocalDateStr(days[days.length - 1])
 
-   const { data } = await supabase
+    const { data } = await supabase
       .from('jobs')
       .select(
         'id, job_number, job_date, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, customers!properties_customer_id_fkey(display_name, is_banned))'
@@ -130,7 +133,7 @@ export default function Calendar({ profile }) {
     else setCurrentDate((d) => addDays(d, 1))
   }
 
-async function handleGridDrop(jobId, newDateStr, newTimeStr) {
+  async function handleGridDrop(jobId, newDateStr, newTimeStr) {
     await supabase
       .from('jobs')
       .update({ job_date: newDateStr, start_time: `${newDateStr}T${newTimeStr}:00` })
@@ -156,71 +159,3 @@ async function handleGridDrop(jobId, newDateStr, newTimeStr) {
       : formatDayLabel(currentDate)
 
   return (
-<div>
-      <h2 className="page-title">Calendar</h2>
-
-      {isSuperAdmin && (
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
-          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
-        </div>
-      )}
-
-      <div className="calendar-toolbar">
-        <div className="calendar-nav-group">
-          <button className="calendar-nav-btn" onClick={goPrev}>‹</button>
-          <button className="logout-button" onClick={goToday}>Today</button>
-          <button className="calendar-nav-btn" onClick={goNext}>›</button>
-          <div className="calendar-date-label">{dateLabel}</div>
-        </div>
-
-        {!isMobile && (
-          <div className="calendar-view-toggle">
-            <button
-              className={`calendar-view-btn${viewMode === 'week' ? ' active' : ''}`}
-              onClick={() => setViewMode('week')}
-            >
-              Week
-            </button>
-            <button
-              className={`calendar-view-btn${viewMode === 'day' ? ' active' : ''}`}
-              onClick={() => setViewMode('day')}
-            >
-              Day
-            </button>
-            <button
-              className={`calendar-view-btn${viewMode === 'month' ? ' active' : ''}`}
-              onClick={() => setViewMode('month')}
-            >
-              Month
-            </button>
-          </div>
-        )}
-      </div>
-
-      {loading ? (
-        <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : effectiveView === 'month' ? (
-       <CalendarMonth
-          monthDate={currentDate}
-          gridDays={days}
-          jobs={jobs}
-          onJobClick={setSelectedJob}
-          onDayClick={handleDayClick}
-          onJobDrop={handleMonthDrop}
-        />
-      ) : (
-        <CalendarGrid
-          days={days}
-          jobs={jobs}
-          businessStart={businessStart}
-          businessEnd={businessEnd}
-          onJobClick={setSelectedJob}
-          onJobDrop={handleGridDrop}
-        />
-      )}
-
-     <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)} />
-    </div>
-  )
-}
