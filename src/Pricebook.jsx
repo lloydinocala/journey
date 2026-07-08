@@ -14,13 +14,14 @@ export default function Pricebook({ profile }) {
   const [services, setServices] = useState([])
   const [loadingServices, setLoadingServices] = useState(true)
   const [categoryFilter, setCategoryFilter] = useState('')
-  const [searchText, setSearchText] = useState('')
   const [showArchived, setShowArchived] = useState(false)
   const [exporting, setExporting] = useState(false)
 
   const [newServiceName, setNewServiceName] = useState('')
   const [newServiceCategory, setNewServiceCategory] = useState('')
+  const [useNewCategory, setUseNewCategory] = useState(false)
   const [newServiceExempt, setNewServiceExempt] = useState(false)
+  const [taxableByDefault, setTaxableByDefault] = useState(false)
   const [savingService, setSavingService] = useState(false)
   const [serviceError, setServiceError] = useState('')
 
@@ -65,6 +66,21 @@ export default function Pricebook({ profile }) {
     }
   }, [])
 
+  useEffect(() => {
+    if (!selectedOrg) return
+    supabase
+      .from('organizations')
+      .select('services_taxable_by_default')
+      .eq('id', selectedOrg)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setTaxableByDefault(data.services_taxable_by_default)
+          setNewServiceExempt(!data.services_taxable_by_default)
+        }
+      })
+  }, [selectedOrg])
+
   async function loadServices(orgId) {
     if (!orgId) return
     setLoadingServices(true)
@@ -88,7 +104,6 @@ export default function Pricebook({ profile }) {
   const categories = [...new Set(services.map((s) => s.category))].sort()
   const filteredServices = services.filter((s) => {
     if (categoryFilter && s.category !== categoryFilter) return false
-    if (searchText && !s.name.toLowerCase().includes(searchText.toLowerCase())) return false
     return true
   })
 
@@ -108,7 +123,7 @@ export default function Pricebook({ profile }) {
       setServiceError(error.message)
     } else {
       setNewServiceName('')
-      setNewServiceExempt(false)
+      setNewServiceExempt(!taxableByDefault)
       loadServices(selectedOrg)
     }
   }
@@ -175,312 +190,3 @@ export default function Pricebook({ profile }) {
     URL.revokeObjectURL(url)
     setExporting(false)
   }
-async function loadVariants(serviceId) {
-    setLoadingVariants(true)
-    const { data } = await supabase
-      .from('service_prices')
-      .select('id, location, access, hours, part_source, customer_display, price, cost, task_hours, is_active')
-      .eq('service_id', serviceId)
-      .order('location')
-      .order('access')
-      .order('hours')
-    setVariants(data || [])
-    setLoadingVariants(false)
-  }
-
-  function selectService(s) {
-    setSelectedServiceId(s.id)
-    setSelectedServiceInfo(s)
-    setEditingVariantId(null)
-    loadVariants(s.id)
-  }
-
-  async function handleAddVariant(e) {
-    e.preventDefault()
-    setVariantError('')
-    if (!newPrice) return
-    setSavingVariant(true)
-    const { error } = await supabase.from('service_prices').insert({
-      org_id: selectedOrg,
-      service_id: selectedServiceId,
-      location: newLocation,
-      access: newAccess,
-      hours: newHours,
-      part_source: newPartSource || null,
-      customer_display: newDisplay.trim() || selectedServiceInfo.name,
-      price: parseFloat(newPrice) || 0,
-      cost: parseFloat(newCost) || 0,
-      task_hours: parseFloat(newTaskHours) || 0,
-    })
-    setSavingVariant(false)
-    if (error) {
-      setVariantError(error.message)
-    } else {
-      setNewDisplay('')
-      setNewPrice('')
-      setNewCost('')
-      setNewTaskHours('')
-      loadVariants(selectedServiceId)
-    }
-  }
-
-  function startEditVariant(v) {
-    setEditingVariantId(v.id)
-    setEditLocation(v.location || LOCATIONS[0])
-    setEditAccess(v.access || ACCESS_OPTS[0])
-    setEditHours(v.hours || HOURS_OPTS[0])
-    setEditPartSource(v.part_source || '')
-    setEditDisplay(v.customer_display || '')
-    setEditPrice(String(v.price))
-    setEditCost(String(v.cost))
-    setEditTaskHours(String(v.task_hours))
-  }
-
-  async function saveEditVariant(id) {
-    await supabase
-      .from('service_prices')
-      .update({
-        location: editLocation,
-        access: editAccess,
-        hours: editHours,
-        part_source: editPartSource || null,
-        customer_display: editDisplay.trim() || selectedServiceInfo.name,
-        price: parseFloat(editPrice) || 0,
-        cost: parseFloat(editCost) || 0,
-        task_hours: parseFloat(editTaskHours) || 0,
-      })
-      .eq('id', id)
-    setEditingVariantId(null)
-    loadVariants(selectedServiceId)
-  }
-
-  async function toggleVariantActive(v) {
-    await supabase.from('service_prices').update({ is_active: !v.is_active }).eq('id', v.id)
-    loadVariants(selectedServiceId)
-  }
-  return (<div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2 className="page-title" style={{ marginBottom: 0 }}>Pricebook</h2>
-        <button className="logout-button" onClick={handleExport} disabled={exporting || !selectedOrg}>
-          {exporting ? 'Exporting…' : 'Export CSV'}
-        </button>
-      </div>
-
-      {isSuperAdmin && (
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
-          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
-        </div>
-      )}
-
-      <form className="inline-form" onSubmit={handleAddService} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
-        <div className="field">
-          <label htmlFor="svcCategory">Category</label>
-          <input id="svcCategory" type="text" value={newServiceCategory} onChange={(e) => setNewServiceCategory(e.target.value)} placeholder="e.g. Single Capacitors" required />
-        </div>
-        <div className="field">
-          <label htmlFor="svcName">Service name</label>
-          <input id="svcName" type="text" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} placeholder="e.g. 5 mf Run Capacitor" required />
-        </div>
-        <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 0 }}>
-          <label style={{ marginBottom: 0, cursor: 'pointer' }}>
-            <input type="checkbox" checked={newServiceExempt} onChange={(e) => setNewServiceExempt(e.target.checked)} style={{ marginRight: 4 }} />
-            Tax exempt
-          </label>
-        </div>
-        <button className="auth-button" type="submit" disabled={savingService}>
-          {savingService ? 'Adding…' : 'Add service'}
-        </button>
-      </form>
-
-      {serviceError && <div className="auth-error">{serviceError}</div>}
-
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div className="field" style={{ marginBottom: 0, minWidth: 200 }}>
-          <label htmlFor="catFilter">Category</label>
-          <select id="catFilter" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-            <option value="">All categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-        <div className="field" style={{ marginBottom: 0, minWidth: 200 }}>
-          <label htmlFor="searchBox">Search</label>
-          <input id="searchBox" type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Search service name…" />
-        </div>
-        <label className="nav-link" style={{ cursor: 'pointer' }}>
-          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} style={{ marginRight: 6 }} />
-          Show archived
-        </label>
-      </div>
-
-      {loadingServices ? (
-        <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : (
-        <div className="grid-table" style={{ gridTemplateColumns: '1.2fr 1.6fr 0.8fr 0.8fr 1fr' }}>
-          <div className="grid-cell grid-head">Category</div>
-          <div className="grid-cell grid-head">Service</div>
-          <div className="grid-cell grid-head">Exempt</div>
-          <div className="grid-cell grid-head">Status</div>
-          <div className="grid-cell grid-head"></div>
-
-          {filteredServices.map((s) =>
-            editingServiceId === s.id ? (
-              <>
-                <div className="grid-cell"><input type="text" value={editServiceCategory} onChange={(e) => setEditServiceCategory(e.target.value)} /></div>
-                <div className="grid-cell"><input type="text" value={editServiceName} onChange={(e) => setEditServiceName(e.target.value)} /></div>
-                <div className="grid-cell">{s.is_tax_exempt ? 'Yes' : 'No'}</div>
-                <div className="grid-cell">{s.is_active ? 'Active' : 'Archived'}</div>
-                <div className="grid-cell grid-actions">
-                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEditService(s.id)}>Save</button>
-                  <button className="logout-button" onClick={() => setEditingServiceId(null)}>Cancel</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="grid-cell">{s.category}</div>
-                <div className="grid-cell">{s.name}</div>
-                <div className="grid-cell">{s.is_tax_exempt ? 'Yes' : 'No'}</div>
-                <div className="grid-cell">
-                  <span className={`status-pill ${s.is_active ? 'status-active' : 'status-canceled'}`}>{s.is_active ? 'Active' : 'Archived'}</span>
-                </div>
-                <div className="grid-cell grid-actions">
-                  <button className="logout-button" onClick={() => selectService(s)}>Prices</button>
-                  <button className="logout-button" onClick={() => startEditService(s)}>Rename</button>
-                  <button className="logout-button" onClick={() => toggleServiceActive(s)}>{s.is_active ? 'Archive' : 'Reactivate'}</button>
-                </div>
-              </>
-            )
-          )}
-          {filteredServices.length === 0 && (
-            <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No services found.</div>
-          )}
-        </div>
-      )}
-{selectedServiceId && (
-        <div style={{ marginTop: 32 }}>
-          <h3 style={{ fontSize: 16, marginBottom: 4 }}>{selectedServiceInfo?.category} — {selectedServiceInfo?.name}</h3>
-          <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0, marginBottom: 16 }}>Price variants for this service</p>
-
-          <form className="inline-form" onSubmit={handleAddVariant} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
-            <div className="field">
-              <label htmlFor="vLoc">Location</label>
-              <select id="vLoc" value={newLocation} onChange={(e) => setNewLocation(e.target.value)}>
-                {LOCATIONS.map((l) => <option key={l} value={l}>{l}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="vAcc">Access</label>
-              <select id="vAcc" value={newAccess} onChange={(e) => setNewAccess(e.target.value)}>
-                {ACCESS_OPTS.map((a) => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="vHrs">Hours</label>
-              <select id="vHrs" value={newHours} onChange={(e) => setNewHours(e.target.value)}>
-                {HOURS_OPTS.map((h) => <option key={h} value={h}>{h}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="vPart">Part source</label>
-              <select id="vPart" value={newPartSource} onChange={(e) => setNewPartSource(e.target.value)}>
-                {PART_SOURCES.map((p) => <option key={p} value={p}>{p || 'N/A'}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="vDisplay">Customer display text</label>
-              <input id="vDisplay" type="text" value={newDisplay} onChange={(e) => setNewDisplay(e.target.value)} placeholder={selectedServiceInfo?.name} />
-            </div>
-            <div className="field">
-              <label htmlFor="vPrice">Price</label>
-              <input id="vPrice" type="number" step="0.01" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} required style={{ width: 90 }} />
-            </div>
-            <div className="field">
-              <label htmlFor="vCost">Cost</label>
-              <input id="vCost" type="number" step="0.01" value={newCost} onChange={(e) => setNewCost(e.target.value)} style={{ width: 90 }} />
-            </div>
-            <div className="field">
-              <label htmlFor="vTaskHrs">Task hrs</label>
-              <input id="vTaskHrs" type="number" step="0.01" value={newTaskHours} onChange={(e) => setNewTaskHours(e.target.value)} style={{ width: 90 }} />
-            </div>
-            <button className="auth-button" type="submit" disabled={savingVariant}>
-              {savingVariant ? 'Adding…' : 'Add variant'}
-            </button>
-          </form>
-
-          {variantError && <div className="auth-error">{variantError}</div>}
-
-          {loadingVariants ? (
-            <p style={{ color: 'var(--mist)' }}>Loading…</p>
-          ) : (
-            <div className="grid-table" style={{ gridTemplateColumns: '1fr 1fr 1fr 0.8fr 1.4fr 0.8fr 0.8fr 0.8fr 1.2fr' }}>
-              <div className="grid-cell grid-head">Location</div>
-              <div className="grid-cell grid-head">Access</div>
-              <div className="grid-cell grid-head">Hours</div>
-              <div className="grid-cell grid-head">Part</div>
-              <div className="grid-cell grid-head">Display text</div>
-              <div className="grid-cell grid-head">Price</div>
-              <div className="grid-cell grid-head">Cost</div>
-              <div className="grid-cell grid-head">Task hrs</div>
-              <div className="grid-cell grid-head"></div>
-
-              {variants.map((v) =>
-                editingVariantId === v.id ? (
-                  <>
-                    <div className="grid-cell">
-                      <select value={editLocation} onChange={(e) => setEditLocation(e.target.value)}>
-                        {LOCATIONS.map((l) => <option key={l} value={l}>{l}</option>)}
-                      </select>
-                    </div>
-                    <div className="grid-cell">
-                      <select value={editAccess} onChange={(e) => setEditAccess(e.target.value)}>
-                        {ACCESS_OPTS.map((a) => <option key={a} value={a}>{a}</option>)}
-                      </select>
-                    </div>
-                    <div className="grid-cell">
-                      <select value={editHours} onChange={(e) => setEditHours(e.target.value)}>
-                        {HOURS_OPTS.map((h) => <option key={h} value={h}>{h}</option>)}
-                      </select>
-                    </div>
-                    <div className="grid-cell">
-                      <select value={editPartSource} onChange={(e) => setEditPartSource(e.target.value)}>
-                        {PART_SOURCES.map((p) => <option key={p} value={p}>{p || 'N/A'}</option>)}
-                      </select>
-                    </div>
-                    <div className="grid-cell"><input type="text" value={editDisplay} onChange={(e) => setEditDisplay(e.target.value)} /></div>
-                    <div className="grid-cell"><input type="number" step="0.01" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} /></div>
-                    <div className="grid-cell"><input type="number" step="0.01" value={editCost} onChange={(e) => setEditCost(e.target.value)} /></div>
-                    <div className="grid-cell"><input type="number" step="0.01" value={editTaskHours} onChange={(e) => setEditTaskHours(e.target.value)} /></div>
-                    <div className="grid-cell grid-actions">
-                      <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEditVariant(v.id)}>Save</button>
-                      <button className="logout-button" onClick={() => setEditingVariantId(null)}>Cancel</button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="grid-cell">{v.location || '—'}</div>
-                    <div className="grid-cell">{v.access || '—'}</div>
-                    <div className="grid-cell">{v.hours || '—'}</div>
-                    <div className="grid-cell">{v.part_source || 'N/A'}</div>
-                    <div className="grid-cell">{v.customer_display}</div>
-                    <div className="grid-cell">${v.price.toFixed(2)}</div>
-                    <div className="grid-cell">${v.cost.toFixed(2)}</div>
-                    <div className="grid-cell">{v.task_hours}</div>
-                    <div className="grid-cell grid-actions">
-                      <button className="logout-button" onClick={() => startEditVariant(v)}>Edit</button>
-                      <button className="logout-button" onClick={() => toggleVariantActive(v)}>{v.is_active ? 'Off' : 'On'}</button>
-                    </div>
-                  </>
-                )
-              )}
-              {variants.length === 0 && (
-                <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No price variants yet.</div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
