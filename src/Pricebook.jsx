@@ -175,8 +175,7 @@ export default function Pricebook({ profile }) {
     URL.revokeObjectURL(url)
     setExporting(false)
   }
-
-  async function loadVariants(serviceId) {
+async function loadVariants(serviceId) {
     setLoadingVariants(true)
     const { data } = await supabase
       .from('service_prices')
@@ -259,8 +258,7 @@ export default function Pricebook({ profile }) {
     await supabase.from('service_prices').update({ is_active: !v.is_active }).eq('id', v.id)
     loadVariants(selectedServiceId)
   }
-  return (
-<div>
+  return (<div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h2 className="page-title" style={{ marginBottom: 0 }}>Pricebook</h2>
         <button className="logout-button" onClick={handleExport} disabled={exporting || !selectedOrg}>
@@ -302,3 +300,61 @@ export default function Pricebook({ profile }) {
           <label htmlFor="catFilter">Category</label>
           <select id="catFilter" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
             <option value="">All categories</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field" style={{ marginBottom: 0, minWidth: 200 }}>
+          <label htmlFor="searchBox">Search</label>
+          <input id="searchBox" type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Search service name…" />
+        </div>
+        <label className="nav-link" style={{ cursor: 'pointer' }}>
+          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} style={{ marginRight: 6 }} />
+          Show archived
+        </label>
+      </div>
+
+      {loadingServices ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : (
+        <div className="grid-table" style={{ gridTemplateColumns: '1.2fr 1.6fr 0.8fr 0.8fr 1fr' }}>
+          <div className="grid-cell grid-head">Category</div>
+          <div className="grid-cell grid-head">Service</div>
+          <div className="grid-cell grid-head">Exempt</div>
+          <div className="grid-cell grid-head">Status</div>
+          <div className="grid-cell grid-head"></div>
+
+          {filteredServices.map((s) =>
+            editingServiceId === s.id ? (
+              <>
+                <div className="grid-cell"><input type="text" value={editServiceCategory} onChange={(e) => setEditServiceCategory(e.target.value)} /></div>
+                <div className="grid-cell"><input type="text" value={editServiceName} onChange={(e) => setEditServiceName(e.target.value)} /></div>
+                <div className="grid-cell">{s.is_tax_exempt ? 'Yes' : 'No'}</div>
+                <div className="grid-cell">{s.is_active ? 'Active' : 'Archived'}</div>
+                <div className="grid-cell grid-actions">
+                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEditService(s.id)}>Save</button>
+                  <button className="logout-button" onClick={() => setEditingServiceId(null)}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid-cell">{s.category}</div>
+                <div className="grid-cell">{s.name}</div>
+                <div className="grid-cell">{s.is_tax_exempt ? 'Yes' : 'No'}</div>
+                <div className="grid-cell">
+                  <span className={`status-pill ${s.is_active ? 'status-active' : 'status-canceled'}`}>{s.is_active ? 'Active' : 'Archived'}</span>
+                </div>
+                <div className="grid-cell grid-actions">
+                  <button className="logout-button" onClick={() => selectService(s)}>Prices</button>
+                  <button className="logout-button" onClick={() => startEditService(s)}>Rename</button>
+                  <button className="logout-button" onClick={() => toggleServiceActive(s)}>{s.is_active ? 'Archive' : 'Reactivate'}</button>
+                </div>
+              </>
+            )
+          )}
+          {filteredServices.length === 0 && (
+            <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No services found.</div>
+          )}
+        </div>
+      )}
