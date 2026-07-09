@@ -20,6 +20,8 @@ export default function PublicInvoice() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [payingNow, setPayingNow] = useState(false)
+  const [payError, setPayError] = useState('')
 
   useEffect(() => {
     supabase.functions
