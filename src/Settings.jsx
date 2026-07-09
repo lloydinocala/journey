@@ -247,6 +247,25 @@ export default function Settings({ profile }) {
         </div>
       </div>
 
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Brand colors</h3>
+      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 16 }}>
+        Used on your invoices.
+      </p>
+      <form onSubmit={saveBrandColors} style={{ display: 'flex', gap: 16, alignItems: 'flex-end', marginBottom: 28 }}>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label htmlFor="brandPrimary">Primary</label>
+          <input id="brandPrimary" type="color" value={brandPrimary} onChange={(e) => setBrandPrimary(e.target.value)} style={{ width: 60, height: 38, padding: 2 }} />
+        </div>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label htmlFor="brandAccent">Accent</label>
+          <input id="brandAccent" type="color" value={brandAccent} onChange={(e) => setBrandAccent(e.target.value)} style={{ width: 60, height: 38, padding: 2 }} />
+        </div>
+        <button className="auth-button" type="submit" disabled={savingBrand} style={{ width: 'auto', padding: '10px 20px' }}>
+          {savingBrand ? 'Saving…' : 'Save'}
+        </button>
+        {brandSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
+      </form>
+
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Business contact info</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
         This appears on your invoices — separate from your customer's info.
