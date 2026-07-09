@@ -25,9 +25,13 @@ export default function Settings({ profile }) {
   const [savingTax, setSavingTax] = useState(false)
   const [taxSaved, setTaxSaved] = useState(false)
 
-  const [logoUrl, setLogoUrl] = useState('')
+ const [logoUrl, setLogoUrl] = useState('')
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [logoError, setLogoError] = useState('')
+  const [brandPrimary, setBrandPrimary] = useState('#2F5DE3')
+  const [brandAccent, setBrandAccent] = useState('#B8720A')
+  const [savingBrand, setSavingBrand] = useState(false)
+  const [brandSaved, setBrandSaved] = useState(false)
 
   const [bizStreet, setBizStreet] = useState('')
   const [bizCity, setBizCity] = useState('')
