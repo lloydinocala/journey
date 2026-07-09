@@ -103,13 +103,24 @@ export default function Settings({ profile }) {
     }
   }
 
-  async function handleConnectStripe() {
+ async function handleConnectStripe() {
     setConnectingStripe(true)
     setStripeError('')
     const { data, error } = await supabase.functions.invoke('stripe-connect-onboarding')
     setConnectingStripe(false)
-    if (error || data?.error) {
-      setStripeError(data?.error || error.message)
+    if (error) {
+      let detail = error.message
+      if (error.context) {
+        try {
+          const body = await error.context.json()
+          if (body?.error) detail = body.error
+        } catch {
+          // couldn't parse body, fall back to generic message
+        }
+      }
+      setStripeError(detail)
+    } else if (data?.error) {
+      setStripeError(data.error)
     } else if (data?.url) {
       window.location.href = data.url
     }
