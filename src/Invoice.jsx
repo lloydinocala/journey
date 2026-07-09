@@ -498,13 +498,12 @@ async function loadLineItems(invoiceId) {
                 Copy
               </button>
               
-                href={'/view-invoice/' + invoice.id}
-                target="_blank"
-                rel="noopener noreferrer"
+     <button
+                type="button"
                 className="logout-button"
-                style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                onClick={() => window.open('/view-invoice/' + invoice.id, '_blank')}
               >
                 Open
-              </a>
+              </button>
             </div>
           </div>
