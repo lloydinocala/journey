@@ -308,6 +308,18 @@ async function loadLineItems(invoiceId) {
       .eq('id', invoice.id)
   }
 
+  async function handleSendEmail() {
+    setSendingEmail(true)
+    setSendError('')
+    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId: invoice.id } })
+    setSendingEmail(false)
+    if (error || data?.error) {
+      setSendError(data?.error || error.message)
+    } else {
+      loadJobAndInvoice()
+    }
+  }
+
   const subtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const taxableSubtotal = lineItems.filter((li) => li.taxable).reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const salesTax = taxableSubtotal * (taxRate / 100)
