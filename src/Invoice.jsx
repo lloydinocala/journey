@@ -512,6 +512,11 @@ async function loadLineItems(invoiceId) {
             <p style={{ margin: '8px 0' }}>Sales tax: ${salesTax.toFixed(2)}</p>
             <p style={{ margin: '8px 0' }}>Discount: -${discountValue.toFixed(2)}</p>
             <h3 style={{ margin: '12px 0 0' }}>Total Due: ${totalDue.toFixed(2)}</h3>
+            {invoice.paid_at && (
+              <p style={{ margin: '8px 0 0', color: '#4CD97B', fontWeight: 600 }}>
+                ✓ Paid ${invoice.total_paid?.toFixed(2)} on {new Date(invoice.paid_at).toLocaleDateString()}
+              </p>
+            )}
           </div>
           <div className="auth-card" style={{ maxWidth: 500, marginTop: 24 }}>
             <h3 style={{ marginTop: 0, fontSize: 15 }}>Customer link</h3>
