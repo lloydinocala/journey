@@ -190,6 +190,18 @@ export default function Settings({ profile }) {
     loadBusinessHours(selectedOrg)
   }, [selectedOrg])
 
+  useEffect(() => {
+    if (!window.location.search.includes('stripe_return')) return
+    setCheckingStripe(true)
+    supabase.functions.invoke('stripe-check-status').then(({ data, error }) => {
+      setCheckingStripe(false)
+      if (!error && data) {
+        setStripeChargesEnabled(data.chargesEnabled)
+      }
+      window.history.replaceState({}, '', window.location.pathname)
+    })
+  }, [])
+
   async function saveBusinessHours(e) {
     e.preventDefault()
     setSavingHours(true)
