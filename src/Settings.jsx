@@ -24,6 +24,23 @@ export default function Settings({ profile }) {
   const [salesTaxRate, setSalesTaxRate] = useState('0')
   const [savingTax, setSavingTax] = useState(false)
   const [taxSaved, setTaxSaved] = useState(false)
+
+  const [logoUrl, setLogoUrl] = useState('')
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [logoError, setLogoError] = useState('')
+
+  const [bizStreet, setBizStreet] = useState('')
+  const [bizCity, setBizCity] = useState('')
+  const [bizState, setBizState] = useState('')
+  const [bizZip, setBizZip] = useState('')
+  const [bizPhone, setBizPhone] = useState('')
+  const [bizEmail, setBizEmail] = useState('')
+  const [bizWebsite, setBizWebsite] = useState('')
+  const [licenseNumber, setLicenseNumber] = useState('')
+  const [paymentTermsDays, setPaymentTermsDays] = useState('0')
+  const [savingBiz, setSavingBiz] = useState(false)
+  const [bizSaved, setBizSaved] = useState(false)
+
   const isSuperAdmin = profile.role === 'super_admin'
 
   useEffect(() => {
@@ -51,7 +68,7 @@ export default function Settings({ profile }) {
     if (!orgId) return
     const { data } = await supabase
       .from('organizations')
-      .select('business_hours_start, business_hours_end, services_taxable_by_default, sales_tax_rate')
+      .select('business_hours_start, business_hours_end, services_taxable_by_default, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, license_number, payment_terms_days, logo_url')
       .eq('id', orgId)
       .single()
     if (data) {
@@ -59,7 +76,63 @@ export default function Settings({ profile }) {
       setBusinessEnd(data.business_hours_end.slice(0, 5))
       setTaxableByDefault(data.services_taxable_by_default)
       setSalesTaxRate(String(data.sales_tax_rate))
+      setBizStreet(data.business_street || '')
+      setBizCity(data.business_city || '')
+      setBizState(data.business_state || '')
+      setBizZip(data.business_zip || '')
+      setBizPhone(data.business_phone || '')
+      setBizEmail(data.business_email || '')
+      setBizWebsite(data.business_website || '')
+      setLicenseNumber(data.license_number || '')
+      setPaymentTermsDays(String(data.payment_terms_days))
+      setLogoUrl(data.logo_url || '')
     }
+  }
+  async function handleLogoUpload(e) {
+    const file = e.target.files[0]
+    if (!file || !selectedOrg) return
+    setLogoError('')
+    setUploadingLogo(true)
+
+    const ext = file.name.split('.').pop()
+    const path = selectedOrg + '/logo.' + ext
+
+    const uploadResult = await supabase.storage.from('org-logos').upload(path, file, { upsert: true })
+    if (uploadResult.error) {
+      setLogoError(uploadResult.error.message)
+      setUploadingLogo(false)
+      return
+    }
+
+    const publicUrlResult = supabase.storage.from('org-logos').getPublicUrl(path)
+    const newUrl = publicUrlResult.data.publicUrl + '?t=' + Date.now()
+
+    await supabase.from('organizations').update({ logo_url: newUrl }).eq('id', selectedOrg)
+    setLogoUrl(newUrl)
+    setUploadingLogo(false)
+    e.target.value = ''
+  }
+
+  async function saveBusinessInfo(e) {
+    e.preventDefault()
+    setSavingBiz(true)
+    setBizSaved(false)
+    await supabase
+      .from('organizations')
+      .update({
+        business_street: bizStreet.trim() || null,
+        business_city: bizCity.trim() || null,
+        business_state: bizState.trim() || null,
+        business_zip: bizZip.trim() || null,
+        business_phone: bizPhone.trim() || null,
+        business_email: bizEmail.trim() || null,
+        business_website: bizWebsite.trim() || null,
+        license_number: licenseNumber.trim() || null,
+        payment_terms_days: parseInt(paymentTermsDays) || 0,
+      })
+      .eq('id', selectedOrg)
+    setSavingBiz(false)
+    setBizSaved(true)
   }
 
   async function saveTaxSettings(e) {
@@ -90,7 +163,6 @@ export default function Settings({ profile }) {
     setSavingHours(false)
     setHoursSaved(true)
   }
-
   async function handleAdd(e) {
     e.preventDefault()
     setError('')
@@ -132,7 +204,7 @@ export default function Settings({ profile }) {
 
   return (
     <div>
-<h2 className="page-title">Settings</h2>
+      <h2 className="page-title">Settings</h2>
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>
@@ -142,122 +214,3 @@ export default function Settings({ profile }) {
       )}
 
       <PricebookImport orgId={selectedOrg} />
-      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Business hours</h3>
-      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
-        Controls how the Calendar displays your day — 15-minute slots during these hours,
-        30-minute slots outside them for after-hours calls.
-      </p>
-
-      <form className="inline-form" onSubmit={saveBusinessHours} style={{ marginBottom: 28 }}>
-        <div className="field">
-          <label htmlFor="bStart">Opens</label>
-          <input id="bStart" type="time" value={businessStart} onChange={(e) => setBusinessStart(e.target.value)} required />
-        </div>
-        <div className="field">
-          <label htmlFor="bEnd">Closes</label>
-          <input id="bEnd" type="time" value={businessEnd} onChange={(e) => setBusinessEnd(e.target.value)} required />
-        </div>
-        <button className="auth-button" type="submit" disabled={savingHours}>
-          {savingHours ? 'Saving…' : 'Save hours'}
-        </button>
-        {hoursSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
-      </form>
-      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Sales tax</h3>
-      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
-        In Florida, flat-rate labor typically isn't taxed again (tax was already paid on parts at
-        wholesale) — only retail items like filters are. Other states may work the other way; set
-        what fits here.
-      </p>
-      <form className="inline-form" onSubmit={saveTaxSettings} style={{ marginBottom: 28 }}>
-        <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 0 }}>
-          <label style={{ marginBottom: 0, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={taxableByDefault}
-              onChange={(e) => setTaxableByDefault(e.target.checked)}
-              style={{ marginRight: 6 }}
-            />
-            New pricebook items are taxable by default
-          </label>
-        </div>
-        <div className="field">
-          <label htmlFor="taxRate">Sales tax rate (%)</label>
-          <input id="taxRate" type="number" step="0.001" value={salesTaxRate} onChange={(e) => setSalesTaxRate(e.target.value)} style={{ width: 100 }} />
-        </div>
-        <button className="auth-button" type="submit" disabled={savingTax}>
-          {savingTax ? 'Saving…' : 'Save'}
-        </button>
-        {taxSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
-      </form>
-
-      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Job types</h3>
-      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
-        These show up in the Type dropdown when creating a job. Turn one off instead of
-        deleting it if past jobs still reference it.
-      </p>
-
-      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 28 }}>
-        <div className="field">
-          <label htmlFor="newType">Add a job type</label>
-          <input
-            id="newType"
-            type="text"
-            value={newType}
-            onChange={(e) => setNewType(e.target.value)}
-            placeholder="e.g. New Construction"
-            required
-          />
-        </div>
-        <button className="auth-button" type="submit" disabled={saving}>
-          {saving ? 'Adding…' : 'Add'}
-        </button>
-      </form>
-
-      {error && <div className="auth-error">{error}</div>}
-
-      {loading ? (
-        <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : (
-        <div className="grid-table" style={{ gridTemplateColumns: '1.5fr 1fr 1.5fr' }}>
-          <div className="grid-cell grid-head">Name</div>
-          <div className="grid-cell grid-head">Status</div>
-          <div className="grid-cell grid-head"></div>
-
-          {jobTypes.map((t) =>
-            editingId === t.id ? (
-              <>
-                <div className="grid-cell">
-                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
-                </div>
-                <div className="grid-cell">
-                  <span className={`status-pill ${t.is_active ? 'status-active' : 'status-canceled'}`}>
-                    {t.is_active ? 'Active' : 'Off'}
-                  </span>
-                </div>
-                <div className="grid-cell grid-actions">
-                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(t.id)}>Save</button>
-                  <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="grid-cell">{t.name}</div>
-                <div className="grid-cell">
-                  <span className={`status-pill ${t.is_active ? 'status-active' : 'status-canceled'}`}>
-                    {t.is_active ? 'Active' : 'Off'}
-                  </span>
-                </div>
-                <div className="grid-cell grid-actions">
-                  <button className="logout-button" onClick={() => startEdit(t)}>Rename</button>
-                  <button className="logout-button" onClick={() => toggleActive(t.id, t.is_active)}>
-                    {t.is_active ? 'Turn off' : 'Turn on'}
-                  </button>
-                </div>
-              </>
-            )
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
