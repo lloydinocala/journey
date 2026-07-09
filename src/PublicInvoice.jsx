@@ -211,14 +211,20 @@ async function handlePayNow() {
           </div>
         </div>
 
-        {!invoice.paid_at && (
+       {invoice.paid_at ? (
+          <div style={{ textAlign: 'center', marginTop: 28, color: '#4CD97B', fontWeight: 600 }}>
+            ✓ Paid on {new Date(invoice.paid_at).toLocaleDateString()}
+          </div>
+        ) : (
           <div style={{ textAlign: 'center', marginTop: 28 }}>
             <button
-              style={{ background: primary, color: 'white', border: 'none', borderRadius: 8, padding: '14px 40px', fontSize: 15, fontWeight: 600, cursor: 'not-allowed', opacity: 0.6 }}
-              disabled
+              onClick={handlePayNow}
+              disabled={payingNow}
+              style={{ background: primary, color: 'white', border: 'none', borderRadius: 8, padding: '14px 40px', fontSize: 15, fontWeight: 600, cursor: payingNow ? 'default' : 'pointer', opacity: payingNow ? 0.7 : 1 }}
             >
-              Pay Now — Coming Soon
+              {payingNow ? 'Loading…' : 'Pay Now'}
             </button>
+            {payError && <p style={{ color: '#C0392B', fontSize: 13, marginTop: 10 }}>{payError}</p>}
           </div>
         )}
       </div>
