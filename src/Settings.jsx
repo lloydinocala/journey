@@ -33,6 +33,12 @@ export default function Settings({ profile }) {
   const [savingBrand, setSavingBrand] = useState(false)
   const [brandSaved, setBrandSaved] = useState(false)
 
+  const [stripeAccountId, setStripeAccountId] = useState(null)
+  const [stripeChargesEnabled, setStripeChargesEnabled] = useState(false)
+  const [connectingStripe, setConnectingStripe] = useState(false)
+  const [checkingStripe, setCheckingStripe] = useState(false)
+  const [stripeError, setStripeError] = useState('')
+
   const [bizStreet, setBizStreet] = useState('')
   const [bizCity, setBizCity] = useState('')
   const [bizState, setBizState] = useState('')
