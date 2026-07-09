@@ -14,6 +14,7 @@ import Team from './Team'
 import Calendar from './Calendar'
 import Pricebook from './Pricebook'
 import Invoice from './Invoice'
+import Invoices from './Invoices'
 import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
 
