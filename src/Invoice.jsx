@@ -48,6 +48,8 @@ export default function Invoice({ profile }) {
   const [discountType, setDiscountType] = useState('dollar')
   const [discountAmount, setDiscountAmount] = useState('0')
   const [taxRate, setTaxRate] = useState(0)
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [sendError, setSendError] = useState('')
 
   const [approvals, setApprovals] = useState([])
   const [approvingStage, setApprovingStage] = useState(null)
