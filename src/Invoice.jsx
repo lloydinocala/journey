@@ -520,6 +520,17 @@ async function loadLineItems(invoiceId) {
                 Open
               </button>
             </div>
+            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button className="auth-button" style={{ width: 'auto', padding: '8px 20px' }} onClick={handleSendEmail} disabled={sendingEmail}>
+                {sendingEmail ? 'Sending…' : invoice.sent_at ? 'Resend to Customer' : 'Send to Customer'}
+              </button>
+              {invoice.sent_at && (
+                <span style={{ fontSize: 13, color: 'var(--mist)' }}>
+                  Last sent {new Date(invoice.sent_at).toLocaleString()}
+                </span>
+              )}
+            </div>
+            {sendError && <div className="auth-error" style={{ marginTop: 10 }}>{sendError}</div>}
           </div>
 <div className="auth-card" style={{ maxWidth: 500, marginTop: 24 }}>
             <h3 style={{ marginTop: 0, fontSize: 15 }}>Approvals</h3>
