@@ -106,7 +106,7 @@ export default function Settings({ profile }) {
  async function handleConnectStripe() {
     setConnectingStripe(true)
     setStripeError('')
-    const { data, error } = await supabase.functions.invoke('stripe-connect-onboarding')
+    const { data, error } = await supabase.functions.invoke('stripe-connect-onboarding', { body: { orgId: selectedOrg } })
     setConnectingStripe(false)
     if (error) {
       let detail = error.message
