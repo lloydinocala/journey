@@ -308,13 +308,24 @@ async function loadLineItems(invoiceId) {
       .eq('id', invoice.id)
   }
 
-  async function handleSendEmail() {
+ async function handleSendEmail() {
     setSendingEmail(true)
     setSendError('')
     const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId: invoice.id } })
     setSendingEmail(false)
-    if (error || data?.error) {
-      setSendError(data?.error || error.message)
+    if (error) {
+      let detail = error.message
+      if (error.context) {
+        try {
+          const body = await error.context.json()
+          if (body?.error) detail = body.error
+        } catch {
+          // couldn't parse body, fall back to generic message
+        }
+      }
+      setSendError(detail)
+    } else if (data?.error) {
+      setSendError(data.error)
     } else {
       loadJobAndInvoice()
     }
