@@ -96,8 +96,22 @@ export default function Settings({ profile }) {
       setLicenseNumber(data.license_number || '')
       setPaymentTermsDays(String(data.payment_terms_days))
      setLogoUrl(data.logo_url || '')
-      setBrandPrimary(data.brand_primary_color || '#2F5DE3')
+    setBrandPrimary(data.brand_primary_color || '#2F5DE3')
       setBrandAccent(data.brand_accent_color || '#B8720A')
+      setStripeAccountId(data.stripe_account_id)
+      setStripeChargesEnabled(data.stripe_charges_enabled)
+    }
+  }
+
+  async function handleConnectStripe() {
+    setConnectingStripe(true)
+    setStripeError('')
+    const { data, error } = await supabase.functions.invoke('stripe-connect-onboarding')
+    setConnectingStripe(false)
+    if (error || data?.error) {
+      setStripeError(data?.error || error.message)
+    } else if (data?.url) {
+      window.location.href = data.url
     }
   }
 
