@@ -358,7 +358,18 @@ async function loadLineItems(invoiceId) {
           <Link to="/jobs" className="nav-link">← Back to Jobs</Link>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '16px 0 24px' }}>
             <div>
-              <h2 className="page-title" style={{ marginBottom: 4 }}>{invoice.invoice_number} — Job {job.job_number}</h2>
+              <h2 className="page-title" style={{ marginBottom: 4 }}>
+                {invoice.invoice_number} — Job {job.job_number}
+                {invoice.paid_at ? (
+                  <span className="status-pill status-active" style={{ marginLeft: 12, verticalAlign: 'middle' }}>
+                    Paid {new Date(invoice.paid_at).toLocaleDateString()}
+                  </span>
+                ) : (
+                  <span className="status-pill status-trial" style={{ marginLeft: 12, verticalAlign: 'middle' }}>
+                    Unpaid
+                  </span>
+                )}
+              </h2>
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.display_name}</p>
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.street_address}</p>
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.primary_phone} · {job.properties?.customers?.email_1}</p>
