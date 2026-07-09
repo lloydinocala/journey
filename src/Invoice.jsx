@@ -486,25 +486,25 @@ export default function Invoice({ profile }) {
           <div className="auth-card" style={{ maxWidth: 500, marginTop: 24 }}>
             <h3 style={{ marginTop: 0, fontSize: 15 }}>Customer link</h3>
             <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>
-              This is what the customer sees — no login required.
+              This is what the customer sees, no login required.
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 type="text"
                 readOnly
-                value={`${window.location.origin}/view-invoice/${invoice.id}`}
+                value={window.location.origin + '/view-invoice/' + invoice.id}
                 style={{ flex: 1, padding: '8px 10px', background: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--paper)' }}
                 onFocus={(e) => e.target.select()}
               />
               <button
                 type="button"
                 className="logout-button"
-                onClick={() => navigator.clipboard.writeText(`${window.location.origin}/view-invoice/${invoice.id}`)}
+                onClick={() => navigator.clipboard.writeText(window.location.origin + '/view-invoice/' + invoice.id)}
               >
                 Copy
               </button>
               
-                href={`/view-invoice/${invoice.id}`}
+                href={'/view-invoice/' + invoice.id}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="logout-button"
