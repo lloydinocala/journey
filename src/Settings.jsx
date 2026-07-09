@@ -89,8 +89,22 @@ export default function Settings({ profile }) {
       setBizWebsite(data.business_website || '')
       setLicenseNumber(data.license_number || '')
       setPaymentTermsDays(String(data.payment_terms_days))
-      setLogoUrl(data.logo_url || '')
+     setLogoUrl(data.logo_url || '')
+      setBrandPrimary(data.brand_primary_color || '#2F5DE3')
+      setBrandAccent(data.brand_accent_color || '#B8720A')
     }
+  }
+
+  async function saveBrandColors(e) {
+    e.preventDefault()
+    setSavingBrand(true)
+    setBrandSaved(false)
+    await supabase
+      .from('organizations')
+      .update({ brand_primary_color: brandPrimary, brand_accent_color: brandAccent })
+      .eq('id', selectedOrg)
+    setSavingBrand(false)
+    setBrandSaved(true)
   }
   async function handleLogoUpload(e) {
     const file = e.target.files[0]
