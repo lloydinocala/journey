@@ -72,7 +72,7 @@ export default function Settings({ profile }) {
     if (!orgId) return
     const { data } = await supabase
       .from('organizations')
-      .select('business_hours_start, business_hours_end, services_taxable_by_default, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, license_number, payment_terms_days, logo_url')
+    .select('business_hours_start, business_hours_end, services_taxable_by_default, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, license_number, payment_terms_days, logo_url, brand_primary_color, brand_accent_color')
       .eq('id', orgId)
       .single()
     if (data) {
