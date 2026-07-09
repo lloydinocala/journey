@@ -313,7 +313,7 @@ export default function Settings({ profile }) {
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 16 }}>
         Connect your own Stripe account so customer payments go directly to you — Journey never holds your money.
       </p>
-      <div style={{ marginBottom: 28 }}>
+     <div style={{ marginBottom: 28 }}>
         {checkingStripe ? (
           <p style={{ color: 'var(--mist)' }}>Checking status…</p>
         ) : stripeChargesEnabled ? (
@@ -322,6 +322,31 @@ export default function Settings({ profile }) {
             <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 8 }}>Ready to accept payments.</p>
           </div>
         ) : stripeAccountId ? (
+          <div>
+            <span className="status-pill status-trial">Setup incomplete</span>
+            <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 8 }}>
+              You started connecting Stripe but Journey hasn't confirmed it's finished yet.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button
+                className="logout-button"
+                onClick={() => {
+                  setCheckingStripe(true)
+                  supabase.functions.invoke('stripe-check-status', { body: { orgId: selectedOrg } }).then(({ data, error }) => {
+                    setCheckingStripe(false)
+                    if (!error && data) setStripeChargesEnabled(data.chargesEnabled)
+                    if (error) setStripeError(error.message)
+                  })
+                }}
+              >
+                Refresh Status
+              </button>
+              <button className="auth-button" style={{ width: 'auto', padding: '10px 24px' }} onClick={handleConnectStripe} disabled={connectingStripe}>
+                {connectingStripe ? 'Loading…' : 'Continue Stripe Setup'}
+              </button>
+            </div>
+          </div>
+        ) : stripeAccountIdUnused ? (
           <div>
             <span className="status-pill status-trial">Setup incomplete</span>
             <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 8 }}>
