@@ -298,6 +298,36 @@ export default function Settings({ profile }) {
         {brandSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
       </form>
 
+     <h3 style={{ fontSize: 16, marginBottom: 12 }}>Payments</h3>
+      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 16 }}>
+        Connect your own Stripe account so customer payments go directly to you — Journey never holds your money.
+      </p>
+      <div style={{ marginBottom: 28 }}>
+        {checkingStripe ? (
+          <p style={{ color: 'var(--mist)' }}>Checking status…</p>
+        ) : stripeChargesEnabled ? (
+          <div>
+            <span className="status-pill status-active">Connected</span>
+            <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 8 }}>Ready to accept payments.</p>
+          </div>
+        ) : stripeAccountId ? (
+          <div>
+            <span className="status-pill status-trial">Setup incomplete</span>
+            <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 8 }}>
+              You started connecting Stripe but didn't finish. Continue below.
+            </p>
+            <button className="auth-button" style={{ width: 'auto', padding: '10px 24px', marginTop: 8 }} onClick={handleConnectStripe} disabled={connectingStripe}>
+              {connectingStripe ? 'Loading…' : 'Continue Stripe Setup'}
+            </button>
+          </div>
+        ) : (
+          <button className="auth-button" style={{ width: 'auto', padding: '10px 24px' }} onClick={handleConnectStripe} disabled={connectingStripe}>
+            {connectingStripe ? 'Loading…' : 'Connect with Stripe'}
+          </button>
+        )}
+        {stripeError && <div className="auth-error" style={{ marginTop: 12 }}>{stripeError}</div>}
+      </div>
+
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Business contact info</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
         This appears on your invoices — separate from your customer's info.
