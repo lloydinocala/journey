@@ -15,8 +15,9 @@ import Calendar from './Calendar'
 import Pricebook from './Pricebook'
 import Invoice from './Invoice'
 import Announcements from './Announcements'
+import PublicInvoice from './PublicInvoice'
 
-export default function App() {
+function AuthenticatedApp() {
   const [session, setSession] = useState(undefined)
   const [profile, setProfile] = useState(null)
   const [needsPassword, setNeedsPassword] = useState(
@@ -27,11 +28,9 @@ export default function App() {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
     })
-
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)
     })
-
     return () => listener.subscription.unsubscribe()
   }, [])
 
@@ -54,27 +53,35 @@ export default function App() {
   if (!profile) return null
 
   return (
+    <Routes>
+      <Route element={<Layout profile={profile} />}>
+        <Route path="/" element={<Dashboard profile={profile} />} />
+        <Route path="/customers" element={<Customers profile={profile} />} />
+        <Route path="/properties" element={<Properties profile={profile} />} />
+        <Route path="/jobs" element={<Jobs profile={profile} />} />
+        <Route path="/settings" element={<Settings profile={profile} />} />
+        <Route path="/team" element={<Team profile={profile} />} />
+        <Route path="/calendar" element={<Calendar profile={profile} />} />
+        <Route path="/pricebook" element={<Pricebook profile={profile} />} />
+        <Route path="/invoice/:jobId" element={<Invoice profile={profile} />} />
+        {profile.role === 'super_admin' && (
+          <Route path="/announcements" element={<Announcements />} />
+        )}
+        {profile.role === 'super_admin' && (
+          <Route path="/organizations" element={<Organizations />} />
+        )}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  )
+}
+
+export default function App() {
+  return (
     <BrowserRouter>
       <Routes>
-        <Route element={<Layout profile={profile} />}>
-          <Route path="/" element={<Dashboard profile={profile} />} />
-          <Route path="/customers" element={<Customers profile={profile} />} />
-          <Route path="/properties" element={<Properties profile={profile} />} />
-          <Route path="/jobs" element={<Jobs profile={profile} />} />
-          <Route path="/settings" element={<Settings profile={profile} />} />
-          <Route path="/team" element={<Team profile={profile} />} />
-          <Route path="/calendar" element={<Calendar profile={profile} />} />
-          <Route path="/pricebook" element={<Pricebook profile={profile} />} />
-          <Route path="/invoice/:jobId" element={<Invoice profile={profile} />} />
-          {profile.role === 'super_admin' && (
-            <Route path="/announcements" element={<Announcements />} />
-          )}
-          
-          {profile.role === 'super_admin' && (
-            <Route path="/organizations" element={<Organizations />} />
-          )}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
+        <Route path="/view-invoice/:invoiceId" element={<PublicInvoice />} />
+        <Route path="*" element={<AuthenticatedApp />} />
       </Routes>
     </BrowserRouter>
   )
