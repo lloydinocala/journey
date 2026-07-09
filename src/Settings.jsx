@@ -346,17 +346,7 @@ export default function Settings({ profile }) {
               </button>
             </div>
           </div>
-        ) : stripeAccountIdUnused ? (
-          <div>
-            <span className="status-pill status-trial">Setup incomplete</span>
-            <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 8 }}>
-              You started connecting Stripe but didn't finish. Continue below.
-            </p>
-            <button className="auth-button" style={{ width: 'auto', padding: '10px 24px', marginTop: 8 }} onClick={handleConnectStripe} disabled={connectingStripe}>
-              {connectingStripe ? 'Loading…' : 'Continue Stripe Setup'}
-            </button>
-          </div>
-        ) : (
+       ) : (
           <button className="auth-button" style={{ width: 'auto', padding: '10px 24px' }} onClick={handleConnectStripe} disabled={connectingStripe}>
             {connectingStripe ? 'Loading…' : 'Connect with Stripe'}
           </button>
