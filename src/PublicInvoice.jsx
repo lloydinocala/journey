@@ -23,6 +23,18 @@ export default function PublicInvoice() {
   const [payingNow, setPayingNow] = useState(false)
   const [payError, setPayError] = useState('')
 
+async function handlePayNow() {
+    setPayingNow(true)
+    setPayError('')
+    const { data: result, error } = await supabase.functions.invoke('create-invoice-checkout', { body: { invoiceId } })
+    setPayingNow(false)
+    if (error || result?.error) {
+      setPayError(result?.error || error.message)
+    } else if (result?.url) {
+      window.location.href = result.url
+    }
+  }
+
   useEffect(() => {
     supabase.functions
       .invoke('get-public-invoice', { body: { invoiceId } })
