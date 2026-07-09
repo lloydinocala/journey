@@ -204,7 +204,7 @@ export default function Settings({ profile }) {
   useEffect(() => {
     if (!window.location.search.includes('stripe_return')) return
     setCheckingStripe(true)
-    supabase.functions.invoke('stripe-check-status').then(({ data, error }) => {
+  supabase.functions.invoke('stripe-check-status', { body: { orgId: selectedOrg } }).then(({ data, error }) => {
       setCheckingStripe(false)
       if (!error && data) {
         setStripeChargesEnabled(data.chargesEnabled)
