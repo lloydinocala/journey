@@ -66,6 +66,7 @@ function AuthenticatedApp() {
         <Route path="/calendar" element={<Calendar profile={profile} />} />
         <Route path="/pricebook" element={<Pricebook profile={profile} />} />
         <Route path="/invoice/:jobId" element={<Invoice profile={profile} />} />
+        <Route path="/estimate/:jobId" element={<Estimate profile={profile} />} />
         <Route path="/invoices" element={<Invoices profile={profile} />} />
         {profile.role === 'super_admin' && (
           <Route path="/announcements" element={<Announcements />} />
