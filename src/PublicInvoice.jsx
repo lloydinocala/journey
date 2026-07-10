@@ -68,6 +68,8 @@ async function handlePayNow() {
 
   const { invoice, org, job, property, customer, lineItems, technicians } = data
   const primary = org?.brand_primary_color || '#2F5DE3'
+  const isEstimate = invoice.kind === 'estimate'
+  const docLabel = isEstimate ? 'Estimate' : 'Invoice'
 
   const hasBusinessAddress = org?.business_street || org?.business_city
   const hasContactBlock = hasBusinessAddress || org?.business_phone || org?.business_email || org?.business_website || org?.license_number
