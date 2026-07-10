@@ -209,11 +209,11 @@ async function handlePayNow() {
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 20, fontWeight: 700, marginTop: 10, paddingTop: 10, borderTop: '2px solid ' + primary }}>
-            <span>Total Due</span><span>${invoice.amount_due?.toFixed(2)}</span>
+            <span>{isEstimate ? 'Estimated Total' : 'Total Due'}</span><span>${invoice.amount_due?.toFixed(2)}</span>
           </div>
         </div>
 
-       {invoice.paid_at ? (
+       {isEstimate ? null : invoice.paid_at ? (
           <div style={{ textAlign: 'center', marginTop: 28, color: '#4CD97B', fontWeight: 600 }}>
             ✓ Paid on {new Date(invoice.paid_at).toLocaleDateString()}
           </div>
