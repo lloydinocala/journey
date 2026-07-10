@@ -75,6 +75,7 @@ export default function Invoice({ profile }) {
       .from('invoices')
       .select('*')
       .eq('job_id', jobId)
+      .eq('kind', 'invoice')
       .maybeSingle()
 
     if (!existingInvoice) {
