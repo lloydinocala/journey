@@ -94,6 +94,7 @@ export default function Invoice({ profile }) {
           invoice_date: new Date().toISOString().slice(0, 10),
           bills_to_customer_id: jobData.customer_id,
           discount_type: 'dollar',
+          kind: 'invoice',
         })
         .select()
         .single()
