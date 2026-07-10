@@ -31,6 +31,7 @@ export default function Invoices({ profile }) {
       .from('invoices')
       .select('id, invoice_number, invoice_date, job_id, amount_due, total_paid, paid_at, sent_at, jobs(job_number, properties(customers!properties_customer_id_fkey(display_name)))')
       .eq('org_id', orgId)
+      .eq('kind', 'invoice')
     setInvoices(data || [])
     setLoading(false)
   }
