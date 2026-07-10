@@ -83,8 +83,8 @@ export default function Invoice({ profile }) {
         .from('invoices')
         .select('id', { count: 'exact', head: true })
         .eq('org_id', jobData.org_id)
+        .eq('kind', 'invoice')
       const invoiceNumber = `INV-${String((count || 0) + 1).padStart(4, '0')}`
-
       const { data: created } = await supabase
         .from('invoices')
         .insert({
