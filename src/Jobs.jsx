@@ -432,6 +432,7 @@ export default function Jobs({ profile }) {
                <div className="grid-cell grid-actions">
                   <button className="logout-button" onClick={() => startEdit(j)}>Edit</button>
                   <Link to={`/invoice/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Invoice</Link>
+                  <Link to={`/estimate/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Estimate</Link>
                 </div>
               </>
             )
