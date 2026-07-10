@@ -200,3 +200,166 @@ export default function Team({ profile }) {
         { label: 'Status', value: (m) => (m.is_active ? 'Active' : 'Deactivated') },
       ],
       'team-' + new Date().toISOString().slice(0, 10) + '.csv'
+)
+  }
+
+  return (
+    <div>
+      <h2 className="page-title">Team</h2>
+
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+        </div>
+      )}
+
+      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 28, flexWrap: 'wrap' }}>
+        <div className="field">
+          <label htmlFor="fullName">Name</label>
+          <input id="fullName" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Orlando Ayala" required />
+        </div>
+        <div className="field">
+          <label htmlFor="email">Email</label>
+          <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="orlando@aircareconnect.com" required />
+        </div>
+        <div className="field">
+          <label htmlFor="role">Role</label>
+          <select id="role" value={role} onChange={(e) => setRole(e.target.value)}>
+            <option value="tech">Technician</option>
+            <option value="csr">CSR / Office</option>
+            <option value="org_admin">Admin</option>
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="color">Calendar color</label>
+          <input id="color" type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ width: 60, padding: 4, height: 40 }} />
+        </div>
+        <button className="auth-button" type="submit" disabled={saving}>
+          {saving ? 'Sending invite…' : 'Send invite'}
+        </button>
+      </form>
+
+      {error && <div className="auth-error">{error}</div>}
+      {success && (
+        <div style={{ background: 'rgba(76, 217, 123, 0.12)', border: '1px solid rgba(76, 217, 123, 0.3)', color: '#4CD97B', fontSize: 13, padding: '10px 12px', borderRadius: 8, marginBottom: 16 }}>
+          {success}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="field" style={{ marginBottom: 0, minWidth: 220 }}>
+          <label htmlFor="searchBox">Search</label>
+          <input
+            id="searchBox"
+            type="text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Name, email, or role…"
+          />
+        </div>
+        <div style={{ position: 'relative', marginBottom: 10 }}>
+          <button className="logout-button" onClick={() => setShowColumnPicker(!showColumnPicker)}>
+            Columns ▾
+          </button>
+          {showColumnPicker && (
+            <div className="org-picker-list" style={{ right: 0, left: 'auto', minWidth: 180 }}>
+              {COLUMNS.filter((c) => !c.required).map((col) => (
+                <label key={col.key} className="org-picker-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.includes(col.key)}
+                    onChange={() => toggleColumn(col.key)}
+                  />
+                  {col.label}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+        <button className="logout-button" style={{ marginBottom: 10 }} onClick={handleExport}>
+          Export CSV
+        </button>
+        <p style={{ color: 'var(--mist)', fontSize: 14, margin: '0 0 12px' }}>
+          {sorted.length} member{sorted.length !== 1 ? 's' : ''}
+        </p>
+      </div>
+
+      {loading ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : (
+        <div className="grid-table" style={{ gridTemplateColumns: '0.4fr 1.3fr 1.5fr 1fr 1fr 1.5fr' }}>
+          <div className="grid-cell grid-head"></div>
+          <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('full_name')}>Name{sortArrow('full_name')}</div>
+          {visibleColumns.includes('email') && (
+            <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('email')}>Email{sortArrow('email')}</div>
+          )}
+          {visibleColumns.includes('role') && (
+            <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('role')}>Role{sortArrow('role')}</div>
+          )}
+          {visibleColumns.includes('status') && (
+            <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('status')}>Status{sortArrow('status')}</div>
+          )}
+          <div className="grid-cell grid-head"></div>
+
+          {sorted.map((m) =>
+            editingId === m.id ? (
+              <>
+                <div className="grid-cell">
+                  <input type="color" value={editColor} onChange={(e) => setEditColor(e.target.value)} style={{ width: 40, height: 32, padding: 2 }} />
+                </div>
+                <div className="grid-cell">
+                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                </div>
+                {visibleColumns.includes('email') && (
+                  <div className="grid-cell">
+                    <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+                  </div>
+                )}
+                {visibleColumns.includes('role') && (
+                  <div className="grid-cell">
+                    <select value={editRole} onChange={(e) => setEditRole(e.target.value)}>
+                      <option value="tech">Technician</option>
+                      <option value="csr">CSR / Office</option>
+                      <option value="org_admin">Admin</option>
+                    </select>
+                  </div>
+                )}
+                {visibleColumns.includes('status') && <div className="grid-cell">{m.is_active ? 'Active' : 'Deactivated'}</div>}
+                <div className="grid-cell grid-actions">
+                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(m)}>Save</button>
+                  <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid-cell"><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: m.calendar_color || 'var(--mist)' }} /></div>
+                <div className="grid-cell">{m.full_name}</div>
+                {visibleColumns.includes('email') && <div className="grid-cell">{m.email}</div>}
+                {visibleColumns.includes('role') && <div className="grid-cell">{m.role}</div>}
+                {visibleColumns.includes('status') && (
+                  <div className="grid-cell">
+                    <span className={`status-pill ${m.is_active ? 'status-active' : 'status-canceled'}`}>
+                      {m.is_active ? 'Active' : 'Deactivated'}
+                    </span>
+                  </div>
+                )}
+                <div className="grid-cell grid-actions">
+                  <button className="logout-button" onClick={() => startEdit(m)}>Edit</button>
+                  {m.id !== currentUserId && (
+                    <button className="logout-button" onClick={() => toggleActive(m)}>
+                      {m.is_active ? 'Deactivate' : 'Reactivate'}
+                    </button>
+                  )}
+                </div>
+              </>
+            )
+          )}
+          {sorted.length === 0 && (
+            <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No team members found.</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
