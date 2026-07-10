@@ -1,104 +1,99 @@
-.app-shell-v2 {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { supabase } from './utils/supabase'
+import AnnouncementBanner from './AnnouncementBanner'
+
+const CATEGORIES = [
+  { key: 'operations', label: 'Operations', items: [
+    { label: 'Calendar', path: '/calendar' },
+    { label: 'Jobs', path: '/jobs' },
+    { label: 'Properties', path: '/properties' },
+    { label: 'Customers', path: '/customers' },
+  ]},
+  { key: 'financials', label: 'Financials', items: [
+    { label: 'Invoices', path: '/invoices' },
+    { label: 'Pricebook', path: '/pricebook' },
+  ]},
+  { key: 'admin', label: 'Admin', items: [
+    { label: 'Team', path: '/team' },
+    { label: 'Settings', path: '/settings' },
+  ]},
+]
+
+const PLATFORM_CATEGORY = { key: 'platform', label: 'Platform', items: [
+  { label: 'Organizations', path: '/organizations' },
+  { label: 'Announcements', path: '/announcements' },
+]}
+
+function getCategoryForPath(pathname) {
+  if (pathname === '/') return null
+  if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/properties') || pathname.startsWith('/customers')) return 'operations'
+  if (pathname.startsWith('/invoice') || pathname.startsWith('/estimate') || pathname.startsWith('/pricebook')) return 'financials'
+  if (pathname.startsWith('/team') || pathname.startsWith('/settings')) return 'admin'
+  if (pathname.startsWith('/organizations') || pathname.startsWith('/announcements')) return 'platform'
+  return null
 }
 
-.shell-body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
+export default function Layout({ profile }) {
+  const location = useLocation()
+  const isSuperAdmin = profile?.role === 'super_admin'
+  const allCategories = isSuperAdmin ? [...CATEGORIES, PLATFORM_CATEGORY] : CATEGORIES
 
-.sidebar-rail {
-  width: 84px;
-  background: var(--nav-bg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16px 0;
-  flex-shrink: 0;
-}
+  const [expandedCategory, setExpandedCategory] = useState(getCategoryForPath(location.pathname))
 
-.rail-brand {
-  color: var(--nav-text);
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 700;
-  font-size: 13px;
-  text-align: center;
-  margin-bottom: 24px;
-  padding: 0 8px;
-  line-height: 1.3;
-}
+  useEffect(() => {
+    const cat = getCategoryForPath(location.pathname)
+    if (cat) setExpandedCategory(cat)
+  }, [location.pathname])
 
-.rail-item {
-  background: none;
-  border: none;
-  color: var(--nav-mist);
-  font-size: 12px;
-  padding: 12px 4px;
-  width: 100%;
-  cursor: pointer;
-  text-decoration: none;
-  display: block;
-  text-align: center;
-  border-left: 3px solid transparent;
-  font-family: inherit;
-}
+  async function handleLogout() {
+    await supabase.auth.signOut()
+  }
 
-.rail-item:hover {
-  color: var(--nav-text);
-  background: rgba(255, 255, 255, 0.05);
-}
+  const activeCategoryData = allCategories.find((c) => c.key === expandedCategory)
 
-.rail-item.active {
-  color: var(--nav-text);
-  border-left-color: var(--route-blue);
-  background: rgba(255, 255, 255, 0.08);
-}
+  return (
+    <div className="app-shell-v2">
+      <AnnouncementBanner profile={profile} />
+      <div className="shell-body">
+        <div className="sidebar-rail">
+          <div className="rail-brand">Journey<br />HVAC</div>
+          <Link to="/" className={'rail-item' + (location.pathname === '/' ? ' active' : '')}>
+            Home
+          </Link>
+          {allCategories.map((cat) => (
+            <button
+              key={cat.key}
+              className={'rail-item' + (expandedCategory === cat.key ? ' active' : '')}
+              onClick={() => setExpandedCategory(cat.key)}
+            >
+              {cat.label}
+            </button>
+          ))}
+          <div className="rail-spacer" />
+          {isSuperAdmin && <span className="badge" style={{ marginBottom: 12 }}>Super Admin</span>}
+          <button className="rail-item" onClick={handleLogout}>Sign out</button>
+        </div>
 
-.rail-spacer {
-  flex: 1;
-}
+        {activeCategoryData && (
+          <div className="sidebar-panel">
+            <h3>{activeCategoryData.label}</h3>
+            {activeCategoryData.items.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={'sidebar-panel-link' + (location.pathname.startsWith(item.path) ? ' active' : '')}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        )}
 
-.sidebar-panel {
-  width: 200px;
-  background: var(--panel);
-  border-right: 1px solid var(--border);
-  padding: 20px 12px;
-  flex-shrink: 0;
-}
-
-.sidebar-panel h3 {
-  font-size: 12px;
-  text-transform: uppercase;
-  color: var(--mist);
-  letter-spacing: 0.05em;
-  margin: 0 0 12px 8px;
-}
-
-.sidebar-panel-link {
-  display: block;
-  padding: 10px 8px;
-  color: var(--paper);
-  text-decoration: none;
-  border-radius: 6px;
-  font-size: 14px;
-  margin-bottom: 2px;
-}
-
-.sidebar-panel-link:hover {
-  background: var(--ink);
-}
-
-.sidebar-panel-link.active {
-  background: var(--route-blue);
-  color: white;
-}
-
-.main-content-area {
-  flex: 1;
-  padding: 32px;
-  overflow-y: auto;
-  min-width: 0;
+        <div className="main-content-area">
+          <Outlet />
+        </div>
+      </div>
+    </div>
+  )
 }
