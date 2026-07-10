@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
+import { exportToCSV } from './utils/csvExport'
 
 function slugify(name) {
   return name
@@ -9,14 +10,30 @@ function slugify(name) {
     .replace(/(^-|-$)/g, '')
 }
 
+const COLUMNS = [
+  { key: 'name', label: 'Name', required: true },
+  { key: 'slug', label: 'Slug' },
+  { key: 'status', label: 'Status', required: true },
+  { key: 'created_at', label: 'Created' },
+]
+
 export default function Organizations() {
   const [orgs, setOrgs] = useState([])
   const [statusFilter, setStatusFilter] = useState('current')
- 
+
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const [searchText, setSearchText] = useState('')
+  const [sortField, setSortField] = useState('created_at')
+  const [sortDirection, setSortDirection] = useState('desc')
+  const [showColumnPicker, setShowColumnPicker] = useState(false)
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = localStorage.getItem('organizations_visible_columns')
+    return saved ? JSON.parse(saved) : COLUMNS.map((c) => c.key)
+  })
 
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
@@ -36,6 +53,28 @@ export default function Organizations() {
   useEffect(() => {
     loadOrgs()
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem('organizations_visible_columns', JSON.stringify(visibleColumns))
+  }, [visibleColumns])
+
+  function toggleColumn(key) {
+    setVisibleColumns((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+  }
+
+  function toggleSort(field) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  function sortArrow(field) {
+    if (sortField !== field) return ''
+    return sortDirection === 'asc' ? ' ↑' : ' ↓'
+  }
 
   async function handleAdd(e) {
     e.preventDefault()
@@ -69,7 +108,7 @@ export default function Organizations() {
     const reason = window.prompt(
       `Freeze ${org.name}? Every user there will be locked out immediately.\n\nA reason is required and will be kept on record:`
     )
-    if (reason === null) return // cancelled
+    if (reason === null) return
     if (!reason.trim()) {
       alert('A reason is required to freeze an organization.')
       return
@@ -116,6 +155,7 @@ export default function Organizations() {
     await supabase.from('organizations').update({ billing_status: 'active' }).eq('id', org.id)
     loadOrgs()
   }
+
   function startEdit(org) {
     setEditingId(org.id)
     setEditName(org.name)
@@ -137,114 +177,44 @@ export default function Organizations() {
     loadOrgs()
   }
 
+  const statusFiltered = orgs.filter((org) => {
+    if (statusFilter === 'all') return true
+    if (statusFilter === 'frozen') return org.billing_status === 'suspended'
+    if (statusFilter === 'archived') return org.billing_status === 'canceled'
+    return org.billing_status !== 'canceled'
+  })
+
+  const searched = statusFiltered.filter((org) => {
+    if (!searchText) return true
+    const q = searchText.toLowerCase()
+    return org.name?.toLowerCase().includes(q) || org.slug?.toLowerCase().includes(q)
+  })
+
+  const sorted = [...searched].sort((a, b) => {
+    let aVal, bVal
+    if (sortField === 'status') {
+      aVal = a.billing_status || ''
+      bVal = b.billing_status || ''
+    } else {
+      aVal = a[sortField] || ''
+      bVal = b[sortField] || ''
+    }
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
+    return 0
+  })
+
+  function handleExport() {
+    exportToCSV(
+      sorted,
+      [
+        { key: 'name', label: 'Name' },
+        { key: 'slug', label: 'Slug' },
+        { key: 'billing_status', label: 'Status' },
+        { label: 'Created', value: (o) => new Date(o.created_at).toLocaleDateString() },
+      ],
+      'organizations-' + new Date().toISOString().slice(0, 10) + '.csv'
+    )
+  }
+
   return (
-    <div>
-      <h2 className="page-title">Organizations</h2>
-
-      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 28 }}>
-        <div className="field">
-          <label htmlFor="orgName">Organization name</label>
-          <input
-            id="orgName"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Comfort Zone HVAC"
-            required
-          />
-        </div>
-        <button className="auth-button" type="submit" disabled={saving}>
-          {saving ? 'Adding…' : 'Add organization'}
-        </button>
-      </form>
-
-      {error && <div className="auth-error">{error}</div>}
-
-     <div className="field" style={{ maxWidth: 220, marginBottom: 20 }}>
-        <label htmlFor="statusFilter">Show</label>
-        <select id="statusFilter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="current">Active &amp; frozen</option>
-          <option value="frozen">Frozen only</option>
-          <option value="archived">Archived only</option>
-          <option value="all">All</option>
-        </select>
-      </div>
-
-      {loading ? (
-        <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : (
-        <table className="org-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Slug</th>
-              <th>Status</th>
-              <th>Created</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {orgs
-              .filter((org) => {
-                if (statusFilter === 'all') return true
-                if (statusFilter === 'frozen') return org.billing_status === 'suspended'
-                if (statusFilter === 'archived') return org.billing_status === 'canceled'
-                return org.billing_status !== 'canceled'
-              })
-              .map((org) =>
-              editingId === org.id ? (
-                <tr key={org.id}>
-                  <td><input type="text" value={editName} onChange={(e) => handleEditNameChange(e.target.value)} /></td>
-                  <td><input type="text" value={editSlug} onChange={(e) => { setEditSlug(e.target.value); setSlugTouched(true) }} /></td>
-                  <td>
-                    <span className={`status-pill status-${org.billing_status}`}>
-                      {org.billing_status}
-                    </span>
-                  </td>
-                  <td>{new Date(org.created_at).toLocaleDateString()}</td>
-                  <td style={{ display: 'flex', gap: 8 }}>
-                    <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(org.id)}>Save</button>
-                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
-                  </td>
-                </tr>
-              ) : (
-                <tr key={org.id}>
-                  <td>{org.name}</td>
-                  <td>{org.slug}</td>
-                <td>
-                    <span
-                      className={`status-pill status-${org.billing_status}`}
-                      title={
-                        org.billing_status === 'suspended'
-                          ? (org.frozen_reason || 'No reason recorded')
-                          : org.billing_status === 'canceled'
-                          ? (org.canceled_reason || 'No reason recorded')
-                          : ''
-                      }
-                    >
-                      {org.billing_status}
-                    </span>
-                  </td>
-                  <td>{new Date(org.created_at).toLocaleDateString()}</td>
-                  <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button className="logout-button" onClick={() => startEdit(org)}>Edit</button>
-                    {org.billing_status === 'canceled' ? (
-                      <button className="logout-button" onClick={() => reinstateOrg(org)}>Reinstate</button>
-                    ) : (
-                      <>
-                        <button className="logout-button" onClick={() => toggleFreeze(org)}>
-                          {org.billing_status === 'suspended' ? 'Unfreeze' : 'Freeze'}
-                        </button>
-                        <button className="logout-button" onClick={() => archiveOrg(org)}>Archive</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              )
-            )}
-          </tbody>
-        </table>
-      )}
-    </div>
-  )
-}
