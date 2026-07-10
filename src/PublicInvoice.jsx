@@ -167,7 +167,7 @@ async function handlePayNow() {
         </div>
 
         <div style={{ background: primary, color: 'white', padding: '10px 16px', borderRadius: 6, fontWeight: 700, letterSpacing: 1, fontSize: 14, marginBottom: 20 }}>
-          INVOICE {invoice.invoice_number}
+          {docLabel.toUpperCase()} {invoice.invoice_number}
         </div>
 
         <div style={{ marginBottom: 24 }}>
