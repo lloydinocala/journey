@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { exportToCSV } from './utils/csvExport'
+
+const COLUMNS = [
+  { key: 'full_name', label: 'Name', required: true },
+  { key: 'email', label: 'Email' },
+  { key: 'role', label: 'Role' },
+  { key: 'status', label: 'Status' },
+]
 
 export default function Team({ profile }) {
   const [orgs, setOrgs] = useState([])
@@ -16,6 +24,15 @@ export default function Team({ profile }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  const [searchText, setSearchText] = useState('')
+  const [sortField, setSortField] = useState('full_name')
+  const [sortDirection, setSortDirection] = useState('asc')
+  const [showColumnPicker, setShowColumnPicker] = useState(false)
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = localStorage.getItem('team_visible_columns')
+    return saved ? JSON.parse(saved) : COLUMNS.map((c) => c.key)
+  })
 
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
@@ -50,6 +67,28 @@ export default function Team({ profile }) {
   useEffect(() => {
     loadMembers(selectedOrg)
   }, [selectedOrg])
+
+  useEffect(() => {
+    localStorage.setItem('team_visible_columns', JSON.stringify(visibleColumns))
+  }, [visibleColumns])
+
+  function toggleColumn(key) {
+    setVisibleColumns((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+  }
+
+  function toggleSort(field) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  function sortArrow(field) {
+    if (sortField !== field) return ''
+    return sortDirection === 'asc' ? ' ↑' : ' ↓'
+  }
 
   async function handleAdd(e) {
     e.preventDefault()
@@ -131,113 +170,33 @@ export default function Team({ profile }) {
     loadMembers(selectedOrg)
   }
 
-  return (
-    <div>
-      <h2 className="page-title">Team</h2>
+  const filtered = members.filter((m) => {
+    if (!searchText) return true
+    const q = searchText.toLowerCase()
+    return m.full_name?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q) || m.role?.toLowerCase().includes(q)
+  })
 
-      {isSuperAdmin && (
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
-          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
-        </div>
-      )}
+  const sorted = [...filtered].sort((a, b) => {
+    let aVal, bVal
+    if (sortField === 'status') {
+      aVal = a.is_active ? 1 : 0
+      bVal = b.is_active ? 1 : 0
+    } else {
+      aVal = a[sortField] || ''
+      bVal = b[sortField] || ''
+    }
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
+    return 0
+  })
 
-      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 28, flexWrap: 'wrap' }}>
-        <div className="field">
-          <label htmlFor="fullName">Name</label>
-          <input id="fullName" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Orlando Ayala" required />
-        </div>
-        <div className="field">
-          <label htmlFor="email">Email</label>
-          <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="orlando@aircareconnect.com" required />
-        </div>
-        <div className="field">
-          <label htmlFor="role">Role</label>
-          <select id="role" value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="tech">Technician</option>
-            <option value="csr">CSR / Office</option>
-            <option value="org_admin">Admin</option>
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="color">Calendar color</label>
-          <input id="color" type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ width: 60, padding: 4, height: 40 }} />
-        </div>
-        <button className="auth-button" type="submit" disabled={saving}>
-          {saving ? 'Sending invite…' : 'Send invite'}
-        </button>
-      </form>
-
-      {error && <div className="auth-error">{error}</div>}
-      {success && (
-        <div style={{ background: 'rgba(76, 217, 123, 0.12)', border: '1px solid rgba(76, 217, 123, 0.3)', color: '#4CD97B', fontSize: 13, padding: '10px 12px', borderRadius: 8, marginBottom: 16 }}>
-          {success}
-        </div>
-      )}
-
-      {loading ? (
-        <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : (
-        <div className="grid-table" style={{ gridTemplateColumns: '0.4fr 1.3fr 1.5fr 1fr 1fr 1.5fr' }}>
-          <div className="grid-cell grid-head"></div>
-          <div className="grid-cell grid-head">Name</div>
-          <div className="grid-cell grid-head">Email</div>
-          <div className="grid-cell grid-head">Role</div>
-          <div className="grid-cell grid-head">Status</div>
-          <div className="grid-cell grid-head"></div>
-
-          {members.map((m) =>
-            editingId === m.id ? (
-              <>
-                <div className="grid-cell">
-                  <input type="color" value={editColor} onChange={(e) => setEditColor(e.target.value)} style={{ width: 40, height: 32, padding: 2 }} />
-                </div>
-                <div className="grid-cell">
-                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
-                </div>
-                <div className="grid-cell">
-                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
-                </div>
-                <div className="grid-cell">
-                  <select value={editRole} onChange={(e) => setEditRole(e.target.value)}>
-                    <option value="tech">Technician</option>
-                    <option value="csr">CSR / Office</option>
-                    <option value="org_admin">Admin</option>
-                  </select>
-                </div>
-                <div className="grid-cell">{m.is_active ? 'Active' : 'Deactivated'}</div>
-                <div className="grid-cell grid-actions">
-                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(m)}>Save</button>
-                  <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="grid-cell"><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: m.calendar_color || 'var(--mist)' }} /></div>
-                <div className="grid-cell">{m.full_name}</div>
-                <div className="grid-cell">{m.email}</div>
-                <div className="grid-cell">{m.role}</div>
-                <div className="grid-cell">
-                  <span className={`status-pill ${m.is_active ? 'status-active' : 'status-canceled'}`}>
-                    {m.is_active ? 'Active' : 'Deactivated'}
-                  </span>
-                </div>
-                <div className="grid-cell grid-actions">
-                  <button className="logout-button" onClick={() => startEdit(m)}>Edit</button>
-                  {m.id !== currentUserId && (
-                    <button className="logout-button" onClick={() => toggleActive(m)}>
-                      {m.is_active ? 'Deactivate' : 'Reactivate'}
-                    </button>
-                  )}
-                </div>
-              </>
-            )
-          )}
-          {members.length === 0 && (
-            <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No team members yet.</div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
+  function handleExport() {
+    exportToCSV(
+      sorted,
+      [
+        { key: 'full_name', label: 'Name' },
+        { key: 'email', label: 'Email' },
+        { key: 'role', label: 'Role' },
+        { label: 'Status', value: (m) => (m.is_active ? 'Active' : 'Deactivated') },
+      ],
+      'team-' + new Date().toISOString().slice(0, 10) + '.csv'
