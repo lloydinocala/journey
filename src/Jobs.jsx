@@ -5,6 +5,18 @@ import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import TripChargePicker from './TripChargePicker'
+import { exportToCSV } from './utils/csvExport'
+
+const COLUMNS = [
+  { key: 'job_number', label: 'Job #', required: true },
+  { key: 'job_date', label: 'Date' },
+  { key: 'address', label: 'Address' },
+  { key: 'trip_charge', label: 'Trip Charge' },
+  { key: 'job_type', label: 'Type' },
+  { key: 'service_complaint', label: 'Complaint' },
+  { key: 'technicians', label: 'Technicians' },
+  { key: 'status', label: 'Status' },
+]
 
 export default function Jobs({ profile }) {
   const [orgs, setOrgs] = useState([])
@@ -27,6 +39,15 @@ export default function Jobs({ profile }) {
   const [overrideBan, setOverrideBan] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const [searchText, setSearchText] = useState('')
+  const [sortField, setSortField] = useState('job_date')
+  const [sortDirection, setSortDirection] = useState('desc')
+  const [showColumnPicker, setShowColumnPicker] = useState(false)
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = localStorage.getItem('jobs_visible_columns')
+    return saved ? JSON.parse(saved) : COLUMNS.map((c) => c.key)
+  })
 
   const [editingId, setEditingId] = useState(null)
   const [editPropertyId, setEditPropertyId] = useState('')
@@ -82,6 +103,28 @@ export default function Jobs({ profile }) {
     loadData(selectedOrg)
   }, [selectedOrg])
 
+  useEffect(() => {
+    localStorage.setItem('jobs_visible_columns', JSON.stringify(visibleColumns))
+  }, [visibleColumns])
+
+  function toggleColumn(key) {
+    setVisibleColumns((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+  }
+
+  function toggleSort(field) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  function sortArrow(field) {
+    if (sortField !== field) return ''
+    return sortDirection === 'asc' ? ' ↑' : ' ↓'
+  }
+
   const selectedProperty = properties.find((p) => p.id === propertyId)
   const isBannedSelected = selectedProperty?.customers?.is_banned
 
@@ -92,7 +135,7 @@ export default function Jobs({ profile }) {
   }
 
   function tripChargeSummary(job) {
-    if (!job.trip_charge) return '—'
+    if (!job.trip_charge) return ''
     const tc = job.trip_charge
     const abbrev = (s) => (s ? s.replace('Standard', 'Std').replace('Difficult', 'Diff').replace('Extended', 'Ext').replace(' Access', '').replace(' Hours', '').replace(' Level', '').replace('Attic or Ceiling', 'Attic').replace('Roof or Sub-Level', 'Roof') : '')
     return `${tc.services?.name || ''} — ${abbrev(tc.location)}/${abbrev(tc.access)}/${abbrev(tc.hours)}`
@@ -236,222 +279,46 @@ export default function Jobs({ profile }) {
     loadData(selectedOrg)
   }
 
+  const filtered = jobs.filter((j) => {
+    if (!searchText) return true
+    const q = searchText.toLowerCase()
+    return (
+      j.job_number?.toLowerCase().includes(q) ||
+      j.properties?.street_address?.toLowerCase().includes(q) ||
+      j.service_complaint?.toLowerCase().includes(q) ||
+      techNames(j).toLowerCase().includes(q)
+    )
+  })
+
+  const sorted = [...filtered].sort((a, b) => {
+    let aVal, bVal
+    if (sortField === 'address') {
+      aVal = a.properties?.street_address || ''
+      bVal = b.properties?.street_address || ''
+    } else {
+      aVal = a[sortField] || ''
+      bVal = b[sortField] || ''
+    }
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
+    return 0
+  })
+
+  function handleExport() {
+    exportToCSV(
+      sorted,
+      [
+        { key: 'job_number', label: 'Job #' },
+        { key: 'job_date', label: 'Date' },
+        { label: 'Address', value: (j) => j.properties?.street_address || '' },
+        { label: 'Trip Charge', value: tripChargeSummary },
+        { key: 'job_type', label: 'Type' },
+        { key: 'service_complaint', label: 'Complaint' },
+        { label: 'Technicians', value: techNames },
+        { key: 'status', label: 'Status' },
+      ],
+      'jobs-' + new Date().toISOString().slice(0, 10) + '.csv'
+    )
+  }
+
   return (
-<div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2 className="page-title" style={{ marginBottom: 0 }}>Jobs</h2>
-        <NewItemDropdown onSelect={setNewItemMode} />
-      </div>
-
-      {isSuperAdmin && (
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
-          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
-        </div>
-      )}
-
-      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap', flexDirection: 'column', alignItems: 'stretch' }}>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <div className="field">
-            <label htmlFor="propPick">Property</label>
-            <select id="propPick" value={propertyId} onChange={(e) => setPropertyId(e.target.value)} required>
-              <option value="">Select…</option>
-              {properties.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.customers?.is_banned ? '⚠️ DO NOT SERVICE — ' : ''}{p.street_address} — {p.customers?.display_name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="jobDate">Date</label>
-            <input id="jobDate" type="date" value={jobDate} onChange={(e) => setJobDate(e.target.value)} required />
-          </div>
-          <div className="field">
-            <label htmlFor="startTime">Start time</label>
-            <input id="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-          </div>
-          <div className="field">
-            <label htmlFor="duration">Duration (hrs)</label>
-            <input id="duration" type="number" step="0.5" value={durationHours} onChange={(e) => setDurationHours(e.target.value)} style={{ width: 80 }} />
-          </div>
-          <div className="field">
-            <label htmlFor="jobType">Type</label>
-            <select id="jobType" value={jobType} onChange={(e) => setJobType(e.target.value)}>
-              {jobTypes.map((t) => (
-                <option key={t.id} value={t.name}>{t.name}</option>
-              ))}
-            </select>
-          </div>
-         <div className="field">
-            <label htmlFor="complaint">Service complaint</label>
-            <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling" />
-          </div>
-          <div className="field">
-            <label htmlFor="tech">Technician</label>
-            <select id="tech" value={technicianId} onChange={(e) => setTechnicianId(e.target.value)}>
-              <option value="">Unassigned</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>{u.full_name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div style={{ marginTop: 4 }}>
-          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Trip charge (sets Location/Access/Time for this job)</label>
-          <TripChargePicker orgId={selectedOrg} value={newTripChargeId} onChange={setNewTripChargeId} />
-        </div>
-
-        <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto', alignSelf: 'flex-start' }}>
-          {saving ? 'Adding…' : 'Add job'}
-        </button>
-      </form>
-
-      {isBannedSelected && (
-        <div className="auth-error" style={{ marginBottom: 20 }}>
-          <strong>This customer is flagged Do Not Service.</strong>
-          {canOverrideBan ? (
-            <label style={{ display: 'block', marginTop: 8, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={overrideBan}
-                onChange={(e) => setOverrideBan(e.target.checked)}
-                style={{ marginRight: 6 }}
-              />
-              I acknowledge this and want to schedule anyway
-            </label>
-          ) : (
-            <p style={{ margin: '8px 0 0' }}>Only an Admin at this company can schedule a job for this customer.</p>
-          )}
-        </div>
-      )}
-
-      {error && <div className="auth-error">{error}</div>}
-
-      {loading ? (
-        <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : (
-        <div className="grid-table" style={{ gridTemplateColumns: '0.8fr 1fr 1.3fr 1.5fr 1fr 1.3fr 1.4fr 0.9fr 1.2fr' }}>
-          <div className="grid-cell grid-head">Job #</div>
-          <div className="grid-cell grid-head">Date</div>
-          <div className="grid-cell grid-head">Address</div>
-          <div className="grid-cell grid-head">Trip Charge</div>
-          <div className="grid-cell grid-head">Type</div>
-          <div className="grid-cell grid-head">Complaint</div>
-          <div className="grid-cell grid-head">Technicians</div>
-          <div className="grid-cell grid-head">Status</div>
-          <div className="grid-cell grid-head"></div>
-
-          {jobs.map((j) =>
-            editingId === j.id ? (
-              <>
-                <div className="grid-cell">{j.job_number}</div>
-                <div className="grid-cell">
-                  <input type="date" value={editJobDate} onChange={(e) => setEditJobDate(e.target.value)} />
-                  <input type="time" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} />
-                </div>
-                <div className="grid-cell">
-                  <select value={editPropertyId} onChange={(e) => setEditPropertyId(e.target.value)}>
-                    {properties.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.customers?.is_banned ? '⚠️ ' : ''}{p.street_address} — {p.customers?.display_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid-cell" style={{ gridColumn: 'span 1' }}>
-                  <TripChargePicker orgId={selectedOrg} value={editTripChargeId} onChange={setEditTripChargeId} />
-                </div>
-                <div className="grid-cell">
-                  <select value={editJobType} onChange={(e) => setEditJobType(e.target.value)}>
-                    {jobTypes.map((t) => (
-                      <option key={t.id} value={t.name}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid-cell">
-                  <input type="text" value={editComplaint} onChange={(e) => setEditComplaint(e.target.value)} />
-                </div>
-                <div className="grid-cell">
-                  {editTechnicians.map((t, idx) => (
-                    <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-                      <span>{idx === 0 ? '★ ' : ''}{t.users?.full_name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeTechnicianFromJob(t.id, j.id)}
-                        style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: '0 4px' }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                  <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                    <select value={addTechChoice} onChange={(e) => setAddTechChoice(e.target.value)} style={{ flex: 1, fontSize: 12 }}>
-                      <option value="">Add…</option>
-                      {users
-                        .filter((u) => !editTechnicians.some((t) => t.user_id === u.id))
-                        .map((u) => (
-                          <option key={u.id} value={u.id}>{u.full_name}</option>
-                        ))}
-                    </select>
-                    <button
-                      type="button"
-                      className="logout-button"
-                      style={{ padding: '4px 8px', fontSize: 12 }}
-                      onClick={() => addTechnicianToJob(j.id)}
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-                <div className="grid-cell">
-                  <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
-                    <option value="scheduled">Scheduled</option>
-                    <option value="on_my_way">On my way</option>
-                    <option value="in_progress">In progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="canceled">Canceled</option>
-                  </select>
-                </div>
-                <div className="grid-cell grid-actions">
-                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(j.id)}>Save</button>
-                  <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="grid-cell">{j.job_number}</div>
-                <div className="grid-cell">{j.job_date}</div>
-                <div className="grid-cell">{j.properties?.street_address || '—'}</div>
-                <div className="grid-cell" style={{ fontSize: 12 }}>{tripChargeSummary(j)}</div>
-                <div className="grid-cell">{j.job_type}</div>
-                <div className="grid-cell">{j.service_complaint || '—'}</div>
-                <div className="grid-cell">{techNames(j)}</div>
-                <div className="grid-cell"><span className={`status-pill status-${j.status}`}>{j.status}</span></div>
-               <div className="grid-cell grid-actions">
-                  <button className="logout-button" onClick={() => startEdit(j)}>Edit</button>
-                  <Link to={`/invoice/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Invoice</Link>
-                  <Link to={`/estimate/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Estimate</Link>
-                </div>
-              </>
-            )
-          )}
-          {jobs.length === 0 && (
-            <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No jobs yet.</div>
-          )}
-        </div>
-      )}
-
-      {newItemMode && (
-        <QuickAddModal
-          mode={newItemMode}
-          orgId={selectedOrg}
-          profile={profile}
-          onClose={() => setNewItemMode(null)}
-          onCreated={() => loadData(selectedOrg)}
-        />
-      )}
-    </div>
-  )
-}
