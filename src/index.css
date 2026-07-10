@@ -234,6 +234,13 @@ body {
 }
 
 .page-title {
+  background: var(--nav-bg);
+  color: white;
+  margin: -32px -32px 24px -32px;
+  padding: 22px 32px;
+  font-size: 22px;
+  font-weight: 600;
+}
   font-size: 20px;
   margin: 0 0 20px;
 }
