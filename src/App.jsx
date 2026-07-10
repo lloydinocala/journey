@@ -16,6 +16,7 @@ import Pricebook from './Pricebook'
 import Invoice from './Invoice'
 import Invoices from './Invoices'
 import Estimate from './Estimate'
+import Estimates from './Estimates'
 import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
 
