@@ -322,3 +322,125 @@ export default function Jobs({ profile }) {
   }
 
   return (
+<div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h2 className="page-title" style={{ marginBottom: 0 }}>Jobs</h2>
+        <NewItemDropdown onSelect={setNewItemMode} />
+      </div>
+
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+        </div>
+      )}
+
+      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap', flexDirection: 'column', alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div className="field">
+            <label htmlFor="propPick">Property</label>
+            <select id="propPick" value={propertyId} onChange={(e) => setPropertyId(e.target.value)} required>
+              <option value="">Select…</option>
+              {properties.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.customers?.is_banned ? '⚠️ DO NOT SERVICE — ' : ''}{p.street_address} — {p.customers?.display_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="jobDate">Date</label>
+            <input id="jobDate" type="date" value={jobDate} onChange={(e) => setJobDate(e.target.value)} required />
+          </div>
+          <div className="field">
+            <label htmlFor="startTime">Start time</label>
+            <input id="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="duration">Duration (hrs)</label>
+            <input id="duration" type="number" step="0.5" value={durationHours} onChange={(e) => setDurationHours(e.target.value)} style={{ width: 80 }} />
+          </div>
+          <div className="field">
+            <label htmlFor="jobType">Type</label>
+            <select id="jobType" value={jobType} onChange={(e) => setJobType(e.target.value)}>
+              {jobTypes.map((t) => (
+                <option key={t.id} value={t.name}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="complaint">Service complaint</label>
+            <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling" />
+          </div>
+          <div className="field">
+            <label htmlFor="tech">Technician</label>
+            <select id="tech" value={technicianId} onChange={(e) => setTechnicianId(e.target.value)}>
+              <option value="">Unassigned</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{u.full_name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 4 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Trip charge (sets Location/Access/Time for this job)</label>
+          <TripChargePicker orgId={selectedOrg} value={newTripChargeId} onChange={setNewTripChargeId} />
+        </div>
+
+        <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto', alignSelf: 'flex-start' }}>
+          {saving ? 'Adding…' : 'Add job'}
+        </button>
+      </form>
+
+      {isBannedSelected && (
+        <div className="auth-error" style={{ marginBottom: 20 }}>
+          <strong>This customer is flagged Do Not Service.</strong>
+          {canOverrideBan ? (
+            <label style={{ display: 'block', marginTop: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={overrideBan}
+                onChange={(e) => setOverrideBan(e.target.checked)}
+                style={{ marginRight: 6 }}
+              />
+              I acknowledge this and want to schedule anyway
+            </label>
+          ) : (
+            <p style={{ margin: '8px 0 0' }}>Only an Admin at this company can schedule a job for this customer.</p>
+          )}
+        </div>
+      )}
+
+      {error && <div className="auth-error">{error}</div>}
+
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="field" style={{ marginBottom: 0, minWidth: 220 }}>
+          <label htmlFor="searchBox">Search</label>
+          <input
+            id="searchBox"
+            type="text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Job #, address, complaint, tech…"
+          />
+        </div>
+        <div style={{ position: 'relative', marginBottom: 10 }}>
+          <button className="logout-button" onClick={() => setShowColumnPicker(!showColumnPicker)}>
+            Columns ▾
+          </button>
+          {showColumnPicker && (
+            <div className="org-picker-list" style={{ right: 0, left: 'auto', minWidth: 180 }}>
+              {COLUMNS.filter((c) => !c.required).map((col) => (
+                <label key={col.key} className="org-picker-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.includes(col.key)}
+                    onChange={() => toggleColumn(col.key)}
+                  />
+                  {col.label}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
