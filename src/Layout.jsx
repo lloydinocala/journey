@@ -12,7 +12,7 @@ export default function Layout({ profile }) {
       <AnnouncementBanner profile={profile} />
       <div className="dashboard-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <h1 className="wordmark" style={{ fontSize: 22, margin: 0 }}>Journey</h1>
+          <h1 className="wordmark" style={{ fontSize: 22, margin: 0 }}>Journey-HVAC</h1>
           {profile?.role === 'super_admin' && <span className="badge">Super Admin</span>}
           <Link to="/" className="nav-link">Dashboard</Link>
           <Link to="/customers" className="nav-link">Customers</Link>
