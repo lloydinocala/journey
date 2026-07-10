@@ -9,6 +9,7 @@ const CATEGORIES = [
     { label: 'Jobs', path: '/jobs' },
     { label: 'Properties', path: '/properties' },
     { label: 'Customers', path: '/customers' },
+    { label: 'Job Estimates', path: '/estimates' },
   ]},
   { key: 'financials', label: 'Financials', items: [
     { label: 'Invoices', path: '/invoices' },
