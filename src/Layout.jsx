@@ -1,40 +1,104 @@
-import { Outlet, Link } from 'react-router-dom'
-import { supabase } from './utils/supabase'
-import AnnouncementBanner from './AnnouncementBanner'
+.app-shell-v2 {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
 
-export default function Layout({ profile }) {
-  async function handleLogout() {
-    await supabase.auth.signOut()
-  }
+.shell-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
 
-  return (
-    <div className="app-shell">
-      <AnnouncementBanner profile={profile} />
-      <div className="dashboard-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <h1 className="wordmark" style={{ fontSize: 22, margin: 0 }}>Journey-HVAC</h1>
-          {profile?.role === 'super_admin' && <span className="badge">Super Admin</span>}
-          <Link to="/" className="nav-link">Dashboard</Link>
-          <Link to="/customers" className="nav-link">Customers</Link>
-          <Link to="/properties" className="nav-link">Properties</Link>
-          <Link to="/jobs" className="nav-link">Jobs</Link>
-          <Link to="/settings" className="nav-link">Settings</Link>
-          <Link to="/team" className="nav-link">Team</Link>
-          <Link to="/calendar" className="nav-link">Calendar</Link>
-          <Link to="/invoices" className="nav-link">Invoices</Link>
-          <Link to="/pricebook" className="nav-link">Pricebook</Link>
-          {profile?.role === 'super_admin' && (
-            <Link to="/organizations" className="nav-link">Organizations</Link>
-          )}
-          {profile?.role === 'super_admin' && (
-            <Link to="/announcements" className="nav-link">Announcements</Link>
-          )}
-        </div>
-        <button className="logout-button" onClick={handleLogout}>Sign out</button>
-      </div>
-      <div className="dashboard-content">
-        <Outlet />
-      </div>
-    </div>
-  )
+.sidebar-rail {
+  width: 84px;
+  background: var(--nav-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  flex-shrink: 0;
+}
+
+.rail-brand {
+  color: var(--nav-text);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+  margin-bottom: 24px;
+  padding: 0 8px;
+  line-height: 1.3;
+}
+
+.rail-item {
+  background: none;
+  border: none;
+  color: var(--nav-mist);
+  font-size: 12px;
+  padding: 12px 4px;
+  width: 100%;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  text-align: center;
+  border-left: 3px solid transparent;
+  font-family: inherit;
+}
+
+.rail-item:hover {
+  color: var(--nav-text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.rail-item.active {
+  color: var(--nav-text);
+  border-left-color: var(--route-blue);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rail-spacer {
+  flex: 1;
+}
+
+.sidebar-panel {
+  width: 200px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 20px 12px;
+  flex-shrink: 0;
+}
+
+.sidebar-panel h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--mist);
+  letter-spacing: 0.05em;
+  margin: 0 0 12px 8px;
+}
+
+.sidebar-panel-link {
+  display: block;
+  padding: 10px 8px;
+  color: var(--paper);
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.sidebar-panel-link:hover {
+  background: var(--ink);
+}
+
+.sidebar-panel-link.active {
+  background: var(--route-blue);
+  color: white;
+}
+
+.main-content-area {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+  min-width: 0;
 }
