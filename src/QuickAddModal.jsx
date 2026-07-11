@@ -419,3 +419,99 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
   }
 
   return (
+<div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+        <h3>{mode === 'job' ? 'New Job' : mode === 'property' ? 'New Property' : 'New Customer'}</h3>
+
+        <form onSubmit={handleSubmit}>
+          {(mode === 'property' || mode === 'job') && (
+            <div className="field">
+              <label>Customer</label>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+                <label style={{ fontSize: 13, cursor: 'pointer' }}>
+                  <input type="radio" checked={customerMode === 'existing'} onChange={() => setCustomerMode('existing')} /> Existing
+                </label>
+                <label style={{ fontSize: 13, cursor: 'pointer' }}>
+                  <input type="radio" checked={customerMode === 'new'} onChange={() => setCustomerMode('new')} /> New
+                </label>
+              </div>
+            </div>
+          )}
+
+          {(mode === 'property' || mode === 'job') && customerMode === 'existing' && (
+            <div className="field">
+              <select value={existingCustomerId} onChange={(e) => setExistingCustomerId(e.target.value)} required>
+                <option value="">Select a customer…</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.is_banned ? '⚠️ DO NOT SERVICE — ' : ''}{c.display_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {(mode === 'customer' || ((mode === 'property' || mode === 'job') && customerMode === 'new')) && (
+            <>
+              <div className="field">
+                <label htmlFor="newCustName">Customer name</label>
+                <input id="newCustName" type="text" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} placeholder="e.g. William Gaal" required />
+              </div>
+              <div className="field">
+                <label htmlFor="newCustPhone">Phone</label>
+                <input id="newCustPhone" type="tel" value={newCustomerPhone} onChange={(e) => setNewCustomerPhone(e.target.value)} />
+              </div>
+              <div className="field">
+                <label htmlFor="newCustEmail">Email</label>
+                <input id="newCustEmail" type="email" value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} />
+              </div>
+            </>
+          )}
+
+          {mode === 'job' && customerMode === 'existing' && customerProperties.length > 0 && (
+            <div className="field">
+              <label>Property</label>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+                <label style={{ fontSize: 13, cursor: 'pointer' }}>
+                  <input type="radio" checked={propertyMode === 'existing'} onChange={() => setPropertyMode('existing')} /> Existing
+                </label>
+                <label style={{ fontSize: 13, cursor: 'pointer' }}>
+                  <input type="radio" checked={propertyMode === 'new'} onChange={() => setPropertyMode('new')} /> New
+                </label>
+              </div>
+            </div>
+          )}
+
+          {mode === 'job' && customerMode === 'existing' && propertyMode === 'existing' && (
+            <div className="field">
+              <select value={existingPropertyId} onChange={(e) => setExistingPropertyId(e.target.value)} required>
+                <option value="">Select a property…</option>
+                {customerProperties.map((p) => (
+                  <option key={p.id} value={p.id}>{p.street_address}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {(mode === 'property' || mode === 'job') && (customerMode === 'new' || propertyMode === 'new') && (
+            <>
+              <div className="field">
+                <label htmlFor="newStreet">Street address</label>
+                <input id="newStreet" type="text" value={newStreet} onChange={(e) => setNewStreet(e.target.value)} required />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newUnit">Unit</label>
+                  <input id="newUnit" type="text" value={newUnit} onChange={(e) => setNewUnit(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 2 }}>
+                  <label htmlFor="newCity">City</label>
+                  <input id="newCity" type="text" value={newCity} onChange={(e) => setNewCity(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newState">State</label>
+                  <input id="newState" type="text" value={newState} onChange={(e) => setNewState(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newZip">Zip</label>
+                  <input id="newZip" type="text" value={newZip} onChange={(e) => setNewZip(e.target.value)} />
