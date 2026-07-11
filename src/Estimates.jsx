@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import NewItemDropdown from './NewItemDropdown'
+import QuickAddModal from './QuickAddModal'
 import { exportToCSV } from './utils/csvExport'
 
 const COLUMNS = [
@@ -21,6 +23,7 @@ export default function Estimates({ profile }) {
   const [sortField, setSortField] = useState('invoice_date')
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
+  const [newItemMode, setNewItemMode] = useState(null)
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('estimates_visible_columns')
     return saved ? JSON.parse(saved) : COLUMNS.map((c) => c.key)
@@ -135,6 +138,7 @@ export default function Estimates({ profile }) {
     <div>
       <div className="page-header-bar">
         <h2>Job Estimates</h2>
+        <NewItemDropdown onSelect={setNewItemMode} />
       </div>
 
       {isSuperAdmin && (
@@ -227,6 +231,16 @@ export default function Estimates({ profile }) {
             <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No estimates found.</div>
           )}
         </div>
+      )}
+
+      {newItemMode && (
+        <QuickAddModal
+          mode={newItemMode}
+          orgId={selectedOrg}
+          profile={profile}
+          onClose={() => setNewItemMode(null)}
+          onCreated={() => loadEstimates(selectedOrg)}
+        />
       )}
     </div>
   )
