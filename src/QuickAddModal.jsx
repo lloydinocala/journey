@@ -515,3 +515,92 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="newZip">Zip</label>
                   <input id="newZip" type="text" value={newZip} onChange={(e) => setNewZip(e.target.value)} />
+</div>
+              </div>
+              <div className="field">
+                <label htmlFor="newGateCode">Gate code</label>
+                <input id="newGateCode" type="text" value={newGateCode} onChange={(e) => setNewGateCode(e.target.value)} />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newTenantName">Tenant (optional)</label>
+                  <input id="newTenantName" type="text" value={newTenantName} onChange={(e) => setNewTenantName(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newTenantPhone">Tenant phone</label>
+                  <input id="newTenantPhone" type="tel" value={newTenantPhone} onChange={(e) => setNewTenantPhone(e.target.value)} />
+                </div>
+              </div>
+            </>
+          )}
+          {mode === 'job' && (
+            <>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="jobDate">Date</label>
+                  <input id="jobDate" type="date" value={jobDate} onChange={(e) => setJobDate(e.target.value)} required />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="startTime">Start time</label>
+                  <input id="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="duration">Duration (hrs)</label>
+                  <input id="duration" type="number" step="0.5" value={durationHours} onChange={(e) => setDurationHours(e.target.value)} />
+                </div>
+              </div>
+              <div className="field">
+                <label htmlFor="jobType">Type</label>
+                <select id="jobType" value={jobType} onChange={(e) => setJobType(e.target.value)}>
+                  {jobTypes.map((t) => (
+                    <option key={t.id} value={t.name}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="complaint">Service complaint</label>
+                <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling" />
+              </div>
+              <div className="field">
+                <label htmlFor="tech">Technician</label>
+                <select id="tech" value={technicianId} onChange={(e) => setTechnicianId(e.target.value)}>
+                  <option value="">Unassigned</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>{u.full_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>Trip charge (sets Location/Access/Time for this job)</label>
+                <TripChargePicker orgId={orgId} value={tripChargeId} onChange={setTripChargeId} />
+              </div>
+
+              {selectedCustomerIsBanned && (
+                <div className="auth-error">
+                  <strong>This customer is flagged Do Not Service.</strong>
+                  {canOverrideBan ? (
+                    <label style={{ display: 'block', marginTop: 8, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={overrideBan} onChange={(e) => setOverrideBan(e.target.checked)} style={{ marginRight: 6 }} />
+                      I acknowledge this and want to schedule anyway
+                    </label>
+                  ) : (
+                    <p style={{ margin: '8px 0 0' }}>Only an Admin at this company can schedule a job for this customer.</p>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {error && <div className="auth-error">{error}</div>}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto', padding: '10px 24px' }}>
+              {saving ? 'Creating…' : 'Create'}
+            </button>
+            <button type="button" className="logout-button" onClick={onClose}>Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
