@@ -74,6 +74,7 @@ export default function Layout({ profile }) {
           ))}
           <div className="rail-spacer" />
           {isSuperAdmin && <span className="badge" style={{ marginBottom: 12 }}>Super Admin</span>}
+          <button className="rail-item" onClick={() => window.location.reload(true)}>Refresh</button>
           <button className="rail-item" onClick={handleLogout}>Sign out</button>
         </div>
 
