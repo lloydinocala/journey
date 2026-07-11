@@ -344,7 +344,6 @@ export default function Jobs({ profile }) {
     loadTechniciansForJob(j.id)
   }
 
-  async function addTechnicianToJob(jobId) {
  async function addTechnicianToJob(jobId, userId) {
     setError('')
     const nextSort = editTechnicians.length > 0 ? Math.max(...editTechnicians.map((t) => t.sort_order)) + 1 : 1
