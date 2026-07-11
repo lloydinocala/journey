@@ -7,7 +7,9 @@ import { exportToCSV } from './utils/csvExport'
 
 const COLUMNS = [
   { key: 'street_address', label: 'Address', required: true },
-  { key: 'city_state_zip', label: 'City/State/Zip' },
+  { key: 'city', label: 'City' },
+  { key: 'state', label: 'State' },
+  { key: 'zip', label: 'Zip' },
   { key: 'county', label: 'County' },
   { key: 'customer', label: 'Customer' },
   { key: 'bill_to', label: 'Bill To' },
@@ -49,7 +51,7 @@ export default function Properties({ profile }) {
   const [sortDirection, setSortDirection] = useState('asc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState(() => {
-    const saved = localStorage.getItem('properties_visible_columns_v2')
+    const saved = localStorage.getItem('properties_visible_columns_v3')
     return saved ? JSON.parse(saved) : DEFAULT_VISIBLE
   })
 
@@ -108,7 +110,7 @@ export default function Properties({ profile }) {
   }, [selectedOrg, showArchived])
 
   useEffect(() => {
-    localStorage.setItem('properties_visible_columns_v2', JSON.stringify(visibleColumns))
+    localStorage.setItem('properties_visible_columns_v3', JSON.stringify(visibleColumns))
   }, [visibleColumns])
 
   function toggleColumn(key) {
@@ -295,9 +297,6 @@ export default function Properties({ profile }) {
     } else if (sortField === 'bill_to') {
       aVal = billToLabel(a)
       bVal = billToLabel(b)
-    } else if (sortField === 'city_state_zip') {
-      aVal = cityStateZip(a)
-      bVal = cityStateZip(b)
     } else {
       aVal = a[sortField] || ''
       bVal = b[sortField] || ''
@@ -312,7 +311,9 @@ export default function Properties({ profile }) {
       sorted,
       [
         { key: 'street_address', label: 'Address' },
-        { label: 'City/State/Zip', value: cityStateZip },
+        { key: 'city', label: 'City' },
+        { key: 'state', label: 'State' },
+        { key: 'zip', label: 'Zip' },
         { key: 'county', label: 'County' },
         { label: 'Customer', value: (p) => p.customers?.display_name || '' },
         { label: 'Bill To', value: billToLabel },
@@ -326,7 +327,9 @@ export default function Properties({ profile }) {
   }
 
   const gridCols = ['1.4fr']
-    .concat(visibleColumns.includes('city_state_zip') ? ['1.2fr'] : [])
+    .concat(visibleColumns.includes('city') ? ['1fr'] : [])
+    .concat(visibleColumns.includes('state') ? ['0.6fr'] : [])
+    .concat(visibleColumns.includes('zip') ? ['0.7fr'] : [])
     .concat(visibleColumns.includes('county') ? ['0.9fr'] : [])
     .concat(visibleColumns.includes('customer') ? ['1.2fr'] : [])
     .concat(visibleColumns.includes('bill_to') ? ['1.2fr'] : [])
@@ -479,9 +482,19 @@ export default function Properties({ profile }) {
             <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('street_address')}>
               Address{sortArrow('street_address')}
             </div>
-            {visibleColumns.includes('city_state_zip') && (
-              <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('city_state_zip')}>
-                City/State/Zip{sortArrow('city_state_zip')}
+            {visibleColumns.includes('city') && (
+              <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('city')}>
+                City{sortArrow('city')}
+              </div>
+            )}
+            {visibleColumns.includes('state') && (
+              <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('state')}>
+                State{sortArrow('state')}
+              </div>
+            )}
+            {visibleColumns.includes('zip') && (
+              <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('zip')}>
+                Zip{sortArrow('zip')}
               </div>
             )}
             {visibleColumns.includes('county') && (
@@ -511,10 +524,18 @@ export default function Properties({ profile }) {
                     <input type="text" value={editStreet} onChange={(e) => setEditStreet(e.target.value)} placeholder="Street" />
                     <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} placeholder="Unit" />
                   </div>
-                  {visibleColumns.includes('city_state_zip') && (
+                  {visibleColumns.includes('city') && (
                     <div className="grid-cell">
                       <input type="text" value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="City" />
+                    </div>
+                  )}
+                  {visibleColumns.includes('state') && (
+                    <div className="grid-cell">
                       <input type="text" value={editState} onChange={(e) => setEditState(e.target.value)} placeholder="State" />
+                    </div>
+                  )}
+                  {visibleColumns.includes('zip') && (
+                    <div className="grid-cell">
                       <input type="text" value={editZip} onChange={(e) => setEditZip(e.target.value)} placeholder="Zip" />
                     </div>
                   )}
@@ -571,7 +592,9 @@ export default function Properties({ profile }) {
                     {p.street_address}{p.unit ? ` #${p.unit}` : ''}
                     {!p.is_active && <span className="status-pill status-canceled" style={{ marginLeft: 6 }}>Archived</span>}
                   </div>
-                  {visibleColumns.includes('city_state_zip') && <div className="grid-cell">{cityStateZip(p)}</div>}
+                  {visibleColumns.includes('city') && <div className="grid-cell">{p.city || '—'}</div>}
+                  {visibleColumns.includes('state') && <div className="grid-cell">{p.state || '—'}</div>}
+                  {visibleColumns.includes('zip') && <div className="grid-cell">{p.zip || '—'}</div>}
                   {visibleColumns.includes('county') && <div className="grid-cell">{p.county || '—'}</div>}
                   {visibleColumns.includes('customer') && <div className="grid-cell">{p.customers?.display_name || '—'}</div>}
                   {visibleColumns.includes('bill_to') && <div className="grid-cell">{billToLabel(p) || 'Same as Customer'}</div>}
