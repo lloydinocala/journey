@@ -18,7 +18,7 @@ export default function NewItemDropdown({ onSelect }) {
   }
 
   return (<div className="org-picker-wrap" ref={wrapRef} style={{ maxWidth: 320 }}>
-    <div className="org-picker-wrap" ref={wrapRef} style={{ maxWidth: 160 }}>
+    <div className="org-picker-wrap" ref={wrapRef} style={{ maxWidth: 320 }}>
       <button className="auth-button" style={{ width: 'auto', padding: '10px 16px', margin: 0 }} onClick={() => setOpen((o) => !o)}>
         + New ▾
       </button>
