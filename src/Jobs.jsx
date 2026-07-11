@@ -223,6 +223,18 @@ export default function Jobs({ profile }) {
     return new Date(job.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   }
 
+  function clearAddForm() {
+    setPropertyId('')
+    setJobDate('')
+    setStartTime('')
+    setDurationHours('1')
+    setServiceComplaint('')
+    setTechnicianId('')
+    setNewTripChargeId(null)
+    setOverrideBan(false)
+    setError('')
+  }
+
   async function handleAdd(e) {
     e.preventDefault()
     setError('')
@@ -614,9 +626,14 @@ export default function Jobs({ profile }) {
             Segment, Street Address, Unit, City, State, Zip, Gate Code, Tenants, and Technician 2 come from the property record and job assignment — add or edit those on the Properties page or by editing this job after creation.
           </p>
 
-          <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto', alignSelf: 'flex-start' }}>
-            {saving ? 'Adding…' : 'Add job'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto' }}>
+              {saving ? 'Adding…' : 'Add job'}
+            </button>
+            <button type="button" className="logout-button" onClick={clearAddForm} disabled={saving}>
+              Cancel
+            </button>
+          </div>
         </form>
       ) : (
         <div className="auth-card" style={{ maxWidth: 600, marginBottom: 20 }}>
@@ -695,9 +712,28 @@ export default function Jobs({ profile }) {
                 <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Trip charge for this visit</label>
                 <TripChargePicker orgId={selectedOrg} value={contTripChargeId} onChange={setContTripChargeId} />
               </div>
-              <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto', marginTop: 12 }}>
-                {saving ? 'Adding…' : 'Add Segment'}
-              </button>
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto' }}>
+                  {saving ? 'Adding…' : 'Add Segment'}
+                </button>
+                <button
+                  type="button"
+                  className="logout-button"
+                  onClick={() => {
+                    setSelectedContinueJob(null)
+                    setContJobDate('')
+                    setContStartTime('')
+                    setContDuration('1')
+                    setContComplaint('')
+                    setContTechnicianId('')
+                    setContTripChargeId(null)
+                    setError('')
+                  }}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+              </div>
             </form>
           )}
         </div>
