@@ -390,6 +390,7 @@ export default function Jobs({ profile }) {
   }
 
   const filtered = jobs.filter((j) => {
+    if (statusFilter !== 'all' && j.status !== statusFilter) return false
     if (!searchText) return true
     const q = searchText.toLowerCase()
     return (
