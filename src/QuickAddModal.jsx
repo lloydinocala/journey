@@ -14,19 +14,32 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
   const [customerMode, setCustomerMode] = useState('existing')
   const [existingCustomerId, setExistingCustomerId] = useState('')
   const [newCustomerName, setNewCustomerName] = useState('')
+  const [newCompany, setNewCompany] = useState('')
+  const [newFirstName, setNewFirstName] = useState('')
+  const [newLastName, setNewLastName] = useState('')
+  const [newSpouseName, setNewSpouseName] = useState('')
   const [newCustomerPhone, setNewCustomerPhone] = useState('')
+  const [newCustomerPhone2, setNewCustomerPhone2] = useState('')
   const [newCustomerEmail, setNewCustomerEmail] = useState('')
+  const [newCustomerEmail2, setNewCustomerEmail2] = useState('')
+  const [newAcquireDate, setNewAcquireDate] = useState('')
+  const [newCustomerNotes, setNewCustomerNotes] = useState('')
 
   const [propertyMode, setPropertyMode] = useState('existing')
   const [existingPropertyId, setExistingPropertyId] = useState('')
+  const [newBillToCustomerId, setNewBillToCustomerId] = useState('')
   const [newStreet, setNewStreet] = useState('')
   const [newUnit, setNewUnit] = useState('')
   const [newCity, setNewCity] = useState('')
+  const [newCounty, setNewCounty] = useState('')
   const [newState, setNewState] = useState('FL')
   const [newZip, setNewZip] = useState('')
   const [newGateCode, setNewGateCode] = useState('')
   const [newTenantName, setNewTenantName] = useState('')
   const [newTenantPhone, setNewTenantPhone] = useState('')
+  const [newTenant2Name, setNewTenant2Name] = useState('')
+  const [newTenant2Phone, setNewTenant2Phone] = useState('')
+  const [newPropertyNotes, setNewPropertyNotes] = useState('')
 
   const [jobDate, setJobDate] = useState('')
   const [startTime, setStartTime] = useState('')
@@ -231,8 +244,16 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
           .insert({
             org_id: orgId,
             display_name: newCustomerName.trim(),
+            company: newCompany.trim() || null,
+            first_name: newFirstName.trim() || null,
+            last_name: newLastName.trim() || null,
+            spouse_name: newSpouseName.trim() || null,
             primary_phone: newCustomerPhone.trim() || null,
+            secondary_phone: newCustomerPhone2.trim() || null,
             email_1: newCustomerEmail.trim() || null,
+            email_2: newCustomerEmail2.trim() || null,
+            acquire_date: newAcquireDate || null,
+            notes: newCustomerNotes.trim() || null,
           })
           .select()
           .single()
@@ -256,12 +277,15 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
           .insert({
             org_id: orgId,
             customer_id: customerId,
+            bill_to_customer_id: newBillToCustomerId || null,
             street_address: newStreet.trim(),
             unit: newUnit.trim() || null,
             city: newCity.trim() || null,
+            county: newCounty.trim() || null,
             state: newState.trim() || null,
             zip: newZip.trim() || null,
             gate_code: newGateCode.trim() || null,
+            notes: newPropertyNotes.trim() || null,
           })
           .select()
           .single()
@@ -274,6 +298,14 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
             property_id: propertyId,
             name: newTenantName.trim(),
             phone: newTenantPhone.trim() || null,
+          })
+        }
+        if (newTenant2Name.trim()) {
+          await supabase.from('property_tenants').insert({
+            org_id: orgId,
+            property_id: propertyId,
+            name: newTenant2Name.trim(),
+            phone: newTenant2Phone.trim() || null,
           })
         }
       } else {
@@ -500,16 +532,74 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
           {(mode === 'customer' || ((mode === 'property' || mode === 'job') && customerMode === 'new')) && (
             <>
               <div className="field">
-                <label htmlFor="newCustName">Customer name</label>
+                <label htmlFor="newCustName">Display Name</label>
                 <input id="newCustName" type="text" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} placeholder="e.g. William Gaal" required />
+                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                  <button
+                    type="button"
+                    className="logout-button"
+                    style={{ fontSize: 12, padding: '2px 8px' }}
+                    onClick={() => setNewCustomerName((newFirstName + ' ' + newLastName).trim())}
+                    disabled={!newFirstName.trim() && !newLastName.trim()}
+                  >
+                    Use First + Last
+                  </button>
+                  <button
+                    type="button"
+                    className="logout-button"
+                    style={{ fontSize: 12, padding: '2px 8px' }}
+                    onClick={() => setNewCustomerName(newCompany.trim())}
+                    disabled={!newCompany.trim()}
+                  >
+                    Use Company
+                  </button>
+                </div>
               </div>
               <div className="field">
-                <label htmlFor="newCustPhone">Phone</label>
-                <input id="newCustPhone" type="tel" value={newCustomerPhone} onChange={(e) => setNewCustomerPhone(e.target.value)} />
+                <label htmlFor="newCustCompany">Company</label>
+                <input id="newCustCompany" type="text" value={newCompany} onChange={(e) => setNewCompany(e.target.value)} placeholder="optional" />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newFirstName">First Name</label>
+                  <input id="newFirstName" type="text" value={newFirstName} onChange={(e) => setNewFirstName(e.target.value)} placeholder="optional" />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newLastName">Last Name</label>
+                  <input id="newLastName" type="text" value={newLastName} onChange={(e) => setNewLastName(e.target.value)} placeholder="optional" />
+                </div>
               </div>
               <div className="field">
-                <label htmlFor="newCustEmail">Email</label>
-                <input id="newCustEmail" type="email" value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} />
+                <label htmlFor="newSpouseName">Spouse Name</label>
+                <input id="newSpouseName" type="text" value={newSpouseName} onChange={(e) => setNewSpouseName(e.target.value)} placeholder="optional" />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newCustPhone">Phone</label>
+                  <input id="newCustPhone" type="tel" value={newCustomerPhone} onChange={(e) => setNewCustomerPhone(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newCustPhone2">Phone 2</label>
+                  <input id="newCustPhone2" type="tel" value={newCustomerPhone2} onChange={(e) => setNewCustomerPhone2(e.target.value)} placeholder="optional" />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newCustEmail">Email</label>
+                  <input id="newCustEmail" type="email" value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newCustEmail2">Email 2</label>
+                  <input id="newCustEmail2" type="email" value={newCustomerEmail2} onChange={(e) => setNewCustomerEmail2(e.target.value)} placeholder="optional" />
+                </div>
+              </div>
+              <div className="field">
+                <label htmlFor="newAcquireDate">Acquire Date</label>
+                <input id="newAcquireDate" type="date" value={newAcquireDate} onChange={(e) => setNewAcquireDate(e.target.value)} />
+              </div>
+              <div className="field">
+                <label htmlFor="newCustNotes">Notes</label>
+                <input id="newCustNotes" type="text" value={newCustomerNotes} onChange={(e) => setNewCustomerNotes(e.target.value)} placeholder="optional" />
               </div>
             </>
           )}
@@ -542,6 +632,15 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
           {(mode === 'property' || mode === 'job') && (customerMode === 'new' || propertyMode === 'new') && (
             <>
               <div className="field">
+                <label htmlFor="newBillTo">Bill To Customer</label>
+                <select id="newBillTo" value={newBillToCustomerId} onChange={(e) => setNewBillToCustomerId(e.target.value)}>
+                  <option value="">Same as Customer</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.display_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
                 <label htmlFor="newStreet">Street address</label>
                 <input id="newStreet" type="text" value={newStreet} onChange={(e) => setNewStreet(e.target.value)} required />
               </div>
@@ -564,18 +663,36 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                 </div>
               </div>
               <div className="field">
+                <label htmlFor="newCounty">County</label>
+                <input id="newCounty" type="text" value={newCounty} onChange={(e) => setNewCounty(e.target.value)} placeholder="optional" />
+              </div>
+              <div className="field">
                 <label htmlFor="newGateCode">Gate code</label>
                 <input id="newGateCode" type="text" value={newGateCode} onChange={(e) => setNewGateCode(e.target.value)} />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="newTenantName">Tenant (optional)</label>
+                  <label htmlFor="newTenantName">Tenant 1 (optional)</label>
                   <input id="newTenantName" type="text" value={newTenantName} onChange={(e) => setNewTenantName(e.target.value)} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="newTenantPhone">Tenant phone</label>
+                  <label htmlFor="newTenantPhone">Tenant 1 phone</label>
                   <input id="newTenantPhone" type="tel" value={newTenantPhone} onChange={(e) => setNewTenantPhone(e.target.value)} />
                 </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newTenant2Name">Tenant 2 (optional)</label>
+                  <input id="newTenant2Name" type="text" value={newTenant2Name} onChange={(e) => setNewTenant2Name(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newTenant2Phone">Tenant 2 phone</label>
+                  <input id="newTenant2Phone" type="tel" value={newTenant2Phone} onChange={(e) => setNewTenant2Phone(e.target.value)} />
+                </div>
+              </div>
+              <div className="field">
+                <label htmlFor="newPropNotes">Notes</label>
+                <input id="newPropNotes" type="text" value={newPropertyNotes} onChange={(e) => setNewPropertyNotes(e.target.value)} placeholder="optional" />
               </div>
             </>
           )}
