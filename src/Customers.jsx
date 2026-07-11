@@ -209,11 +209,10 @@ export default function Customers({ profile }) {
 
   return (
 <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2 className="page-title" style={{ marginBottom: 0 }}>Customers</h2>
+      <div className="page-header-bar">
+        <h2>Customers</h2>
         <NewItemDropdown onSelect={setNewItemMode} />
       </div>
-
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>
           <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
