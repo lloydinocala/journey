@@ -8,6 +8,7 @@ export default function SystemEstimate({ profile }) {
   const [estimate, setEstimate] = useState(null)
   const [lineItems, setLineItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [users, setUsers] = useState([])
 
   const [systemTypes, setSystemTypes] = useState([])
   const [pickSystemType, setPickSystemType] = useState('')
@@ -47,6 +48,13 @@ export default function SystemEstimate({ profile }) {
       setLoading(false)
       return
     }
+
+    const { data: usersData } = await supabase
+      .from('users')
+      .select('id, full_name')
+      .eq('org_id', jobData.org_id)
+      .order('full_name')
+    setUsers(usersData || [])
 
     let { data: existingEstimate } = await supabase
       .from('invoices')
@@ -244,6 +252,16 @@ export default function SystemEstimate({ profile }) {
     loadLineItems(estimate.id)
   }
 
+  async function updateEstimatingTechnician(userId) {
+    await supabase.from('invoices').update({ estimating_technician_id: userId || null }).eq('id', estimate.id)
+    setEstimate((prev) => ({ ...prev, estimating_technician_id: userId || null }))
+  }
+
+  async function updateApprovalStatus(status) {
+    await supabase.from('invoices').update({ approval_status: status }).eq('id', estimate.id)
+    setEstimate((prev) => ({ ...prev, approval_status: status }))
+  }
+
   async function saveDiscount() {
     await supabase
       .from('invoices')
@@ -297,11 +315,41 @@ export default function SystemEstimate({ profile }) {
       ) : (
         <>
           <Link to="/jobs" className="nav-link">← Back to Jobs</Link>
-          <div style={{ margin: '16px 0 24px' }}>
-            <h2 className="page-title" style={{ marginBottom: 4 }}>{estimate.invoice_number} — Job {job.job_number} (System Estimate)</h2>
-            <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.display_name}</p>
-            <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.street_address}</p>
-            <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.primary_phone} · {job.properties?.customers?.email_1}</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '16px 0 24px' }}>
+            <div>
+              <h2 className="page-title" style={{ marginBottom: 4 }}>{estimate.invoice_number} — Job {job.job_number} (System Estimate)</h2>
+              <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.display_name}</p>
+              <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.street_address}</p>
+              <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.primary_phone} · {job.properties?.customers?.email_1}</p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ marginBottom: 8 }}>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--mist)', marginBottom: 2 }}>Estimating Technician</label>
+                <select
+                  value={estimate.estimating_technician_id || ''}
+                  onChange={(e) => updateEstimatingTechnician(e.target.value)}
+                  style={{ fontSize: 13 }}
+                >
+                  <option value="">Unassigned</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>{u.full_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--mist)', marginBottom: 2 }}>Approval Status</label>
+                <select
+                  value={estimate.approval_status || 'Pending'}
+                  onChange={(e) => updateApprovalStatus(e.target.value)}
+                  style={{ fontSize: 13 }}
+                >
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Pending Financing">Pending Financing</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="grid-table" style={{ gridTemplateColumns: '2fr 0.6fr 0.9fr 0.9fr 0.6fr 0.6fr', marginBottom: 20 }}>
