@@ -92,7 +92,7 @@ export default function Calendar({ profile }) {
     const { data } = await supabase
       .from('jobs')
       .select(
-        'id, job_number, job_date, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, customers!properties_customer_id_fkey(display_name, is_banned))'
+        'id, job_number, job_date, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(display_name, is_banned))'
       )
       .eq('org_id', selectedOrg)
       .gte('job_date', rangeStart)
@@ -104,6 +104,13 @@ export default function Calendar({ profile }) {
         ...j,
         customer_name: j.properties?.customers?.display_name || 'Unknown',
         address: j.properties?.street_address || '',
+        full_address: [
+          j.properties?.street_address,
+          j.properties?.unit ? '#' + j.properties.unit : '',
+        ].filter(Boolean).join(' ')
+          + (j.properties?.city || j.properties?.state || j.properties?.zip
+            ? ', ' + [j.properties?.city, [j.properties?.state, j.properties?.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+            : ''),
         is_banned: j.properties?.customers?.is_banned || false,
         primary_technician: techs[0]?.users || null,
         technician_names: techs.length > 0 ? techs.map((t) => t.users?.full_name).join(', ') : 'Unassigned',
