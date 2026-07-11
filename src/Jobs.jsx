@@ -747,24 +747,18 @@ export default function Jobs({ profile }) {
                         </button>
                       </div>
                     ))}
-                    <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                      <select value={addTechChoice} onChange={(e) => setAddTechChoice(e.target.value)} style={{ flex: 1, fontSize: 12 }}>
-                        <option value="">Add…</option>
-                        {users
-                          .filter((u) => !editTechnicians.some((t) => t.user_id === u.id))
-                          .map((u) => (
-                            <option key={u.id} value={u.id}>{u.full_name}</option>
-                          ))}
-                      </select>
-                      <button
-                        type="button"
-                        className="logout-button"
-                        style={{ padding: '4px 8px', fontSize: 12 }}
-                        onClick={() => addTechnicianToJob(j.id)}
-                      >
-                        +
-                      </button>
-                    </div>
+                  <select
+                      value=""
+                      onChange={(e) => { if (e.target.value) addTechnicianToJob(j.id, e.target.value) }}
+                      style={{ width: '100%', fontSize: 12, marginTop: 4 }}
+                    >
+                      <option value="">+ Add a technician…</option>
+                      {users
+                        .filter((u) => !editTechnicians.some((t) => t.user_id === u.id))
+                        .map((u) => (
+                          <option key={u.id} value={u.id}>{u.full_name}</option>
+                        ))}
+                    </select>
                   </div>
                 )}
                 {visibleColumns.includes('status') && (
