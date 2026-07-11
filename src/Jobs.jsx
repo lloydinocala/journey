@@ -430,3 +430,196 @@ export default function Jobs({ profile }) {
   }
 
   return (
+<div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h2 className="page-title" style={{ marginBottom: 0 }}>Jobs</h2>
+        <NewItemDropdown onSelect={setNewItemMode} />
+      </div>
+
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <button
+          className={addMode === 'new' ? 'auth-button' : 'logout-button'}
+          style={{ width: 'auto', padding: '8px 20px' }}
+          onClick={() => { setAddMode('new'); setSelectedContinueJob(null) }}
+        >
+          New Job
+        </button>
+        <button
+          className={addMode === 'continue' ? 'auth-button' : 'logout-button'}
+          style={{ width: 'auto', padding: '8px 20px' }}
+          onClick={() => setAddMode('continue')}
+        >
+          Continue an Existing Job
+        </button>
+      </div>
+
+      {addMode === 'new' ? (
+        <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap', flexDirection: 'column', alignItems: 'stretch' }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div className="field">
+              <label htmlFor="propPick">Property</label>
+              <select id="propPick" value={propertyId} onChange={(e) => setPropertyId(e.target.value)} required>
+                <option value="">Select…</option>
+                {properties.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.customers?.is_banned ? '⚠️ DO NOT SERVICE — ' : ''}{p.street_address} — {p.customers?.display_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="jobDate">Date</label>
+              <input id="jobDate" type="date" value={jobDate} onChange={(e) => setJobDate(e.target.value)} required />
+            </div>
+            <div className="field">
+              <label htmlFor="startTime">Start time</label>
+              <input id="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="duration">Duration (hrs)</label>
+              <input id="duration" type="number" step="0.5" value={durationHours} onChange={(e) => setDurationHours(e.target.value)} style={{ width: 80 }} />
+            </div>
+            <div className="field">
+              <label htmlFor="jobType">Type</label>
+              <select id="jobType" value={jobType} onChange={(e) => setJobType(e.target.value)}>
+                {jobTypes.map((t) => (
+                  <option key={t.id} value={t.name}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="complaint">Service complaint</label>
+              <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling" />
+            </div>
+            <div className="field">
+              <label htmlFor="tech">Technician</label>
+              <select id="tech" value={technicianId} onChange={(e) => setTechnicianId(e.target.value)}>
+                <option value="">Unassigned</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.full_name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 4 }}>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Trip charge (sets Location/Access/Time for this job)</label>
+            <TripChargePicker orgId={selectedOrg} value={newTripChargeId} onChange={setNewTripChargeId} />
+          </div>
+
+          <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto', alignSelf: 'flex-start' }}>
+            {saving ? 'Adding…' : 'Add job'}
+          </button>
+        </form>
+      ) : (
+        <div className="auth-card" style={{ maxWidth: 600, marginBottom: 20 }}>
+          <h3 style={{ marginTop: 0, fontSize: 15 }}>Find the job to continue</h3>
+          {!selectedContinueJob ? (
+            <>
+              <input
+                type="text"
+                value={continueSearchText}
+                onChange={(e) => setContinueSearchText(e.target.value)}
+                placeholder="Search by Job #, address, or customer…"
+                style={{ width: '100%', padding: '8px 10px', background: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--paper)', boxSizing: 'border-box', marginBottom: 8 }}
+              />
+              {continueMatches.map((j) => (
+                <div
+                  key={j.id}
+                  onClick={() => pickContinueJob(j)}
+                  style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: 14 }}
+                >
+                  <strong>{jobNumberDisplay(j)}</strong> — {j.properties?.street_address} — <span className={`status-pill status-${j.status}`} style={{ marginLeft: 4 }}>{j.status}</span>
+                </div>
+              ))}
+              {continueSearchText && continueMatches.length === 0 && (
+                <p style={{ color: 'var(--mist)', fontSize: 13 }}>No matching jobs found.</p>
+              )}
+            </>
+          ) : (
+            <form onSubmit={handleContinueJob}>
+              <p style={{ fontSize: 14, marginBottom: 4 }}>
+                Continuing <strong>{selectedContinueJob.job_number}</strong> at {selectedContinueJob.properties?.street_address}
+              </p>
+              <button
+                type="button"
+                className="logout-button"
+                style={{ marginBottom: 12 }}
+                onClick={() => setSelectedContinueJob(null)}
+              >
+                Choose a different job
+              </button>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <div className="field">
+                  <label htmlFor="contDate">Date</label>
+                  <input id="contDate" type="date" value={contJobDate} onChange={(e) => setContJobDate(e.target.value)} required />
+                </div>
+                <div className="field">
+                  <label htmlFor="contStart">Start time</label>
+                  <input id="contStart" type="time" value={contStartTime} onChange={(e) => setContStartTime(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label htmlFor="contDuration">Duration (hrs)</label>
+                  <input id="contDuration" type="number" step="0.5" value={contDuration} onChange={(e) => setContDuration(e.target.value)} style={{ width: 80 }} />
+                </div>
+                <div className="field">
+                  <label htmlFor="contType">Type</label>
+                  <select id="contType" value={contJobType} onChange={(e) => setContJobType(e.target.value)}>
+                    {jobTypes.map((t) => (
+                      <option key={t.id} value={t.name}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="contComplaint">What's happening this visit</label>
+                  <input id="contComplaint" type="text" value={contComplaint} onChange={(e) => setContComplaint(e.target.value)} placeholder="e.g. Install ordered part" />
+                </div>
+                <div className="field">
+                  <label htmlFor="contTech">Technician</label>
+                  <select id="contTech" value={contTechnicianId} onChange={(e) => setContTechnicianId(e.target.value)}>
+                    <option value="">Unassigned</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>{u.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Trip charge for this visit</label>
+                <TripChargePicker orgId={selectedOrg} value={contTripChargeId} onChange={setContTripChargeId} />
+              </div>
+              <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto', marginTop: 12 }}>
+                {saving ? 'Adding…' : 'Add Segment'}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+
+      {isBannedSelected && addMode === 'new' && (
+        <div className="auth-error" style={{ marginBottom: 20 }}>
+          <strong>This customer is flagged Do Not Service.</strong>
+          {canOverrideBan ? (
+            <label style={{ display: 'block', marginTop: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={overrideBan}
+                onChange={(e) => setOverrideBan(e.target.checked)}
+                style={{ marginRight: 6 }}
+              />
+              I acknowledge this and want to schedule anyway
+            </label>
+          ) : (
+            <p style={{ margin: '8px 0 0' }}>Only an Admin at this company can schedule a job for this customer.</p>
+          )}
+        </div>
+      )}
+
+      {error && <div className="auth-error">{error}</div>}
