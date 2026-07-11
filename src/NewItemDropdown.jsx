@@ -28,6 +28,8 @@ export default function NewItemDropdown({ onSelect }) {
           <div className="org-picker-item" onClick={() => choose('continueJob')}>Continue an Existing Job</div>
           <div className="org-picker-item" onClick={() => choose('customer')}>New Customer</div>
           <div className="org-picker-item" onClick={() => choose('property')}>New Property</div>
+          <div className="org-picker-item" onClick={() => choose('pickEstimateJob')}>New Estimate</div>
+<div className="org-picker-item" onClick={() => choose('pickInvoiceJob')}>New Invoice</div>
         </div>
       )}
     </div>
