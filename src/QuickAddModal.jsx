@@ -95,7 +95,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
         .eq('org_id', orgId)
         .then(({ data }) => setAllJobs(data || []))
     }
-    if (mode === 'pickEstimateJob' || mode === 'pickInvoiceJob') {
+    if (mode === 'pickEstimateJob' || mode === 'pickInvoiceJob' || mode === 'pickSystemEstimateJob') {
       supabase
         .from('jobs')
         .select('id, job_number, segment, status, property_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name))')
@@ -329,9 +329,9 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
     }
   }
 
-  if (mode === 'pickEstimateJob' || mode === 'pickInvoiceJob') {
-    const target = mode === 'pickEstimateJob' ? 'estimate' : 'invoice'
-    const label = mode === 'pickEstimateJob' ? 'New Estimate' : 'New Invoice'
+  if (mode === 'pickEstimateJob' || mode === 'pickInvoiceJob' || mode === 'pickSystemEstimateJob') {
+    const target = mode === 'pickEstimateJob' ? 'estimate' : mode === 'pickSystemEstimateJob' ? 'system-estimate' : 'invoice'
+    const label = mode === 'pickEstimateJob' ? 'New Estimate' : mode === 'pickSystemEstimateJob' ? 'New System Estimate' : 'New Invoice'
     return (
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
