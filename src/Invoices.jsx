@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import NewItemDropdown from './NewItemDropdown'
+import QuickAddModal from './QuickAddModal'
 import { exportToCSV } from './utils/csvExport'
 
 const COLUMNS = [
@@ -22,6 +24,7 @@ export default function Invoices({ profile }) {
   const [sortField, setSortField] = useState('invoice_date')
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
+  const [newItemMode, setNewItemMode] = useState(null)
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('invoices_visible_columns')
     return saved ? JSON.parse(saved) : COLUMNS.map((c) => c.key)
@@ -138,7 +141,10 @@ export default function Invoices({ profile }) {
 
   return (
     <div>
-      <h2 className="page-title">Invoices</h2>
+      <div className="page-header-bar">
+        <h2>Invoices</h2>
+        <NewItemDropdown onSelect={setNewItemMode} />
+      </div>
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>
@@ -240,6 +246,16 @@ export default function Invoices({ profile }) {
             <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No invoices found.</div>
           )}
         </div>
+      )}
+
+      {newItemMode && (
+        <QuickAddModal
+          mode={newItemMode}
+          orgId={selectedOrg}
+          profile={profile}
+          onClose={() => setNewItemMode(null)}
+          onCreated={() => loadInvoices(selectedOrg)}
+        />
       )}
     </div>
   )
