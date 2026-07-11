@@ -123,6 +123,21 @@ export default function Customers({ profile }) {
     return sortDirection === 'asc' ? ' ↑' : ' ↓'
   }
 
+  function clearAddForm() {
+    setDisplayName('')
+    setCompany('')
+    setFirstName('')
+    setLastName('')
+    setSpouseName('')
+    setPhone('')
+    setSecondaryPhone('')
+    setEmail('')
+    setEmail2('')
+    setAcquireDate('')
+    setNotes('')
+    setError('')
+  }
+
   async function handleAdd(e) {
     e.preventDefault()
     setError('')
@@ -420,9 +435,14 @@ export default function Customers({ profile }) {
             placeholder="optional"
           />
         </div>
-        <button className="auth-button" type="submit" disabled={saving}>
-          {saving ? 'Adding…' : 'Add customer'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          <button className="auth-button" type="submit" disabled={saving}>
+            {saving ? 'Adding…' : 'Add customer'}
+          </button>
+          <button type="button" className="logout-button" onClick={clearAddForm} disabled={saving}>
+            Cancel
+          </button>
+        </div>
       </form>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
