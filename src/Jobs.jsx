@@ -627,6 +627,15 @@ export default function Jobs({ profile }) {
 
       {error && <div className="auth-error">{error}</div>}
 <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="field" style={{ marginBottom: 0, minWidth: 160 }}>
+          <label htmlFor="statusFilter">Status</label>
+          <select id="statusFilter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="all">All</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+        </div>
         <div className="field" style={{ marginBottom: 0, minWidth: 220 }}>
           <label htmlFor="searchBox">Search</label>
           <input
