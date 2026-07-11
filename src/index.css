@@ -195,8 +195,8 @@ body {
 }
 
 .announcement-banner.severity-info { background: #1447E6; color: #FFFFFF; }
-.announcement-banner.severity-warning { background: #7A4A00; color: #FFD400; }
-.announcement-banner.severity-critical { background: #8B0000; color: #FFFFFF; }
+.announcement-banner.severity-warning { background: #FFD400; color: #7A4A00; }
+.announcement-banner.severity-critical { background: #FF0000; color: #FFFFFF; }
 
 .badge {
   display: inline-block;
