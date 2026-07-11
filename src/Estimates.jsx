@@ -133,7 +133,9 @@ export default function Estimates({ profile }) {
 
   return (
     <div>
-      <h2 className="page-title">Job Estimates</h2>
+      <div className="page-header-bar">
+        <h2>Job Estimates</h2>
+      </div>
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>
