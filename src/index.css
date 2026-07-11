@@ -145,44 +145,6 @@ body {
   margin-bottom: 16px;
 }
 
-.app-shell {
-  min-height: 100vh;
-}
-
-.dashboard-content {
-  padding: 32px;
-}
-
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--nav-bg);
-  padding: 16px 32px;
-}
-
-.dashboard-header .wordmark {
-  color: var(--nav-text);
-}
-
-.dashboard-header .nav-link {
-  color: var(--nav-mist);
-}
-
-.dashboard-header .nav-link:hover {
-  color: var(--nav-text);
-}
-
-.dashboard-header .logout-button {
-  color: var(--nav-mist);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-.dashboard-header .logout-button:hover {
-  color: var(--nav-text);
-  border-color: var(--nav-mist);
-}
-
 .announcement-banner {
   padding: 12px 32px;
   font-size: 15px;
@@ -242,9 +204,6 @@ body {
   padding: 22px 32px;
   font-size: 22px;
   font-weight: 600;
-}
-  font-size: 20px;
-  margin: 0 0 20px;
 }
 
 .org-table {
@@ -437,44 +396,6 @@ body {
   flex-direction: row !important;
   gap: 8px !important;
   flex-wrap: wrap;
-}
-import { Outlet, Link } from 'react-router-dom'
-import { supabase } from './utils/supabase'
-import AnnouncementBanner from './AnnouncementBanner'
-
-export default function Layout({ profile }) {
-  async function handleLogout() {
-    await supabase.auth.signOut()
-  }
-
-  return (
-    <div className="app-shell">
-      <AnnouncementBanner profile={profile} />
-      <div className="dashboard-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <h1 className="wordmark" style={{ fontSize: 22, margin: 0 }}>Journey</h1>
-          {profile?.role === 'super_admin' && <span className="badge">Super Admin</span>}
-          <Link to="/" className="nav-link">Dashboard</Link>
-          <Link to="/customers" className="nav-link">Customers</Link>
-          <Link to="/properties" className="nav-link">Properties</Link>
-          <Link to="/jobs" className="nav-link">Jobs</Link>
-          <Link to="/settings" className="nav-link">Settings</Link>
-          <Link to="/team" className="nav-link">Team</Link>
-          <Link to="/calendar" className="nav-link">Calendar</Link>
-          {profile?.role === 'super_admin' && (
-            <Link to="/organizations" className="nav-link">Organizations</Link>
-          )}
-          {profile?.role === 'super_admin' && (
-            <Link to="/announcements" className="nav-link">Announcements</Link>
-          )}
-        </div>
-        <button className="logout-button" onClick={handleLogout}>Sign out</button>
-      </div>
-      <div className="dashboard-content">
-        <Outlet />
-      </div>
-    </div>
-  )
 }
 .calendar-toolbar {
   display: flex;
