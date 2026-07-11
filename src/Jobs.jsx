@@ -789,6 +789,7 @@ export default function Jobs({ profile }) {
                   <button className="logout-button" onClick={() => startEdit(j)}>Edit</button>
                   <Link to={`/invoice/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Invoice</Link>
                   <Link to={`/estimate/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Estimate</Link>
+                  <Link to={`/system-estimate/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>System Estimate</Link>
                 </div>
               </>
             )
