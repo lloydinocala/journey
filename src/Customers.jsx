@@ -18,7 +18,6 @@ const COLUMNS = [
   { key: 'acquire_date', label: 'Acquired' },
   { key: 'notes', label: 'Notes' },
   { key: 'created_at', label: 'Added' },
-  { key: 'flags', label: 'Flags' },
 ]
 
 const DEFAULT_VISIBLE = COLUMNS.map((c) => c.key)
@@ -301,6 +300,26 @@ export default function Customers({ profile }) {
             placeholder="e.g. William Gaal"
             required
           />
+          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+            <button
+              type="button"
+              className="logout-button"
+              style={{ fontSize: 12, padding: '2px 8px' }}
+              onClick={() => setDisplayName((firstName + ' ' + lastName).trim())}
+              disabled={!firstName.trim() && !lastName.trim()}
+            >
+              Use First + Last
+            </button>
+            <button
+              type="button"
+              className="logout-button"
+              style={{ fontSize: 12, padding: '2px 8px' }}
+              onClick={() => setDisplayName(company.trim())}
+              disabled={!company.trim()}
+            >
+              Use Company
+            </button>
+          </div>
         </div>
         <div className="field">
           <label htmlFor="custCompany">Company</label>
@@ -494,7 +513,6 @@ export default function Customers({ profile }) {
                 {visibleColumns.includes('created_at') && (
                   <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('created_at')}>Added{sortArrow('created_at')}</th>
                 )}
-                {visibleColumns.includes('flags') && <th>Flags</th>}
                 <th></th>
               </tr>
             </thead>
@@ -502,7 +520,29 @@ export default function Customers({ profile }) {
               {sorted.map((c) =>
                 editingId === c.id ? (
                   <tr key={c.id}>
-                    <td><input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} /></td>
+                    <td>
+                      <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                        <button
+                          type="button"
+                          className="logout-button"
+                          style={{ fontSize: 11, padding: '2px 6px' }}
+                          onClick={() => setEditName((editFirstName + ' ' + editLastName).trim())}
+                          disabled={!editFirstName.trim() && !editLastName.trim()}
+                        >
+                          First+Last
+                        </button>
+                        <button
+                          type="button"
+                          className="logout-button"
+                          style={{ fontSize: 11, padding: '2px 6px' }}
+                          onClick={() => setEditName(editCompany.trim())}
+                          disabled={!editCompany.trim()}
+                        >
+                          Company
+                        </button>
+                      </div>
+                    </td>
                     {visibleColumns.includes('company') && (
                       <td><input type="text" value={editCompany} onChange={(e) => setEditCompany(e.target.value)} /></td>
                     )}
@@ -534,7 +574,6 @@ export default function Customers({ profile }) {
                       <td><input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} /></td>
                     )}
                     {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
-                    {visibleColumns.includes('flags') && <td></td>}
                     <td style={{ display: 'flex', gap: 8 }}>
                       <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(c.id)}>Save</button>
                       <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
@@ -554,16 +593,6 @@ export default function Customers({ profile }) {
                     {visibleColumns.includes('acquire_date') && <td>{c.acquire_date ? new Date(c.acquire_date + 'T00:00:00').toLocaleDateString() : '—'}</td>}
                     {visibleColumns.includes('notes') && <td>{c.notes || '—'}</td>}
                     {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
-                    {visibleColumns.includes('flags') && (
-                      <td>
-                        {!c.is_active && <span className="status-pill status-canceled" style={{ marginRight: 6 }}>Archived</span>}
-                        {c.is_banned && (
-                          <span className="status-pill status-past_due" title={c.banned_reason || 'No reason given'}>
-                            Do Not Service
-                          </span>
-                        )}
-                      </td>
-                    )}
                     <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <button className="logout-button" onClick={() => startEdit(c)}>Edit</button>
                       <button className="logout-button" onClick={() => toggleArchive(c)}>
@@ -581,7 +610,7 @@ export default function Customers({ profile }) {
                 )
               )}
               {sorted.length === 0 && (
-                <tr><td colSpan="14" style={{ color: 'var(--mist)' }}>No customers found.</td></tr>
+                <tr><td colSpan="13" style={{ color: 'var(--mist)' }}>No customers found.</td></tr>
               )}
             </tbody>
           </table>
