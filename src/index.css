@@ -184,17 +184,19 @@ body {
 }
 
 .announcement-banner {
-  padding: 10px 32px;
-  font-size: 14px;
+  padding: 12px 32px;
+  font-size: 15px;
+  font-weight: 600;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   gap: 12px;
+  text-align: center;
 }
 
-.announcement-banner.severity-info { background: #DCE7FF; color: #1E3A8A; }
-.announcement-banner.severity-warning { background: #FDECC8; color: #7A4A00; }
-.announcement-banner.severity-critical { background: #FADBD8; color: #922B21; }
+.announcement-banner.severity-info { background: #1447E6; color: #FFFFFF; }
+.announcement-banner.severity-warning { background: #7A4A00; color: #FFD400; }
+.announcement-banner.severity-critical { background: #8B0000; color: #FFFFFF; }
 
 .badge {
   display: inline-block;
