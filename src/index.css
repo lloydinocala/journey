@@ -376,6 +376,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 8px;
   z-index: 10;
+  color: var(--paper);
 }
 
 .org-picker-item {
