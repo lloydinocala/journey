@@ -131,6 +131,24 @@ export default function Properties({ profile }) {
     return sortDirection === 'asc' ? ' ↑' : ' ↓'
   }
 
+  function clearAddForm() {
+    setCustomerId('')
+    setBillToCustomerId('')
+    setStreet('')
+    setUnit('')
+    setCity('')
+    setCounty('')
+    setState('FL')
+    setZip('')
+    setGateCode('')
+    setTenant1Name('')
+    setTenant1Phone('')
+    setTenant2Name('')
+    setTenant2Phone('')
+    setNotes('')
+    setError('')
+  }
+
   async function handleAdd(e) {
     e.preventDefault()
     setError('')
@@ -420,9 +438,14 @@ export default function Properties({ profile }) {
           <label htmlFor="propNotes">Notes</label>
           <input id="propNotes" type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="optional" />
         </div>
-        <button className="auth-button" type="submit" disabled={saving}>
-          {saving ? 'Adding…' : 'Add property'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          <button className="auth-button" type="submit" disabled={saving}>
+            {saving ? 'Adding…' : 'Add property'}
+          </button>
+          <button type="button" className="logout-button" onClick={clearAddForm} disabled={saving}>
+            Cancel
+          </button>
+        </div>
       </form>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
