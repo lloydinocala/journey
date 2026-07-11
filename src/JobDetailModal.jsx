@@ -24,7 +24,7 @@ export default function JobDetailModal({ job, onClose }) {
 
         <div className="modal-row">
           <span className="label">Address</span>
-          {job.address || '—'}
+          {job.full_address || job.address || '—'}
         </div>
 
         <div className="modal-row">
