@@ -660,3 +660,151 @@ export default function Jobs({ profile }) {
           {sorted.length} job{sorted.length !== 1 ? 's' : ''}
         </p>
       </div>
+{loading ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : (
+        <div className="grid-table" style={{ gridTemplateColumns: '0.9fr 1fr 1.3fr 1.5fr 1fr 1.3fr 1.4fr 1fr 1.2fr' }}>
+          <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('job_number')}>Job #{sortArrow('job_number')}</div>
+          {visibleColumns.includes('job_date') && (
+            <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('job_date')}>Date{sortArrow('job_date')}</div>
+          )}
+          {visibleColumns.includes('address') && (
+            <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('address')}>Address{sortArrow('address')}</div>
+          )}
+          {visibleColumns.includes('trip_charge') && <div className="grid-cell grid-head">Trip Charge</div>}
+          {visibleColumns.includes('job_type') && (
+            <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('job_type')}>Type{sortArrow('job_type')}</div>
+          )}
+          {visibleColumns.includes('service_complaint') && <div className="grid-cell grid-head">Complaint</div>}
+          {visibleColumns.includes('technicians') && <div className="grid-cell grid-head">Technicians</div>}
+          {visibleColumns.includes('status') && (
+            <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('status')}>Status{sortArrow('status')}</div>
+          )}
+          <div className="grid-cell grid-head"></div>
+
+          {sorted.map((j) =>
+            editingId === j.id ? (
+              <>
+                <div className="grid-cell">{jobNumberDisplay(j)}</div>
+                {visibleColumns.includes('job_date') && (
+                  <div className="grid-cell">
+                    <input type="date" value={editJobDate} onChange={(e) => setEditJobDate(e.target.value)} />
+                    <input type="time" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} />
+                  </div>
+                )}
+                {visibleColumns.includes('address') && (
+                  <div className="grid-cell">
+                    <select value={editPropertyId} onChange={(e) => setEditPropertyId(e.target.value)}>
+                      {properties.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.customers?.is_banned ? '⚠️ ' : ''}{p.street_address} — {p.customers?.display_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {visibleColumns.includes('trip_charge') && (
+                  <div className="grid-cell">
+                    <TripChargePicker orgId={selectedOrg} value={editTripChargeId} onChange={setEditTripChargeId} />
+                  </div>
+                )}
+                {visibleColumns.includes('job_type') && (
+                  <div className="grid-cell">
+                    <select value={editJobType} onChange={(e) => setEditJobType(e.target.value)}>
+                      {jobTypes.map((t) => (
+                        <option key={t.id} value={t.name}>{t.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {visibleColumns.includes('service_complaint') && (
+                  <div className="grid-cell">
+                    <input type="text" value={editComplaint} onChange={(e) => setEditComplaint(e.target.value)} />
+                  </div>
+                )}
+                {visibleColumns.includes('technicians') && (
+                  <div className="grid-cell">
+                    {editTechnicians.map((t, idx) => (
+                      <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                        <span>{idx === 0 ? '★ ' : ''}{t.users?.full_name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeTechnicianFromJob(t.id, j.id)}
+                          style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: '0 4px' }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                      <select value={addTechChoice} onChange={(e) => setAddTechChoice(e.target.value)} style={{ flex: 1, fontSize: 12 }}>
+                        <option value="">Add…</option>
+                        {users
+                          .filter((u) => !editTechnicians.some((t) => t.user_id === u.id))
+                          .map((u) => (
+                            <option key={u.id} value={u.id}>{u.full_name}</option>
+                          ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="logout-button"
+                        style={{ padding: '4px 8px', fontSize: 12 }}
+                        onClick={() => addTechnicianToJob(j.id)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {visibleColumns.includes('status') && (
+                  <div className="grid-cell">
+                    <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
+                      {STATUS_OPTIONS.map((s) => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="grid-cell grid-actions">
+                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(j.id)}>Save</button>
+                  <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid-cell">{jobNumberDisplay(j)}</div>
+                {visibleColumns.includes('job_date') && <div className="grid-cell">{j.job_date}</div>}
+                {visibleColumns.includes('address') && <div className="grid-cell">{j.properties?.street_address || '—'}</div>}
+                {visibleColumns.includes('trip_charge') && <div className="grid-cell" style={{ fontSize: 12 }}>{tripChargeSummary(j)}</div>}
+                {visibleColumns.includes('job_type') && <div className="grid-cell">{j.job_type}</div>}
+                {visibleColumns.includes('service_complaint') && <div className="grid-cell">{j.service_complaint || '—'}</div>}
+                {visibleColumns.includes('technicians') && <div className="grid-cell">{techNames(j)}</div>}
+                {visibleColumns.includes('status') && (
+                  <div className="grid-cell"><span className={`status-pill status-${j.status}`}>{j.status}</span></div>
+                )}
+                <div className="grid-cell grid-actions">
+                  <button className="logout-button" onClick={() => startEdit(j)}>Edit</button>
+                  <Link to={`/invoice/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Invoice</Link>
+                  <Link to={`/estimate/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Estimate</Link>
+                </div>
+              </>
+            )
+          )}
+          {sorted.length === 0 && (
+            <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No jobs yet.</div>
+          )}
+        </div>
+      )}
+
+      {newItemMode && (
+        <QuickAddModal
+          mode={newItemMode}
+          orgId={selectedOrg}
+          profile={profile}
+          onClose={() => setNewItemMode(null)}
+          onCreated={() => loadData(selectedOrg)}
+        />
+      )}
+    </div>
+  )
+}
