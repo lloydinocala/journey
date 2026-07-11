@@ -7,8 +7,11 @@ import { exportToCSV } from './utils/csvExport'
 
 const COLUMNS = [
   { key: 'display_name', label: 'Name', required: true },
+  { key: 'company', label: 'Company' },
   { key: 'primary_phone', label: 'Phone' },
+  { key: 'secondary_phone', label: 'Phone 2' },
   { key: 'email_1', label: 'Email' },
+  { key: 'email_2', label: 'Email 2' },
   { key: 'created_at', label: 'Added' },
   { key: 'flags', label: 'Flags' },
 ]
@@ -20,8 +23,11 @@ export default function Customers({ profile }) {
   const [showArchived, setShowArchived] = useState(false)
   const [loading, setLoading] = useState(true)
   const [displayName, setDisplayName] = useState('')
+  const [company, setCompany] = useState('')
   const [phone, setPhone] = useState('')
+  const [secondaryPhone, setSecondaryPhone] = useState('')
   const [email, setEmail] = useState('')
+  const [email2, setEmail2] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [newItemMode, setNewItemMode] = useState(null)
@@ -37,8 +43,11 @@ export default function Customers({ profile }) {
 
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
+  const [editCompany, setEditCompany] = useState('')
   const [editPhone, setEditPhone] = useState('')
+  const [editSecondaryPhone, setEditSecondaryPhone] = useState('')
   const [editEmail, setEditEmail] = useState('')
+  const [editEmail2, setEditEmail2] = useState('')
 
   const isSuperAdmin = profile.role === 'super_admin'
   const isOrgAdmin = profile.role === 'org_admin'
@@ -62,7 +71,7 @@ export default function Customers({ profile }) {
     setLoading(true)
     const { data, error } = await supabase
       .from('customers')
-      .select('id, display_name, primary_phone, email_1, created_at, is_active, is_banned, banned_reason')
+      .select('id, display_name, company, primary_phone, secondary_phone, email_1, email_2, created_at, is_active, is_banned, banned_reason')
       .eq('org_id', orgId)
       .eq('is_active', !showArchived)
       .order('created_at', { ascending: false })
@@ -107,8 +116,11 @@ export default function Customers({ profile }) {
     const { error } = await supabase.from('customers').insert({
       org_id: selectedOrg,
       display_name: displayName.trim(),
+      company: company.trim() || null,
       primary_phone: phone.trim() || null,
+      secondary_phone: secondaryPhone.trim() || null,
       email_1: email.trim() || null,
+      email_2: email2.trim() || null,
     })
     setSaving(false)
 
@@ -116,8 +128,11 @@ export default function Customers({ profile }) {
       setError(error.message)
     } else {
       setDisplayName('')
+      setCompany('')
       setPhone('')
+      setSecondaryPhone('')
       setEmail('')
+      setEmail2('')
       loadCustomers(selectedOrg)
     }
   }
@@ -125,8 +140,11 @@ export default function Customers({ profile }) {
   function startEdit(c) {
     setEditingId(c.id)
     setEditName(c.display_name)
+    setEditCompany(c.company || '')
     setEditPhone(c.primary_phone || '')
+    setEditSecondaryPhone(c.secondary_phone || '')
     setEditEmail(c.email_1 || '')
+    setEditEmail2(c.email_2 || '')
   }
 
   async function saveEdit(id) {
@@ -134,8 +152,11 @@ export default function Customers({ profile }) {
       .from('customers')
       .update({
         display_name: editName.trim(),
+        company: editCompany.trim() || null,
         primary_phone: editPhone.trim() || null,
+        secondary_phone: editSecondaryPhone.trim() || null,
         email_1: editEmail.trim() || null,
+        email_2: editEmail2.trim() || null,
       })
       .eq('id', id)
     setEditingId(null)
@@ -179,6 +200,7 @@ export default function Customers({ profile }) {
     const q = searchText.toLowerCase()
     return (
       c.display_name?.toLowerCase().includes(q) ||
+      c.company?.toLowerCase().includes(q) ||
       c.primary_phone?.toLowerCase().includes(q) ||
       c.email_1?.toLowerCase().includes(q)
     )
@@ -197,8 +219,11 @@ export default function Customers({ profile }) {
       sorted,
       [
         { key: 'display_name', label: 'Name' },
+        { key: 'company', label: 'Company' },
         { key: 'primary_phone', label: 'Phone' },
+        { key: 'secondary_phone', label: 'Phone 2' },
         { key: 'email_1', label: 'Email' },
+        { key: 'email_2', label: 'Email 2' },
         { label: 'Added', value: (c) => new Date(c.created_at).toLocaleDateString() },
         { label: 'Status', value: (c) => (c.is_active ? 'Active' : 'Archived') },
         { label: 'Do Not Service', value: (c) => (c.is_banned ? 'Yes' : 'No') },
@@ -208,190 +233,3 @@ export default function Customers({ profile }) {
   }
 
   return (
-<div>
-      <div className="page-header-bar">
-        <h2>Customers</h2>
-        <NewItemDropdown onSelect={setNewItemMode} />
-      </div>
-      {isSuperAdmin && (
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
-          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
-        </div>
-      )}
-
-      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20 }}>
-        <div className="field">
-          <label htmlFor="custName">Name</label>
-          <input
-            id="custName"
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="e.g. William Gaal"
-            required
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="custPhone">Phone</label>
-          <input
-            id="custPhone"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="(352) 555-0100"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="custEmail">Email</label>
-          <input
-            id="custEmail"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="optional"
-          />
-        </div>
-        <button className="auth-button" type="submit" disabled={saving}>
-          {saving ? 'Adding…' : 'Add customer'}
-        </button>
-      </form>
-
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div className="field" style={{ marginBottom: 0, minWidth: 220 }}>
-          <label htmlFor="searchBox">Search</label>
-          <input
-            id="searchBox"
-            type="text"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Name, phone, or email…"
-          />
-        </div>
-        <label className="nav-link" style={{ cursor: 'pointer', marginBottom: 10 }}>
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={(e) => setShowArchived(e.target.checked)}
-            style={{ marginRight: 6 }}
-          />
-          Show archived
-        </label>
-        <div style={{ position: 'relative', marginBottom: 10 }}>
-          <button className="logout-button" onClick={() => setShowColumnPicker(!showColumnPicker)}>
-            Columns ▾
-          </button>
-          {showColumnPicker && (
-            <div className="org-picker-list" style={{ right: 0, left: 'auto', minWidth: 180 }}>
-              {COLUMNS.filter((c) => !c.required).map((col) => (
-                <label key={col.key} className="org-picker-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={visibleColumns.includes(col.key)}
-                    onChange={() => toggleColumn(col.key)}
-                  />
-                  {col.label}
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-        <button className="logout-button" style={{ marginBottom: 10 }} onClick={handleExport}>
-          Export CSV
-        </button>
-        <p style={{ color: 'var(--mist)', fontSize: 14, margin: '0 0 12px' }}>
-          {sorted.length} customer{sorted.length !== 1 ? 's' : ''}
-        </p>
-      </div>
-
-      {error && <div className="auth-error">{error}</div>}
-
-      {loading ? (
-        <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('display_name')}>Name{sortArrow('display_name')}</th>
-              {visibleColumns.includes('primary_phone') && (
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('primary_phone')}>Phone{sortArrow('primary_phone')}</th>
-              )}
-              {visibleColumns.includes('email_1') && (
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('email_1')}>Email{sortArrow('email_1')}</th>
-              )}
-              {visibleColumns.includes('created_at') && (
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('created_at')}>Added{sortArrow('created_at')}</th>
-              )}
-              {visibleColumns.includes('flags') && <th>Flags</th>}
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((c) =>
-              editingId === c.id ? (
-                <tr key={c.id}>
-                  <td><input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} /></td>
-                  {visibleColumns.includes('primary_phone') && (
-                    <td><input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} /></td>
-                  )}
-                  {visibleColumns.includes('email_1') && (
-                    <td><input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} /></td>
-                  )}
-                  {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
-                  {visibleColumns.includes('flags') && <td></td>}
-                  <td style={{ display: 'flex', gap: 8 }}>
-                    <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(c.id)}>Save</button>
-                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
-                  </td>
-                </tr>
-              ) : (
-                <tr key={c.id}>
-                  <td>{c.display_name}</td>
-                  {visibleColumns.includes('primary_phone') && <td>{c.primary_phone || '—'}</td>}
-                  {visibleColumns.includes('email_1') && <td>{c.email_1 || '—'}</td>}
-                  {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
-                  {visibleColumns.includes('flags') && (
-                    <td>
-                      {!c.is_active && <span className="status-pill status-canceled" style={{ marginRight: 6 }}>Archived</span>}
-                      {c.is_banned && (
-                        <span className="status-pill status-past_due" title={c.banned_reason || 'No reason given'}>
-                          Do Not Service
-                        </span>
-                      )}
-                    </td>
-                  )}
-                  <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button className="logout-button" onClick={() => startEdit(c)}>Edit</button>
-                    <button className="logout-button" onClick={() => toggleArchive(c)}>
-                      {c.is_active ? 'Archive' : 'Reactivate'}
-                    </button>
-                    {canManageBans && (
-                      c.is_banned ? (
-                        <button className="logout-button" onClick={() => liftBan(c)}>Lift Ban</button>
-                      ) : (
-                        <button className="logout-button" onClick={() => fireCustomer(c)}>Fire Customer</button>
-                      )
-                    )}
-                  </td>
-                </tr>
-              )
-            )}
-            {sorted.length === 0 && (
-              <tr><td colSpan="6" style={{ color: 'var(--mist)' }}>No customers found.</td></tr>
-            )}
-          </tbody>
-        </table>
-      )}
-
-      {newItemMode && (
-        <QuickAddModal
-          mode={newItemMode}
-          orgId={selectedOrg}
-          profile={profile}
-          onClose={() => setNewItemMode(null)}
-          onCreated={() => loadCustomers(selectedOrg)}
-        />
-      )}
-    </div>
-  )
-}
