@@ -4,13 +4,13 @@ import { supabase } from './utils/supabase'
 import TripChargePicker from './TripChargePicker'
 
 export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated }) {
-  
+  const navigate = useNavigate()
   const [customers, setCustomers] = useState([])
   const [customerProperties, setCustomerProperties] = useState([])
   const [users, setUsers] = useState([])
   const [jobTypes, setJobTypes] = useState([])
   const [allJobs, setAllJobs] = useState([])
-const navigate = useNavigate()
+
   const [customerMode, setCustomerMode] = useState('existing')
   const [existingCustomerId, setExistingCustomerId] = useState('')
   const [newCustomerName, setNewCustomerName] = useState('')
@@ -89,20 +89,20 @@ const navigate = useNavigate()
           setJobTypes(data || [])
           if (data && data.length > 0) setContJobType(data[0].name)
         })
-     supabase
-      .from('jobs')
-      .select('id, job_number, segment, status, property_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name))')
-      .eq('org_id', orgId)
-      .then(({ data }) => setAllJobs(data || []))
-  }
-  if (mode === 'pickEstimateJob' || mode === 'pickInvoiceJob') {
-    supabase
-      .from('jobs')
-      .select('id, job_number, segment, status, property_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name))')
-      .eq('org_id', orgId)
-      .then(({ data }) => setAllJobs(data || []))
-  }
-}, [orgId, mode])
+      supabase
+        .from('jobs')
+        .select('id, job_number, segment, status, property_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name))')
+        .eq('org_id', orgId)
+        .then(({ data }) => setAllJobs(data || []))
+    }
+    if (mode === 'pickEstimateJob' || mode === 'pickInvoiceJob') {
+      supabase
+        .from('jobs')
+        .select('id, job_number, segment, status, property_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name))')
+        .eq('org_id', orgId)
+        .then(({ data }) => setAllJobs(data || []))
+    }
+  }, [orgId, mode])
 
   useEffect(() => {
     if (mode === 'job' && customerMode === 'existing' && existingCustomerId) {
@@ -328,14 +328,6 @@ const navigate = useNavigate()
       setSaving(false)
     }
   }
-onCreated()
-      onClose()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
 
   if (mode === 'pickEstimateJob' || mode === 'pickInvoiceJob') {
     const target = mode === 'pickEstimateJob' ? 'estimate' : 'invoice'
@@ -374,7 +366,6 @@ onCreated()
     )
   }
 
-  if (mode === 'continueJob') {
   if (mode === 'continueJob') {
     return (
       <div className="modal-backdrop" onClick={onClose}>
@@ -474,7 +465,7 @@ onCreated()
   }
 
   return (
-<div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <h3>{mode === 'job' ? 'New Job' : mode === 'property' ? 'New Property' : 'New Customer'}</h3>
 
@@ -570,7 +561,7 @@ onCreated()
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="newZip">Zip</label>
                   <input id="newZip" type="text" value={newZip} onChange={(e) => setNewZip(e.target.value)} />
-</div>
+                </div>
               </div>
               <div className="field">
                 <label htmlFor="newGateCode">Gate code</label>
