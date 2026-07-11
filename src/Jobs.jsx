@@ -432,7 +432,7 @@ export default function Jobs({ profile }) {
   return (
 <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2 className="page-title" style={{ marginBottom: 0 }}>Jobs</h2>
+        <h2 className="page-title" style={{ marginBottom: 0 }}>Properties</h2>
         <NewItemDropdown onSelect={setNewItemMode} />
       </div>
 
