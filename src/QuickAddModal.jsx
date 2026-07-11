@@ -328,7 +328,53 @@ const navigate = useNavigate()
       setSaving(false)
     }
   }
+onCreated()
+      onClose()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
+  if (mode === 'pickEstimateJob' || mode === 'pickInvoiceJob') {
+    const target = mode === 'pickEstimateJob' ? 'estimate' : 'invoice'
+    const label = mode === 'pickEstimateJob' ? 'New Estimate' : 'New Invoice'
+    return (
+      <div className="modal-backdrop" onClick={onClose}>
+        <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+          <h3>{label} — Pick a Job</h3>
+          <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>
+            Search for the job this {target} is for.
+          </p>
+          <input
+            type="text"
+            value={continueSearchText}
+            onChange={(e) => setContinueSearchText(e.target.value)}
+            placeholder="Search by Job #, address, or customer…"
+            style={{ width: '100%', padding: '8px 10px', background: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--paper)', boxSizing: 'border-box', marginBottom: 8 }}
+          />
+          {continueMatches.map((j) => (
+            <div
+              key={j.id}
+              onClick={() => { navigate(`/${target}/${j.id}`); onClose() }}
+              style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: 14 }}
+            >
+              <strong>{jobNumberDisplay(j)}</strong> — {j.properties?.street_address} — <span className={`status-pill status-${j.status}`} style={{ marginLeft: 4 }}>{j.status}</span>
+            </div>
+          ))}
+          {continueSearchText && continueMatches.length === 0 && (
+            <p style={{ color: 'var(--mist)', fontSize: 13 }}>No matching jobs found.</p>
+          )}
+          <div style={{ marginTop: 16 }}>
+            <button type="button" className="logout-button" onClick={onClose}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (mode === 'continueJob') {
   if (mode === 'continueJob') {
     return (
       <div className="modal-backdrop" onClick={onClose}>
