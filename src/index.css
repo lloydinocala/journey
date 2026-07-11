@@ -928,3 +928,19 @@ export default function Layout({ profile }) {
   overflow-y: auto;
   min-width: 0;
 }
+.page-header-bar {
+  background: var(--nav-bg);
+  color: white;
+  margin: -32px -32px 24px -32px;
+  padding: 22px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page-header-bar h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: white;
+}
