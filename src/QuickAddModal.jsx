@@ -4,12 +4,13 @@ import { supabase } from './utils/supabase'
 import TripChargePicker from './TripChargePicker'
 
 export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated }) {
+  
   const [customers, setCustomers] = useState([])
   const [customerProperties, setCustomerProperties] = useState([])
   const [users, setUsers] = useState([])
   const [jobTypes, setJobTypes] = useState([])
   const [allJobs, setAllJobs] = useState([])
-
+const navigate = useNavigate()
   const [customerMode, setCustomerMode] = useState('existing')
   const [existingCustomerId, setExistingCustomerId] = useState('')
   const [newCustomerName, setNewCustomerName] = useState('')
