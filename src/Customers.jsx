@@ -233,3 +233,242 @@ export default function Customers({ profile }) {
   }
 
   return (
+<div>
+      <div className="page-header-bar">
+        <h2>Customers</h2>
+        <NewItemDropdown onSelect={setNewItemMode} />
+      </div>
+
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+        </div>
+      )}
+
+      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
+        <div className="field">
+          <label htmlFor="custName">Name</label>
+          <input
+            id="custName"
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="e.g. William Gaal"
+            required
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="custCompany">Company</label>
+          <input
+            id="custCompany"
+            type="text"
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            placeholder="optional"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="custPhone">Phone</label>
+          <input
+            id="custPhone"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="(352) 555-0100"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="custPhone2">Phone 2</label>
+          <input
+            id="custPhone2"
+            type="tel"
+            value={secondaryPhone}
+            onChange={(e) => setSecondaryPhone(e.target.value)}
+            placeholder="optional"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="custEmail">Email</label>
+          <input
+            id="custEmail"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="optional"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="custEmail2">Email 2</label>
+          <input
+            id="custEmail2"
+            type="email"
+            value={email2}
+            onChange={(e) => setEmail2(e.target.value)}
+            placeholder="optional"
+          />
+        </div>
+        <button className="auth-button" type="submit" disabled={saving}>
+          {saving ? 'Adding…' : 'Add customer'}
+        </button>
+      </form>
+
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="field" style={{ marginBottom: 0, minWidth: 220 }}>
+          <label htmlFor="searchBox">Search</label>
+          <input
+            id="searchBox"
+            type="text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Name, company, phone, or email…"
+          />
+        </div>
+        <label className="nav-link" style={{ cursor: 'pointer', marginBottom: 10 }}>
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+            style={{ marginRight: 6 }}
+          />
+          Show archived
+        </label>
+        <div style={{ position: 'relative', marginBottom: 10 }}>
+          <button className="logout-button" onClick={() => setShowColumnPicker(!showColumnPicker)}>
+            Columns ▾
+          </button>
+          {showColumnPicker && (
+            <div className="org-picker-list" style={{ right: 0, left: 'auto', minWidth: 180 }}>
+              {COLUMNS.filter((c) => !c.required).map((col) => (
+                <label key={col.key} className="org-picker-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.includes(col.key)}
+                    onChange={() => toggleColumn(col.key)}
+                  />
+                  {col.label}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+        <button className="logout-button" style={{ marginBottom: 10 }} onClick={handleExport}>
+          Export CSV
+        </button>
+        <p style={{ color: 'var(--mist)', fontSize: 14, margin: '0 0 12px' }}>
+          {sorted.length} customer{sorted.length !== 1 ? 's' : ''}
+        </p>
+      </div>
+
+      {error && <div className="auth-error">{error}</div>}
+
+      {loading ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('display_name')}>Name{sortArrow('display_name')}</th>
+              {visibleColumns.includes('company') && (
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('company')}>Company{sortArrow('company')}</th>
+              )}
+              {visibleColumns.includes('primary_phone') && (
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('primary_phone')}>Phone{sortArrow('primary_phone')}</th>
+              )}
+              {visibleColumns.includes('secondary_phone') && (
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('secondary_phone')}>Phone 2{sortArrow('secondary_phone')}</th>
+              )}
+              {visibleColumns.includes('email_1') && (
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('email_1')}>Email{sortArrow('email_1')}</th>
+              )}
+              {visibleColumns.includes('email_2') && (
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('email_2')}>Email 2{sortArrow('email_2')}</th>
+              )}
+              {visibleColumns.includes('created_at') && (
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('created_at')}>Added{sortArrow('created_at')}</th>
+              )}
+              {visibleColumns.includes('flags') && <th>Flags</th>}
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((c) =>
+              editingId === c.id ? (
+                <tr key={c.id}>
+                  <td><input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} /></td>
+                  {visibleColumns.includes('company') && (
+                    <td><input type="text" value={editCompany} onChange={(e) => setEditCompany(e.target.value)} /></td>
+                  )}
+                  {visibleColumns.includes('primary_phone') && (
+                    <td><input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} /></td>
+                  )}
+                  {visibleColumns.includes('secondary_phone') && (
+                    <td><input type="tel" value={editSecondaryPhone} onChange={(e) => setEditSecondaryPhone(e.target.value)} /></td>
+                  )}
+                  {visibleColumns.includes('email_1') && (
+                    <td><input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} /></td>
+                  )}
+                  {visibleColumns.includes('email_2') && (
+                    <td><input type="email" value={editEmail2} onChange={(e) => setEditEmail2(e.target.value)} /></td>
+                  )}
+                  {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
+                  {visibleColumns.includes('flags') && <td></td>}
+                  <td style={{ display: 'flex', gap: 8 }}>
+                    <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(c.id)}>Save</button>
+                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={c.id}>
+                  <td>{c.display_name}</td>
+                  {visibleColumns.includes('company') && <td>{c.company || '—'}</td>}
+                  {visibleColumns.includes('primary_phone') && <td>{c.primary_phone || '—'}</td>}
+                  {visibleColumns.includes('secondary_phone') && <td>{c.secondary_phone || '—'}</td>}
+                  {visibleColumns.includes('email_1') && <td>{c.email_1 || '—'}</td>}
+                  {visibleColumns.includes('email_2') && <td>{c.email_2 || '—'}</td>}
+                  {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
+                  {visibleColumns.includes('flags') && (
+                    <td>
+                      {!c.is_active && <span className="status-pill status-canceled" style={{ marginRight: 6 }}>Archived</span>}
+                      {c.is_banned && (
+                        <span className="status-pill status-past_due" title={c.banned_reason || 'No reason given'}>
+                          Do Not Service
+                        </span>
+                      )}
+                    </td>
+                  )}
+                  <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button className="logout-button" onClick={() => startEdit(c)}>Edit</button>
+                    <button className="logout-button" onClick={() => toggleArchive(c)}>
+                      {c.is_active ? 'Archive' : 'Reactivate'}
+                    </button>
+                    {canManageBans && (
+                      c.is_banned ? (
+                        <button className="logout-button" onClick={() => liftBan(c)}>Lift Ban</button>
+                      ) : (
+                        <button className="logout-button" onClick={() => fireCustomer(c)}>Fire Customer</button>
+                      )
+                    )}
+                  </td>
+                </tr>
+              )
+            )}
+            {sorted.length === 0 && (
+              <tr><td colSpan="9" style={{ color: 'var(--mist)' }}>No customers found.</td></tr>
+            )}
+          </tbody>
+        </table>
+      )}
+
+      {newItemMode && (
+        <QuickAddModal
+          mode={newItemMode}
+          orgId={selectedOrg}
+          profile={profile}
+          onClose={() => setNewItemMode(null)}
+          onCreated={() => loadCustomers(selectedOrg)}
+        />
+      )}
+    </div>
+  )
+}
