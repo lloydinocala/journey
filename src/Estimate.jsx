@@ -8,6 +8,7 @@ export default function Estimate({ profile }) {
   const [estimate, setEstimate] = useState(null)
   const [lineItems, setLineItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [users, setUsers] = useState([])
 
   const [categories, setCategories] = useState([])
   const [pickCategory, setPickCategory] = useState('')
@@ -43,6 +44,13 @@ export default function Estimate({ profile }) {
       setLoading(false)
       return
     }
+
+    const { data: usersData } = await supabase
+      .from('users')
+      .select('id, full_name')
+      .eq('org_id', jobData.org_id)
+      .order('full_name')
+    setUsers(usersData || [])
 
     let { data: existingEstimate } = await supabase
       .from('invoices')
@@ -222,6 +230,16 @@ export default function Estimate({ profile }) {
     loadLineItems(estimate.id)
   }
 
+  async function updateEstimatingTechnician(userId) {
+    await supabase.from('invoices').update({ estimating_technician_id: userId || null }).eq('id', estimate.id)
+    setEstimate((prev) => ({ ...prev, estimating_technician_id: userId || null }))
+  }
+
+  async function updateApprovalStatus(status) {
+    await supabase.from('invoices').update({ approval_status: status }).eq('id', estimate.id)
+    setEstimate((prev) => ({ ...prev, approval_status: status }))
+  }
+
   async function saveDiscount() {
     await supabase
       .from('invoices')
@@ -291,6 +309,32 @@ export default function Estimate({ profile }) {
               ) : (
                 <p style={{ fontSize: 13, color: '#C0392B' }}>No trip charge set on this job — set it on the Jobs page to enable pricebook lookups.</p>
               )}
+              <div style={{ marginTop: 8 }}>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--mist)', marginBottom: 2 }}>Estimating Technician</label>
+                <select
+                  value={estimate.estimating_technician_id || ''}
+                  onChange={(e) => updateEstimatingTechnician(e.target.value)}
+                  style={{ fontSize: 13 }}
+                >
+                  <option value="">Unassigned</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>{u.full_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--mist)', marginBottom: 2 }}>Approval Status</label>
+                <select
+                  value={estimate.approval_status || 'Pending'}
+                  onChange={(e) => updateApprovalStatus(e.target.value)}
+                  style={{ fontSize: 13 }}
+                >
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Pending Financing">Pending Financing</option>
+                </select>
+              </div>
             </div>
           </div>
 
