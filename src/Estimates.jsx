@@ -6,18 +6,42 @@ import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import { exportToCSV } from './utils/csvExport'
 
+const LINE_ITEM_COUNT = 9
+
+const APPROVAL_STATUS_OPTIONS = ['Pending', 'Approved', 'Rejected', 'Pending Financing']
+
 const COLUMNS = [
-  { key: 'invoice_date', label: 'Date', required: true },
-  { key: 'invoice_number', label: 'Estimate #', required: true },
-  { key: 'customer', label: 'Customer' },
-  { key: 'amount_due', label: 'Estimated Total' },
-  { key: 'status', label: 'Status' },
+  { key: 'invoice_date', label: 'Date', required: true, width: 90 },
+  { key: 'invoice_number', label: 'Invoice #', required: true, width: 100 },
+  { key: 'job_number', label: 'Job #', width: 80 },
+  { key: 'customer', label: 'Customer', width: 150 },
+  { key: 'customer_mobile', label: 'Customer Mobile', width: 120 },
+  ...Array.from({ length: LINE_ITEM_COUNT }, (_, i) => ({
+    key: 'line_item_' + (i + 1),
+    label: 'Line Item ' + (i + 1),
+    width: 160,
+  })),
+  { key: 'subtotal', label: 'Subtotal', width: 90 },
+  { key: 'sales_tax', label: 'Sales Tax', width: 85 },
+  { key: 'job_total', label: 'Job Total', width: 90 },
+  { key: 'discount', label: 'Discount', width: 85 },
+  { key: 'deposit', label: 'Deposit', width: 85 },
+  { key: 'amount_due', label: 'Amount Due', width: 95 },
+  { key: 'total_paid', label: 'Total Paid', width: 90 },
+  { key: 'balance', label: 'Balance', width: 90 },
+  { key: 'estimating_technician', label: 'Estimating Technician', width: 160 },
+  { key: 'profit', label: 'Projected Profit', width: 110 },
+  { key: 'profit_pct', label: 'Projected Profit %', width: 110 },
+  { key: 'approval_status', label: 'Approval Status', width: 150 },
 ]
+
+const DEFAULT_VISIBLE = COLUMNS.map((c) => c.key)
 
 export default function Estimates({ profile }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [estimates, setEstimates] = useState([])
+  const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
   const [sortField, setSortField] = useState('invoice_date')
@@ -25,8 +49,8 @@ export default function Estimates({ profile }) {
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [newItemMode, setNewItemMode] = useState(null)
   const [visibleColumns, setVisibleColumns] = useState(() => {
-    const saved = localStorage.getItem('estimates_visible_columns')
-    return saved ? JSON.parse(saved) : COLUMNS.map((c) => c.key)
+    const saved = localStorage.getItem('estimates_visible_columns_v2')
+    return saved ? JSON.parse(saved) : DEFAULT_VISIBLE
   })
 
   const isSuperAdmin = profile.role === 'super_admin'
@@ -43,12 +67,26 @@ export default function Estimates({ profile }) {
   async function loadEstimates(orgId) {
     if (!orgId) return
     setLoading(true)
-    const { data } = await supabase
-      .from('invoices')
-      .select('id, invoice_number, invoice_date, job_id, amount_due, sent_at, jobs(job_number, properties(customers!properties_customer_id_fkey(display_name)))')
-      .eq('org_id', orgId)
-      .eq('kind', 'estimate')
-    setEstimates(data || [])
+    const [estimatesRes, usersRes] = await Promise.all([
+      supabase
+        .from('invoices')
+        .select(`
+          id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
+          discount_amount, discount_type, deposit, amount_due, total_paid, balance,
+          profit, profit_pct, sent_at, paid_at, estimating_technician_id, approval_status,
+          jobs (
+            job_number,
+            properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )
+          ),
+          invoice_line_items ( description, sort_order ),
+          estimating_technician:estimating_technician_id ( full_name )
+        `)
+        .eq('org_id', orgId)
+        .eq('kind', 'estimate'),
+      supabase.from('users').select('id, full_name').eq('org_id', orgId).order('full_name'),
+    ])
+    setEstimates(estimatesRes.data || [])
+    setUsers(usersRes.data || [])
     setLoading(false)
   }
 
@@ -57,7 +95,7 @@ export default function Estimates({ profile }) {
   }, [selectedOrg])
 
   useEffect(() => {
-    localStorage.setItem('estimates_visible_columns', JSON.stringify(visibleColumns))
+    localStorage.setItem('estimates_visible_columns_v2', JSON.stringify(visibleColumns))
   }, [visibleColumns])
 
   function toggleColumn(key) {
@@ -68,8 +106,48 @@ export default function Estimates({ profile }) {
     return est.jobs?.properties?.customers?.display_name || 'Unknown'
   }
 
+  function customerMobile(est) {
+    return est.jobs?.properties?.customers?.primary_phone || ''
+  }
+
+  function sortedLineItems(est) {
+    return (est.invoice_line_items || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+  }
+
+  function lineItemAt(est, idx) {
+    return sortedLineItems(est)[idx]?.description || ''
+  }
+
+  function discountDisplay(est) {
+    const amt = Number(est.discount_amount || 0)
+    if (!amt) return '—'
+    return est.discount_type === 'percent' ? amt + '%' : '$' + amt.toFixed(2)
+  }
+
+  function money(val) {
+    return val === null || val === undefined ? '—' : '$' + Number(val).toFixed(2)
+  }
+
+  function profitDisplay(est) {
+    return est.profit === null || est.profit === undefined ? '—' : '$' + Number(est.profit).toFixed(2)
+  }
+
+  function profitPctDisplay(est) {
+    return est.profit_pct === null || est.profit_pct === undefined ? '—' : Number(est.profit_pct).toFixed(1) + '%'
+  }
+
   function statusLabel(est) {
     return est.sent_at ? 'Sent' : 'Draft'
+  }
+
+  async function updateEstimatingTechnician(id, userId) {
+    await supabase.from('invoices').update({ estimating_technician_id: userId || null }).eq('id', id)
+    loadEstimates(selectedOrg)
+  }
+
+  async function updateApprovalStatus(id, status) {
+    await supabase.from('invoices').update({ approval_status: status }).eq('id', id)
+    loadEstimates(selectedOrg)
   }
 
   function toggleSort(field) {
@@ -108,9 +186,12 @@ export default function Estimates({ profile }) {
     } else if (sortField === 'amount_due') {
       aVal = a.amount_due || 0
       bVal = b.amount_due || 0
-    } else if (sortField === 'status') {
-      aVal = a.sent_at ? 1 : 0
-      bVal = b.sent_at ? 1 : 0
+    } else if (sortField === 'balance') {
+      aVal = a.balance || 0
+      bVal = b.balance || 0
+    } else if (sortField === 'approval_status') {
+      aVal = a.approval_status || ''
+      bVal = b.approval_status || ''
     } else {
       aVal = a[sortField] || ''
       bVal = b[sortField] || ''
@@ -120,16 +201,41 @@ export default function Estimates({ profile }) {
     return 0
   })
 
+  const visibleColumnDefs = COLUMNS.filter((c) => c.required || visibleColumns.includes(c.key))
+  const gridTemplateColumns = visibleColumnDefs.map((c) => c.width + 'px').join(' ') + ' 90px'
+  const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + c.width, 0) + 90
+
+  function cellValue(est, key) {
+    if (key === 'invoice_date') return est.invoice_date
+    if (key === 'invoice_number') return est.invoice_number
+    if (key === 'job_number') return est.jobs?.job_number || ''
+    if (key === 'customer') return customerName(est)
+    if (key === 'customer_mobile') return customerMobile(est)
+    if (key.startsWith('line_item_')) {
+      const idx = parseInt(key.replace('line_item_', ''), 10) - 1
+      return lineItemAt(est, idx)
+    }
+    if (key === 'subtotal') return money(est.subtotal)
+    if (key === 'sales_tax') return money(est.sales_tax)
+    if (key === 'job_total') return money(est.job_total)
+    if (key === 'discount') return discountDisplay(est)
+    if (key === 'deposit') return money(est.deposit)
+    if (key === 'amount_due') return money(est.amount_due)
+    if (key === 'total_paid') return money(est.total_paid)
+    if (key === 'balance') return money(est.balance)
+    if (key === 'estimating_technician') return est.estimating_technician?.full_name || ''
+    if (key === 'profit') return profitDisplay(est)
+    if (key === 'profit_pct') return profitPctDisplay(est)
+    if (key === 'approval_status') return est.approval_status || 'Pending'
+    return ''
+  }
+
   function handleExport() {
     exportToCSV(
       sorted,
-      [
-        { key: 'invoice_date', label: 'Date' },
-        { key: 'invoice_number', label: 'Estimate #' },
-        { label: 'Customer', value: customerName },
-        { key: 'amount_due', label: 'Estimated Total' },
-        { label: 'Status', value: statusLabel },
-      ],
+      visibleColumnDefs
+        .map((c) => ({ label: c.label, value: (est) => cellValue(est, c.key) }))
+        .concat([{ label: 'Sent Status', value: statusLabel }]),
       'estimates-' + new Date().toISOString().slice(0, 10) + '.csv'
     )
   }
@@ -164,7 +270,7 @@ export default function Estimates({ profile }) {
             Columns ▾
           </button>
           {showColumnPicker && (
-            <div className="org-picker-list" style={{ right: 0, left: 'auto', minWidth: 180 }}>
+            <div className="org-picker-list" style={{ right: 'auto', left: 0, minWidth: 200, maxHeight: 360 }}>
               {COLUMNS.filter((c) => !c.required).map((col) => (
                 <label key={col.key} className="org-picker-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                   <input
@@ -189,47 +295,70 @@ export default function Estimates({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div className="grid-table" style={{ gridTemplateColumns: '1fr 1fr 1.5fr 1fr 1fr' }}>
-          <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('invoice_date')}>
-            Date{sortArrow('invoice_date')}
-          </div>
-          <div className="grid-cell grid-head">Estimate #</div>
-          {visibleColumns.includes('customer') && (
-            <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('customer')}>
-              Customer{sortArrow('customer')}
-            </div>
-          )}
-          {visibleColumns.includes('amount_due') && (
-            <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('amount_due')}>
-              Estimated Total{sortArrow('amount_due')}
-            </div>
-          )}
-          {visibleColumns.includes('status') && (
-            <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('status')}>
-              Status{sortArrow('status')}
-            </div>
-          )}
+        <div style={{ overflowX: 'auto' }}>
+          <div className="grid-table" style={{ gridTemplateColumns, minWidth: tableMinWidth }}>
+            {visibleColumnDefs.map((col) => (
+              <div
+                key={col.key}
+                className="grid-cell grid-head"
+                style={{ cursor: ['invoice_date', 'invoice_number', 'customer', 'amount_due', 'balance', 'approval_status'].includes(col.key) ? 'pointer' : 'default' }}
+                onClick={() => {
+                  if (['invoice_date', 'invoice_number', 'customer', 'amount_due', 'balance', 'approval_status'].includes(col.key)) toggleSort(col.key)
+                }}
+              >
+                {col.label}
+                {sortArrow(col.key)}
+              </div>
+            ))}
+            <div className="grid-cell grid-head"></div>
 
-          {sorted.map((est) => (
-            <Link key={est.id} to={'/estimate/' + est.job_id} style={{ display: 'contents', textDecoration: 'none', color: 'inherit' }}>
-              <div className="grid-cell">{est.invoice_date}</div>
-              <div className="grid-cell">{est.invoice_number}</div>
-              {visibleColumns.includes('customer') && <div className="grid-cell">{customerName(est)}</div>}
-              {visibleColumns.includes('amount_due') && <div className="grid-cell">${est.amount_due?.toFixed(2)}</div>}
-              {visibleColumns.includes('status') && (
-                <div className="grid-cell">
-                  {est.sent_at ? (
-                    <span className="status-pill status-trial">Sent</span>
-                  ) : (
-                    <span className="status-pill status-canceled">Draft</span>
-                  )}
+            {sorted.map((est) => (
+              <div key={est.id} style={{ display: 'contents' }}>
+                {visibleColumnDefs.map((col) => {
+                  if (col.key === 'estimating_technician') {
+                    return (
+                      <div key={col.key} className="grid-cell">
+                        <select
+                          value={est.estimating_technician_id || ''}
+                          onChange={(e) => updateEstimatingTechnician(est.id, e.target.value)}
+                          style={{ fontSize: 12 }}
+                        >
+                          <option value="">Unassigned</option>
+                          {users.map((u) => (
+                            <option key={u.id} value={u.id}>{u.full_name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )
+                  }
+                  if (col.key === 'approval_status') {
+                    return (
+                      <div key={col.key} className="grid-cell">
+                        <select
+                          value={est.approval_status || 'Pending'}
+                          onChange={(e) => updateApprovalStatus(est.id, e.target.value)}
+                          style={{ fontSize: 12 }}
+                        >
+                          {APPROVAL_STATUS_OPTIONS.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )
+                  }
+                  return <div key={col.key} className="grid-cell">{cellValue(est, col.key)}</div>
+                })}
+                <div className="grid-cell grid-actions">
+                  <Link to={'/estimate/' + est.job_id} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
+                    View
+                  </Link>
                 </div>
-              )}
-            </Link>
-          ))}
-          {sorted.length === 0 && (
-            <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No estimates found.</div>
-          )}
+              </div>
+            ))}
+            {sorted.length === 0 && (
+              <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No estimates found.</div>
+            )}
+          </div>
         </div>
       )}
 
