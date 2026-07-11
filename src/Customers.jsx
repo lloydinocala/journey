@@ -8,13 +8,20 @@ import { exportToCSV } from './utils/csvExport'
 const COLUMNS = [
   { key: 'display_name', label: 'Name', required: true },
   { key: 'company', label: 'Company' },
+  { key: 'first_name', label: 'First Name' },
+  { key: 'last_name', label: 'Last Name' },
+  { key: 'spouse_name', label: 'Spouse Name' },
   { key: 'primary_phone', label: 'Phone' },
   { key: 'secondary_phone', label: 'Phone 2' },
   { key: 'email_1', label: 'Email' },
   { key: 'email_2', label: 'Email 2' },
+  { key: 'acquire_date', label: 'Acquired' },
+  { key: 'notes', label: 'Notes' },
   { key: 'created_at', label: 'Added' },
   { key: 'flags', label: 'Flags' },
 ]
+
+const DEFAULT_VISIBLE = COLUMNS.map((c) => c.key)
 
 export default function Customers({ profile }) {
   const [orgs, setOrgs] = useState([])
@@ -24,10 +31,15 @@ export default function Customers({ profile }) {
   const [loading, setLoading] = useState(true)
   const [displayName, setDisplayName] = useState('')
   const [company, setCompany] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [spouseName, setSpouseName] = useState('')
   const [phone, setPhone] = useState('')
   const [secondaryPhone, setSecondaryPhone] = useState('')
   const [email, setEmail] = useState('')
   const [email2, setEmail2] = useState('')
+  const [acquireDate, setAcquireDate] = useState('')
+  const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [newItemMode, setNewItemMode] = useState(null)
@@ -37,17 +49,22 @@ export default function Customers({ profile }) {
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState(() => {
-    const saved = localStorage.getItem('customers_visible_columns')
-    return saved ? JSON.parse(saved) : COLUMNS.map((c) => c.key)
+    const saved = localStorage.getItem('customers_visible_columns_v2')
+    return saved ? JSON.parse(saved) : DEFAULT_VISIBLE
   })
 
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
   const [editCompany, setEditCompany] = useState('')
+  const [editFirstName, setEditFirstName] = useState('')
+  const [editLastName, setEditLastName] = useState('')
+  const [editSpouseName, setEditSpouseName] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [editSecondaryPhone, setEditSecondaryPhone] = useState('')
   const [editEmail, setEditEmail] = useState('')
   const [editEmail2, setEditEmail2] = useState('')
+  const [editAcquireDate, setEditAcquireDate] = useState('')
+  const [editNotes, setEditNotes] = useState('')
 
   const isSuperAdmin = profile.role === 'super_admin'
   const isOrgAdmin = profile.role === 'org_admin'
@@ -71,7 +88,7 @@ export default function Customers({ profile }) {
     setLoading(true)
     const { data, error } = await supabase
       .from('customers')
-      .select('id, display_name, company, primary_phone, secondary_phone, email_1, email_2, created_at, is_active, is_banned, banned_reason')
+      .select('id, display_name, company, first_name, last_name, spouse_name, primary_phone, secondary_phone, email_1, email_2, acquire_date, notes, created_at, is_active, is_banned, banned_reason')
       .eq('org_id', orgId)
       .eq('is_active', !showArchived)
       .order('created_at', { ascending: false })
@@ -84,7 +101,7 @@ export default function Customers({ profile }) {
   }, [selectedOrg, showArchived])
 
   useEffect(() => {
-    localStorage.setItem('customers_visible_columns', JSON.stringify(visibleColumns))
+    localStorage.setItem('customers_visible_columns_v2', JSON.stringify(visibleColumns))
   }, [visibleColumns])
 
   function toggleColumn(key) {
@@ -117,10 +134,15 @@ export default function Customers({ profile }) {
       org_id: selectedOrg,
       display_name: displayName.trim(),
       company: company.trim() || null,
+      first_name: firstName.trim() || null,
+      last_name: lastName.trim() || null,
+      spouse_name: spouseName.trim() || null,
       primary_phone: phone.trim() || null,
       secondary_phone: secondaryPhone.trim() || null,
       email_1: email.trim() || null,
       email_2: email2.trim() || null,
+      acquire_date: acquireDate || null,
+      notes: notes.trim() || null,
     })
     setSaving(false)
 
@@ -129,10 +151,15 @@ export default function Customers({ profile }) {
     } else {
       setDisplayName('')
       setCompany('')
+      setFirstName('')
+      setLastName('')
+      setSpouseName('')
       setPhone('')
       setSecondaryPhone('')
       setEmail('')
       setEmail2('')
+      setAcquireDate('')
+      setNotes('')
       loadCustomers(selectedOrg)
     }
   }
@@ -141,10 +168,15 @@ export default function Customers({ profile }) {
     setEditingId(c.id)
     setEditName(c.display_name)
     setEditCompany(c.company || '')
+    setEditFirstName(c.first_name || '')
+    setEditLastName(c.last_name || '')
+    setEditSpouseName(c.spouse_name || '')
     setEditPhone(c.primary_phone || '')
     setEditSecondaryPhone(c.secondary_phone || '')
     setEditEmail(c.email_1 || '')
     setEditEmail2(c.email_2 || '')
+    setEditAcquireDate(c.acquire_date || '')
+    setEditNotes(c.notes || '')
   }
 
   async function saveEdit(id) {
@@ -153,10 +185,15 @@ export default function Customers({ profile }) {
       .update({
         display_name: editName.trim(),
         company: editCompany.trim() || null,
+        first_name: editFirstName.trim() || null,
+        last_name: editLastName.trim() || null,
+        spouse_name: editSpouseName.trim() || null,
         primary_phone: editPhone.trim() || null,
         secondary_phone: editSecondaryPhone.trim() || null,
         email_1: editEmail.trim() || null,
         email_2: editEmail2.trim() || null,
+        acquire_date: editAcquireDate || null,
+        notes: editNotes.trim() || null,
       })
       .eq('id', id)
     setEditingId(null)
@@ -201,6 +238,8 @@ export default function Customers({ profile }) {
     return (
       c.display_name?.toLowerCase().includes(q) ||
       c.company?.toLowerCase().includes(q) ||
+      c.first_name?.toLowerCase().includes(q) ||
+      c.last_name?.toLowerCase().includes(q) ||
       c.primary_phone?.toLowerCase().includes(q) ||
       c.email_1?.toLowerCase().includes(q)
     )
@@ -220,10 +259,15 @@ export default function Customers({ profile }) {
       [
         { key: 'display_name', label: 'Name' },
         { key: 'company', label: 'Company' },
+        { key: 'first_name', label: 'First Name' },
+        { key: 'last_name', label: 'Last Name' },
+        { key: 'spouse_name', label: 'Spouse Name' },
         { key: 'primary_phone', label: 'Phone' },
         { key: 'secondary_phone', label: 'Phone 2' },
         { key: 'email_1', label: 'Email' },
         { key: 'email_2', label: 'Email 2' },
+        { key: 'acquire_date', label: 'Acquired' },
+        { key: 'notes', label: 'Notes' },
         { label: 'Added', value: (c) => new Date(c.created_at).toLocaleDateString() },
         { label: 'Status', value: (c) => (c.is_active ? 'Active' : 'Archived') },
         { label: 'Do Not Service', value: (c) => (c.is_banned ? 'Yes' : 'No') },
@@ -233,7 +277,7 @@ export default function Customers({ profile }) {
   }
 
   return (
-<div>
+    <div>
       <div className="page-header-bar">
         <h2>Customers</h2>
         <NewItemDropdown onSelect={setNewItemMode} />
@@ -248,7 +292,7 @@ export default function Customers({ profile }) {
 
       <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
         <div className="field">
-          <label htmlFor="custName">Name</label>
+          <label htmlFor="custName">Display Name</label>
           <input
             id="custName"
             type="text"
@@ -265,6 +309,36 @@ export default function Customers({ profile }) {
             type="text"
             value={company}
             onChange={(e) => setCompany(e.target.value)}
+            placeholder="optional"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="custFirstName">First Name</label>
+          <input
+            id="custFirstName"
+            type="text"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            placeholder="optional"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="custLastName">Last Name</label>
+          <input
+            id="custLastName"
+            type="text"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            placeholder="optional"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="custSpouseName">Spouse Name</label>
+          <input
+            id="custSpouseName"
+            type="text"
+            value={spouseName}
+            onChange={(e) => setSpouseName(e.target.value)}
             placeholder="optional"
           />
         </div>
@@ -308,6 +382,25 @@ export default function Customers({ profile }) {
             placeholder="optional"
           />
         </div>
+        <div className="field">
+          <label htmlFor="custAcquireDate">Acquire Date</label>
+          <input
+            id="custAcquireDate"
+            type="date"
+            value={acquireDate}
+            onChange={(e) => setAcquireDate(e.target.value)}
+          />
+        </div>
+        <div className="field" style={{ minWidth: 220 }}>
+          <label htmlFor="custNotes">Notes</label>
+          <input
+            id="custNotes"
+            type="text"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="optional"
+          />
+        </div>
         <button className="auth-button" type="submit" disabled={saving}>
           {saving ? 'Adding…' : 'Add customer'}
         </button>
@@ -338,7 +431,7 @@ export default function Customers({ profile }) {
             Columns ▾
           </button>
           {showColumnPicker && (
-            <div className="org-picker-list" style={{ right: 0, left: 'auto', minWidth: 180 }}>
+            <div className="org-picker-list" style={{ right: 'auto', left: 0, minWidth: 200, maxHeight: 340 }}>
               {COLUMNS.filter((c) => !c.required).map((col) => (
                 <label key={col.key} className="org-picker-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                   <input
@@ -365,99 +458,134 @@ export default function Customers({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('display_name')}>Name{sortArrow('display_name')}</th>
-              {visibleColumns.includes('company') && (
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('company')}>Company{sortArrow('company')}</th>
-              )}
-              {visibleColumns.includes('primary_phone') && (
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('primary_phone')}>Phone{sortArrow('primary_phone')}</th>
-              )}
-              {visibleColumns.includes('secondary_phone') && (
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('secondary_phone')}>Phone 2{sortArrow('secondary_phone')}</th>
-              )}
-              {visibleColumns.includes('email_1') && (
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('email_1')}>Email{sortArrow('email_1')}</th>
-              )}
-              {visibleColumns.includes('email_2') && (
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('email_2')}>Email 2{sortArrow('email_2')}</th>
-              )}
-              {visibleColumns.includes('created_at') && (
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('created_at')}>Added{sortArrow('created_at')}</th>
-              )}
-              {visibleColumns.includes('flags') && <th>Flags</th>}
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((c) =>
-              editingId === c.id ? (
-                <tr key={c.id}>
-                  <td><input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} /></td>
-                  {visibleColumns.includes('company') && (
-                    <td><input type="text" value={editCompany} onChange={(e) => setEditCompany(e.target.value)} /></td>
-                  )}
-                  {visibleColumns.includes('primary_phone') && (
-                    <td><input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} /></td>
-                  )}
-                  {visibleColumns.includes('secondary_phone') && (
-                    <td><input type="tel" value={editSecondaryPhone} onChange={(e) => setEditSecondaryPhone(e.target.value)} /></td>
-                  )}
-                  {visibleColumns.includes('email_1') && (
-                    <td><input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} /></td>
-                  )}
-                  {visibleColumns.includes('email_2') && (
-                    <td><input type="email" value={editEmail2} onChange={(e) => setEditEmail2(e.target.value)} /></td>
-                  )}
-                  {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
-                  {visibleColumns.includes('flags') && <td></td>}
-                  <td style={{ display: 'flex', gap: 8 }}>
-                    <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(c.id)}>Save</button>
-                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
-                  </td>
-                </tr>
-              ) : (
-                <tr key={c.id}>
-                  <td>{c.display_name}</td>
-                  {visibleColumns.includes('company') && <td>{c.company || '—'}</td>}
-                  {visibleColumns.includes('primary_phone') && <td>{c.primary_phone || '—'}</td>}
-                  {visibleColumns.includes('secondary_phone') && <td>{c.secondary_phone || '—'}</td>}
-                  {visibleColumns.includes('email_1') && <td>{c.email_1 || '—'}</td>}
-                  {visibleColumns.includes('email_2') && <td>{c.email_2 || '—'}</td>}
-                  {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
-                  {visibleColumns.includes('flags') && (
-                    <td>
-                      {!c.is_active && <span className="status-pill status-canceled" style={{ marginRight: 6 }}>Archived</span>}
-                      {c.is_banned && (
-                        <span className="status-pill status-past_due" title={c.banned_reason || 'No reason given'}>
-                          Do Not Service
-                        </span>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('display_name')}>Name{sortArrow('display_name')}</th>
+                {visibleColumns.includes('company') && (
+                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('company')}>Company{sortArrow('company')}</th>
+                )}
+                {visibleColumns.includes('first_name') && (
+                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('first_name')}>First Name{sortArrow('first_name')}</th>
+                )}
+                {visibleColumns.includes('last_name') && (
+                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('last_name')}>Last Name{sortArrow('last_name')}</th>
+                )}
+                {visibleColumns.includes('spouse_name') && (
+                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('spouse_name')}>Spouse Name{sortArrow('spouse_name')}</th>
+                )}
+                {visibleColumns.includes('primary_phone') && (
+                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('primary_phone')}>Phone{sortArrow('primary_phone')}</th>
+                )}
+                {visibleColumns.includes('secondary_phone') && (
+                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('secondary_phone')}>Phone 2{sortArrow('secondary_phone')}</th>
+                )}
+                {visibleColumns.includes('email_1') && (
+                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('email_1')}>Email{sortArrow('email_1')}</th>
+                )}
+                {visibleColumns.includes('email_2') && (
+                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('email_2')}>Email 2{sortArrow('email_2')}</th>
+                )}
+                {visibleColumns.includes('acquire_date') && (
+                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('acquire_date')}>Acquired{sortArrow('acquire_date')}</th>
+                )}
+                {visibleColumns.includes('notes') && <th>Notes</th>}
+                {visibleColumns.includes('created_at') && (
+                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('created_at')}>Added{sortArrow('created_at')}</th>
+                )}
+                {visibleColumns.includes('flags') && <th>Flags</th>}
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((c) =>
+                editingId === c.id ? (
+                  <tr key={c.id}>
+                    <td><input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} /></td>
+                    {visibleColumns.includes('company') && (
+                      <td><input type="text" value={editCompany} onChange={(e) => setEditCompany(e.target.value)} /></td>
+                    )}
+                    {visibleColumns.includes('first_name') && (
+                      <td><input type="text" value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} /></td>
+                    )}
+                    {visibleColumns.includes('last_name') && (
+                      <td><input type="text" value={editLastName} onChange={(e) => setEditLastName(e.target.value)} /></td>
+                    )}
+                    {visibleColumns.includes('spouse_name') && (
+                      <td><input type="text" value={editSpouseName} onChange={(e) => setEditSpouseName(e.target.value)} /></td>
+                    )}
+                    {visibleColumns.includes('primary_phone') && (
+                      <td><input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} /></td>
+                    )}
+                    {visibleColumns.includes('secondary_phone') && (
+                      <td><input type="tel" value={editSecondaryPhone} onChange={(e) => setEditSecondaryPhone(e.target.value)} /></td>
+                    )}
+                    {visibleColumns.includes('email_1') && (
+                      <td><input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} /></td>
+                    )}
+                    {visibleColumns.includes('email_2') && (
+                      <td><input type="email" value={editEmail2} onChange={(e) => setEditEmail2(e.target.value)} /></td>
+                    )}
+                    {visibleColumns.includes('acquire_date') && (
+                      <td><input type="date" value={editAcquireDate} onChange={(e) => setEditAcquireDate(e.target.value)} /></td>
+                    )}
+                    {visibleColumns.includes('notes') && (
+                      <td><input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} /></td>
+                    )}
+                    {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
+                    {visibleColumns.includes('flags') && <td></td>}
+                    <td style={{ display: 'flex', gap: 8 }}>
+                      <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(c.id)}>Save</button>
+                      <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={c.id}>
+                    <td>{c.display_name}</td>
+                    {visibleColumns.includes('company') && <td>{c.company || '—'}</td>}
+                    {visibleColumns.includes('first_name') && <td>{c.first_name || '—'}</td>}
+                    {visibleColumns.includes('last_name') && <td>{c.last_name || '—'}</td>}
+                    {visibleColumns.includes('spouse_name') && <td>{c.spouse_name || '—'}</td>}
+                    {visibleColumns.includes('primary_phone') && <td>{c.primary_phone || '—'}</td>}
+                    {visibleColumns.includes('secondary_phone') && <td>{c.secondary_phone || '—'}</td>}
+                    {visibleColumns.includes('email_1') && <td>{c.email_1 || '—'}</td>}
+                    {visibleColumns.includes('email_2') && <td>{c.email_2 || '—'}</td>}
+                    {visibleColumns.includes('acquire_date') && <td>{c.acquire_date ? new Date(c.acquire_date + 'T00:00:00').toLocaleDateString() : '—'}</td>}
+                    {visibleColumns.includes('notes') && <td>{c.notes || '—'}</td>}
+                    {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
+                    {visibleColumns.includes('flags') && (
+                      <td>
+                        {!c.is_active && <span className="status-pill status-canceled" style={{ marginRight: 6 }}>Archived</span>}
+                        {c.is_banned && (
+                          <span className="status-pill status-past_due" title={c.banned_reason || 'No reason given'}>
+                            Do Not Service
+                          </span>
+                        )}
+                      </td>
+                    )}
+                    <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button className="logout-button" onClick={() => startEdit(c)}>Edit</button>
+                      <button className="logout-button" onClick={() => toggleArchive(c)}>
+                        {c.is_active ? 'Archive' : 'Reactivate'}
+                      </button>
+                      {canManageBans && (
+                        c.is_banned ? (
+                          <button className="logout-button" onClick={() => liftBan(c)}>Lift Ban</button>
+                        ) : (
+                          <button className="logout-button" onClick={() => fireCustomer(c)}>Fire Customer</button>
+                        )
                       )}
                     </td>
-                  )}
-                  <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button className="logout-button" onClick={() => startEdit(c)}>Edit</button>
-                    <button className="logout-button" onClick={() => toggleArchive(c)}>
-                      {c.is_active ? 'Archive' : 'Reactivate'}
-                    </button>
-                    {canManageBans && (
-                      c.is_banned ? (
-                        <button className="logout-button" onClick={() => liftBan(c)}>Lift Ban</button>
-                      ) : (
-                        <button className="logout-button" onClick={() => fireCustomer(c)}>Fire Customer</button>
-                      )
-                    )}
-                  </td>
-                </tr>
-              )
-            )}
-            {sorted.length === 0 && (
-              <tr><td colSpan="9" style={{ color: 'var(--mist)' }}>No customers found.</td></tr>
-            )}
-          </tbody>
-        </table>
+                  </tr>
+                )
+              )}
+              {sorted.length === 0 && (
+                <tr><td colSpan="14" style={{ color: 'var(--mist)' }}>No customers found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {newItemMode && (
