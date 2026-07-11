@@ -89,13 +89,20 @@ const navigate = useNavigate()
           setJobTypes(data || [])
           if (data && data.length > 0) setContJobType(data[0].name)
         })
-      supabase
-        .from('jobs')
-        .select('id, job_number, segment, status, property_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name))')
-        .eq('org_id', orgId)
-        .then(({ data }) => setAllJobs(data || []))
-    }
-  }, [orgId, mode])
+     supabase
+      .from('jobs')
+      .select('id, job_number, segment, status, property_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name))')
+      .eq('org_id', orgId)
+      .then(({ data }) => setAllJobs(data || []))
+  }
+  if (mode === 'pickEstimateJob' || mode === 'pickInvoiceJob') {
+    supabase
+      .from('jobs')
+      .select('id, job_number, segment, status, property_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name))')
+      .eq('org_id', orgId)
+      .then(({ data }) => setAllJobs(data || []))
+  }
+}, [orgId, mode])
 
   useEffect(() => {
     if (mode === 'job' && customerMode === 'existing' && existingCustomerId) {
