@@ -62,7 +62,6 @@ export default function Jobs({ profile }) {
   const [contTripChargeId, setContTripChargeId] = useState(null)
 
   const [statusFilter, setStatusFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
   const [searchText, setSearchText] = useState('')
   const [sortField, setSortField] = useState('job_date')
   const [sortDirection, setSortDirection] = useState('desc')
