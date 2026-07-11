@@ -623,3 +623,40 @@ export default function Jobs({ profile }) {
       )}
 
       {error && <div className="auth-error">{error}</div>}
+<div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="field" style={{ marginBottom: 0, minWidth: 220 }}>
+          <label htmlFor="searchBox">Search</label>
+          <input
+            id="searchBox"
+            type="text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Job #, address, complaint, tech…"
+          />
+        </div>
+        <div style={{ position: 'relative', marginBottom: 10 }}>
+          <button className="logout-button" onClick={() => setShowColumnPicker(!showColumnPicker)}>
+            Columns ▾
+          </button>
+          {showColumnPicker && (
+            <div className="org-picker-list" style={{ right: 0, left: 'auto', minWidth: 180 }}>
+              {COLUMNS.filter((c) => !c.required).map((col) => (
+                <label key={col.key} className="org-picker-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.includes(col.key)}
+                    onChange={() => toggleColumn(col.key)}
+                  />
+                  {col.label}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+        <button className="logout-button" style={{ marginBottom: 10 }} onClick={handleExport}>
+          Export CSV
+        </button>
+        <p style={{ color: 'var(--mist)', fontSize: 14, margin: '0 0 12px' }}>
+          {sorted.length} job{sorted.length !== 1 ? 's' : ''}
+        </p>
+      </div>
