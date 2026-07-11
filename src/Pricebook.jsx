@@ -276,8 +276,9 @@ async function loadVariants(serviceId) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2 className="page-title" style={{ marginBottom: 0 }}>Pricebook</h2>
+     <h2 className="page-title">Pricebook</h2>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
         <button className="logout-button" onClick={handleExport} disabled={exporting || !selectedOrg}>
           {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
