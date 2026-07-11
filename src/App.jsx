@@ -19,6 +19,7 @@ import Estimate from './Estimate'
 import Estimates from './Estimates'
 import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
+import SystemEstimate from './SystemEstimate'
 
 function AuthenticatedApp() {
   const [session, setSession] = useState(undefined)
