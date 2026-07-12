@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
@@ -7,19 +7,21 @@ import QuickAddModal from './QuickAddModal'
 import TripChargePicker from './TripChargePicker'
 import { exportToCSV } from './utils/csvExport'
 
+const FROZEN_KEYS = ['job_number', 'segment', 'job_date', 'street_address']
+
 const COLUMNS = [
   { key: 'job_number', label: 'Job #', required: true },
-  { key: 'segment', label: 'Segment' },
-  { key: 'job_date', label: 'Date' },
-  { key: 'trip_charge', label: 'Trip Charge' },
-  { key: 'start_time', label: 'Scheduled Start' },
-  { key: 'job_type', label: 'Type' },
-  { key: 'service_complaint', label: 'Issue' },
-  { key: 'street_address', label: 'Street Address' },
+  { key: 'segment', label: 'Segment', required: true },
+  { key: 'job_date', label: 'Date', required: true },
+  { key: 'street_address', label: 'Street Address', required: true },
   { key: 'unit', label: 'Unit' },
   { key: 'city', label: 'City' },
   { key: 'state', label: 'State' },
   { key: 'zip', label: 'Zip' },
+  { key: 'trip_charge', label: 'Trip Charge' },
+  { key: 'start_time', label: 'Scheduled Start' },
+  { key: 'job_type', label: 'Type' },
+  { key: 'service_complaint', label: 'Issue' },
   { key: 'gate_code', label: 'Gate Code' },
   { key: 'tenant_1', label: 'Tenant 1' },
   { key: 'tenant_1_phone', label: 'Phone 1' },
@@ -499,6 +501,50 @@ export default function Jobs({ profile }) {
   const gridTemplateColumns = visibleColumnDefs.map((c) => COLUMN_WIDTHS[c.key] + 'px').join(' ') + ' 240px'
   const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + COLUMN_WIDTHS[c.key], 0) + 240
 
+  const stickyLeft = {}
+  let stickyCum = 0
+  for (const key of FROZEN_KEYS) {
+    stickyLeft[key] = stickyCum
+    stickyCum += COLUMN_WIDTHS[key]
+  }
+
+  function cellStyle(key, rowBg) {
+    if (FROZEN_KEYS.includes(key)) {
+      return { background: rowBg, position: 'sticky', left: stickyLeft[key], zIndex: 2, boxShadow: key === 'street_address' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
+    }
+    return { background: rowBg }
+  }
+
+  function headerCellStyle(key) {
+    if (FROZEN_KEYS.includes(key)) {
+      return { background: 'var(--ink)', position: 'sticky', left: stickyLeft[key], zIndex: 3, boxShadow: key === 'street_address' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
+    }
+    return {}
+  }
+
+  const scrollTableRef = useRef(null)
+  const scrollBarRef = useRef(null)
+  const [scrollBarRect, setScrollBarRect] = useState({ left: 0, width: 0 })
+
+  useEffect(() => {
+    function updateRect() {
+      if (scrollTableRef.current) {
+        const r = scrollTableRef.current.getBoundingClientRect()
+        setScrollBarRect({ left: r.left, width: r.width })
+      }
+    }
+    updateRect()
+    window.addEventListener('resize', updateRect)
+    return () => window.removeEventListener('resize', updateRect)
+  }, [visibleColumns, sorted.length])
+
+  function syncFromTable(e) {
+    if (scrollBarRef.current) scrollBarRef.current.scrollLeft = e.target.scrollLeft
+  }
+  function syncFromBar(e) {
+    if (scrollTableRef.current) scrollTableRef.current.scrollLeft = e.target.scrollLeft
+  }
+
   function cellValue(j, key) {
     if (key === 'job_number') return j.job_number
     if (key === 'segment') return j.segment
@@ -810,13 +856,17 @@ export default function Jobs({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <>
+        <div ref={scrollTableRef} onScroll={syncFromTable} style={{ overflowX: 'auto' }}>
           <div className="grid-table" style={{ gridTemplateColumns, minWidth: tableMinWidth }}>
             {visibleColumnDefs.map((col) => (
               <div
                 key={col.key}
                 className="grid-cell grid-head"
-                style={{ cursor: ['job_number', 'job_date', 'street_address', 'city', 'state', 'zip', 'unit', 'gate_code', 'job_type', 'technician_1', 'technician_2', 'status'].includes(col.key) ? 'pointer' : 'default' }}
+                style={{
+                  ...headerCellStyle(col.key),
+                  cursor: ['job_number', 'job_date', 'street_address', 'city', 'state', 'zip', 'unit', 'gate_code', 'job_type', 'technician_1', 'technician_2', 'status'].includes(col.key) ? 'pointer' : 'default',
+                }}
                 onClick={() => {
                   if (['job_number', 'job_date', 'street_address', 'city', 'state', 'zip', 'unit', 'gate_code', 'job_type', 'technician_1', 'technician_2', 'status'].includes(col.key)) toggleSort(col.key)
                 }}
@@ -827,23 +877,24 @@ export default function Jobs({ profile }) {
             ))}
             <div className="grid-cell grid-head"></div>
 
-            {sorted.map((j) =>
-              editingId === j.id ? (
+            {sorted.map((j, rowIdx) => {
+              const rowBg = rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)'
+              return editingId === j.id ? (
                 <>
                   {visibleColumnDefs.map((col) => {
-                    if (col.key === 'job_number') return <div key={col.key} className="grid-cell">{jobNumberDisplay(j)}</div>
+                    if (col.key === 'job_number') return <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>{jobNumberDisplay(j)}</div>
                     if (col.key === 'job_date') return (
-                      <div key={col.key} className="grid-cell">
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <input type="date" value={editJobDate} onChange={(e) => setEditJobDate(e.target.value)} />
                       </div>
                     )
                     if (col.key === 'start_time') return (
-                      <div key={col.key} className="grid-cell">
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <input type="time" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} />
                       </div>
                     )
                     if (col.key === 'street_address') return (
-                      <div key={col.key} className="grid-cell">
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <select value={editPropertyId} onChange={(e) => setEditPropertyId(e.target.value)}>
                           {properties.map((p) => (
                             <option key={p.id} value={p.id}>
@@ -854,12 +905,12 @@ export default function Jobs({ profile }) {
                       </div>
                     )
                     if (col.key === 'trip_charge') return (
-                      <div key={col.key} className="grid-cell">
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <TripChargePicker orgId={selectedOrg} value={editTripChargeId} onChange={setEditTripChargeId} />
                       </div>
                     )
                     if (col.key === 'job_type') return (
-                      <div key={col.key} className="grid-cell">
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <select value={editJobType} onChange={(e) => setEditJobType(e.target.value)}>
                           {jobTypes.map((t) => (
                             <option key={t.id} value={t.name}>{t.name}</option>
@@ -868,17 +919,17 @@ export default function Jobs({ profile }) {
                       </div>
                     )
                     if (col.key === 'service_complaint') return (
-                      <div key={col.key} className="grid-cell">
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <input type="text" value={editComplaint} onChange={(e) => setEditComplaint(e.target.value)} />
                       </div>
                     )
                     if (col.key === 'technician_1' || col.key === 'technician_2') return (
-                      <div key={col.key} className="grid-cell" style={{ fontSize: 12 }}>
+                      <div key={col.key} className="grid-cell" style={{ ...cellStyle(col.key, rowBg), fontSize: 12 }}>
                         {cellValue(j, col.key)}
                       </div>
                     )
                     if (col.key === 'status') return (
-                      <div key={col.key} className="grid-cell">
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
                           {STATUS_OPTIONS.map((s) => (
                             <option key={s.value} value={s.value}>{s.label}</option>
@@ -887,13 +938,13 @@ export default function Jobs({ profile }) {
                       </div>
                     )
                     if (col.key === 'job_notes') return (
-                      <div key={col.key} className="grid-cell">
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <input type="text" value={editJobNotes} onChange={(e) => setEditJobNotes(e.target.value)} placeholder="Job notes…" />
                       </div>
                     )
-                    return <div key={col.key} className="grid-cell">{cellValue(j, col.key)}</div>
+                    return <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>{cellValue(j, col.key)}</div>
                   })}
-                  <div className="grid-cell grid-actions" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                  <div className="grid-cell grid-actions" style={{ background: rowBg, flexDirection: 'column', alignItems: 'stretch' }}>
                     <div style={{ marginBottom: 6 }}>
                       {editTechnicians.map((t, idx) => (
                         <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
@@ -929,7 +980,7 @@ export default function Jobs({ profile }) {
               ) : (
                 <>
                   {visibleColumnDefs.map((col) => (
-                    <div key={col.key} className="grid-cell">
+                    <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                       {col.key === 'status' ? (
                         <span className={`status-pill status-${j.status}`}>{j.status}</span>
                       ) : (
@@ -937,7 +988,7 @@ export default function Jobs({ profile }) {
                       )}
                     </div>
                   ))}
-                  <div className="grid-cell grid-actions">
+                  <div className="grid-cell grid-actions" style={{ background: rowBg }}>
                     <button className="logout-button" onClick={() => startEdit(j)}>Edit</button>
                     <Link to={`/invoice/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Invoice</Link>
                     <Link to={`/estimate/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Estimate</Link>
@@ -945,12 +996,33 @@ export default function Jobs({ profile }) {
                   </div>
                 </>
               )
-            )}
+            })}
             {sorted.length === 0 && (
               <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No jobs yet.</div>
             )}
           </div>
         </div>
+        {tableMinWidth > scrollBarRect.width && scrollBarRect.width > 0 && (
+          <div
+            ref={scrollBarRef}
+            onScroll={syncFromBar}
+            style={{
+              position: 'fixed',
+              bottom: 0,
+              left: scrollBarRect.left,
+              width: scrollBarRect.width,
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              height: 16,
+              zIndex: 50,
+              background: 'var(--panel)',
+              borderTop: '1px solid var(--border)',
+            }}
+          >
+            <div style={{ width: tableMinWidth, height: 1 }} />
+          </div>
+        )}
+        </>
       )}
 
       {newItemMode && (
