@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
@@ -10,11 +10,13 @@ const LINE_ITEM_COUNT = 9
 
 const APPROVAL_STATUS_OPTIONS = ['Pending', 'Approved', 'Rejected', 'Pending Financing']
 
+const FROZEN_KEYS = ['invoice_date', 'invoice_number', 'job_number', 'customer']
+
 const COLUMNS = [
   { key: 'invoice_date', label: 'Date', required: true, width: 90 },
   { key: 'invoice_number', label: 'Invoice #', required: true, width: 100 },
-  { key: 'job_number', label: 'Job #', width: 80 },
-  { key: 'customer', label: 'Customer', width: 150 },
+  { key: 'job_number', label: 'Job #', required: true, width: 80 },
+  { key: 'customer', label: 'Customer', required: true, width: 150 },
   { key: 'customer_mobile', label: 'Customer Mobile', width: 120 },
   ...Array.from({ length: LINE_ITEM_COUNT }, (_, i) => ({
     key: 'line_item_' + (i + 1),
@@ -205,6 +207,50 @@ export default function Estimates({ profile }) {
   const gridTemplateColumns = visibleColumnDefs.map((c) => c.width + 'px').join(' ') + ' 90px'
   const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + c.width, 0) + 90
 
+  const stickyLeft = {}
+  let stickyCum = 0
+  for (const key of FROZEN_KEYS) {
+    stickyLeft[key] = stickyCum
+    stickyCum += COLUMNS.find((c) => c.key === key).width
+  }
+
+  function cellStyle(key, rowBg) {
+    if (FROZEN_KEYS.includes(key)) {
+      return { background: rowBg, position: 'sticky', left: stickyLeft[key], zIndex: 2, boxShadow: key === 'customer' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
+    }
+    return { background: rowBg }
+  }
+
+  function headerCellStyle(key) {
+    if (FROZEN_KEYS.includes(key)) {
+      return { background: 'var(--ink)', position: 'sticky', left: stickyLeft[key], zIndex: 3, boxShadow: key === 'customer' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
+    }
+    return {}
+  }
+
+  const scrollTableRef = useRef(null)
+  const scrollBarRef = useRef(null)
+  const [scrollBarRect, setScrollBarRect] = useState({ left: 0, width: 0 })
+
+  useEffect(() => {
+    function updateRect() {
+      if (scrollTableRef.current) {
+        const r = scrollTableRef.current.getBoundingClientRect()
+        setScrollBarRect({ left: r.left, width: r.width })
+      }
+    }
+    updateRect()
+    window.addEventListener('resize', updateRect)
+    return () => window.removeEventListener('resize', updateRect)
+  }, [visibleColumns, sorted.length])
+
+  function syncFromTable(e) {
+    if (scrollBarRef.current) scrollBarRef.current.scrollLeft = e.target.scrollLeft
+  }
+  function syncFromBar(e) {
+    if (scrollTableRef.current) scrollTableRef.current.scrollLeft = e.target.scrollLeft
+  }
+
   function cellValue(est, key) {
     if (key === 'invoice_date') return est.invoice_date
     if (key === 'invoice_number') return est.invoice_number
@@ -295,13 +341,17 @@ export default function Estimates({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <>
+        <div ref={scrollTableRef} onScroll={syncFromTable} style={{ overflowX: 'auto' }}>
           <div className="grid-table" style={{ gridTemplateColumns, minWidth: tableMinWidth }}>
             {visibleColumnDefs.map((col) => (
               <div
                 key={col.key}
                 className="grid-cell grid-head"
-                style={{ cursor: ['invoice_date', 'invoice_number', 'customer', 'amount_due', 'balance', 'approval_status'].includes(col.key) ? 'pointer' : 'default' }}
+                style={{
+                  ...headerCellStyle(col.key),
+                  cursor: ['invoice_date', 'invoice_number', 'customer', 'amount_due', 'balance', 'approval_status'].includes(col.key) ? 'pointer' : 'default',
+                }}
                 onClick={() => {
                   if (['invoice_date', 'invoice_number', 'customer', 'amount_due', 'balance', 'approval_status'].includes(col.key)) toggleSort(col.key)
                 }}
@@ -312,12 +362,14 @@ export default function Estimates({ profile }) {
             ))}
             <div className="grid-cell grid-head"></div>
 
-            {sorted.map((est) => (
+            {sorted.map((est, rowIdx) => {
+              const rowBg = rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)'
+              return (
               <div key={est.id} style={{ display: 'contents' }}>
                 {visibleColumnDefs.map((col) => {
                   if (col.key === 'estimating_technician') {
                     return (
-                      <div key={col.key} className="grid-cell">
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <select
                           value={est.estimating_technician_id || ''}
                           onChange={(e) => updateEstimatingTechnician(est.id, e.target.value)}
@@ -333,7 +385,7 @@ export default function Estimates({ profile }) {
                   }
                   if (col.key === 'approval_status') {
                     return (
-                      <div key={col.key} className="grid-cell">
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <select
                           value={est.approval_status || 'Pending'}
                           onChange={(e) => updateApprovalStatus(est.id, e.target.value)}
@@ -346,20 +398,42 @@ export default function Estimates({ profile }) {
                       </div>
                     )
                   }
-                  return <div key={col.key} className="grid-cell">{cellValue(est, col.key)}</div>
+                  return <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>{cellValue(est, col.key)}</div>
                 })}
-                <div className="grid-cell grid-actions">
+                <div className="grid-cell grid-actions" style={{ background: rowBg }}>
                   <Link to={'/estimate/' + est.job_id} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
                     View
                   </Link>
                 </div>
               </div>
-            ))}
+              )
+            })}
             {sorted.length === 0 && (
               <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No estimates found.</div>
             )}
           </div>
         </div>
+        {tableMinWidth > scrollBarRect.width && scrollBarRect.width > 0 && (
+          <div
+            ref={scrollBarRef}
+            onScroll={syncFromBar}
+            style={{
+              position: 'fixed',
+              bottom: 0,
+              left: scrollBarRect.left,
+              width: scrollBarRect.width,
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              height: 16,
+              zIndex: 50,
+              background: 'var(--panel)',
+              borderTop: '1px solid var(--border)',
+            }}
+          >
+            <div style={{ width: tableMinWidth, height: 1 }} />
+          </div>
+        )}
+        </>
       )}
 
       {newItemMode && (
