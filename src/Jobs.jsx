@@ -517,7 +517,7 @@ export default function Jobs({ profile }) {
 
   function headerCellStyle(key) {
     if (FROZEN_KEYS.includes(key)) {
-      return { background: 'var(--ink)', position: 'sticky', left: stickyLeft[key], zIndex: 3, boxShadow: key === 'street_address' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
+      return { background: 'var(--route-blue)', position: 'sticky', left: stickyLeft[key], zIndex: 3, boxShadow: key === 'street_address' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
     }
     return {}
   }
