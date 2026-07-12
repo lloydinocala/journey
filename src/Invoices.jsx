@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
@@ -8,12 +8,14 @@ import { exportToCSV } from './utils/csvExport'
 
 const LINE_ITEM_COUNT = 9
 
+const FROZEN_KEYS = ['invoice_date', 'invoice_number', 'job_number', 'customer']
+
 const COLUMNS = [
   { key: 'invoice_date', label: 'Date', required: true, width: 90 },
   { key: 'invoice_number', label: 'Invoice #', required: true, width: 100 },
-  { key: 'job_number', label: 'Job #', width: 80 },
+  { key: 'job_number', label: 'Job #', required: true, width: 80 },
+  { key: 'customer', label: 'Customer', required: true, width: 150 },
   { key: 'segment', label: 'Segment', width: 70 },
-  { key: 'customer', label: 'Customer', width: 150 },
   { key: 'customer_mobile', label: 'Customer Mobile', width: 120 },
   ...Array.from({ length: LINE_ITEM_COUNT }, (_, i) => ({
     key: 'line_item_' + (i + 1),
@@ -74,7 +76,7 @@ export default function Invoices({ profile }) {
         discount_amount, discount_type, deposit, amount_due, total_paid, balance,
         profit, profit_pct, paid_at, sent_at,
         jobs (
-          job_number, segment,
+          job_number, segment, status,
           properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) ),
           job_technicians ( sort_order, users ( full_name ) )
         ),
@@ -205,6 +207,54 @@ export default function Invoices({ profile }) {
   const gridTemplateColumns = visibleColumnDefs.map((c) => c.width + 'px').join(' ')
   const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + c.width, 0)
 
+  const stickyLeft = {}
+  let stickyCum = 0
+  for (const key of FROZEN_KEYS) {
+    stickyLeft[key] = stickyCum
+    stickyCum += COLUMNS.find((c) => c.key === key).width
+  }
+
+  function isCompletedUnpaid(inv) {
+    return inv.jobs?.status === 'completed' && !inv.paid_at
+  }
+
+  function cellStyle(key, rowBg) {
+    if (FROZEN_KEYS.includes(key)) {
+      return { background: rowBg, position: 'sticky', left: stickyLeft[key], zIndex: 2, boxShadow: key === 'customer' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
+    }
+    return { background: rowBg }
+  }
+
+  function headerCellStyle(key) {
+    if (FROZEN_KEYS.includes(key)) {
+      return { background: 'var(--ink)', position: 'sticky', left: stickyLeft[key], zIndex: 3, boxShadow: key === 'customer' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
+    }
+    return {}
+  }
+
+  const scrollTableRef = useRef(null)
+  const scrollBarRef = useRef(null)
+  const [scrollBarRect, setScrollBarRect] = useState({ left: 0, width: 0 })
+
+  useEffect(() => {
+    function updateRect() {
+      if (scrollTableRef.current) {
+        const r = scrollTableRef.current.getBoundingClientRect()
+        setScrollBarRect({ left: r.left, width: r.width })
+      }
+    }
+    updateRect()
+    window.addEventListener('resize', updateRect)
+    return () => window.removeEventListener('resize', updateRect)
+  }, [visibleColumns, sorted.length])
+
+  function syncFromTable(e) {
+    if (scrollBarRef.current) scrollBarRef.current.scrollLeft = e.target.scrollLeft
+  }
+  function syncFromBar(e) {
+    if (scrollTableRef.current) scrollTableRef.current.scrollLeft = e.target.scrollLeft
+  }
+
   function cellValue(inv, key) {
     if (key === 'invoice_date') return inv.invoice_date
     if (key === 'invoice_number') return inv.invoice_number
@@ -305,13 +355,17 @@ export default function Invoices({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <>
+        <div ref={scrollTableRef} onScroll={syncFromTable} style={{ overflowX: 'auto' }}>
           <div className="grid-table" style={{ gridTemplateColumns, minWidth: tableMinWidth }}>
             {visibleColumnDefs.map((col) => (
               <div
                 key={col.key}
                 className="grid-cell grid-head"
-                style={{ cursor: ['invoice_date', 'invoice_number', 'customer', 'amount_due', 'balance', 'status'].includes(col.key) ? 'pointer' : 'default' }}
+                style={{
+                  ...headerCellStyle(col.key),
+                  cursor: ['invoice_date', 'invoice_number', 'customer', 'amount_due', 'balance', 'status'].includes(col.key) ? 'pointer' : 'default',
+                }}
                 onClick={() => {
                   if (['invoice_date', 'invoice_number', 'customer', 'amount_due', 'balance', 'status'].includes(col.key)) toggleSort(col.key)
                 }}
@@ -321,30 +375,61 @@ export default function Invoices({ profile }) {
               </div>
             ))}
 
-            {sorted.map((inv) => (
+            {sorted.map((inv, rowIdx) => {
+              const rowBg = rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)'
+              const flagUnpaid = isCompletedUnpaid(inv)
+              return (
               <Link key={inv.id} to={'/invoice/' + inv.job_id} style={{ display: 'contents', textDecoration: 'none', color: 'inherit' }}>
-                {visibleColumnDefs.map((col) => (
-                  <div key={col.key} className="grid-cell">
-                    {col.key === 'status' ? (
-                      inv.paid_at ? (
-                        <span className="status-pill status-active">Paid</span>
-                      ) : inv.sent_at ? (
-                        <span className="status-pill status-trial">Sent</span>
+                {visibleColumnDefs.map((col) => {
+                  const isInvoiceNumberCell = col.key === 'invoice_number'
+                  const style = isInvoiceNumberCell && flagUnpaid
+                    ? { ...cellStyle(col.key, '#FFEB3B'), fontWeight: 700 }
+                    : cellStyle(col.key, rowBg)
+                  return (
+                    <div key={col.key} className="grid-cell" style={style}>
+                      {col.key === 'status' ? (
+                        inv.paid_at ? (
+                          <span className="status-pill status-active">Paid</span>
+                        ) : inv.sent_at ? (
+                          <span className="status-pill status-trial">Sent</span>
+                        ) : (
+                          <span className="status-pill status-canceled">Draft</span>
+                        )
                       ) : (
-                        <span className="status-pill status-canceled">Draft</span>
-                      )
-                    ) : (
-                      cellValue(inv, col.key)
-                    )}
-                  </div>
-                ))}
+                        cellValue(inv, col.key)
+                      )}
+                    </div>
+                  )
+                })}
               </Link>
-            ))}
+              )
+            })}
             {sorted.length === 0 && (
               <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No invoices found.</div>
             )}
           </div>
         </div>
+        {tableMinWidth > scrollBarRect.width && scrollBarRect.width > 0 && (
+          <div
+            ref={scrollBarRef}
+            onScroll={syncFromBar}
+            style={{
+              position: 'fixed',
+              bottom: 0,
+              left: scrollBarRect.left,
+              width: scrollBarRect.width,
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              height: 16,
+              zIndex: 50,
+              background: 'var(--panel)',
+              borderTop: '1px solid var(--border)',
+            }}
+          >
+            <div style={{ width: tableMinWidth, height: 1 }} />
+          </div>
+        )}
+        </>
       )}
 
       {newItemMode && (
