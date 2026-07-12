@@ -166,7 +166,7 @@ export default function Calendar({ profile }) {
       : formatDayLabel(currentDate)
 
   return (
-<div>
+<div style={{ background: '#CDD9E5', margin: '-32px', padding: '32px' }}>
       <div className="page-header-bar">
         <h2>Calendar</h2>
         <NewItemDropdown onSelect={setNewItemMode} />
