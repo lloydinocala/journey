@@ -14,7 +14,7 @@ const COLUMNS = [
   { key: 'trip_charge', label: 'Trip Charge' },
   { key: 'start_time', label: 'Scheduled Start' },
   { key: 'job_type', label: 'Type' },
-  { key: 'service_complaint', label: 'Complaint' },
+  { key: 'service_complaint', label: 'Issue' },
   { key: 'street_address', label: 'Street Address' },
   { key: 'unit', label: 'Unit' },
   { key: 'city', label: 'City' },
@@ -603,8 +603,8 @@ export default function Jobs({ profile }) {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="complaint">Complaint</label>
-              <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling" />
+              <label htmlFor="complaint">Issue</label>
+              <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling, or notes for a System Estimate visit" />
             </div>
             <div className="field">
               <label htmlFor="tech">Technician 1</label>
@@ -777,7 +777,7 @@ export default function Jobs({ profile }) {
             type="text"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Job #, address, complaint, tech…"
+            placeholder="Job #, address, issue, tech…"
           />
         </div>
         <div style={{ position: 'relative', marginBottom: 10 }}>
