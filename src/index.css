@@ -256,6 +256,26 @@ body {
   padding: 20px;
 }
 
+.stat-tile {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  min-width: 180px;
+}
+
+.stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--route-blue);
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--mist);
+  margin-top: 4px;
+}
+
 .inline-form .field {
   margin-bottom: 0;
   min-width: 180px;
