@@ -1,6 +1,8 @@
 export default function JobDetailModal({ job, onClose }) {
   if (!job) return null
 
+  const isEstimate = job.job_type === 'System Estimate'
+
   function formatTime(startTime) {
     if (!startTime) return 'No time set'
     const [h, m] = startTime.slice(11, 16).split(':').map(Number)
@@ -12,7 +14,7 @@ export default function JobDetailModal({ job, onClose }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-        <h3>{job.job_number}</h3>
+        <h3>{isEstimate ? 'Estimate ' : ''}{job.job_number}</h3>
 
         <div className="modal-row">
           <span className="label">Customer</span>
@@ -37,10 +39,19 @@ export default function JobDetailModal({ job, onClose }) {
           {job.job_type}
         </div>
 
-        <div className="modal-row">
-          <span className="label">Service complaint</span>
-          {job.service_complaint || 'No complaint noted'}
-        </div>
+        {!isEstimate && (
+          <div className="modal-row">
+            <span className="label">Issue</span>
+            {job.service_complaint || 'No issue noted'}
+          </div>
+        )}
+
+        {isEstimate && (
+          <div className="modal-row">
+            <span className="label">Notes</span>
+            {job.service_complaint || 'No notes'}
+          </div>
+        )}
 
         <div className="modal-row">
           <span className="label">Technicians</span>
