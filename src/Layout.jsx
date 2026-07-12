@@ -15,6 +15,7 @@ const CATEGORIES = [
     { label: 'Invoices', path: '/invoices' },
     { label: 'Pricebook', path: '/pricebook' },
     { label: 'Systems Pricebook', path: '/systems-pricebook' },
+    { label: 'Maintenance Tiers', path: '/maintenance-tiers' },
   ]},
   { key: 'admin', label: 'Admin', items: [
     { label: 'Team', path: '/team' },
@@ -30,7 +31,7 @@ const PLATFORM_CATEGORY = { key: 'platform', label: 'Platform', items: [
 function getCategoryForPath(pathname) {
   if (pathname === '/') return null
   if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/properties') || pathname.startsWith('/customers')) return 'operations'
-  if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook')) return 'financials'
+  if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/maintenance-tiers')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
   if (pathname.startsWith('/team') || pathname.startsWith('/settings')) return 'admin'
   if (pathname.startsWith('/organizations') || pathname.startsWith('/announcements')) return 'platform'
