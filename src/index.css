@@ -274,7 +274,8 @@ body {
 .data-table th {
   text-align: left;
   font-size: 12px;
-  color: var(--mist);
+  color: white;
+  background: var(--route-blue);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -388,7 +389,8 @@ body {
 
 .grid-table .grid-head {
   font-size: 12px;
-  color: var(--mist);
+  color: white;
+  background: var(--route-blue);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
