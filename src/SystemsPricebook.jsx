@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
@@ -54,7 +54,7 @@ export default function SystemsPricebook({ profile }) {
   const [systemTypeFilter, setSystemTypeFilter] = useState('')
   const [brandFamilyFilter, setBrandFamilyFilter] = useState('')
   const [showInactive, setShowInactive] = useState(false)
-  const [searchText, setSearchText] = useState('')
+  const [brandNameFilter, setBrandNameFilter] = useState('')
   const [sortField, setSortField] = useState('system_type')
   const [sortDirection, setSortDirection] = useState('asc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
@@ -115,20 +115,12 @@ export default function SystemsPricebook({ profile }) {
 
   const systemTypes = [...new Set(equipment.map((e) => e.system_type))].filter(Boolean).sort()
   const brandFamilies = [...new Set(equipment.map((e) => e.brand_family))].filter(Boolean).sort()
+  const allBrands = [...new Set(equipment.map((e) => e.outdoor_brand))].filter(Boolean).sort()
 
   const filtered = equipment.filter((e) => {
     if (systemTypeFilter && e.system_type !== systemTypeFilter) return false
     if (brandFamilyFilter && e.brand_family !== brandFamilyFilter) return false
-    if (searchText) {
-      const q = searchText.toLowerCase()
-      const matches =
-        e.outdoor_model?.toLowerCase().includes(q) ||
-        e.indoor_model?.toLowerCase().includes(q) ||
-        e.furnace_model?.toLowerCase().includes(q) ||
-        e.outdoor_brand?.toLowerCase().includes(q) ||
-        e.ahri_ref?.toLowerCase().includes(q)
-      if (!matches) return false
-    }
+    if (brandNameFilter && e.outdoor_brand !== brandNameFilter) return false
     return true
   })
 
@@ -261,6 +253,29 @@ export default function SystemsPricebook({ profile }) {
   const gridTemplateColumns = visibleColumnDefs.map((c) => c.width + 'px').join(' ') + ' 160px'
   const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + c.width, 0) + 160
 
+  const scrollTableRef = useRef(null)
+  const scrollBarRef = useRef(null)
+  const [scrollBarRect, setScrollBarRect] = useState({ left: 0, width: 0 })
+
+  useEffect(() => {
+    function updateRect() {
+      if (scrollTableRef.current) {
+        const r = scrollTableRef.current.getBoundingClientRect()
+        setScrollBarRect({ left: r.left, width: r.width })
+      }
+    }
+    updateRect()
+    window.addEventListener('resize', updateRect)
+    return () => window.removeEventListener('resize', updateRect)
+  }, [visibleColumns, sorted.length])
+
+  function syncFromTable(e) {
+    if (scrollBarRef.current) scrollBarRef.current.scrollLeft = e.target.scrollLeft
+  }
+  function syncFromBar(e) {
+    if (scrollTableRef.current) scrollTableRef.current.scrollLeft = e.target.scrollLeft
+  }
+
   function displayValue(e, key) {
     const type = KEY_TO_TYPE[key]
     if (key === 'quality_pledge_years') return e.quality_pledge_years === 999 ? 'Lifetime' : e.quality_pledge_years ?? '—'
@@ -312,14 +327,11 @@ export default function SystemsPricebook({ profile }) {
           </select>
         </div>
         <div className="field" style={{ marginBottom: 0, minWidth: 220 }}>
-          <label htmlFor="searchBox">Search</label>
-          <input
-            id="searchBox"
-            type="text"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Model #, brand, AHRI ref…"
-          />
+          <label htmlFor="brandSearch">Brand</label>
+          <select id="brandSearch" value={brandNameFilter} onChange={(e) => setBrandNameFilter(e.target.value)}>
+            <option value="">All brands</option>
+            {allBrands.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
         </div>
         <label className="nav-link" style={{ cursor: 'pointer', marginBottom: 10 }}>
           <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} style={{ marginRight: 6 }} />
@@ -357,7 +369,8 @@ export default function SystemsPricebook({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <>
+        <div ref={scrollTableRef} onScroll={syncFromTable} style={{ overflowX: 'auto' }}>
           <div className="grid-table" style={{ gridTemplateColumns, minWidth: tableMinWidth }}>
             {visibleColumnDefs.map((col) => (
               <div
@@ -428,6 +441,27 @@ export default function SystemsPricebook({ profile }) {
             )}
           </div>
         </div>
+        {tableMinWidth > scrollBarRect.width && scrollBarRect.width > 0 && (
+          <div
+            ref={scrollBarRef}
+            onScroll={syncFromBar}
+            style={{
+              position: 'fixed',
+              bottom: 0,
+              left: scrollBarRect.left,
+              width: scrollBarRect.width,
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              height: 16,
+              zIndex: 50,
+              background: 'var(--panel)',
+              borderTop: '1px solid var(--border)',
+            }}
+          >
+            <div style={{ width: tableMinWidth, height: 1 }} />
+          </div>
+        )}
+        </>
       )}
     </div>
   )
