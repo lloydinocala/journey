@@ -721,8 +721,8 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="complaint">Service complaint</label>
-                <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling" />
+                <label htmlFor="complaint">Issue</label>
+                <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling, or notes for a System Estimate visit" />
               </div>
               <div className="field">
                 <label htmlFor="tech">Technician</label>
