@@ -13,6 +13,7 @@ import Settings from './Settings'
 import Team from './Team'
 import Calendar from './Calendar'
 import Pricebook from './Pricebook'
+import SystemsPricebook from './SystemsPricebook'
 import Invoice from './Invoice'
 import Invoices from './Invoices'
 import Estimate from './Estimate'
@@ -67,6 +68,7 @@ function AuthenticatedApp() {
         <Route path="/team" element={<Team profile={profile} />} />
         <Route path="/calendar" element={<Calendar profile={profile} />} />
         <Route path="/pricebook" element={<Pricebook profile={profile} />} />
+        <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />
         <Route path="/invoice/:jobId" element={<Invoice profile={profile} />} />
         <Route path="/estimate/:jobId" element={<Estimate profile={profile} />} />
         <Route path="/system-estimate/:jobId" element={<SystemEstimate profile={profile} />} />
