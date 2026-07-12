@@ -219,34 +219,34 @@ export default function MaintenanceAgreementTiers({ profile }) {
           {tiers.map((t, idx) =>
             editingId === t.id ? (
               <>
-                <div className="grid-cell"><input type="text" value={editForm.name} onChange={(e) => updateEditForm('name', e.target.value)} /></div>
-                <div className="grid-cell"><input type="number" min="1" value={editForm.visit_count_per_year} onChange={(e) => updateEditForm('visit_count_per_year', e.target.value)} /></div>
-                <div className="grid-cell"><input type="number" step="0.1" value={editForm.discount_pct} onChange={(e) => updateEditForm('discount_pct', e.target.value)} /></div>
-                <div className="grid-cell"><input type="number" step="0.01" value={editForm.monthly_price} onChange={(e) => updateEditForm('monthly_price', e.target.value)} /></div>
-                <div className="grid-cell"><input type="number" step="0.01" value={editForm.annual_price} onChange={(e) => updateEditForm('annual_price', e.target.value)} /></div>
-                <div className="grid-cell"><input type="text" value={editForm.description} onChange={(e) => updateEditForm('description', e.target.value)} /></div>
-                <div className="grid-cell">
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}><input type="text" value={editForm.name} onChange={(e) => updateEditForm('name', e.target.value)} /></div>
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}><input type="number" min="1" value={editForm.visit_count_per_year} onChange={(e) => updateEditForm('visit_count_per_year', e.target.value)} /></div>
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}><input type="number" step="0.1" value={editForm.discount_pct} onChange={(e) => updateEditForm('discount_pct', e.target.value)} /></div>
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}><input type="number" step="0.01" value={editForm.monthly_price} onChange={(e) => updateEditForm('monthly_price', e.target.value)} /></div>
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}><input type="number" step="0.01" value={editForm.annual_price} onChange={(e) => updateEditForm('annual_price', e.target.value)} /></div>
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}><input type="text" value={editForm.description} onChange={(e) => updateEditForm('description', e.target.value)} /></div>
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}>
                   <input type="checkbox" checked={editForm.includes_comfort_check} onChange={(e) => updateEditForm('includes_comfort_check', e.target.checked)} />
                 </div>
-                <div className="grid-cell">{t.is_active ? 'Active' : 'Archived'}</div>
-                <div className="grid-cell grid-actions">
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}>{t.is_active ? 'Active' : 'Archived'}</div>
+                <div className="grid-cell grid-actions" style={{ background: 'var(--panel)' }}>
                   <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(t.id)}>Save</button>
                   <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
                 </div>
               </>
             ) : (
               <>
-                <div className="grid-cell">{t.name}</div>
-                <div className="grid-cell">{t.visit_count_per_year}</div>
-                <div className="grid-cell">{t.discount_pct}%</div>
-                <div className="grid-cell">${Number(t.monthly_price).toFixed(2)}</div>
-                <div className="grid-cell">${Number(t.annual_price).toFixed(2)}</div>
-                <div className="grid-cell">{t.description || '—'}</div>
-                <div className="grid-cell">{t.includes_comfort_check ? 'Yes' : '—'}</div>
-                <div className="grid-cell">
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}>{t.name}</div>
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}>{t.visit_count_per_year}</div>
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}>{t.discount_pct}%</div>
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}>${Number(t.monthly_price).toFixed(2)}</div>
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}>${Number(t.annual_price).toFixed(2)}</div>
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}>{t.description || '—'}</div>
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}>{t.includes_comfort_check ? 'Yes' : '—'}</div>
+                <div className="grid-cell" style={{ background: 'var(--panel)' }}>
                   <span className={`status-pill ${t.is_active ? 'status-active' : 'status-canceled'}`}>{t.is_active ? 'Active' : 'Archived'}</span>
                 </div>
-                <div className="grid-cell grid-actions">
+                <div className="grid-cell grid-actions" style={{ background: 'var(--panel)' }}>
                   <button className="logout-button" onClick={() => moveTier(t, 'up')} disabled={idx === 0} title="Move up">↑</button>
                   <button className="logout-button" onClick={() => moveTier(t, 'down')} disabled={idx === tiers.length - 1} title="Move down">↓</button>
                   <button className="logout-button" onClick={() => startEdit(t)}>Edit</button>
