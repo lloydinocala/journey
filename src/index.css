@@ -242,6 +242,8 @@ body {
 .status-active { background: rgba(76, 217, 123, 0.15); color: #1F7A43; }
 .status-past_due { background: rgba(255, 107, 107, 0.15); color: #C0392B; }
 .status-canceled { background: rgba(138, 147, 166, 0.15); color: var(--mist); }
+.status-pending { background: rgba(242, 169, 60, 0.15); color: var(--amber); }
+.status-lapsed { background: rgba(255, 107, 107, 0.15); color: #C0392B; }
 
 .inline-form {
   display: flex;
