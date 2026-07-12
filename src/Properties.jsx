@@ -540,35 +540,37 @@ export default function Properties({ profile }) {
             {visibleColumns.includes('notes') && <div className="grid-cell grid-head">Notes</div>}
             <div className="grid-cell grid-head"></div>
 
-            {sorted.map((p) =>
+            {sorted.map((p, rowIdx) => {
+              const rowBg = rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)'
+              return (
               editingId === p.id ? (
                 <>
-                  <div className="grid-cell">
+                  <div className="grid-cell" style={{ background: rowBg }}>
                     <input type="text" value={editStreet} onChange={(e) => setEditStreet(e.target.value)} placeholder="Street" />
                     <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} placeholder="Unit" />
                   </div>
                   {visibleColumns.includes('city') && (
-                    <div className="grid-cell">
+                    <div className="grid-cell" style={{ background: rowBg }}>
                       <input type="text" value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="City" />
                     </div>
                   )}
                   {visibleColumns.includes('state') && (
-                    <div className="grid-cell">
+                    <div className="grid-cell" style={{ background: rowBg }}>
                       <input type="text" value={editState} onChange={(e) => setEditState(e.target.value)} placeholder="State" />
                     </div>
                   )}
                   {visibleColumns.includes('zip') && (
-                    <div className="grid-cell">
+                    <div className="grid-cell" style={{ background: rowBg }}>
                       <input type="text" value={editZip} onChange={(e) => setEditZip(e.target.value)} placeholder="Zip" />
                     </div>
                   )}
                   {visibleColumns.includes('county') && (
-                    <div className="grid-cell">
+                    <div className="grid-cell" style={{ background: rowBg }}>
                       <input type="text" value={editCounty} onChange={(e) => setEditCounty(e.target.value)} />
                     </div>
                   )}
                   {visibleColumns.includes('customer') && (
-                    <div className="grid-cell">
+                    <div className="grid-cell" style={{ background: rowBg }}>
                       <select value={editCustomerId} onChange={(e) => setEditCustomerId(e.target.value)}>
                         {customers.map((c) => (
                           <option key={c.id} value={c.id}>{c.display_name}</option>
@@ -577,7 +579,7 @@ export default function Properties({ profile }) {
                     </div>
                   )}
                   {visibleColumns.includes('bill_to') && (
-                    <div className="grid-cell">
+                    <div className="grid-cell" style={{ background: rowBg }}>
                       <select value={editBillToCustomerId} onChange={(e) => setEditBillToCustomerId(e.target.value)}>
                         <option value="">Same as Customer</option>
                         {customers.map((c) => (
@@ -587,12 +589,12 @@ export default function Properties({ profile }) {
                     </div>
                   )}
                   {visibleColumns.includes('gate_code') && (
-                    <div className="grid-cell">
+                    <div className="grid-cell" style={{ background: rowBg }}>
                       <input type="text" value={editGateCode} onChange={(e) => setEditGateCode(e.target.value)} />
                     </div>
                   )}
                   {visibleColumns.includes('tenants') && (
-                    <div className="grid-cell">
+                    <div className="grid-cell" style={{ background: rowBg }}>
                       <input type="text" value={editTenant1Name} onChange={(e) => setEditTenant1Name(e.target.value)} placeholder="Tenant 1 name" />
                       <input type="tel" value={editTenant1Phone} onChange={(e) => setEditTenant1Phone(e.target.value)} placeholder="Phone" />
                       <input type="text" value={editTenant2Name} onChange={(e) => setEditTenant2Name(e.target.value)} placeholder="Tenant 2 name" />
@@ -600,31 +602,31 @@ export default function Properties({ profile }) {
                     </div>
                   )}
                   {visibleColumns.includes('notes') && (
-                    <div className="grid-cell">
+                    <div className="grid-cell" style={{ background: rowBg }}>
                       <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
                     </div>
                   )}
-                  <div className="grid-cell grid-actions">
+                  <div className="grid-cell grid-actions" style={{ background: rowBg }}>
                     <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(p.id)}>Save</button>
                     <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="grid-cell">
+                  <div className="grid-cell" style={{ background: rowBg }}>
                     {p.street_address}{p.unit ? ` #${p.unit}` : ''}
                     {!p.is_active && <span className="status-pill status-canceled" style={{ marginLeft: 6 }}>Archived</span>}
                   </div>
-                  {visibleColumns.includes('city') && <div className="grid-cell">{p.city || '—'}</div>}
-                  {visibleColumns.includes('state') && <div className="grid-cell">{p.state || '—'}</div>}
-                  {visibleColumns.includes('zip') && <div className="grid-cell">{p.zip || '—'}</div>}
-                  {visibleColumns.includes('county') && <div className="grid-cell">{p.county || '—'}</div>}
-                  {visibleColumns.includes('customer') && <div className="grid-cell">{p.customers?.display_name || '—'}</div>}
-                  {visibleColumns.includes('bill_to') && <div className="grid-cell">{billToLabel(p) || 'Same as Customer'}</div>}
-                  {visibleColumns.includes('gate_code') && <div className="grid-cell">{p.gate_code || '—'}</div>}
-                  {visibleColumns.includes('tenants') && <div className="grid-cell">{tenantsLabel(p) || '—'}</div>}
-                  {visibleColumns.includes('notes') && <div className="grid-cell">{p.notes || '—'}</div>}
-                  <div className="grid-cell grid-actions">
+                  {visibleColumns.includes('city') && <div className="grid-cell" style={{ background: rowBg }}>{p.city || '—'}</div>}
+                  {visibleColumns.includes('state') && <div className="grid-cell" style={{ background: rowBg }}>{p.state || '—'}</div>}
+                  {visibleColumns.includes('zip') && <div className="grid-cell" style={{ background: rowBg }}>{p.zip || '—'}</div>}
+                  {visibleColumns.includes('county') && <div className="grid-cell" style={{ background: rowBg }}>{p.county || '—'}</div>}
+                  {visibleColumns.includes('customer') && <div className="grid-cell" style={{ background: rowBg }}>{p.customers?.display_name || '—'}</div>}
+                  {visibleColumns.includes('bill_to') && <div className="grid-cell" style={{ background: rowBg }}>{billToLabel(p) || 'Same as Customer'}</div>}
+                  {visibleColumns.includes('gate_code') && <div className="grid-cell" style={{ background: rowBg }}>{p.gate_code || '—'}</div>}
+                  {visibleColumns.includes('tenants') && <div className="grid-cell" style={{ background: rowBg }}>{tenantsLabel(p) || '—'}</div>}
+                  {visibleColumns.includes('notes') && <div className="grid-cell" style={{ background: rowBg }}>{p.notes || '—'}</div>}
+                  <div className="grid-cell grid-actions" style={{ background: rowBg }}>
                     <button className="logout-button" onClick={() => startEdit(p)}>Edit</button>
                     <button className="logout-button" onClick={() => toggleArchive(p)}>
                       {p.is_active ? 'Archive' : 'Reactivate'}
@@ -632,7 +634,8 @@ export default function Properties({ profile }) {
                   </div>
                 </>
               )
-            )}
+              )
+            })}
             {sorted.length === 0 && (
               <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No properties found.</div>
             )}
