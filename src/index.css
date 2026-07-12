@@ -476,6 +476,7 @@ body {
   max-height: 70vh;
   border: 1px solid var(--line-strong);
   border-radius: 12px;
+  background: var(--panel);
 }
 
 .calendar-grid {
@@ -584,6 +585,7 @@ body {
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   overflow: hidden;
+  background: var(--panel);
 }
 
 .calendar-month-weekday {
