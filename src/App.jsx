@@ -15,6 +15,7 @@ import Calendar from './Calendar'
 import Pricebook from './Pricebook'
 import SystemsPricebook from './SystemsPricebook'
 import MaintenanceAgreementTiers from './MaintenanceAgreementTiers'
+import MaintenanceAgreements from './MaintenanceAgreements'
 import Invoice from './Invoice'
 import Invoices from './Invoices'
 import Estimate from './Estimate'
@@ -71,6 +72,7 @@ function AuthenticatedApp() {
         <Route path="/pricebook" element={<Pricebook profile={profile} />} />
         <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />
         <Route path="/maintenance-tiers" element={<MaintenanceAgreementTiers profile={profile} />} />
+        <Route path="/maintenance-agreements" element={<MaintenanceAgreements profile={profile} />} />
         <Route path="/invoice/:jobId" element={<Invoice profile={profile} />} />
         <Route path="/estimate/:jobId" element={<Estimate profile={profile} />} />
         <Route path="/system-estimate/:jobId" element={<SystemEstimate profile={profile} />} />
@@ -98,3 +100,4 @@ export default function App() {
     </BrowserRouter>
   )
 }
+
