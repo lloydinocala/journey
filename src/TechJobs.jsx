@@ -27,19 +27,66 @@ function timeLabel(startTime) {
 
 export default function TechJobs({ profile }) {
   const navigate = useNavigate()
+  const isSuperAdmin = profile?.role === 'super_admin'
+
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [date, setDate] = useState(todayISO())
 
+  // Super-admin preview mode: pick an org + a "viewing as" user, since a super_admin
+  // account has no org_id / assigned jobs of its own.
+  const [orgs, setOrgs] = useState([])
+  const [previewOrgId, setPreviewOrgId] = useState(localStorage.getItem('tech_preview_org_id') || '')
+  const [orgUsers, setOrgUsers] = useState([])
+  const [previewUserId, setPreviewUserId] = useState(localStorage.getItem('tech_preview_user_id') || '')
+
+  useEffect(() => {
+    if (!isSuperAdmin) return
+    supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
+      setOrgs(data || [])
+      if (!previewOrgId && data && data.length > 0) setPreviewOrgId(data[0].id)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!isSuperAdmin || !previewOrgId) return
+    localStorage.setItem('tech_preview_org_id', previewOrgId)
+    supabase
+      .from('users')
+      .select('id, full_name, role')
+      .eq('org_id', previewOrgId)
+      .eq('is_active', true)
+      .order('full_name')
+      .then(({ data }) => {
+        setOrgUsers(data || [])
+        if (data && data.length > 0 && !data.find((u) => u.id === previewUserId)) {
+          setPreviewUserId(data[0].id)
+        }
+      })
+  }, [previewOrgId])
+
+  useEffect(() => {
+    if (isSuperAdmin && previewUserId) localStorage.setItem('tech_preview_user_id', previewUserId)
+  }, [previewUserId])
+
   useEffect(() => {
     loadJobs()
-  }, [date])
+  }, [date, previewOrgId, previewUserId])
 
   async function loadJobs() {
     setLoading(true)
-    const { data: userData } = await supabase.auth.getUser()
-    const uid = userData?.user?.id
-    if (!uid || !profile?.org_id) {
+
+    let orgId, uid
+    if (isSuperAdmin) {
+      orgId = previewOrgId
+      uid = previewUserId
+    } else {
+      orgId = profile?.org_id
+      const { data: userData } = await supabase.auth.getUser()
+      uid = userData?.user?.id
+    }
+
+    if (!uid || !orgId) {
       setJobs([])
       setLoading(false)
       return
@@ -55,13 +102,13 @@ export default function TechJobs({ profile }) {
           properties ( street_address, unit, city, state, zip ),
           customers ( display_name )
         `)
-        .eq('org_id', profile.org_id)
+        .eq('org_id', orgId)
         .eq('job_date', date)
         .or(`technician_1_id.eq.${uid},technician_2_id.eq.${uid}`),
       supabase
         .from('job_technicians')
         .select('job_id')
-        .eq('org_id', profile.org_id)
+        .eq('org_id', orgId)
         .eq('user_id', uid),
     ])
 
@@ -79,7 +126,7 @@ export default function TechJobs({ profile }) {
           properties ( street_address, unit, city, state, zip ),
           customers ( display_name )
         `)
-        .eq('org_id', profile.org_id)
+        .eq('org_id', orgId)
         .eq('job_date', date)
         .in('id', extraIds)
       extra = data || []
@@ -102,6 +149,24 @@ export default function TechJobs({ profile }) {
       </div>
 
       <div className="mobile-body">
+        {isSuperAdmin && (
+          <div className="preview-banner">
+            <div className="preview-banner-label">Super Admin Preview</div>
+            <div className="preview-banner-row">
+              <select value={previewOrgId} onChange={(e) => setPreviewOrgId(e.target.value)}>
+                {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+              </select>
+              <select value={previewUserId} onChange={(e) => setPreviewUserId(e.target.value)}>
+                {orgUsers.length === 0 && <option value="">No users in this org</option>}
+                {orgUsers.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
+              </select>
+            </div>
+            <div className="preview-banner-row">
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <p style={{ color: 'var(--mist)', padding: '4px 2px' }}>Loading…</p>
         ) : jobs.length === 0 ? (
