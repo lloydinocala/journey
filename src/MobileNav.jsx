@@ -1,17 +1,24 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { IconCalendar, IconList, IconMore, IconSparkles } from './MobileIcons'
 
-const TABS = [
-  { key: 'calendar', label: 'Calendar', icon: IconCalendar, path: null },
-  { key: 'jobcards', label: 'Job Cards', icon: IconList, path: '/tech' },
-  { key: 'misc', label: 'Misc', icon: IconMore, path: null },
-  { key: 'apollo', label: 'Apollo', icon: IconSparkles, path: null },
-]
+export function isFieldAdmin(profile) {
+  return profile?.role === 'org_admin' || profile?.role === 'super_admin' || !!profile?.is_field_supervisor
+}
 
-export default function MobileNav() {
+export default function MobileNav({ profile }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const active = location.pathname.startsWith('/tech') ? 'jobcards' : ''
+  const admin = isFieldAdmin(profile)
+
+  const TABS = [
+    { key: 'calendar', label: admin ? 'Schedule' : 'Calendar', icon: IconCalendar, path: admin ? '/tech/schedule' : null },
+    { key: 'jobcards', label: 'Job Cards', icon: IconList, path: '/tech' },
+    { key: 'misc', label: admin ? 'New Job' : 'Misc', icon: IconMore, path: admin ? '/tech/new-job' : null },
+    { key: 'apollo', label: 'Apollo', icon: IconSparkles, path: '/tech/apollo' },
+  ]
+
+  const active = TABS.find((t) => t.path && location.pathname === t.path)?.key
+    || (location.pathname === '/tech' ? 'jobcards' : '')
 
   return (
     <div className="mobile-bottom-nav">
@@ -21,7 +28,7 @@ export default function MobileNav() {
           className={'mobile-nav-item' + (active === key ? ' active' : '') + (path ? '' : ' disabled')}
           onClick={() => path && navigate(path)}
           disabled={!path}
-          title={path ? label : `${label} — coming soon`}
+          title={path ? label : `${label} — admin only`}
         >
           <Icon />
           <span>{label}</span>
