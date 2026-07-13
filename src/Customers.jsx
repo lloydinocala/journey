@@ -602,7 +602,7 @@ export default function Customers({ profile }) {
                   </tr>
                 ) : (
                   <tr key={c.id}>
-                    <td>{c.display_name}</td>
+                    <td><Link to={`/customers/${c.id}`}>{c.display_name}</Link></td>
                     {visibleColumns.includes('company') && <td>{c.company || '—'}</td>}
                     {visibleColumns.includes('first_name') && <td>{c.first_name || '—'}</td>}
                     {visibleColumns.includes('last_name') && <td>{c.last_name || '—'}</td>}
@@ -615,7 +615,6 @@ export default function Customers({ profile }) {
                     {visibleColumns.includes('notes') && <td>{c.notes || '—'}</td>}
                     {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
                     <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <Link className="logout-button" to={`/customers/${c.id}`}>History</Link>
                       <button className="logout-button" onClick={() => startEdit(c)}>Edit</button>
                       <button className="logout-button" onClick={() => toggleArchive(c)}>
                         {c.is_active ? 'Archive' : 'Reactivate'}
