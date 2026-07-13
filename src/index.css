@@ -1129,6 +1129,13 @@ body {
   margin-bottom: 8px;
 }
 
+.address-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 10px;
+}
+
 .address-link {
   display: flex;
   align-items: center;
@@ -1136,7 +1143,8 @@ body {
   font-size: 13px;
   color: #2E7FC4;
   text-decoration: underline;
-  margin: 8px 0 10px;
+  flex: 1;
+  min-width: 0;
 }
 
 .phone-row {
@@ -1405,4 +1413,180 @@ body {
   font-size: 12.5px;
   background: #fff;
   color: var(--paper);
+}
+
+/* Mobile line-item builders (Invoice / Estimate / System Estimate) */
+.mobile-field {
+  margin-bottom: 10px;
+}
+
+.mobile-field label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--mist);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+
+.mobile-field select,
+.mobile-field input[type="text"],
+.mobile-field input[type="number"] {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+  color: var(--paper);
+  box-sizing: border-box;
+}
+
+.mobile-field-row {
+  display: flex;
+  gap: 8px;
+}
+
+.mobile-field-row .mobile-field {
+  flex: 1;
+}
+
+.mobile-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.line-item-card {
+  background: #F7F9FA;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.line-item-desc {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.line-item-fields {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 6px;
+}
+
+.line-item-fields .mobile-field {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.line-item-ext {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--route-blue);
+  white-space: nowrap;
+  padding-bottom: 9px;
+}
+
+.line-item-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--mist);
+}
+
+.remove-item-btn {
+  background: none;
+  border: none;
+  color: #C0392B;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.totals-block {
+  background: #F7F9FA;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.totals-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 3px 0;
+}
+
+.totals-row.total {
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding-top: 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.equipment-option-card {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.equipment-option-card.selected {
+  border-color: var(--route-blue);
+  background: #EAF1F8;
+}
+
+.equipment-option-card .eq-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.equipment-option-card .eq-sub {
+  font-size: 11.5px;
+  color: var(--mist);
+  margin-top: 2px;
+}
+
+.equipment-option-card .eq-price {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--route-blue);
+  margin-top: 4px;
+}
+
+.recommended-badge {
+  display: inline-block;
+  background: var(--amber);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.builder-tech-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.builder-tech-row .mobile-field {
+  flex: 1;
+  margin-bottom: 0;
 }
