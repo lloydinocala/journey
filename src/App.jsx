@@ -7,6 +7,7 @@ import Layout from './Layout'
 import Dashboard from './Dashboard'
 import Organizations from './Organizations'
 import Customers from './Customers'
+import CustomerHistory from './CustomerHistory'
 import Properties from './Properties'
 import Jobs from './Jobs'
 import Settings from './Settings'
@@ -64,6 +65,7 @@ function AuthenticatedApp() {
       <Route element={<Layout profile={profile} />}>
         <Route path="/" element={<Dashboard profile={profile} />} />
         <Route path="/customers" element={<Customers profile={profile} />} />
+        <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
         <Route path="/properties" element={<Properties profile={profile} />} />
         <Route path="/jobs" element={<Jobs profile={profile} />} />
         <Route path="/settings" element={<Settings profile={profile} />} />
@@ -100,4 +102,3 @@ export default function App() {
     </BrowserRouter>
   )
 }
-
