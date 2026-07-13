@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
-import MobileNav from './MobileNav'
+import MobileNav, { isFieldAdmin } from './MobileNav'
 
 const STATUS_LABEL = {
   scheduled: 'Scheduled',
@@ -87,8 +87,18 @@ export default function TechSchedule({ profile }) {
   return (
     <div className="mobile-shell">
       <div className="mobile-header">
-        <div className="mobile-header-date">{dateDisplay}</div>
-        <div className="mobile-header-title">Schedule</div>
+        <div className="mobile-header-top-row">
+          <div>
+            <div className="mobile-header-date">{dateDisplay}</div>
+            <div className="mobile-header-title">Schedule</div>
+          </div>
+          <div className="mobile-header-actions">
+            {isFieldAdmin(profile) && (
+              <button className="mobile-header-action-btn" onClick={() => navigate('/')}>Desktop</button>
+            )}
+            <button className="mobile-header-action-btn" onClick={() => supabase.auth.signOut()}>Sign Out</button>
+          </div>
+        </div>
       </div>
 
       <div className="mobile-body">
