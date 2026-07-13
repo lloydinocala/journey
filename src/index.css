@@ -1759,3 +1759,39 @@ body {
   border-radius: 999px;
   cursor: pointer;
 }
+
+.supervisor-tools {
+  background: #EAF1F8;
+  border: 1px solid #B9D4EA;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.supervisor-tools-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--route-blue);
+  margin-bottom: 8px;
+}
+
+.supervisor-tools-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.supervisor-tools-row button {
+  flex: 1 1 auto;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: none;
+  background: var(--route-blue);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
