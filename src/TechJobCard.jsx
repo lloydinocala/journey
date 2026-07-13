@@ -328,46 +328,16 @@ export default function TechJobCard({ profile }) {
       </div>
 
       <div className="mobile-body">
-        {address?.street_address && (
-          <div className="property-header">
-            {mapImg && (
-              <a href={maps || undefined} target="_blank" rel="noreferrer" style={{ pointerEvents: maps ? 'auto' : 'none' }}>
-                <img src={mapImg} alt="Property location" className="property-map-img" />
-              </a>
-            )}
-            <div className="property-header-text">
-              <IconPin />
-              <span>{address.street_address}{address.unit ? ` #${address.unit}` : ''}, {address.city}, {address.state} {address.zip}</span>
-              <div className="gps-menu-wrap">
-                <button
-                  className="gps-icon-btn"
-                  title="Navigate"
-                  onClick={() => setMapsMenuOpen((v) => !v)}
-                >
-                  <IconNavigation />
-                </button>
-                {mapsMenuOpen && (
-                  <>
-                    <div className="gps-menu-backdrop" onClick={() => setMapsMenuOpen(false)} />
-                    <div className="gps-menu">
-                      {mapOptions.map((opt) => (
-                        <a
-                          key={opt.label}
-                          href={opt.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="gps-menu-item"
-                          onClick={() => setMapsMenuOpen(false)}
-                        >
-                          {opt.label}
-                        </a>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
+        {mapImg && (
+          <a
+            className="property-header"
+            href={maps || undefined}
+            target="_blank"
+            rel="noreferrer"
+            style={{ pointerEvents: maps ? 'auto' : 'none' }}
+          >
+            <img src={mapImg} alt="Property location" className="property-map-img" />
+          </a>
         )}
 
         <div className="action-row-buttons">
@@ -399,6 +369,44 @@ export default function TechJobCard({ profile }) {
           <div className="section-card-body">
             <div className="customer-name">{customer?.display_name}</div>
             {customer?.spouse_name && <div className="customer-spouse">{customer.spouse_name}</div>}
+            {address?.street_address && (
+              <div className="address-row">
+                <a
+                  className="address-link"
+                  href={maps || undefined}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ pointerEvents: maps ? 'auto' : 'none' }}
+                >
+                  <IconPin />
+                  <span>{address.street_address}{address.unit ? ` #${address.unit}` : ''}, {address.city}, {address.state} {address.zip}</span>
+                </a>
+                <div className="gps-menu-wrap">
+                  <button className="gps-icon-btn" title="Navigate" onClick={() => setMapsMenuOpen((v) => !v)}>
+                    <IconNavigation />
+                  </button>
+                  {mapsMenuOpen && (
+                    <>
+                      <div className="gps-menu-backdrop" onClick={() => setMapsMenuOpen(false)} />
+                      <div className="gps-menu">
+                        {mapOptions.map((opt) => (
+                          <a
+                            key={opt.label}
+                            href={opt.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="gps-menu-item"
+                            onClick={() => setMapsMenuOpen(false)}
+                          >
+                            {opt.label}
+                          </a>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
             {[customer?.primary_phone, customer?.secondary_phone].filter(Boolean).map((p) => (
               <div key={p} className="phone-row">
                 <span>{p}</span>
@@ -449,9 +457,9 @@ export default function TechJobCard({ profile }) {
         </div>
 
         <div className="section-card">
-          <div className="section-card-header"><span>Estimates &amp; Invoice</span></div>
+          <div className="section-card-header"><span>Invoice</span></div>
           <div className="section-card-body action-rows">
-            <Link to={`/invoice/${jobId}`} className="action-row">
+            <Link to={`/tech/invoice/${jobId}`} className="action-row">
               <IconReceipt /><span>Invoice Builder</span><span className="chev">›</span>
             </Link>
           </div>
@@ -572,10 +580,10 @@ export default function TechJobCard({ profile }) {
         <div className="section-card">
           <div className="section-card-header"><span>Estimates</span></div>
           <div className="section-card-body action-rows">
-            <Link to={`/estimate/${jobId}`} className="action-row">
+            <Link to={`/tech/estimate/${jobId}`} className="action-row">
               <IconFile /><span>Service Estimate</span><span className="chev">›</span>
             </Link>
-            <Link to={`/system-estimate/${jobId}`} className="action-row">
+            <Link to={`/tech/system-estimate/${jobId}`} className="action-row">
               <IconCalculator /><span>System Estimate</span><span className="chev">›</span>
             </Link>
           </div>
