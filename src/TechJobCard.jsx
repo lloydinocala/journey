@@ -53,12 +53,12 @@ function mapProviderOptions(property) {
   ]
 }
 
-function staticMapUrl(property) {
+function streetViewUrl(property) {
   const addr = addressString(property)
   const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   if (!addr || !key) return null
   const q = encodeURIComponent(addr)
-  return `https://maps.googleapis.com/maps/api/staticmap?center=${q}&zoom=17&size=640x220&scale=2&maptype=roadmap&markers=color:0x1B3A6B%7C${q}&key=${key}`
+  return `https://maps.googleapis.com/maps/api/streetview?size=640x300&location=${q}&fov=80&pitch=0&key=${key}`
 }
 
 function fmtDateTime(startTime) {
@@ -312,7 +312,7 @@ export default function TechJobCard({ profile }) {
   const address = job.properties
   const customer = job.customers
   const maps = mapsUrl(address)
-  const mapImg = staticMapUrl(address)
+  const mapImg = streetViewUrl(address)
   const mapOptions = mapProviderOptions(address)
   const status = job.status
 
