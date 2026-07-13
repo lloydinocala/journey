@@ -76,7 +76,9 @@ function AuthenticatedApp() {
       <Route path="/tech/estimate/:jobId" element={<TechEstimate profile={profile} />} />
       <Route path="/tech/system-estimate/:jobId" element={<TechSystemEstimate profile={profile} />} />
       <Route path="/tech/schedule" element={<TechSchedule profile={profile} />} />
-      <Route path="/tech/new-job" element={<TechNewJob profile={profile} />} />
+      <Route path="/tech/new-job" element={<TechNewJob profile={profile} mode="job" />} />
+      <Route path="/tech/new-service-estimate" element={<TechNewJob profile={profile} mode="service-estimate" />} />
+      <Route path="/tech/new-system-estimate" element={<TechNewJob profile={profile} mode="system-estimate" />} />
       <Route path="/tech/apollo" element={<TechApollo profile={profile} />} />
       <Route element={<Layout profile={profile} />}>
         <Route path="/" element={profile.role === 'tech' ? <Navigate to="/tech" replace /> : <Dashboard profile={profile} />} />
