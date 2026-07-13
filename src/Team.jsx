@@ -172,6 +172,21 @@ export default function Team({ profile }) {
     loadMembers(selectedOrg)
   }
 
+  const [resetSentId, setResetSentId] = useState(null)
+
+  async function handleResetPassword(member) {
+    setError('')
+    const { error } = await supabase.auth.resetPasswordForEmail(member.email, {
+      redirectTo: window.location.origin,
+    })
+    if (error) {
+      setError(error.message)
+      return
+    }
+    setResetSentId(member.id)
+    setTimeout(() => setResetSentId(null), 4000)
+  }
+
   const filtered = members.filter((m) => {
     if (!searchText) return true
     const q = searchText.toLowerCase()
@@ -357,6 +372,9 @@ export default function Team({ profile }) {
                 )}
                 <div className="grid-cell grid-actions">
                   <button className="logout-button" onClick={() => startEdit(m)}>Edit</button>
+                  <button className="logout-button" onClick={() => handleResetPassword(m)}>
+                    {resetSentId === m.id ? 'Email sent!' : 'Reset Password'}
+                  </button>
                   {m.id !== currentUserId && (
                     <button className="logout-button" onClick={() => toggleActive(m)}>
                       {m.is_active ? 'Deactivate' : 'Reactivate'}
