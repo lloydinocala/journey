@@ -29,6 +29,9 @@ import TechJobCard from './TechJobCard'
 import TechInvoice from './TechInvoice'
 import TechEstimate from './TechEstimate'
 import TechSystemEstimate from './TechSystemEstimate'
+import TechSchedule from './TechSchedule'
+import TechNewJob from './TechNewJob'
+import TechApollo from './TechApollo'
 
 function AuthenticatedApp() {
   const [session, setSession] = useState(undefined)
@@ -54,7 +57,7 @@ function AuthenticatedApp() {
     }
     supabase
       .from('users')
-      .select('full_name, role, org_id')
+      .select('full_name, role, org_id, is_field_supervisor')
       .eq('id', session.user.id)
       .single()
       .then(({ data }) => setProfile(data))
@@ -72,6 +75,9 @@ function AuthenticatedApp() {
       <Route path="/tech/invoice/:jobId" element={<TechInvoice profile={profile} />} />
       <Route path="/tech/estimate/:jobId" element={<TechEstimate profile={profile} />} />
       <Route path="/tech/system-estimate/:jobId" element={<TechSystemEstimate profile={profile} />} />
+      <Route path="/tech/schedule" element={<TechSchedule profile={profile} />} />
+      <Route path="/tech/new-job" element={<TechNewJob profile={profile} />} />
+      <Route path="/tech/apollo" element={<TechApollo profile={profile} />} />
       <Route element={<Layout profile={profile} />}>
         <Route path="/" element={profile.role === 'tech' ? <Navigate to="/tech" replace /> : <Dashboard profile={profile} />} />
         <Route path="/customers" element={<Customers profile={profile} />} />
