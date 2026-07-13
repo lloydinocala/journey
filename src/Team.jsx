@@ -39,6 +39,7 @@ export default function Team({ profile }) {
   const [editRole, setEditRole] = useState('tech')
   const [editColor, setEditColor] = useState('#2F5DE3')
   const [editEmail, setEditEmail] = useState('')
+  const [editSupervisor, setEditSupervisor] = useState(false)
 
   const isSuperAdmin = profile.role === 'super_admin'
 
@@ -57,7 +58,7 @@ export default function Team({ profile }) {
     setLoading(true)
     const { data } = await supabase
       .from('users')
-      .select('id, full_name, email, role, calendar_color, is_active')
+      .select('id, full_name, email, role, calendar_color, is_active, is_field_supervisor')
       .eq('org_id', orgId)
       .order('full_name')
     setMembers(data || [])
@@ -133,13 +134,14 @@ export default function Team({ profile }) {
     setEditRole(member.role)
     setEditColor(member.calendar_color || '#2F5DE3')
     setEditEmail(member.email)
+    setEditSupervisor(!!member.is_field_supervisor)
   }
 
   async function saveEdit(member) {
     setError('')
     await supabase
       .from('users')
-      .update({ full_name: editName.trim(), role: editRole, calendar_color: editColor })
+      .update({ full_name: editName.trim(), role: editRole, calendar_color: editColor, is_field_supervisor: editSupervisor })
       .eq('id', member.id)
 
     if (editEmail.trim() !== member.email) {
@@ -323,6 +325,10 @@ export default function Team({ profile }) {
                       <option value="csr">CSR / Office</option>
                       <option value="org_admin">Admin</option>
                     </select>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, marginTop: 4, cursor: 'pointer', color: 'var(--mist)' }}>
+                      <input type="checkbox" checked={editSupervisor} onChange={(e) => setEditSupervisor(e.target.checked)} />
+                      Field Supervisor (mobile admin access)
+                    </label>
                   </div>
                 )}
                 {visibleColumns.includes('status') && <div className="grid-cell">{m.is_active ? 'Active' : 'Deactivated'}</div>}
@@ -336,7 +342,12 @@ export default function Team({ profile }) {
                 <div className="grid-cell"><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: m.calendar_color || 'var(--mist)' }} /></div>
                 <div className="grid-cell">{m.full_name}</div>
                 {visibleColumns.includes('email') && <div className="grid-cell">{m.email}</div>}
-                {visibleColumns.includes('role') && <div className="grid-cell">{m.role}</div>}
+                {visibleColumns.includes('role') && (
+                  <div className="grid-cell">
+                    {m.role}
+                    {m.is_field_supervisor && <span className="badge" style={{ marginLeft: 6, fontSize: 10 }}>Supervisor</span>}
+                  </div>
+                )}
                 {visibleColumns.includes('status') && (
                   <div className="grid-cell">
                     <span className={`status-pill ${m.is_active ? 'status-active' : 'status-canceled'}`}>
