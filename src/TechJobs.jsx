@@ -192,7 +192,7 @@ export default function TechJobs({ profile }) {
         )}
       </div>
 
-      <MobileNav />
+      <MobileNav profile={profile} />
     </div>
   )
 }
