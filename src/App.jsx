@@ -26,6 +26,9 @@ import PublicInvoice from './PublicInvoice'
 import SystemEstimate from './SystemEstimate'
 import TechJobs from './TechJobs'
 import TechJobCard from './TechJobCard'
+import TechInvoice from './TechInvoice'
+import TechEstimate from './TechEstimate'
+import TechSystemEstimate from './TechSystemEstimate'
 
 function AuthenticatedApp() {
   const [session, setSession] = useState(undefined)
@@ -66,6 +69,9 @@ function AuthenticatedApp() {
     <Routes>
       <Route path="/tech" element={<TechJobs profile={profile} />} />
       <Route path="/tech/:jobId" element={<TechJobCard profile={profile} />} />
+      <Route path="/tech/invoice/:jobId" element={<TechInvoice profile={profile} />} />
+      <Route path="/tech/estimate/:jobId" element={<TechEstimate profile={profile} />} />
+      <Route path="/tech/system-estimate/:jobId" element={<TechSystemEstimate profile={profile} />} />
       <Route element={<Layout profile={profile} />}>
         <Route path="/" element={profile.role === 'tech' ? <Navigate to="/tech" replace /> : <Dashboard profile={profile} />} />
         <Route path="/customers" element={<Customers profile={profile} />} />
