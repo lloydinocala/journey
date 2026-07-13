@@ -177,10 +177,25 @@ export default function TechJobs({ profile }) {
           </div>
         )}
 
+        {isFieldAdmin(profile) && (
+          <div className="supervisor-tools">
+            <div className="supervisor-tools-label">Supervisor Tools</div>
+            <div className="supervisor-tools-row">
+              <button onClick={() => navigate('/tech/schedule')}>Everyone's Schedule</button>
+              <button onClick={() => navigate('/tech/new-job')}>+ New Job</button>
+              <button onClick={() => navigate('/tech/apollo')}>Chat with Apollo</button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <p style={{ color: 'var(--mist)', padding: '4px 2px' }}>Loading…</p>
         ) : jobs.length === 0 ? (
-          <p style={{ color: 'var(--mist)', padding: '4px 2px' }}>No jobs scheduled for this day.</p>
+          <p style={{ color: 'var(--mist)', padding: '4px 2px' }}>
+            {isFieldAdmin(profile)
+              ? "You have no jobs of your own today — use Supervisor Tools above to check the team's schedule or create a job."
+              : 'No jobs scheduled for this day.'}
+          </p>
         ) : (
           jobs.map((j) => (
             <div key={j.id} className="job-card-item" onClick={() => navigate(`/tech/${j.id}`)}>
