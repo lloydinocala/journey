@@ -2,7 +2,6 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import AnnouncementBanner from './AnnouncementBanner'
-import ApolloWidget from './ApolloWidget'
 
 const CATEGORIES = [
   { key: 'operations', label: 'Operations', items: [
@@ -11,7 +10,6 @@ const CATEGORIES = [
     { label: 'Properties', path: '/properties' },
     { label: 'Customers', path: '/customers' },
     { label: 'Maintenance Agreements', path: '/maintenance-agreements' },
-    { label: 'MA Lifecycle Dashboard', path: '/maintenance-lifecycle' },
     { label: 'Job Estimates', path: '/estimates' },
   ]},
   { key: 'financials', label: 'Financials', items: [
@@ -23,23 +21,27 @@ const CATEGORIES = [
   { key: 'admin', label: 'Admin', items: [
     { label: 'Team', path: '/team' },
     { label: 'Sign-In Log', path: '/session-log' },
-    { label: 'Apollo Log', path: '/apollo-log' },
     { label: 'Settings', path: '/settings' },
+  ]},
+  { key: 'import', label: 'Bulk Import', items: [
+    { label: 'Import Customers', path: '/import/customers' },
+    { label: 'Import Properties', path: '/import/properties' },
+    { label: 'Import Jobs', path: '/import/jobs' },
   ]},
 ]
 
 const PLATFORM_CATEGORY = { key: 'platform', label: 'Platform', items: [
   { label: 'Organizations', path: '/organizations' },
   { label: 'Announcements', path: '/announcements' },
-  { label: 'Mobile Preview', path: '/tech' },
 ]}
 
 function getCategoryForPath(pathname) {
   if (pathname === '/') return null
-  if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/maintenance-agreements') || pathname.startsWith('/maintenance-lifecycle')) return 'operations'
+  if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/maintenance-agreements')) return 'operations'
   if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/maintenance-tiers')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
-  if (pathname.startsWith('/team') || pathname.startsWith('/settings') || pathname.startsWith('/session-log') || pathname.startsWith('/apollo-log')) return 'admin'
+  if (pathname.startsWith('/team') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
+  if (pathname.startsWith('/import')) return 'import'
   if (pathname.startsWith('/organizations') || pathname.startsWith('/announcements')) return 'platform'
   return null
 }
@@ -114,7 +116,6 @@ export default function Layout({ profile }) {
           <Outlet />
         </div>
       </div>
-      <ApolloWidget profile={profile} />
     </div>
   )
 }
