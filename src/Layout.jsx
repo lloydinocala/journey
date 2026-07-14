@@ -28,6 +28,7 @@ const CATEGORIES = [
 const PLATFORM_CATEGORY = { key: 'platform', label: 'Platform', items: [
   { label: 'Organizations', path: '/organizations' },
   { label: 'Announcements', path: '/announcements' },
+  { label: 'Mobile Preview', path: '/tech' },
 ]}
 
 function getCategoryForPath(pathname) {
