@@ -16,13 +16,13 @@ export default function Team({ profile }) {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState(null)
+  const [permissionsCatalog, setPermissionsCatalog] = useState([])
 
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('tech')
   const [color, setColor] = useState('#2F5DE3')
-  const [canViewAccounting, setCanViewAccounting] = useState(false)
-  const [canViewOperations, setCanViewOperations] = useState(false)
+  const [selectedPermissions, setSelectedPermissions] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -42,13 +42,17 @@ export default function Team({ profile }) {
   const [editColor, setEditColor] = useState('#2F5DE3')
   const [editEmail, setEditEmail] = useState('')
   const [editSupervisor, setEditSupervisor] = useState(false)
-  const [editCanViewAccounting, setEditCanViewAccounting] = useState(false)
-  const [editCanViewOperations, setEditCanViewOperations] = useState(false)
+  const [editPermissions, setEditPermissions] = useState([])
 
   const isSuperAdmin = profile.role === 'super_admin'
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id))
+    supabase
+      .from('permissions')
+      .select('key, label, description, category, sort_order')
+      .order('sort_order')
+      .then(({ data }) => setPermissionsCatalog(data || []))
     if (isSuperAdmin) {
       supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
         setOrgs(data || [])
@@ -60,12 +64,22 @@ export default function Team({ profile }) {
   async function loadMembers(orgId) {
     if (!orgId) return
     setLoading(true)
-    const { data } = await supabase
-      .from('users')
-      .select('id, full_name, email, role, calendar_color, is_active, is_field_supervisor, can_view_accounting, can_view_operations')
-      .eq('org_id', orgId)
-      .order('full_name')
-    setMembers(data || [])
+    const [membersRes, permsRes] = await Promise.all([
+      supabase
+        .from('users')
+        .select('id, full_name, email, role, calendar_color, is_active, is_field_supervisor')
+        .eq('org_id', orgId)
+        .order('full_name'),
+      supabase.from('user_permissions').select('user_id, permission_key').eq('org_id', orgId),
+    ])
+
+    const permsByUser = {}
+    ;(permsRes.data || []).forEach((p) => {
+      if (!permsByUser[p.user_id]) permsByUser[p.user_id] = []
+      permsByUser[p.user_id].push(p.permission_key)
+    })
+
+    setMembers((membersRes.data || []).map((m) => ({ ...m, permission_keys: permsByUser[m.id] || [] })))
     setLoading(false)
   }
 
@@ -95,6 +109,25 @@ export default function Team({ profile }) {
     return sortDirection === 'asc' ? ' ↑' : ' ↓'
   }
 
+  function togglePermission(list, setList, key) {
+    setList(list.includes(key) ? list.filter((k) => k !== key) : [...list, key])
+  }
+
+  async function syncPermissions(userId, orgId, keys) {
+    await supabase.from('user_permissions').delete().eq('user_id', userId)
+    if (keys.length > 0) {
+      const { data: sessionData } = await supabase.auth.getUser()
+      await supabase.from('user_permissions').insert(
+        keys.map((permission_key) => ({
+          org_id: orgId,
+          user_id: userId,
+          permission_key,
+          granted_by: sessionData.user?.id || null,
+        }))
+      )
+    }
+  }
+
   async function handleAdd(e) {
     e.preventDefault()
     setError('')
@@ -113,8 +146,7 @@ export default function Team({ profile }) {
         role,
         org_id: selectedOrg,
         calendar_color: color,
-        can_view_accounting: canViewAccounting,
-        can_view_operations: canViewOperations,
+        permission_keys: role === 'org_admin' ? [] : selectedPermissions,
       },
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -130,8 +162,7 @@ export default function Team({ profile }) {
       setFullName('')
       setEmail('')
       setRole('tech')
-      setCanViewAccounting(false)
-      setCanViewOperations(false)
+      setSelectedPermissions([])
       loadMembers(selectedOrg)
     }
   }
@@ -143,8 +174,7 @@ export default function Team({ profile }) {
     setEditColor(member.calendar_color || '#2F5DE3')
     setEditEmail(member.email)
     setEditSupervisor(!!member.is_field_supervisor)
-    setEditCanViewAccounting(!!member.can_view_accounting)
-    setEditCanViewOperations(!!member.can_view_operations)
+    setEditPermissions(member.permission_keys || [])
   }
 
   async function saveEdit(member) {
@@ -156,10 +186,10 @@ export default function Team({ profile }) {
         role: editRole,
         calendar_color: editColor,
         is_field_supervisor: editSupervisor,
-        can_view_accounting: editCanViewAccounting,
-        can_view_operations: editCanViewOperations,
       })
       .eq('id', member.id)
+
+    await syncPermissions(member.id, selectedOrg, editRole === 'org_admin' ? [] : editPermissions)
 
     if (editEmail.trim() !== member.email) {
       const { data: sessionData } = await supabase.auth.getSession()
@@ -224,6 +254,10 @@ export default function Team({ profile }) {
     return 0
   })
 
+  function permissionLabel(key) {
+    return permissionsCatalog.find((p) => p.key === key)?.label || key
+  }
+
   function handleExport() {
     exportToCSV(
       sorted,
@@ -232,8 +266,10 @@ export default function Team({ profile }) {
         { key: 'email', label: 'Email' },
         { key: 'role', label: 'Role' },
         { label: 'Status', value: (m) => (m.is_active ? 'Active' : 'Deactivated') },
-        { label: 'Accounting Access', value: (m) => (m.role === 'org_admin' || m.can_view_accounting ? 'Yes' : 'No') },
-        { label: 'Operations Access', value: (m) => (m.role === 'org_admin' || m.can_view_operations ? 'Yes' : 'No') },
+        {
+          label: 'Permissions',
+          value: (m) => (m.role === 'org_admin' ? 'Full access' : (m.permission_keys || []).map(permissionLabel).join('; ') || 'None'),
+        },
       ],
       'team-' + new Date().toISOString().slice(0, 10) + '.csv'
 )
@@ -271,18 +307,20 @@ export default function Team({ profile }) {
           <label htmlFor="color">Calendar color</label>
           <input id="color" type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ width: 60, padding: 4, height: 40 }} />
         </div>
-        {role !== 'org_admin' && (
+        {role !== 'org_admin' && permissionsCatalog.length > 0 && (
           <div className="field">
             <label>Dashboard Access</label>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
-                <input type="checkbox" checked={canViewAccounting} onChange={(e) => setCanViewAccounting(e.target.checked)} />
-                Accounting
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
-                <input type="checkbox" checked={canViewOperations} onChange={(e) => setCanViewOperations(e.target.checked)} />
-                Operations
-              </label>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {permissionsCatalog.map((p) => (
+                <label key={p.key} title={p.description} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedPermissions.includes(p.key)}
+                    onChange={() => togglePermission(selectedPermissions, setSelectedPermissions, p.key)}
+                  />
+                  {p.label.replace('Dashboard: ', '')}
+                </label>
+              ))}
             </div>
           </div>
         )}
@@ -339,7 +377,7 @@ export default function Team({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div className="grid-table" style={{ gridTemplateColumns: '0.4fr 1.3fr 1.5fr 1.3fr 1fr 1.8fr' }}>
+        <div className="grid-table" style={{ gridTemplateColumns: '0.4fr 1.3fr 1.5fr 1.6fr 1fr 1.8fr' }}>
           <div className="grid-cell grid-head"></div>
           <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('full_name')}>Name{sortArrow('full_name')}</div>
           {visibleColumns.includes('email') && (
@@ -378,18 +416,21 @@ export default function Team({ profile }) {
                       <input type="checkbox" checked={editSupervisor} onChange={(e) => setEditSupervisor(e.target.checked)} />
                       Field Supervisor (mobile admin access)
                     </label>
-                    {editRole !== 'org_admin' && (
-                      <>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, marginTop: 4, cursor: 'pointer', color: 'var(--mist)' }}>
-                          <input type="checkbox" checked={editCanViewAccounting} onChange={(e) => setEditCanViewAccounting(e.target.checked)} />
-                          Dashboard: Accounting
+                    {editRole !== 'org_admin' &&
+                      permissionsCatalog.map((p) => (
+                        <label
+                          key={p.key}
+                          title={p.description}
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, marginTop: 4, cursor: 'pointer', color: 'var(--mist)' }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={editPermissions.includes(p.key)}
+                            onChange={() => togglePermission(editPermissions, setEditPermissions, p.key)}
+                          />
+                          {p.label}
                         </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, marginTop: 4, cursor: 'pointer', color: 'var(--mist)' }}>
-                          <input type="checkbox" checked={editCanViewOperations} onChange={(e) => setEditCanViewOperations(e.target.checked)} />
-                          Dashboard: Operations
-                        </label>
-                      </>
-                    )}
+                      ))}
                   </div>
                 )}
                 {visibleColumns.includes('status') && <div className="grid-cell">{m.is_active ? 'Active' : 'Deactivated'}</div>}
@@ -410,14 +451,14 @@ export default function Team({ profile }) {
                     <div style={{ marginTop: 4 }}>
                       {m.role === 'org_admin' ? (
                         <span className="badge" style={{ fontSize: 10 }}>Full Dashboard Access</span>
+                      ) : m.permission_keys && m.permission_keys.length > 0 ? (
+                        m.permission_keys.map((k) => (
+                          <span key={k} className="badge" style={{ marginRight: 4, fontSize: 10 }}>
+                            {permissionLabel(k).replace('Dashboard: ', '')}
+                          </span>
+                        ))
                       ) : (
-                        <>
-                          {m.can_view_accounting && <span className="badge" style={{ marginRight: 4, fontSize: 10 }}>Accounting</span>}
-                          {m.can_view_operations && <span className="badge" style={{ fontSize: 10 }}>Operations</span>}
-                          {!m.can_view_accounting && !m.can_view_operations && (
-                            <span style={{ fontSize: 10, color: 'var(--mist)' }}>No dashboard access</span>
-                          )}
-                        </>
+                        <span style={{ fontSize: 10, color: 'var(--mist)' }}>No dashboard access</span>
                       )}
                     </div>
                   </div>
