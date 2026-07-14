@@ -27,7 +27,6 @@ const CATEGORIES = [
 const PLATFORM_CATEGORY = { key: 'platform', label: 'Platform', items: [
   { label: 'Organizations', path: '/organizations' },
   { label: 'Announcements', path: '/announcements' },
-  { label: 'Mobile Preview', path: '/tech' },
 ]}
 
 function getCategoryForPath(pathname) {
@@ -53,6 +52,15 @@ export default function Layout({ profile }) {
   }, [location.pathname])
 
   async function handleLogout() {
+    const { data } = await supabase.auth.getUser()
+    if (data?.user && profile?.org_id) {
+      await supabase.from('session_log').insert({
+        org_id: profile.org_id,
+        user_id: data.user.id,
+        event: 'sign_out',
+        source: 'desktop',
+      })
+    }
     await supabase.auth.signOut()
   }
 
