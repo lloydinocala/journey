@@ -24,6 +24,7 @@ import Estimates from './Estimates'
 import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
 import SystemEstimate from './SystemEstimate'
+import SessionLog from './SessionLog'
 
 async function logSignIn(userId) {
   const { data } = await supabase.from('users').select('org_id').eq('id', userId).single()
@@ -90,6 +91,7 @@ function AuthenticatedApp() {
         <Route path="/jobs" element={<Jobs profile={profile} />} />
         <Route path="/settings" element={<Settings profile={profile} />} />
         <Route path="/team" element={<Team profile={profile} />} />
+        <Route path="/session-log" element={<SessionLog profile={profile} />} />
         <Route path="/calendar" element={<Calendar profile={profile} />} />
         <Route path="/pricebook" element={<Pricebook profile={profile} />} />
         <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />
