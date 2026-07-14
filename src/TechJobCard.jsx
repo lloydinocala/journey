@@ -136,7 +136,7 @@ export default function TechJobCard({ profile }) {
     const { data } = await supabase
       .from('jobs')
       .select(`
-        id, org_id, job_number, segment, status, job_date, start_time, duration_hours, job_type,
+        id, org_id, property_id, job_number, segment, status, job_date, start_time, duration_hours, job_type,
         service_complaint, internal_notes, on_my_way_at, arrival_at, completed_at,
         properties ( street_address, unit, city, state, zip ),
         customers ( display_name, spouse_name, primary_phone, secondary_phone, email_1 )
@@ -571,7 +571,7 @@ export default function TechJobCard({ profile }) {
         <div className="section-card">
           <div className="section-card-header"><span>Maintenance Agreements</span></div>
           <div className="section-card-body action-rows">
-            <Link to="/maintenance-agreements" className="action-row highlight">
+            <Link to={`/maintenance-agreements?propertyId=${job.property_id}`} className="action-row highlight">
               <IconShield /><span>Maintenance Agreements</span><span className="chev">›</span>
             </Link>
           </div>
