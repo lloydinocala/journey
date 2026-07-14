@@ -3,7 +3,6 @@ import { supabase } from './utils/supabase'
 import { IconSparkles, IconPhone } from './MobileIcons'
 
 const SUPPORT_PHONE_DISPLAY = '(352) 484-6341'
-const SUPPORT_PHONE_TEL = '3524846341'
 
 const GREETING = { role: 'assistant', content: "Hi, I'm Apollo. Ask me anything about using Journey, or a general question — I'm here to help." }
 
@@ -141,19 +140,14 @@ export default function ApolloWidget({ profile }) {
             <p className="support-modal-text">
               There may be a wait to reach a Support Agent by phone. It may be faster to chat with Apollo first.
             </p>
-            <p className="support-modal-question">Do you wish to continue this call to a live Support Agent?</p>
+            <p className="support-modal-question">Call Support directly:</p>
+            <div style={{ textAlign: 'center', fontSize: 20, fontWeight: 800, color: 'var(--route-blue)', marginBottom: 14, letterSpacing: 0.3 }}>
+              {SUPPORT_PHONE_DISPLAY}
+            </div>
             <div className="support-modal-actions">
               <button className="action-btn" style={{ background: '#F0F1F3', color: 'var(--paper)' }} onClick={() => setSupportOpen(false)}>
                 Return to Chat
               </button>
-              <a
-                className="action-btn primary"
-                style={{ textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                href={`tel:${SUPPORT_PHONE_TEL}`}
-                onClick={() => setSupportOpen(false)}
-              >
-                Place Call — {SUPPORT_PHONE_DISPLAY}
-              </a>
             </div>
           </div>
         </>
