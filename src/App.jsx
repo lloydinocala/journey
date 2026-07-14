@@ -25,6 +25,7 @@ import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
 import SystemEstimate from './SystemEstimate'
 import SessionLog from './SessionLog'
+import ApolloLog from './ApolloLog'
 import TechJobs from './TechJobs'
 import TechJobCard from './TechJobCard'
 import TechInvoice from './TechInvoice'
@@ -127,6 +128,7 @@ function AuthenticatedApp() {
         <Route path="/settings" element={<Settings profile={profile} />} />
         <Route path="/team" element={<Team profile={profile} />} />
         <Route path="/session-log" element={<SessionLog profile={profile} />} />
+        <Route path="/apollo-log" element={<ApolloLog profile={profile} />} />
         <Route path="/calendar" element={<Calendar profile={profile} />} />
         <Route path="/pricebook" element={<Pricebook profile={profile} />} />
         <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />
