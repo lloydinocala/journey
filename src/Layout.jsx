@@ -11,6 +11,7 @@ const CATEGORIES = [
     { label: 'Properties', path: '/properties' },
     { label: 'Customers', path: '/customers' },
     { label: 'Maintenance Agreements', path: '/maintenance-agreements' },
+    { label: 'MA Lifecycle Dashboard', path: '/maintenance-lifecycle' },
     { label: 'Job Estimates', path: '/estimates' },
   ]},
   { key: 'financials', label: 'Financials', items: [
@@ -35,7 +36,7 @@ const PLATFORM_CATEGORY = { key: 'platform', label: 'Platform', items: [
 
 function getCategoryForPath(pathname) {
   if (pathname === '/') return null
-  if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/maintenance-agreements')) return 'operations'
+  if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/maintenance-agreements') || pathname.startsWith('/maintenance-lifecycle')) return 'operations'
   if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/maintenance-tiers')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
   if (pathname.startsWith('/team') || pathname.startsWith('/settings') || pathname.startsWith('/session-log') || pathname.startsWith('/apollo-log')) return 'admin'
