@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import AnnouncementBanner from './AnnouncementBanner'
+import ApolloWidget from './ApolloWidget'
 
 const CATEGORIES = [
   { key: 'operations', label: 'Operations', items: [
@@ -112,6 +113,7 @@ export default function Layout({ profile }) {
           <Outlet />
         </div>
       </div>
+      <ApolloWidget profile={profile} />
     </div>
   )
 }
