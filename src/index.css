@@ -1701,7 +1701,7 @@ body {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.45);
-  z-index: 40;
+  z-index: 600;
 }
 
 .support-modal {
@@ -1712,7 +1712,7 @@ body {
   background: var(--panel);
   border-radius: 12px;
   padding: 18px;
-  z-index: 41;
+  z-index: 601;
   box-shadow: 0 12px 36px rgba(0,0,0,0.3);
 }
 
