@@ -24,14 +24,6 @@ import Estimates from './Estimates'
 import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
 import SystemEstimate from './SystemEstimate'
-import TechJobs from './TechJobs'
-import TechJobCard from './TechJobCard'
-import TechInvoice from './TechInvoice'
-import TechEstimate from './TechEstimate'
-import TechSystemEstimate from './TechSystemEstimate'
-import TechSchedule from './TechSchedule'
-import TechNewJob from './TechNewJob'
-import TechApollo from './TechApollo'
 
 function AuthenticatedApp() {
   const [session, setSession] = useState(undefined)
@@ -57,7 +49,7 @@ function AuthenticatedApp() {
     }
     supabase
       .from('users')
-      .select('full_name, role, org_id, is_field_supervisor')
+      .select('full_name, role, org_id, can_view_accounting, can_view_operations')
       .eq('id', session.user.id)
       .single()
       .then(({ data }) => setProfile(data))
@@ -70,18 +62,8 @@ function AuthenticatedApp() {
 
   return (
     <Routes>
-      <Route path="/tech" element={<TechJobs profile={profile} />} />
-      <Route path="/tech/:jobId" element={<TechJobCard profile={profile} />} />
-      <Route path="/tech/invoice/:jobId" element={<TechInvoice profile={profile} />} />
-      <Route path="/tech/estimate/:jobId" element={<TechEstimate profile={profile} />} />
-      <Route path="/tech/system-estimate/:jobId" element={<TechSystemEstimate profile={profile} />} />
-      <Route path="/tech/schedule" element={<TechSchedule profile={profile} />} />
-      <Route path="/tech/new-job" element={<TechNewJob profile={profile} mode="job" />} />
-      <Route path="/tech/new-service-estimate" element={<TechNewJob profile={profile} mode="service-estimate" />} />
-      <Route path="/tech/new-system-estimate" element={<TechNewJob profile={profile} mode="system-estimate" />} />
-      <Route path="/tech/apollo" element={<TechApollo profile={profile} />} />
       <Route element={<Layout profile={profile} />}>
-        <Route path="/" element={profile.role === 'tech' ? <Navigate to="/tech" replace /> : <Dashboard profile={profile} />} />
+        <Route path="/" element={<Dashboard profile={profile} />} />
         <Route path="/customers" element={<Customers profile={profile} />} />
         <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
         <Route path="/properties" element={<Properties profile={profile} />} />
