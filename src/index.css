@@ -1943,3 +1943,114 @@ body {
 .apollo-widget-input-row button:disabled {
   opacity: 0.5;
 }
+
+/* Mobile schedule: list/calendar toggle + month grid */
+.view-toggle-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.view-toggle-row button {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--panel);
+  color: var(--mist);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.view-toggle-row button.active {
+  border-color: var(--route-blue);
+  background: #EAF1F8;
+  color: var(--route-blue);
+}
+
+.calendar-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.calendar-nav-row button {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--route-blue);
+  cursor: pointer;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mist);
+  padding-bottom: 4px;
+}
+
+.calendar-cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--paper);
+  cursor: pointer;
+  padding: 2px;
+  position: relative;
+}
+
+.calendar-cell-outside {
+  opacity: 0.35;
+}
+
+.calendar-cell-day {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.calendar-cell-today .calendar-cell-day {
+  color: var(--route-blue);
+  font-weight: 800;
+}
+
+.calendar-cell-today {
+  border-color: var(--route-blue);
+}
+
+.calendar-cell-selected {
+  background: #EAF1F8;
+  border-color: var(--route-blue);
+}
+
+.calendar-cell-count {
+  font-size: 9.5px;
+  font-weight: 800;
+  background: var(--route-blue);
+  color: #fff;
+  border-radius: 999px;
+  min-width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  margin-top: 1px;
+}
