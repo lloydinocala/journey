@@ -219,6 +219,22 @@ export default function Team({ profile }) {
     loadMembers(selectedOrg)
   }
 
+  async function forceSignOut(member) {
+    if (
+      !window.confirm(
+        `Force sign out ${member.full_name}?\n\nThis immediately ends their access and signs them out of any active session. They will need to be Reactivated before they can sign in again.`
+      )
+    )
+      return
+    setError('')
+    const { error } = await supabase.rpc('force_sign_out', { target_user_id: member.id })
+    if (error) {
+      setError(error.message)
+      return
+    }
+    loadMembers(selectedOrg)
+  }
+
   const [resetSentId, setResetSentId] = useState(null)
 
   async function handleResetPassword(member) {
@@ -478,6 +494,15 @@ export default function Team({ profile }) {
                   {m.id !== currentUserId && (
                     <button className="logout-button" onClick={() => toggleActive(m)}>
                       {m.is_active ? 'Deactivate' : 'Reactivate'}
+                    </button>
+                  )}
+                  {m.id !== currentUserId && m.is_active && (
+                    <button
+                      className="logout-button"
+                      style={{ color: '#a33' }}
+                      onClick={() => forceSignOut(m)}
+                    >
+                      Force Sign Out
                     </button>
                   )}
                 </div>
