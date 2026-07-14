@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
-import { signOutMobile } from './utils/sessionLog'
+import { signOutMobile } from './utils/mobileSessionLog'
 import MobileNav, { isFieldAdmin } from './MobileNav'
 
 const STATUS_LABEL = {
