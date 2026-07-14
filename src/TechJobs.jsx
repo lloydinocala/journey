@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import { signOutMobile } from './utils/sessionLog'
 import MobileNav, { isFieldAdmin } from './MobileNav'
 
 const STATUS_LABEL = {
@@ -153,7 +154,7 @@ export default function TechJobs({ profile }) {
             {isFieldAdmin(profile) && (
               <button className="mobile-header-action-btn" onClick={() => navigate('/')}>Desktop</button>
             )}
-            <button className="mobile-header-action-btn" onClick={() => supabase.auth.signOut()}>Sign Out</button>
+            <button className="mobile-header-action-btn" onClick={() => signOutMobile(profile)}>Sign Out</button>
           </div>
         </div>
       </div>
