@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { exportToCSV } from './utils/csvExport'
@@ -30,6 +31,7 @@ function dateDisplay(val) {
 }
 
 export default function MaintenanceAgreements({ profile }) {
+  const [searchParams] = useSearchParams()
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [agreements, setAgreements] = useState([])
@@ -51,6 +53,15 @@ export default function MaintenanceAgreements({ profile }) {
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  const [prefilledFromLink, setPrefilledFromLink] = useState(false)
+
+  useEffect(() => {
+    const linkedPropertyId = searchParams.get('propertyId')
+    if (linkedPropertyId && properties.some((p) => p.id === linkedPropertyId)) {
+      setPropertyId(linkedPropertyId)
+      setPrefilledFromLink(true)
+    }
+  }, [properties, searchParams])
 
   const [checkoutLink, setCheckoutLink] = useState(null)
   const [checkoutBusyId, setCheckoutBusyId] = useState(null)
@@ -168,6 +179,7 @@ export default function MaintenanceAgreements({ profile }) {
     const url = await requestCheckoutLink(newAgreement.id)
     setSaving(false)
     setPropertyId('')
+    setPrefilledFromLink(false)
     setTierId('')
     setBillingCycle('monthly')
     setStartDate(new Date().toISOString().slice(0, 10))
@@ -321,6 +333,11 @@ export default function MaintenanceAgreements({ profile }) {
       </div>
 
       <form className="inline-form" onSubmit={handleAddAgreement} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
+        {prefilledFromLink && (
+          <div style={{ width: '100%', fontSize: 12.5, color: 'var(--route-blue)', fontWeight: 600, marginBottom: 4 }}>
+            Property pre-filled from job card — just pick a tier and start date.
+          </div>
+        )}
         <div className="field" style={{ minWidth: 260 }}>
           <label htmlFor="agrProperty">Property</label>
           <select id="agrProperty" value={propertyId} onChange={(e) => setPropertyId(e.target.value)} required>
