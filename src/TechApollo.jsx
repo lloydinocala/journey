@@ -1,186 +1,223 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './utils/supabase'
-import { IconChevronLeft, IconSparkles, IconPhone } from './MobileIcons'
-import MobileNav from './MobileNav'
+import OrgPicker from './OrgPicker'
 
-// Single support number for all orgs/licensees (Journey platform support).
-// Edit this constant if the number changes — it's not org-specific.
-const SUPPORT_PHONE_DISPLAY = '(352) 484-6341'
-const SUPPORT_PHONE_TEL = '3524846341'
+const TOPIC_COLORS = {
+  'App Usage': '#2F5DE3',
+  'HVAC Technical': '#1F7A43',
+  'Account/Access': '#B8720A',
+  'Billing/Payment': '#7A3FB8',
+  'Other': '#6B7785',
+}
 
-const GREETING = { role: 'assistant', content: "Hi, I'm Apollo. Ask me anything about using Journey, or a general question — I'm here to help." }
+function dateKey(iso) {
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
 
-export default function TechApollo({ profile }) {
-  const navigate = useNavigate()
-  const [messages, setMessages] = useState([GREETING])
-  const [loadingHistory, setLoadingHistory] = useState(true)
-  const [input, setInput] = useState('')
-  const [sending, setSending] = useState(false)
-  const [error, setError] = useState('')
-  const [supportOpen, setSupportOpen] = useState(false)
-  const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
-  const [uid, setUid] = useState(null)
-  const scrollRef = useRef(null)
+export default function ApolloLog({ profile }) {
+  const isSuperAdmin = profile.role === 'super_admin'
+  const isOrgAdmin = profile.role === 'org_admin'
+
+  const [orgs, setOrgs] = useState([])
+  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [rows, setRows] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const [searchText, setSearchText] = useState('')
+  const [topicFilter, setTopicFilter] = useState('all')
 
   useEffect(() => {
-    loadHistory()
+    if (isSuperAdmin) {
+      supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
+        setOrgs(data || [])
+        if (!selectedOrg && data && data.length > 0) setSelectedOrg(data[0].id)
+      })
+    }
   }, [])
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages, sending])
-
-  async function loadHistory() {
-    setLoadingHistory(true)
-    const { data: userData } = await supabase.auth.getUser()
-    const currentUid = userData?.user?.id
-    setUid(currentUid)
-    if (!currentUid) {
-      setLoadingHistory(false)
-      return
-    }
+  async function loadRows(orgId) {
+    if (!orgId) return
+    setLoading(true)
     const { data } = await supabase
       .from('apollo_messages')
-      .select('role, content')
-      .eq('user_id', currentUid)
+      .select('id, role, content, topic, created_at, user:users!apollo_messages_user_id_fkey(id, full_name, role)')
+      .eq('org_id', orgId)
       .order('created_at', { ascending: true })
-      .limit(100)
-    if (data && data.length > 0) {
-      setMessages(data.map((m) => ({ role: m.role, content: m.content })))
-    }
-    setLoadingHistory(false)
+      .limit(5000)
+    setRows(data || [])
+    setLoading(false)
   }
 
-  async function saveMessage(role, content, orgId) {
-    if (!uid) return
-    await supabase.from('apollo_messages').insert({
-      org_id: orgId ?? profile?.org_id ?? null,
-      user_id: uid,
-      role,
-      content,
+  useEffect(() => {
+    loadRows(selectedOrg)
+  }, [selectedOrg])
+
+  // Group into conversation blocks: one block per (employee, calendar day).
+  const groups = useMemo(() => {
+    const map = new Map()
+    for (const r of rows) {
+      const name = r.user?.full_name || 'Unknown'
+      const day = dateKey(r.created_at)
+      const key = name + '|' + day
+      if (!map.has(key)) {
+        map.set(key, { name, role: r.user?.role, day, sortTime: r.created_at, messages: [] })
+      }
+      map.get(key).messages.push(r)
+    }
+    return Array.from(map.values()).sort((a, b) => new Date(b.sortTime) - new Date(a.sortTime))
+  }, [rows])
+
+  const filteredGroups = groups
+    .map((g) => {
+      const messages = g.messages.filter((m) => {
+        if (topicFilter !== 'all' && m.role === 'user' && m.topic !== topicFilter) return false
+        return true
+      })
+      return { ...g, messages }
     })
-  }
-
-  async function sendMessage(e) {
-    e?.preventDefault()
-    const text = input.trim()
-    if (!text || sending) return
-    setError('')
-    const nextMessages = [...messages, { role: 'user', content: text }]
-    setMessages(nextMessages)
-    setInput('')
-    setSending(true)
-    saveMessage('user', text)
-
-    const { data, error: fnError } = await supabase.functions.invoke('apollo-chat', {
-      body: { messages: nextMessages },
+    .filter((g) => {
+      if (searchText && !g.name.toLowerCase().includes(searchText.toLowerCase())) return false
+      if (topicFilter !== 'all' && !g.messages.some((m) => m.role === 'user' && m.topic === topicFilter)) return false
+      return g.messages.length > 0
     })
 
-    setSending(false)
-
-    if (fnError || data?.error) {
-      setError(data?.error || fnError?.message || 'Apollo is having trouble responding right now.')
-      return
+  const topicCounts = useMemo(() => {
+    const counts = {}
+    for (const r of rows) {
+      if (r.role !== 'user') continue
+      const t = r.topic || 'Other'
+      counts[t] = (counts[t] || 0) + 1
     }
+    return counts
+  }, [rows])
 
-    setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }])
-    saveMessage('assistant', data.reply)
-  }
+  const totalQuestions = Object.values(topicCounts).reduce((a, b) => a + b, 0)
 
-  async function clearConversation() {
-    setClearConfirmOpen(false)
-    if (uid) {
-      await supabase.from('apollo_messages').delete().eq('user_id', uid)
-    }
-    setMessages([GREETING])
+  if (!isSuperAdmin && !isOrgAdmin) {
+    return (
+      <div>
+        <h2 className="page-title">Apollo Conversation Log</h2>
+        <p style={{ color: 'var(--mist)' }}>Only Admins can view this log.</p>
+      </div>
+    )
   }
 
   return (
-    <div className="mobile-shell">
-      <div className="mobile-header job-detail-header">
-        <button className="mobile-back" onClick={() => navigate(-1)}><IconChevronLeft /></button>
-        <div className="job-detail-header-text">
-          <div className="job-detail-title"><IconSparkles style={{ verticalAlign: 'middle', marginRight: 6 }} />Apollo</div>
-          <div className="job-detail-sub">In-app help &amp; support</div>
-        </div>
-        <button className="mobile-header-action-btn" style={{ marginRight: 6 }} onClick={() => setClearConfirmOpen(true)}>
-          Clear
-        </button>
-        <button className="gps-icon-btn" title="Contact Support" onClick={() => setSupportOpen(true)}>
-          <IconPhone />
-        </button>
-      </div>
+    <div>
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          .apollo-log-group { break-inside: avoid; margin-bottom: 16px; }
+          body { color: #000; }
+          .screen-only { display: none !important; }
+          .print-only { display: inline !important; }
+        }
+        .print-only { display: none; }
+      `}</style>
 
-      <div className="apollo-scroll" ref={scrollRef}>
-        {loadingHistory ? (
-          <p style={{ color: 'var(--mist)', textAlign: 'center' }}>Loading conversation…</p>
-        ) : (
-          messages.map((m, i) => (
-            <div key={i} className={'apollo-bubble ' + (m.role === 'user' ? 'apollo-bubble-user' : 'apollo-bubble-assistant')}>
-              {m.content}
-            </div>
-          ))
+      <h2 className="page-title">Apollo Conversation Log</h2>
+      <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: -8, marginBottom: 20 }}>
+        Conversations are not private — this log is visible to Admins. Conversations older than 14 days are deleted automatically.
+      </p>
+
+      <div className="no-print">
+        {isSuperAdmin && (
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>
+              Viewing organization
+            </label>
+            <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+          </div>
         )}
-        {sending && <div className="apollo-bubble apollo-bubble-assistant apollo-typing">Thinking…</div>}
-        {error && <div className="apollo-bubble apollo-bubble-error">{error}</div>}
+
+        {/* Topic breakdown — scan for training/usage issues at a glance */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+          {Object.keys(TOPIC_COLORS).map((topic) => (
+            <button
+              key={topic}
+              onClick={() => setTopicFilter(topicFilter === topic ? 'all' : topic)}
+              className="stat-tile"
+              style={{
+                cursor: 'pointer',
+                border: topicFilter === topic ? `2px solid ${TOPIC_COLORS[topic]}` : '2px solid transparent',
+                textAlign: 'left',
+              }}
+            >
+              <div className="stat-value" style={{ color: TOPIC_COLORS[topic] }}>{topicCounts[topic] || 0}</div>
+              <div className="stat-label">{topic}</div>
+            </button>
+          ))}
+          <div className="stat-tile" style={{ textAlign: 'left' }}>
+            <div className="stat-value">{totalQuestions}</div>
+            <div className="stat-label">Total questions</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div className="field" style={{ marginBottom: 0, minWidth: 220 }}>
+            <label htmlFor="searchBox">Search by employee</label>
+            <input
+              id="searchBox"
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Name…"
+            />
+          </div>
+          {topicFilter !== 'all' && (
+            <button className="logout-button" style={{ marginBottom: 10 }} onClick={() => setTopicFilter('all')}>
+              Clear topic filter ({topicFilter})
+            </button>
+          )}
+          <button className="logout-button" style={{ marginBottom: 10 }} onClick={() => window.print()}>
+            Print / Save as PDF
+          </button>
+          <p style={{ color: 'var(--mist)', fontSize: 14, margin: '0 0 12px' }}>
+            {filteredGroups.length} conversation{filteredGroups.length !== 1 ? 's' : ''}
+          </p>
+        </div>
       </div>
 
-      <form className="apollo-input-row" onSubmit={sendMessage}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask Apollo…"
-          disabled={sending || loadingHistory}
-        />
-        <button type="submit" disabled={sending || loadingHistory || !input.trim()}>Send</button>
-      </form>
-
-      <MobileNav profile={profile} />
-
-      {supportOpen && (
-        <>
-          <div className="support-modal-backdrop" onClick={() => setSupportOpen(false)} />
-          <div className="support-modal">
-            <div className="support-modal-title">Contact Support</div>
-            <p className="support-modal-text">
-              There may be a wait to reach a Support Agent by phone. It may be faster to chat with Apollo first.
-            </p>
-            <p className="support-modal-question">Do you wish to continue this call to a live Support Agent?</p>
-            <div className="support-modal-actions">
-              <button className="action-btn" style={{ background: '#F0F1F3', color: 'var(--paper)' }} onClick={() => setSupportOpen(false)}>
-                Return to Chat
-              </button>
-              <a
-                className="action-btn primary"
-                style={{ textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                href={`tel:${SUPPORT_PHONE_TEL}`}
-                onClick={() => setSupportOpen(false)}
-              >
-                Place Call — {SUPPORT_PHONE_DISPLAY}
-              </a>
+      {loading ? (
+        <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : filteredGroups.length === 0 ? (
+        <p style={{ color: 'var(--mist)' }}>No Apollo conversations match.</p>
+      ) : (
+        filteredGroups.map((g, i) => (
+          <div key={i} className="apollo-log-group" style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+              <strong>
+                <span className="screen-only">{g.name}{g.role ? ` (${g.role})` : ''}</span>
+                <span className="print-only">Employee{g.role ? ` (${g.role})` : ''}</span>
+              </strong>
+              <span style={{ color: 'var(--mist)', fontSize: 13 }}>{g.day}</span>
             </div>
+            {g.messages.map((m) => (
+              <div key={m.id} style={{ marginBottom: 8, fontSize: 13.5 }}>
+                <span style={{ fontWeight: 700, marginRight: 6 }}>
+                  {m.role === 'user' ? (
+                    <>
+                      <span className="screen-only">{g.name.split(' ')[0] || 'User'}</span>
+                      <span className="print-only">Employee</span>
+                    </>
+                  ) : 'Apollo'}:
+                </span>
+                <span>{m.content}</span>
+                {m.role === 'user' && m.topic && (
+                  <span
+                    className="badge"
+                    style={{ marginLeft: 8, background: TOPIC_COLORS[m.topic] || '#6B7785', color: '#fff', fontSize: 10 }}
+                  >
+                    {m.topic}
+                  </span>
+                )}
+                <span style={{ marginLeft: 8, color: 'var(--mist)', fontSize: 11 }}>
+                  {new Date(m.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                </span>
+              </div>
+            ))}
           </div>
-        </>
-      )}
-
-      {clearConfirmOpen && (
-        <>
-          <div className="support-modal-backdrop" onClick={() => setClearConfirmOpen(false)} />
-          <div className="support-modal">
-            <div className="support-modal-title">Clear Conversation</div>
-            <p className="support-modal-text">This deletes your Apollo chat history. This can't be undone.</p>
-            <div className="support-modal-actions">
-              <button className="action-btn" style={{ background: '#F0F1F3', color: 'var(--paper)' }} onClick={() => setClearConfirmOpen(false)}>
-                Cancel
-              </button>
-              <button className="action-btn primary" style={{ background: '#C0392B' }} onClick={clearConversation}>
-                Clear Conversation
-              </button>
-            </div>
-          </div>
-        </>
+        ))
       )}
     </div>
   )
