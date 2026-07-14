@@ -30,7 +30,7 @@ export default function SessionLog({ profile }) {
     setLoading(true)
     const { data } = await supabase
       .from('session_log')
-      .select('id, event, source, occurred_at, user:users(full_name, role)')
+      .select('id, event, source, occurred_at, user:users!session_log_user_id_fkey(full_name, role), forced_by:users!session_log_initiated_by_fkey(full_name)')
       .eq('org_id', orgId)
       .order('occurred_at', { ascending: false })
       .limit(1000)
@@ -157,6 +157,11 @@ export default function SessionLog({ profile }) {
                     <span className="badge" style={r.event === 'sign_in' ? {} : { background: '#888', color: '#fff' }}>
                       {r.event === 'sign_in' ? 'Sign In' : 'Sign Out'}
                     </span>
+                    {r.forced_by && (
+                      <span style={{ marginLeft: 6, fontSize: 11, color: '#a33' }}>
+                        forced by {r.forced_by.full_name}
+                      </span>
+                    )}
                   </td>
                   <td>{r.source}</td>
                   <td>{new Date(r.occurred_at).toLocaleString()}</td>
