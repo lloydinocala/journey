@@ -121,7 +121,7 @@ function PlatformHealth({ orgs }) {
   )
 }
 
-function OrgDashboard({ orgId }) {
+function OrgDashboard({ orgId, showAccounting, showOperations }) {
   const [loading, setLoading] = useState(true)
   const [orgInfo, setOrgInfo] = useState(null)
   const [jobs, setJobs] = useState([])
@@ -290,83 +290,131 @@ function OrgDashboard({ orgId }) {
     })
   const teamRows = Object.values(techStats).sort((a, b) => b.revenue - a.revenue)
 
+  if (!showAccounting && !showOperations) {
+    return (
+      <div>
+        <h3 style={{ marginTop: 32, marginBottom: 14 }}>{orgInfo.name}</h3>
+        <p style={{ color: 'var(--mist)' }}>
+          You don't have access to any dashboard sections yet. Ask your Org Admin to assign you Accounting and/or
+          Operations access under Team.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div>
-      <h3 style={{ marginTop: 32, marginBottom: 14 }}>{orgInfo.name} — Operations</h3>
+      <h3 style={{ marginTop: 32, marginBottom: 4 }}>{orgInfo.name}</h3>
 
-      <TileGrid
-        tiles={[
-          { label: 'Jobs Today', value: jobsToday.length },
-          { label: 'Incomplete Jobs', value: incompleteJobs.length },
-          { label: 'Upcoming Unassigned', value: upcomingUnassigned.length },
-          { label: 'Completed, Not Invoiced', value: completedNoInvoice.length },
-        ]}
-      />
+      {showAccounting && (
+        <div style={{ marginBottom: 36 }}>
+          <h3 style={{ marginTop: 24, marginBottom: 14, borderBottom: '2px solid #ddd', paddingBottom: 6 }}>
+            Accounting
+          </h3>
 
-      <h4 style={{ marginTop: 28, marginBottom: 10 }}>Revenue</h4>
-      <TileGrid
-        tiles={[
-          { label: 'MTD Revenue', value: money(mtdRevenue) },
-          { label: 'YTD Revenue', value: money(ytdRevenue) },
-          { label: 'Outstanding AR', value: money(outstandingTotal) },
-          { label: 'Avg Ticket', value: money(avgTicket) },
-          { label: 'Avg Profit %', value: avgProfitPct !== null ? avgProfitPct.toFixed(1) + '%' : 'Not tracked yet' },
-        ]}
-      />
-      <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 8 }}>
-        AR aging — Current: {money(agingBuckets.current)} · 1-30d: {money(agingBuckets.d30)} · 31-60d:{' '}
-        {money(agingBuckets.d60)} · 60d+: {money(agingBuckets.d90)}
-      </p>
+          <h4 style={{ marginTop: 16, marginBottom: 10 }}>Revenue</h4>
+          <TileGrid
+            tiles={[
+              { label: 'MTD Revenue', value: money(mtdRevenue) },
+              { label: 'YTD Revenue', value: money(ytdRevenue) },
+              { label: 'Outstanding AR', value: money(outstandingTotal) },
+              { label: 'Avg Ticket', value: money(avgTicket) },
+              { label: 'Avg Profit %', value: avgProfitPct !== null ? avgProfitPct.toFixed(1) + '%' : 'Not tracked yet' },
+            ]}
+          />
+          <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 8 }}>
+            AR aging — Current: {money(agingBuckets.current)} · 1-30d: {money(agingBuckets.d30)} · 31-60d:{' '}
+            {money(agingBuckets.d60)} · 60d+: {money(agingBuckets.d90)}
+          </p>
 
-      <h4 style={{ marginTop: 28, marginBottom: 10 }}>Estimates</h4>
-      <TileGrid
-        tiles={[
-          { label: 'Open Estimates', value: openEstimates.length },
-          { label: 'Open Value', value: money(openEstimatesValue) },
-          { label: 'Pending Financing', value: pendingFinancing.length },
-          { label: 'Conversion Rate', value: conversionRate !== null ? conversionRate.toFixed(0) + '%' : '—' },
-        ]}
-      />
+          <h4 style={{ marginTop: 28, marginBottom: 10 }}>Recurring Revenue</h4>
+          <TileGrid
+            tiles={[
+              { label: 'Active Agreements', value: activeAgreements.length },
+              { label: 'Estimated MRR', value: money(mrr) },
+            ]}
+          />
 
-      <h4 style={{ marginTop: 28, marginBottom: 10 }}>Maintenance Agreements</h4>
-      <TileGrid
-        tiles={[
-          { label: 'Active Agreements', value: activeAgreements.length },
-          { label: 'Estimated MRR', value: money(mrr) },
-          { label: 'Visits Due (14d)', value: upcomingVisits.length },
-        ]}
-      />
+          <h4 style={{ marginTop: 28, marginBottom: 10 }}>Accounts Payable</h4>
+          <p style={{ color: 'var(--mist)', fontSize: 13 }}>
+            Not tracked yet — there's no vendor bills/expenses table in the schema. Let me know if you want this
+            built out and what it needs to cover (vendor bills, recurring expenses, etc.).
+          </p>
 
-      <h4 style={{ marginTop: 28, marginBottom: 10 }}>Customers &amp; Leads</h4>
-      <TileGrid
-        tiles={[
-          { label: 'New Customers (Month)', value: newCustomersThisMonth.length },
-          { label: 'Do Not Service', value: doNotServiceCount },
-          { label: 'Win-back Candidates', value: winBackCandidates.length },
-          { label: 'New Leads (7d)', value: newLeadsThisWeek.length },
-          { label: 'Uncontacted Leads', value: uncontactedLeads.length },
-        ]}
-      />
+          <h4 style={{ marginTop: 28, marginBottom: 10 }}>Reminders</h4>
+          <div className="data-table" style={{ padding: 0 }}>
+            <ReminderRow
+              label="Overdue invoices"
+              count={overdueInvoices.length}
+              detail={
+                overdueInvoices.length
+                  ? money(overdueInvoices.reduce((s, i) => s + Number(i.balance), 0)) + ' outstanding'
+                  : null
+              }
+              to="/invoices"
+            />
+            <ReminderRow label="Completed jobs with no invoice" count={completedNoInvoice.length} to="/jobs" />
+          </div>
+        </div>
+      )}
 
-      <h4 style={{ marginTop: 28, marginBottom: 10 }}>Reminders</h4>
-      <div className="data-table" style={{ padding: 0 }}>
-        <ReminderRow
-          label="Overdue invoices"
-          count={overdueInvoices.length}
-          detail={overdueInvoices.length ? money(overdueInvoices.reduce((s, i) => s + Number(i.balance), 0)) + ' outstanding' : null}
-          to="/invoices"
-        />
-        <ReminderRow label="Jobs stuck incomplete" count={incompleteJobs.length} to="/jobs" />
-        <ReminderRow label="Completed jobs with no invoice" count={completedNoInvoice.length} to="/jobs" />
-        <ReminderRow label="Completed jobs missing signed approval" count={completedNoApproval.length} to="/jobs" />
-        <ReminderRow label="Stale estimates (14d+, no decision)" count={staleEstimates.length} to="/estimates" />
-        <ReminderRow label="Leads not yet contacted (24h+)" count={uncontactedLeads.length} to="/customers" />
-        <ReminderRow label="Maintenance visits due within 14 days" count={upcomingVisits.length} to="/maintenance-agreements" />
-      </div>
+      {showOperations && (
+        <div>
+          <h3 style={{ marginTop: 24, marginBottom: 14, borderBottom: '2px solid #ddd', paddingBottom: 6 }}>
+            Operations
+          </h3>
 
-      {teamRows.length > 0 && (
-        <>
-          <h4 style={{ marginTop: 28, marginBottom: 10 }}>Team</h4>
+          <h4 style={{ marginTop: 16, marginBottom: 10 }}>Today</h4>
+          <TileGrid
+            tiles={[
+              { label: 'Jobs Today', value: jobsToday.length },
+              { label: 'Incomplete Jobs', value: incompleteJobs.length },
+              { label: 'Upcoming Unassigned', value: upcomingUnassigned.length },
+            ]}
+          />
+
+          <h4 style={{ marginTop: 28, marginBottom: 10 }}>Estimates</h4>
+          <TileGrid
+            tiles={[
+              { label: 'Open Estimates', value: openEstimates.length },
+              { label: 'Open Value', value: money(openEstimatesValue) },
+              { label: 'Pending Financing', value: pendingFinancing.length },
+              { label: 'Conversion Rate', value: conversionRate !== null ? conversionRate.toFixed(0) + '%' : '—' },
+            ]}
+          />
+
+          <h4 style={{ marginTop: 28, marginBottom: 10 }}>Maintenance Visits</h4>
+          <TileGrid tiles={[{ label: 'Visits Due (14d)', value: upcomingVisits.length }]} />
+
+          <h4 style={{ marginTop: 28, marginBottom: 10 }}>Customers &amp; Leads</h4>
+          <TileGrid
+            tiles={[
+              { label: 'New Customers (Month)', value: newCustomersThisMonth.length },
+              { label: 'Do Not Service', value: doNotServiceCount },
+              { label: 'Win-back Candidates', value: winBackCandidates.length },
+              { label: 'New Leads (7d)', value: newLeadsThisWeek.length },
+              { label: 'Uncontacted Leads', value: uncontactedLeads.length },
+            ]}
+          />
+
+          <h4 style={{ marginTop: 28, marginBottom: 10 }}>Reminders</h4>
+          <div className="data-table" style={{ padding: 0 }}>
+            <ReminderRow label="Jobs stuck incomplete" count={incompleteJobs.length} to="/jobs" />
+            <ReminderRow label="Completed jobs missing signed approval" count={completedNoApproval.length} to="/jobs" />
+            <ReminderRow label="Stale estimates (14d+, no decision)" count={staleEstimates.length} to="/estimates" />
+            <ReminderRow label="Leads not yet contacted (24h+)" count={uncontactedLeads.length} to="/customers" />
+            <ReminderRow
+              label="Maintenance visits due within 14 days"
+              count={upcomingVisits.length}
+              to="/maintenance-agreements"
+            />
+          </div>
+        </div>
+      )}
+
+      {showAccounting && teamRows.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <h4 style={{ marginTop: 28, marginBottom: 10 }}>Team Revenue</h4>
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
               <thead>
@@ -387,7 +435,7 @@ function OrgDashboard({ orgId }) {
               </tbody>
             </table>
           </div>
-        </>
+        </div>
       )}
     </div>
   )
@@ -395,6 +443,9 @@ function OrgDashboard({ orgId }) {
 
 export default function Dashboard({ profile }) {
   const isSuperAdmin = profile?.role === 'super_admin'
+  const fullAccess = profile?.role === 'super_admin' || profile?.role === 'org_admin'
+  const showAccounting = fullAccess || !!profile?.can_view_accounting
+  const showOperations = fullAccess || !!profile?.can_view_operations
 
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
@@ -429,7 +480,9 @@ export default function Dashboard({ profile }) {
         </div>
       )}
 
-      {selectedOrg && <OrgDashboard orgId={selectedOrg} />}
+      {selectedOrg && (
+        <OrgDashboard orgId={selectedOrg} showAccounting={showAccounting} showOperations={showOperations} />
+      )}
     </div>
   )
 }
