@@ -25,22 +25,14 @@ import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
 import SystemEstimate from './SystemEstimate'
 
-function logSignIn(userId) {
-  supabase
-    .from('users')
-    .select('org_id')
-    .eq('id', userId)
-    .single()
-    .then(({ data }) => {
-      if (data?.org_id) {
-        supabase.from('session_log').insert({
-          org_id: data.org_id,
-          user_id: userId,
-          event: 'sign_in',
-          source: 'desktop',
-        })
-      }
-    })
+async function logSignIn(userId) {
+  const { data } = await supabase.from('users').select('org_id').eq('id', userId).single()
+  await supabase.from('session_log').insert({
+    org_id: data?.org_id || null,
+    user_id: userId,
+    event: 'sign_in',
+    source: 'desktop',
+  })
 }
 
 function AuthenticatedApp() {
