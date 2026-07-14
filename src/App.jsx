@@ -68,12 +68,19 @@ function AuthenticatedApp() {
       setProfile(null)
       return
     }
-    supabase
-      .from('users')
-      .select('full_name, role, org_id, can_view_accounting, can_view_operations')
-      .eq('id', session.user.id)
-      .single()
-      .then(({ data }) => setProfile(data))
+    Promise.all([
+      supabase.from('users').select('full_name, role, org_id').eq('id', session.user.id).single(),
+      supabase.from('user_permissions').select('permission_key').eq('user_id', session.user.id),
+    ]).then(([userRes, permsRes]) => {
+      if (!userRes.data) {
+        setProfile(null)
+        return
+      }
+      setProfile({
+        ...userRes.data,
+        permissions: (permsRes.data || []).map((p) => p.permission_key),
+      })
+    })
   }, [session])
 
   if (session === undefined) return null
