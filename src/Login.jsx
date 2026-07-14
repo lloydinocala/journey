@@ -64,6 +64,9 @@ export default function Login() {
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+        <p style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 16, textAlign: 'center' }}>
+          Conversations with Apollo, the in-app assistant, are not private and may be reviewed by your administrator.
+        </p>
       </div>
     </div>
   )
