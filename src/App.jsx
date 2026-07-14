@@ -25,6 +25,24 @@ import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
 import SystemEstimate from './SystemEstimate'
 
+function logSignIn(userId) {
+  supabase
+    .from('users')
+    .select('org_id')
+    .eq('id', userId)
+    .single()
+    .then(({ data }) => {
+      if (data?.org_id) {
+        supabase.from('session_log').insert({
+          org_id: data.org_id,
+          user_id: userId,
+          event: 'sign_in',
+          source: 'desktop',
+        })
+      }
+    })
+}
+
 function AuthenticatedApp() {
   const [session, setSession] = useState(undefined)
   const [profile, setProfile] = useState(null)
@@ -36,8 +54,11 @@ function AuthenticatedApp() {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
     })
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession)
+      if (event === 'SIGNED_IN' && newSession?.user) {
+        logSignIn(newSession.user.id)
+      }
     })
     return () => listener.subscription.unsubscribe()
   }, [])
