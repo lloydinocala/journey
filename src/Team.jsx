@@ -21,6 +21,8 @@ export default function Team({ profile }) {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('tech')
   const [color, setColor] = useState('#2F5DE3')
+  const [canViewAccounting, setCanViewAccounting] = useState(false)
+  const [canViewOperations, setCanViewOperations] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -40,6 +42,8 @@ export default function Team({ profile }) {
   const [editColor, setEditColor] = useState('#2F5DE3')
   const [editEmail, setEditEmail] = useState('')
   const [editSupervisor, setEditSupervisor] = useState(false)
+  const [editCanViewAccounting, setEditCanViewAccounting] = useState(false)
+  const [editCanViewOperations, setEditCanViewOperations] = useState(false)
 
   const isSuperAdmin = profile.role === 'super_admin'
 
@@ -58,7 +62,7 @@ export default function Team({ profile }) {
     setLoading(true)
     const { data } = await supabase
       .from('users')
-      .select('id, full_name, email, role, calendar_color, is_active, is_field_supervisor')
+      .select('id, full_name, email, role, calendar_color, is_active, is_field_supervisor, can_view_accounting, can_view_operations')
       .eq('org_id', orgId)
       .order('full_name')
     setMembers(data || [])
@@ -109,6 +113,8 @@ export default function Team({ profile }) {
         role,
         org_id: selectedOrg,
         calendar_color: color,
+        can_view_accounting: canViewAccounting,
+        can_view_operations: canViewOperations,
       },
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -124,6 +130,8 @@ export default function Team({ profile }) {
       setFullName('')
       setEmail('')
       setRole('tech')
+      setCanViewAccounting(false)
+      setCanViewOperations(false)
       loadMembers(selectedOrg)
     }
   }
@@ -135,13 +143,22 @@ export default function Team({ profile }) {
     setEditColor(member.calendar_color || '#2F5DE3')
     setEditEmail(member.email)
     setEditSupervisor(!!member.is_field_supervisor)
+    setEditCanViewAccounting(!!member.can_view_accounting)
+    setEditCanViewOperations(!!member.can_view_operations)
   }
 
   async function saveEdit(member) {
     setError('')
     await supabase
       .from('users')
-      .update({ full_name: editName.trim(), role: editRole, calendar_color: editColor, is_field_supervisor: editSupervisor })
+      .update({
+        full_name: editName.trim(),
+        role: editRole,
+        calendar_color: editColor,
+        is_field_supervisor: editSupervisor,
+        can_view_accounting: editCanViewAccounting,
+        can_view_operations: editCanViewOperations,
+      })
       .eq('id', member.id)
 
     if (editEmail.trim() !== member.email) {
@@ -215,6 +232,8 @@ export default function Team({ profile }) {
         { key: 'email', label: 'Email' },
         { key: 'role', label: 'Role' },
         { label: 'Status', value: (m) => (m.is_active ? 'Active' : 'Deactivated') },
+        { label: 'Accounting Access', value: (m) => (m.role === 'org_admin' || m.can_view_accounting ? 'Yes' : 'No') },
+        { label: 'Operations Access', value: (m) => (m.role === 'org_admin' || m.can_view_operations ? 'Yes' : 'No') },
       ],
       'team-' + new Date().toISOString().slice(0, 10) + '.csv'
 )
@@ -252,6 +271,21 @@ export default function Team({ profile }) {
           <label htmlFor="color">Calendar color</label>
           <input id="color" type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ width: 60, padding: 4, height: 40 }} />
         </div>
+        {role !== 'org_admin' && (
+          <div className="field">
+            <label>Dashboard Access</label>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
+                <input type="checkbox" checked={canViewAccounting} onChange={(e) => setCanViewAccounting(e.target.checked)} />
+                Accounting
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
+                <input type="checkbox" checked={canViewOperations} onChange={(e) => setCanViewOperations(e.target.checked)} />
+                Operations
+              </label>
+            </div>
+          </div>
+        )}
         <button className="auth-button" type="submit" disabled={saving}>
           {saving ? 'Sending invite…' : 'Send invite'}
         </button>
@@ -305,7 +339,7 @@ export default function Team({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div className="grid-table" style={{ gridTemplateColumns: '0.4fr 1.3fr 1.5fr 1fr 1fr 1.5fr' }}>
+        <div className="grid-table" style={{ gridTemplateColumns: '0.4fr 1.3fr 1.5fr 1.3fr 1fr 1.8fr' }}>
           <div className="grid-cell grid-head"></div>
           <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('full_name')}>Name{sortArrow('full_name')}</div>
           {visibleColumns.includes('email') && (
@@ -344,6 +378,18 @@ export default function Team({ profile }) {
                       <input type="checkbox" checked={editSupervisor} onChange={(e) => setEditSupervisor(e.target.checked)} />
                       Field Supervisor (mobile admin access)
                     </label>
+                    {editRole !== 'org_admin' && (
+                      <>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, marginTop: 4, cursor: 'pointer', color: 'var(--mist)' }}>
+                          <input type="checkbox" checked={editCanViewAccounting} onChange={(e) => setEditCanViewAccounting(e.target.checked)} />
+                          Dashboard: Accounting
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, marginTop: 4, cursor: 'pointer', color: 'var(--mist)' }}>
+                          <input type="checkbox" checked={editCanViewOperations} onChange={(e) => setEditCanViewOperations(e.target.checked)} />
+                          Dashboard: Operations
+                        </label>
+                      </>
+                    )}
                   </div>
                 )}
                 {visibleColumns.includes('status') && <div className="grid-cell">{m.is_active ? 'Active' : 'Deactivated'}</div>}
@@ -361,6 +407,19 @@ export default function Team({ profile }) {
                   <div className="grid-cell">
                     {m.role}
                     {m.is_field_supervisor && <span className="badge" style={{ marginLeft: 6, fontSize: 10 }}>Supervisor</span>}
+                    <div style={{ marginTop: 4 }}>
+                      {m.role === 'org_admin' ? (
+                        <span className="badge" style={{ fontSize: 10 }}>Full Dashboard Access</span>
+                      ) : (
+                        <>
+                          {m.can_view_accounting && <span className="badge" style={{ marginRight: 4, fontSize: 10 }}>Accounting</span>}
+                          {m.can_view_operations && <span className="badge" style={{ fontSize: 10 }}>Operations</span>}
+                          {!m.can_view_accounting && !m.can_view_operations && (
+                            <span style={{ fontSize: 10, color: 'var(--mist)' }}>No dashboard access</span>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 )}
                 {visibleColumns.includes('status') && (
