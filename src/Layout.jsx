@@ -21,6 +21,7 @@ const CATEGORIES = [
   { key: 'admin', label: 'Admin', items: [
     { label: 'Team', path: '/team' },
     { label: 'Sign-In Log', path: '/session-log' },
+    { label: 'Apollo Log', path: '/apollo-log' },
     { label: 'Settings', path: '/settings' },
   ]},
 ]
@@ -36,7 +37,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/maintenance-agreements')) return 'operations'
   if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/maintenance-tiers')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
-  if (pathname.startsWith('/team') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
+  if (pathname.startsWith('/team') || pathname.startsWith('/settings') || pathname.startsWith('/session-log') || pathname.startsWith('/apollo-log')) return 'admin'
   if (pathname.startsWith('/organizations') || pathname.startsWith('/announcements')) return 'platform'
   return null
 }
