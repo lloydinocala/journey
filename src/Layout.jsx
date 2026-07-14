@@ -20,6 +20,7 @@ const CATEGORIES = [
   ]},
   { key: 'admin', label: 'Admin', items: [
     { label: 'Team', path: '/team' },
+    { label: 'Sign-In Log', path: '/session-log' },
     { label: 'Settings', path: '/settings' },
   ]},
 ]
@@ -34,7 +35,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/maintenance-agreements')) return 'operations'
   if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/maintenance-tiers')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
-  if (pathname.startsWith('/team') || pathname.startsWith('/settings')) return 'admin'
+  if (pathname.startsWith('/team') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
   if (pathname.startsWith('/organizations') || pathname.startsWith('/announcements')) return 'platform'
   return null
 }
@@ -53,9 +54,9 @@ export default function Layout({ profile }) {
 
   async function handleLogout() {
     const { data } = await supabase.auth.getUser()
-    if (data?.user && profile?.org_id) {
+    if (data?.user) {
       await supabase.from('session_log').insert({
-        org_id: profile.org_id,
+        org_id: profile?.org_id || null,
         user_id: data.user.id,
         event: 'sign_out',
         source: 'desktop',
