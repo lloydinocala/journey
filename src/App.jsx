@@ -36,6 +36,7 @@ import TechSystemEstimate from './TechSystemEstimate'
 import TechSchedule from './TechSchedule'
 import TechNewJob from './TechNewJob'
 import TechApollo from './TechApollo'
+import TechInvoiceView from './TechInvoiceView'
 
 async function logSignIn(userId) {
   const { data } = await supabase.from('users').select('org_id').eq('id', userId).single()
@@ -116,6 +117,7 @@ function AuthenticatedApp() {
       <Route path="/tech/new-service-estimate" element={<TechNewJob profile={profile} mode="service-estimate" />} />
       <Route path="/tech/new-system-estimate" element={<TechNewJob profile={profile} mode="system-estimate" />} />
       <Route path="/tech/apollo" element={<TechApollo profile={profile} />} />
+      <Route path="/tech/invoice-view/:invoiceId" element={<TechInvoiceView profile={profile} />} />
       <Route element={<Layout profile={profile} />}>
         <Route path="/" element={profile.role === 'tech' ? <Navigate to="/tech" replace /> : <Dashboard profile={profile} />} />
         <Route path="/customers" element={<Customers profile={profile} />} />
