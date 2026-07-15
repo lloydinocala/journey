@@ -30,10 +30,6 @@ export default function TechInvoice({ profile }) {
   const [discountAmount, setDiscountAmount] = useState('0')
   const [taxRate, setTaxRate] = useState(0)
 
-  const [sendingEmail, setSendingEmail] = useState(false)
-  const [sendError, setSendError] = useState('')
-  const [copyLabel, setCopyLabel] = useState('Copy Link')
-
   async function loadJobAndInvoice() {
     setLoading(true)
     const { data: jobData } = await supabase
@@ -210,34 +206,6 @@ export default function TechInvoice({ profile }) {
     await supabase.from('invoices').update({ discount_type: discountType, discount_amount: parseFloat(discountAmount) || 0 }).eq('id', invoice.id)
   }
 
-  async function handleSendEmail() {
-    setSendingEmail(true)
-    setSendError('')
-    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId: invoice.id } })
-    setSendingEmail(false)
-    if (error) {
-      let detail = error.message
-      if (error.context) {
-        try { const body = await error.context.json(); if (body?.error) detail = body.error } catch {}
-      }
-      setSendError(detail)
-    } else if (data?.error) {
-      setSendError(data.error)
-    } else {
-      loadJobAndInvoice()
-    }
-  }
-
-  function payLinkUrl() {
-    return invoice ? `${window.location.origin}/view-invoice/${invoice.id}` : ''
-  }
-
-  function copyPayLink() {
-    navigator.clipboard.writeText(payLinkUrl())
-    setCopyLabel('Copied!')
-    setTimeout(() => setCopyLabel('Copy Link'), 1500)
-  }
-
   const subtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const taxableSubtotal = lineItems.filter((li) => li.taxable).reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const salesTax = taxableSubtotal * (taxRate / 100)
@@ -392,22 +360,18 @@ export default function TechInvoice({ profile }) {
         </div>
 
         <div className="section-card">
-          <div className="section-card-header"><span>Send &amp; Pay</span></div>
+          <div className="section-card-header"><span>Review &amp; Send</span></div>
           <div className="section-card-body">
-            <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 0 }}>No login required for the customer.</p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="action-btn" style={{ flex: '1 1 auto' }} onClick={handleSendEmail} disabled={sendingEmail}>
-                {sendingEmail ? 'Sending…' : invoice.sent_at ? 'Resend' : 'Send to Customer'}
-              </button>
-              <button className="action-btn" style={{ flex: '1 1 auto', background: '#2E7FC4' }} onClick={() => window.open(payLinkUrl(), '_blank')}>
-                Open Pay Link
-              </button>
-              <button className="action-btn" style={{ flex: '1 1 auto', background: '#F0F1F3', color: 'var(--paper)' }} onClick={copyPayLink}>
-                {copyLabel}
-              </button>
-            </div>
-            {invoice.sent_at && <p style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 8 }}>Last sent {new Date(invoice.sent_at).toLocaleString()}</p>}
-            {sendError && <p style={{ color: '#C0392B', fontSize: 12.5, marginTop: 8 }}>{sendError}</p>}
+            <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 0 }}>
+              Review the invoice exactly as the customer will see it, then send it or record a payment.
+            </p>
+            <button
+              className="action-btn primary"
+              style={{ width: '100%', padding: '13px 0', fontSize: 14 }}
+              onClick={() => navigate(`/tech/invoice-view/${invoice.id}`)}
+            >
+              View &amp; Send Invoice
+            </button>
           </div>
         </div>
       </div>
