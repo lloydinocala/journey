@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import TripChargePicker from './TripChargePicker'
+import CustomerSearchSelect from './CustomerSearchSelect'
 
 export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated }) {
   const navigate = useNavigate()
-  const [customers, setCustomers] = useState([])
   const [customerProperties, setCustomerProperties] = useState([])
   const [users, setUsers] = useState([])
   const [jobTypes, setJobTypes] = useState([])
@@ -13,6 +13,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
 
   const [customerMode, setCustomerMode] = useState('existing')
   const [existingCustomerId, setExistingCustomerId] = useState('')
+  const [existingCustomerBanned, setExistingCustomerBanned] = useState(false)
   const [newCustomerName, setNewCustomerName] = useState('')
   const [newCompany, setNewCompany] = useState('')
   const [newFirstName, setNewFirstName] = useState('')
@@ -27,6 +28,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
 
   const [propertyMode, setPropertyMode] = useState('existing')
   const [existingPropertyId, setExistingPropertyId] = useState('')
+  const [existingTenantIds, setExistingTenantIds] = useState([null, null])
   const [newBillToCustomerId, setNewBillToCustomerId] = useState('')
   const [newStreet, setNewStreet] = useState('')
   const [newUnit, setNewUnit] = useState('')
@@ -64,19 +66,9 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
   const [error, setError] = useState('')
 
   const canOverrideBan = profile.role === 'super_admin' || profile.role === 'org_admin'
-  const selectedCustomerIsBanned =
-    customerMode === 'existing' ? customers.find((c) => c.id === existingCustomerId)?.is_banned || false : false
+  const selectedCustomerIsBanned = customerMode === 'existing' ? existingCustomerBanned : false
 
   useEffect(() => {
-    if (mode === 'property' || mode === 'job') {
-      supabase
-        .from('customers')
-        .select('id, display_name, is_banned')
-        .eq('org_id', orgId)
-        .eq('is_active', true)
-        .order('display_name')
-        .then(({ data }) => setCustomers(data || []))
-    }
     if (mode === 'job') {
       supabase.from('users').select('id, full_name').eq('org_id', orgId).order('full_name').then(({ data }) => setUsers(data || []))
       supabase
@@ -128,11 +120,36 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
         .then(({ data }) => {
           setCustomerProperties(data || [])
           setPropertyMode((data || []).length > 0 ? 'existing' : 'new')
+          setExistingPropertyId('')
         })
     } else {
       setCustomerProperties([])
     }
   }, [existingCustomerId, customerMode, mode])
+
+  // Dependent on the property, not just the customer: once a specific existing
+  // property is picked, pull its current tenants so they auto-populate — editable,
+  // not just read-only — rather than making the office re-type info that's already
+  // on file.
+  useEffect(() => {
+    if (mode === 'job' && propertyMode === 'existing' && existingPropertyId) {
+      supabase
+        .from('property_tenants')
+        .select('id, name, phone')
+        .eq('property_id', existingPropertyId)
+        .order('created_at')
+        .then(({ data }) => {
+          const tenants = data || []
+          setExistingTenantIds([tenants[0]?.id || null, tenants[1]?.id || null])
+          setNewTenantName(tenants[0]?.name || '')
+          setNewTenantPhone(tenants[0]?.phone || '')
+          setNewTenant2Name(tenants[1]?.name || '')
+          setNewTenant2Phone(tenants[1]?.phone || '')
+        })
+    } else if (propertyMode !== 'existing') {
+      setExistingTenantIds([null, null])
+    }
+  }, [existingPropertyId, propertyMode, mode])
 
   function jobNumberDisplay(job) {
     return job.job_number + (job.segment > 1 ? ' · Seg ' + job.segment : '')
@@ -213,6 +230,21 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
     onClose()
   }
 
+  async function upsertTenant(propertyId, tenantId, name, phone) {
+    if (tenantId) {
+      if (name.trim()) {
+        await supabase.from('property_tenants').update({ name: name.trim(), phone: phone.trim() || null }).eq('id', tenantId)
+      }
+    } else if (name.trim()) {
+      await supabase.from('property_tenants').insert({
+        org_id: orgId,
+        property_id: propertyId,
+        name: name.trim(),
+        phone: phone.trim() || null,
+      })
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
@@ -227,7 +259,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
         if (!newCustomerName.trim()) throw new Error('Customer name is required.')
       } else {
         if (!existingCustomerId) throw new Error('Please select a customer.')
-        customerIsBanned = customers.find((c) => c.id === existingCustomerId)?.is_banned || false
+        customerIsBanned = existingCustomerBanned
       }
 
       if (mode === 'job' && customerIsBanned && (!canOverrideBan || !overrideBan)) {
@@ -310,6 +342,10 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
         }
       } else {
         if (!existingPropertyId) throw new Error('Please select a property.')
+        // Persist any tenant edits made against the existing property (or add
+        // tenants that weren't on file before) rather than silently discarding them.
+        await upsertTenant(propertyId, existingTenantIds[0], newTenantName, newTenantPhone)
+        await upsertTenant(propertyId, existingTenantIds[1], newTenant2Name, newTenant2Phone)
       }
 
       if (mode === 'property') {
@@ -518,14 +554,15 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
 
           {(mode === 'property' || mode === 'job') && customerMode === 'existing' && (
             <div className="field">
-              <select value={existingCustomerId} onChange={(e) => setExistingCustomerId(e.target.value)} required>
-                <option value="">Select a customer…</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.is_banned ? '⚠️ DO NOT SERVICE — ' : ''}{c.display_name}
-                  </option>
-                ))}
-              </select>
+              <label>Select a customer</label>
+              <CustomerSearchSelect
+                orgId={orgId}
+                value={existingCustomerId}
+                onChange={(id, customer) => {
+                  setExistingCustomerId(id)
+                  setExistingCustomerBanned(customer?.is_banned || false)
+                }}
+              />
             </div>
           )}
 
@@ -629,16 +666,54 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
             </div>
           )}
 
+          {mode === 'job' && customerMode === 'existing' && propertyMode === 'existing' && existingPropertyId && (
+            <>
+              <p style={{ fontSize: 12, color: 'var(--mist)', margin: '4px 0' }}>
+                Tenants on file at this property — edit if anything's changed, or fill in if blank
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="existTenant1Name">Tenant 1</label>
+                  <input id="existTenant1Name" type="text" value={newTenantName} onChange={(e) => setNewTenantName(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="existTenant1Phone">Tenant 1 phone</label>
+                  <input id="existTenant1Phone" type="tel" value={newTenantPhone} onChange={(e) => setNewTenantPhone(e.target.value)} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="existTenant2Name">Tenant 2</label>
+                  <input id="existTenant2Name" type="text" value={newTenant2Name} onChange={(e) => setNewTenant2Name(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="existTenant2Phone">Tenant 2 phone</label>
+                  <input id="existTenant2Phone" type="tel" value={newTenant2Phone} onChange={(e) => setNewTenant2Phone(e.target.value)} />
+                </div>
+              </div>
+            </>
+          )}
+
           {(mode === 'property' || mode === 'job') && (customerMode === 'new' || propertyMode === 'new') && (
             <>
               <div className="field">
                 <label htmlFor="newBillTo">Bill To Customer</label>
-                <select id="newBillTo" value={newBillToCustomerId} onChange={(e) => setNewBillToCustomerId(e.target.value)}>
-                  <option value="">Same as Customer</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>{c.display_name}</option>
-                  ))}
-                </select>
+                <CustomerSearchSelect
+                  orgId={orgId}
+                  value={newBillToCustomerId}
+                  onChange={(id) => setNewBillToCustomerId(id)}
+                  placeholder="Same as Customer — type to override"
+                />
+                {newBillToCustomerId && (
+                  <button
+                    type="button"
+                    className="logout-button"
+                    style={{ fontSize: 11, padding: '2px 8px', marginTop: 4 }}
+                    onClick={() => setNewBillToCustomerId('')}
+                  >
+                    Clear (use same as Customer)
+                  </button>
+                )}
               </div>
               <div className="field">
                 <label htmlFor="newStreet">Street address</label>
