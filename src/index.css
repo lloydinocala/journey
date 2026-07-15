@@ -1783,22 +1783,27 @@ body {
 }
 
 .supervisor-tools-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .supervisor-tools-row button {
-  flex: 1 1 auto;
-  padding: 9px 10px;
-  border-radius: 8px;
+  padding: 16px 12px;
+  border-radius: 10px;
   border: none;
   background: var(--route-blue);
   color: #fff;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.3;
+  min-height: 52px;
+}
+
+.supervisor-tools-row button:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
 .mode-toggle-row {
