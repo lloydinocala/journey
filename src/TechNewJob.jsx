@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import TripChargePicker from './TripChargePicker'
+import CustomerSearchSelect from './CustomerSearchSelect'
 import { IconChevronLeft } from './MobileIcons'
 
 function todayISO() {
@@ -20,7 +21,6 @@ export default function TechNewJob({ profile, mode = 'job' }) {
   const navigate = useNavigate()
   const modeConfig = MODES[mode] || MODES.job
 
-  const [properties, setProperties] = useState([])
   const [jobTypes, setJobTypes] = useState([])
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -31,7 +31,15 @@ export default function TechNewJob({ profile, mode = 'job' }) {
   // on the spot (a supervisor out estimating a lead who isn't in the system yet).
   const [customerMode, setCustomerMode] = useState('existing')
 
+  const [existingCustomerId, setExistingCustomerId] = useState('')
+  const [existingCustomerBanned, setExistingCustomerBanned] = useState(false)
+  const [customerProperties, setCustomerProperties] = useState([])
   const [propertyId, setPropertyId] = useState('')
+  const [existingTenantIds, setExistingTenantIds] = useState([null, null])
+  const [tenant1Name, setTenant1Name] = useState('')
+  const [tenant1Phone, setTenant1Phone] = useState('')
+  const [tenant2Name, setTenant2Name] = useState('')
+  const [tenant2Phone, setTenant2Phone] = useState('')
 
   const [newCustomerName, setNewCustomerName] = useState('')
   const [newCustomerPhone, setNewCustomerPhone] = useState('')
@@ -54,16 +62,9 @@ export default function TechNewJob({ profile, mode = 'job' }) {
     if (!profile?.org_id) return
     setLoading(true)
     Promise.all([
-      supabase
-        .from('properties')
-        .select('id, street_address, unit, city, customer_id, customers!properties_customer_id_fkey(display_name, is_banned)')
-        .eq('org_id', profile.org_id)
-        .eq('is_active', true)
-        .order('street_address'),
       supabase.from('job_types').select('id, name').eq('org_id', profile.org_id).eq('is_active', true).order('sort_order'),
       supabase.from('users').select('id, full_name').eq('org_id', profile.org_id).eq('is_active', true).order('full_name'),
-    ]).then(([propsRes, typesRes, usersRes]) => {
-      setProperties(propsRes.data || [])
+    ]).then(([typesRes, usersRes]) => {
       setJobTypes(typesRes.data || [])
       setUsers(usersRes.data || [])
       if (typesRes.data && typesRes.data.length > 0) setJobType(typesRes.data[0].name)
@@ -71,18 +72,84 @@ export default function TechNewJob({ profile, mode = 'job' }) {
     })
   }, [profile?.org_id])
 
+  // Once a customer is picked, load just their properties — never the whole org's.
+  useEffect(() => {
+    if (existingCustomerId) {
+      supabase
+        .from('properties')
+        .select('id, street_address, unit, city')
+        .eq('customer_id', existingCustomerId)
+        .eq('is_active', true)
+        .order('street_address')
+        .then(({ data }) => {
+          setCustomerProperties(data || [])
+          setPropertyId('')
+        })
+    } else {
+      setCustomerProperties([])
+      setPropertyId('')
+    }
+  }, [existingCustomerId])
+
+  // Once a specific property is picked, pull its tenants so the tech sees who's
+  // there and can confirm/update a phone number on the spot rather than re-asking
+  // the office for info that's already on file.
+  useEffect(() => {
+    if (propertyId) {
+      supabase
+        .from('property_tenants')
+        .select('id, name, phone')
+        .eq('property_id', propertyId)
+        .order('created_at')
+        .then(({ data }) => {
+          const tenants = data || []
+          setExistingTenantIds([tenants[0]?.id || null, tenants[1]?.id || null])
+          setTenant1Name(tenants[0]?.name || '')
+          setTenant1Phone(tenants[0]?.phone || '')
+          setTenant2Name(tenants[1]?.name || '')
+          setTenant2Phone(tenants[1]?.phone || '')
+        })
+    } else {
+      setExistingTenantIds([null, null])
+      setTenant1Name('')
+      setTenant1Phone('')
+      setTenant2Name('')
+      setTenant2Phone('')
+    }
+  }, [propertyId])
+
+  async function upsertTenant(propId, tenantId, name, phone) {
+    if (tenantId) {
+      if (name.trim()) {
+        await supabase.from('property_tenants').update({ name: name.trim(), phone: phone.trim() || null }).eq('id', tenantId)
+      }
+    } else if (name.trim()) {
+      await supabase.from('property_tenants').insert({
+        org_id: profile.org_id,
+        property_id: propId,
+        name: name.trim(),
+        phone: phone.trim() || null,
+      })
+    }
+  }
+
   async function resolvePropertyAndCustomer() {
     if (customerMode === 'existing') {
-      const property = properties.find((p) => p.id === propertyId)
-      if (!property) {
-        setError('Select a property.')
+      if (!existingCustomerId) {
+        setError('Select a customer.')
         return null
       }
-      if (property.customers?.is_banned) {
+      if (existingCustomerBanned) {
         setError('This customer is flagged Do Not Service. Contact the office before scheduling.')
         return null
       }
-      return { propertyId: property.id, customerId: property.customer_id }
+      if (!propertyId) {
+        setError('Select a property.')
+        return null
+      }
+      await upsertTenant(propertyId, existingTenantIds[0], tenant1Name, tenant1Phone)
+      await upsertTenant(propertyId, existingTenantIds[1], tenant2Name, tenant2Phone)
+      return { propertyId, customerId: existingCustomerId }
     }
 
     // customerMode === 'new'
@@ -209,22 +276,67 @@ export default function TechNewJob({ profile, mode = 'job' }) {
             )}
 
             {customerMode === 'existing' ? (
-              <div className="section-card">
-                <div className="section-card-header"><span>Property</span></div>
-                <div className="section-card-body">
-                  <div className="mobile-field">
-                    <label>Property</label>
-                    <select value={propertyId} onChange={(e) => setPropertyId(e.target.value)} required={customerMode === 'existing'}>
-                      <option value="">Select…</option>
-                      {properties.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.customers?.is_banned ? '⚠️ DO NOT SERVICE — ' : ''}{p.street_address}{p.unit ? ` #${p.unit}` : ''} — {p.customers?.display_name}
-                        </option>
-                      ))}
-                    </select>
+              <>
+                <div className="section-card">
+                  <div className="section-card-header"><span>Customer</span></div>
+                  <div className="section-card-body">
+                    <div className="mobile-field">
+                      <label>Customer</label>
+                      <CustomerSearchSelect
+                        orgId={profile.org_id}
+                        value={existingCustomerId}
+                        onChange={(id, customer) => {
+                          setExistingCustomerId(id)
+                          setExistingCustomerBanned(customer?.is_banned || false)
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                {existingCustomerId && (
+                  <div className="section-card">
+                    <div className="section-card-header"><span>Property</span></div>
+                    <div className="section-card-body">
+                      <div className="mobile-field">
+                        <label>Property</label>
+                        <select value={propertyId} onChange={(e) => setPropertyId(e.target.value)} required>
+                          <option value="">
+                            {customerProperties.length === 0 ? 'No properties on file for this customer' : 'Select…'}
+                          </option>
+                          {customerProperties.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.street_address}{p.unit ? ` #${p.unit}` : ''}{p.city ? `, ${p.city}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {propertyId && (
+                        <>
+                          <p style={{ fontSize: 11.5, color: 'var(--mist)', margin: '10px 0 6px' }}>
+                            Tenants on file — edit if anything's changed
+                          </p>
+                          <div className="mobile-field-row">
+                            <div className="mobile-field"><label>Tenant 1</label><input type="text" value={tenant1Name} onChange={(e) => setTenant1Name(e.target.value)} /></div>
+                            <div className="mobile-field"><label>Phone</label><input type="tel" value={tenant1Phone} onChange={(e) => setTenant1Phone(e.target.value)} /></div>
+                          </div>
+                          <div className="mobile-field-row">
+                            <div className="mobile-field"><label>Tenant 2</label><input type="text" value={tenant2Name} onChange={(e) => setTenant2Name(e.target.value)} /></div>
+                            <div className="mobile-field"><label>Phone</label><input type="tel" value={tenant2Phone} onChange={(e) => setTenant2Phone(e.target.value)} /></div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {existingCustomerBanned && (
+                  <p style={{ color: '#C0392B', fontSize: 12.5, margin: '0 0 12px' }}>
+                    This customer is flagged Do Not Service. Contact the office before scheduling.
+                  </p>
+                )}
+              </>
             ) : (
               <>
                 <div className="section-card">
