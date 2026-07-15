@@ -28,6 +28,14 @@ import SessionLog from './SessionLog'
 import CustomerImport from './CustomerImport'
 import PropertyImport from './PropertyImport'
 import JobImport from './JobImport'
+import TechJobs from './TechJobs'
+import TechJobCard from './TechJobCard'
+import TechInvoice from './TechInvoice'
+import TechEstimate from './TechEstimate'
+import TechSystemEstimate from './TechSystemEstimate'
+import TechSchedule from './TechSchedule'
+import TechNewJob from './TechNewJob'
+import TechApollo from './TechApollo'
 
 async function logSignIn(userId) {
   const { data } = await supabase.from('users').select('org_id').eq('id', userId).single()
@@ -76,7 +84,7 @@ function AuthenticatedApp() {
       return
     }
     Promise.all([
-      supabase.from('users').select('full_name, role, org_id').eq('id', session.user.id).single(),
+      supabase.from('users').select('full_name, role, org_id, is_field_supervisor').eq('id', session.user.id).single(),
       supabase.from('user_permissions').select('permission_key').eq('user_id', session.user.id),
     ]).then(([userRes, permsRes]) => {
       if (!userRes.data) {
@@ -98,8 +106,18 @@ function AuthenticatedApp() {
 
   return (
     <Routes>
+      <Route path="/tech" element={<TechJobs profile={profile} />} />
+      <Route path="/tech/:jobId" element={<TechJobCard profile={profile} />} />
+      <Route path="/tech/invoice/:jobId" element={<TechInvoice profile={profile} />} />
+      <Route path="/tech/estimate/:jobId" element={<TechEstimate profile={profile} />} />
+      <Route path="/tech/system-estimate/:jobId" element={<TechSystemEstimate profile={profile} />} />
+      <Route path="/tech/schedule" element={<TechSchedule profile={profile} />} />
+      <Route path="/tech/new-job" element={<TechNewJob profile={profile} mode="job" />} />
+      <Route path="/tech/new-service-estimate" element={<TechNewJob profile={profile} mode="service-estimate" />} />
+      <Route path="/tech/new-system-estimate" element={<TechNewJob profile={profile} mode="system-estimate" />} />
+      <Route path="/tech/apollo" element={<TechApollo profile={profile} />} />
       <Route element={<Layout profile={profile} />}>
-        <Route path="/" element={<Dashboard profile={profile} />} />
+        <Route path="/" element={profile.role === 'tech' ? <Navigate to="/tech" replace /> : <Dashboard profile={profile} />} />
         <Route path="/customers" element={<Customers profile={profile} />} />
         <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
         <Route path="/properties" element={<Properties profile={profile} />} />
