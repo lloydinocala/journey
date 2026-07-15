@@ -108,9 +108,6 @@ export default function TechJobCard({ profile }) {
   const [uid, setUid] = useState(null)
 
   const [invoice, setInvoice] = useState(null)
-  const [sendingEmail, setSendingEmail] = useState(false)
-  const [sendError, setSendError] = useState('')
-  const [copyLabel, setCopyLabel] = useState('Copy Link')
 
   const [approvals, setApprovals] = useState([])
   const [approvingStage, setApprovingStage] = useState(null)
@@ -227,38 +224,6 @@ export default function TechJobCard({ profile }) {
     setUploading(false)
     e.target.value = ''
     loadPhotos()
-  }
-
-  async function handleSendEmail() {
-    if (!invoice) return
-    setSendingEmail(true)
-    setSendError('')
-    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId: invoice.id } })
-    setSendingEmail(false)
-    if (error) {
-      let detail = error.message
-      if (error.context) {
-        try {
-          const body = await error.context.json()
-          if (body?.error) detail = body.error
-        } catch {}
-      }
-      setSendError(detail)
-    } else if (data?.error) {
-      setSendError(data.error)
-    } else {
-      loadInvoice()
-    }
-  }
-
-  function payLinkUrl() {
-    return invoice ? `${window.location.origin}/view-invoice/${invoice.id}` : ''
-  }
-
-  function copyPayLink() {
-    navigator.clipboard.writeText(payLinkUrl())
-    setCopyLabel('Copied!')
-    setTimeout(() => setCopyLabel('Copy Link'), 1500)
   }
 
   async function submitApproval(stage) {
@@ -466,7 +431,7 @@ export default function TechJobCard({ profile }) {
         </div>
 
         <div className="section-card">
-          <div className="section-card-header"><span><IconReceipt /> View, Send &amp; Pay</span></div>
+          <div className="section-card-header"><span><IconReceipt /> View &amp; Send</span></div>
           <div className="section-card-body">
             {!invoice ? (
               <p style={{ color: 'var(--mist)', fontSize: 13, margin: 0 }}>
@@ -485,21 +450,13 @@ export default function TechJobCard({ profile }) {
                 {invoice.sent_at && (
                   <div className="kv-row"><span>Last Sent</span><strong>{new Date(invoice.sent_at).toLocaleString()}</strong></div>
                 )}
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                  <button className="action-btn" style={{ flex: '1 1 auto' }} onClick={handleSendEmail} disabled={sendingEmail}>
-                    {sendingEmail ? 'Sending…' : invoice.sent_at ? 'Resend' : 'Send to Customer'}
-                  </button>
-                  <button className="action-btn" style={{ flex: '1 1 auto', background: '#2E7FC4' }} onClick={() => window.open(payLinkUrl(), '_blank')}>
-                    Open Pay Link
-                  </button>
-                  <button className="action-btn" style={{ flex: '1 1 auto', background: '#F0F1F3', color: 'var(--paper)' }} onClick={copyPayLink}>
-                    {copyLabel}
-                  </button>
-                </div>
-                {sendError && <p style={{ color: '#C0392B', fontSize: 12.5, marginTop: 8 }}>{sendError}</p>}
-                <p style={{ color: 'var(--mist)', fontSize: 11.5, marginTop: 8 }}>
-                  Open Pay Link loads the customer's no-login invoice page — hand them your phone to pay by card on the spot, or text/email the link.
-                </p>
+                <button
+                  className="action-btn primary"
+                  style={{ width: '100%', marginTop: 10 }}
+                  onClick={() => navigate(`/tech/invoice-view/${invoice.id}`)}
+                >
+                  View &amp; Send Invoice
+                </button>
               </>
             )}
           </div>
