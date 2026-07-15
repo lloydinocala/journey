@@ -1295,7 +1295,7 @@ body {
 
 .property-map-img {
   width: 100%;
-  height: 143px;
+  aspect-ratio: 2 / 1;
   object-fit: cover;
   display: block;
 }
