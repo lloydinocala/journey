@@ -31,23 +31,6 @@ export default function Properties({ profile }) {
   const [loading, setLoading] = useState(true)
   const [newItemMode, setNewItemMode] = useState(null)
 
-  const [customerId, setCustomerId] = useState('')
-  const [billToCustomerId, setBillToCustomerId] = useState('')
-  const [street, setStreet] = useState('')
-  const [unit, setUnit] = useState('')
-  const [city, setCity] = useState('')
-  const [county, setCounty] = useState('')
-  const [state, setState] = useState('FL')
-  const [zip, setZip] = useState('')
-  const [gateCode, setGateCode] = useState('')
-  const [tenant1Name, setTenant1Name] = useState('')
-  const [tenant1Phone, setTenant1Phone] = useState('')
-  const [tenant2Name, setTenant2Name] = useState('')
-  const [tenant2Phone, setTenant2Phone] = useState('')
-  const [notes, setNotes] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-
   const [searchText, setSearchText] = useState('')
   const [sortField, setSortField] = useState('street_address')
   const [sortDirection, setSortDirection] = useState('asc')
@@ -149,89 +132,6 @@ export default function Properties({ profile }) {
   function sortArrow(field) {
     if (sortField !== field) return ''
     return sortDirection === 'asc' ? ' ↑' : ' ↓'
-  }
-
-  function clearAddForm() {
-    setCustomerId('')
-    setBillToCustomerId('')
-    setStreet('')
-    setUnit('')
-    setCity('')
-    setCounty('')
-    setState('FL')
-    setZip('')
-    setGateCode('')
-    setTenant1Name('')
-    setTenant1Phone('')
-    setTenant2Name('')
-    setTenant2Phone('')
-    setNotes('')
-    setError('')
-  }
-
-  async function handleAdd(e) {
-    e.preventDefault()
-    setError('')
-    if (!customerId || !street.trim()) return
-
-    setSaving(true)
-
-    const { data: property, error: propError } = await supabase
-      .from('properties')
-      .insert({
-        org_id: selectedOrg,
-        customer_id: customerId,
-        bill_to_customer_id: billToCustomerId || null,
-        street_address: street.trim(),
-        unit: unit.trim() || null,
-        city: city.trim() || null,
-        county: county.trim() || null,
-        state: state.trim() || null,
-        zip: zip.trim() || null,
-        gate_code: gateCode.trim() || null,
-        notes: notes.trim() || null,
-      })
-      .select()
-      .single()
-
-    if (propError) {
-      setError(propError.message)
-      setSaving(false)
-      return
-    }
-
-    if (tenant1Name.trim()) {
-      await supabase.from('property_tenants').insert({
-        org_id: selectedOrg,
-        property_id: property.id,
-        name: tenant1Name.trim(),
-        phone: tenant1Phone.trim() || null,
-      })
-    }
-    if (tenant2Name.trim()) {
-      await supabase.from('property_tenants').insert({
-        org_id: selectedOrg,
-        property_id: property.id,
-        name: tenant2Name.trim(),
-        phone: tenant2Phone.trim() || null,
-      })
-    }
-
-    setSaving(false)
-    setCustomerId('')
-    setBillToCustomerId('')
-    setStreet('')
-    setUnit('')
-    setCity('')
-    setCounty('')
-    setZip('')
-    setGateCode('')
-    setTenant1Name('')
-    setTenant1Phone('')
-    setTenant2Name('')
-    setTenant2Phone('')
-    setNotes('')
-    loadData(selectedOrg)
   }
 
   function startEdit(p) {
@@ -395,88 +295,6 @@ export default function Properties({ profile }) {
         </div>
       )}
 
-      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
-        <div className="field">
-          <label htmlFor="custPick">Customer</label>
-          <CustomerSearchSelect orgId={selectedOrg} value={customerId} onChange={(id) => setCustomerId(id)} />
-        </div>
-        <div className="field">
-          <label htmlFor="billToPick">Bill To Customer</label>
-          <CustomerSearchSelect
-            orgId={selectedOrg}
-            value={billToCustomerId}
-            onChange={(id) => setBillToCustomerId(id)}
-            placeholder="Same as Customer — type to override"
-          />
-          {billToCustomerId && (
-            <button
-              type="button"
-              className="logout-button"
-              style={{ fontSize: 11, padding: '2px 8px', marginTop: 4 }}
-              onClick={() => setBillToCustomerId('')}
-            >
-              Clear (use same as Customer)
-            </button>
-          )}
-        </div>
-        <div className="field">
-          <label htmlFor="street">Street address</label>
-          <input id="street" type="text" value={street} onChange={(e) => setStreet(e.target.value)} placeholder="123 SE 91st Court Rd" required />
-        </div>
-        <div className="field">
-          <label htmlFor="unit">Unit</label>
-          <input id="unit" type="text" value={unit} onChange={(e) => setUnit(e.target.value)} style={{ width: 80 }} />
-        </div>
-        <div className="field">
-          <label htmlFor="city">City</label>
-          <input id="city" type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Summerfield" />
-        </div>
-        <div className="field">
-          <label htmlFor="county">County</label>
-          <input id="county" type="text" value={county} onChange={(e) => setCounty(e.target.value)} placeholder="Marion" />
-        </div>
-        <div className="field">
-          <label htmlFor="state">State</label>
-          <input id="state" type="text" value={state} onChange={(e) => setState(e.target.value)} style={{ width: 60 }} />
-        </div>
-        <div className="field">
-          <label htmlFor="zip">Zip</label>
-          <input id="zip" type="text" value={zip} onChange={(e) => setZip(e.target.value)} style={{ width: 90 }} />
-        </div>
-        <div className="field">
-          <label htmlFor="gateCode">Gate code</label>
-          <input id="gateCode" type="text" value={gateCode} onChange={(e) => setGateCode(e.target.value)} style={{ width: 100 }} />
-        </div>
-        <div className="field">
-          <label htmlFor="tenant1Name">Tenant 1 (optional)</label>
-          <input id="tenant1Name" type="text" value={tenant1Name} onChange={(e) => setTenant1Name(e.target.value)} placeholder="if rental" />
-        </div>
-        <div className="field">
-          <label htmlFor="tenant1Phone">Tenant 1 phone</label>
-          <input id="tenant1Phone" type="tel" value={tenant1Phone} onChange={(e) => setTenant1Phone(e.target.value)} />
-        </div>
-        <div className="field">
-          <label htmlFor="tenant2Name">Tenant 2 (optional)</label>
-          <input id="tenant2Name" type="text" value={tenant2Name} onChange={(e) => setTenant2Name(e.target.value)} />
-        </div>
-        <div className="field">
-          <label htmlFor="tenant2Phone">Tenant 2 phone</label>
-          <input id="tenant2Phone" type="tel" value={tenant2Phone} onChange={(e) => setTenant2Phone(e.target.value)} />
-        </div>
-        <div className="field" style={{ minWidth: 220 }}>
-          <label htmlFor="propNotes">Notes</label>
-          <input id="propNotes" type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="optional" />
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-          <button className="auth-button" type="submit" disabled={saving}>
-            {saving ? 'Adding…' : 'Add property'}
-          </button>
-          <button type="button" className="logout-button" onClick={clearAddForm} disabled={saving}>
-            Cancel
-          </button>
-        </div>
-      </form>
-
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="field" style={{ marginBottom: 0, minWidth: 220 }}>
           <label htmlFor="searchBox">Search</label>
@@ -523,8 +341,6 @@ export default function Properties({ profile }) {
           {sorted.length} propert{sorted.length !== 1 ? 'ies' : 'y'}
         </p>
       </div>
-
-      {error && <div className="auth-error">{error}</div>}
 
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
