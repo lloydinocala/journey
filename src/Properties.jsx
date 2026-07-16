@@ -5,6 +5,7 @@ import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import { exportToCSV } from './utils/csvExport'
 import { fetchAllRows } from './utils/csvImport'
+import CustomerSearchSelect from './CustomerSearchSelect'
 
 const COLUMNS = [
   { key: 'street_address', label: 'Address', required: true },
@@ -24,7 +25,6 @@ const DEFAULT_VISIBLE = COLUMNS.map((c) => c.key)
 export default function Properties({ profile }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
-  const [customers, setCustomers] = useState([])
   const [properties, setProperties] = useState([])
   const [showArchived, setShowArchived] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -93,20 +93,14 @@ export default function Properties({ profile }) {
     if (!orgId) return
     setLoading(true)
     try {
-      const [customersData, propertiesData] = await Promise.all([
-        fetchAllRows(() =>
-          supabase.from('customers').select('id, display_name').eq('org_id', orgId).eq('is_active', true).order('display_name')
-        ),
-        fetchAllRows(() =>
-          supabase
-            .from('properties')
-            .select('id, customer_id, bill_to_customer_id, street_address, unit, city, county, state, zip, gate_code, notes, created_at, is_active, customers!properties_customer_id_fkey(display_name), bill_to:customers!properties_bill_to_customer_id_fkey(display_name), property_tenants(id, name, phone)')
-            .eq('org_id', orgId)
-            .eq('is_active', !showArchived)
-            .order('created_at', { ascending: false })
-        ),
-      ])
-      setCustomers(customersData)
+      const propertiesData = await fetchAllRows(() =>
+        supabase
+          .from('properties')
+          .select('id, customer_id, bill_to_customer_id, street_address, unit, city, county, state, zip, gate_code, notes, created_at, is_active, customers!properties_customer_id_fkey(display_name), bill_to:customers!properties_bill_to_customer_id_fkey(display_name), property_tenants(id, name, phone)')
+          .eq('org_id', orgId)
+          .eq('is_active', !showArchived)
+          .order('created_at', { ascending: false })
+      )
       setProperties(propertiesData)
     } catch (e) {
       console.error(e)
@@ -386,21 +380,26 @@ export default function Properties({ profile }) {
       <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
         <div className="field">
           <label htmlFor="custPick">Customer</label>
-          <select id="custPick" value={customerId} onChange={(e) => setCustomerId(e.target.value)} required>
-            <option value="">Select…</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>{c.display_name}</option>
-            ))}
-          </select>
+          <CustomerSearchSelect orgId={selectedOrg} value={customerId} onChange={(id) => setCustomerId(id)} />
         </div>
         <div className="field">
           <label htmlFor="billToPick">Bill To Customer</label>
-          <select id="billToPick" value={billToCustomerId} onChange={(e) => setBillToCustomerId(e.target.value)}>
-            <option value="">Same as Customer</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>{c.display_name}</option>
-            ))}
-          </select>
+          <CustomerSearchSelect
+            orgId={selectedOrg}
+            value={billToCustomerId}
+            onChange={(id) => setBillToCustomerId(id)}
+            placeholder="Same as Customer — type to override"
+          />
+          {billToCustomerId && (
+            <button
+              type="button"
+              className="logout-button"
+              style={{ fontSize: 11, padding: '2px 8px', marginTop: 4 }}
+              onClick={() => setBillToCustomerId('')}
+            >
+              Clear (use same as Customer)
+            </button>
+          )}
         </div>
         <div className="field">
           <label htmlFor="street">Street address</label>
@@ -583,21 +582,27 @@ export default function Properties({ profile }) {
                   )}
                   {visibleColumns.includes('customer') && (
                     <div className="grid-cell" style={{ background: rowBg }}>
-                      <select value={editCustomerId} onChange={(e) => setEditCustomerId(e.target.value)}>
-                        {customers.map((c) => (
-                          <option key={c.id} value={c.id}>{c.display_name}</option>
-                        ))}
-                      </select>
+                      <CustomerSearchSelect orgId={selectedOrg} value={editCustomerId} onChange={(id) => setEditCustomerId(id)} />
                     </div>
                   )}
                   {visibleColumns.includes('bill_to') && (
                     <div className="grid-cell" style={{ background: rowBg }}>
-                      <select value={editBillToCustomerId} onChange={(e) => setEditBillToCustomerId(e.target.value)}>
-                        <option value="">Same as Customer</option>
-                        {customers.map((c) => (
-                          <option key={c.id} value={c.id}>{c.display_name}</option>
-                        ))}
-                      </select>
+                      <CustomerSearchSelect
+                        orgId={selectedOrg}
+                        value={editBillToCustomerId}
+                        onChange={(id) => setEditBillToCustomerId(id)}
+                        placeholder="Same as Customer"
+                      />
+                      {editBillToCustomerId && (
+                        <button
+                          type="button"
+                          className="logout-button"
+                          style={{ fontSize: 11, padding: '2px 6px', marginTop: 4 }}
+                          onClick={() => setEditBillToCustomerId('')}
+                        >
+                          Clear
+                        </button>
+                      )}
                     </div>
                   )}
                   {visibleColumns.includes('gate_code') && (
