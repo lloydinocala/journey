@@ -76,3 +76,22 @@ export function guessColumn(headers, fieldKey, fieldLabel) {
   const targets = [normalize(fieldKey), normalize(fieldLabel)]
   return headers.find((h) => targets.includes(normalize(h))) || ''
 }
+
+// Supabase's REST API caps any single request at 1000 rows. Live search UIs
+// sidestep this by never fetching the whole table (see CustomerSearchSelect).
+// Bulk CSV import matching is different — it genuinely needs the complete set
+// to match every row against, so it has to page through it instead.
+// `buildQuery` must return a FRESH query builder each call (Supabase builders
+// can only be awaited once), with .range() applied fresh per page.
+export async function fetchAllRows(buildQuery, pageSize = 1000) {
+  let allRows = []
+  let from = 0
+  while (true) {
+    const { data, error } = await buildQuery().range(from, from + pageSize - 1)
+    if (error) throw error
+    allRows = allRows.concat(data || [])
+    if (!data || data.length < pageSize) break
+    from += pageSize
+  }
+  return allRows
+}
