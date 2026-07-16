@@ -5,7 +5,9 @@ import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import TripChargePicker from './TripChargePicker'
+import CustomerSearchSelect from './CustomerSearchSelect'
 import { exportToCSV } from './utils/csvExport'
+import { fetchAllRows } from './utils/csvImport'
 
 const FROZEN_KEYS = ['job_number', 'segment', 'job_date', 'street_address']
 
@@ -59,6 +61,9 @@ export default function Jobs({ profile }) {
 
   const [addMode, setAddMode] = useState('new')
 
+  const [newCustomerId, setNewCustomerId] = useState('')
+  const [newCustomerBanned, setNewCustomerBanned] = useState(false)
+  const [newCustomerProperties, setNewCustomerProperties] = useState([])
   const [propertyId, setPropertyId] = useState('')
   const [jobDate, setJobDate] = useState('')
   const [startTime, setStartTime] = useState('')
@@ -66,6 +71,9 @@ export default function Jobs({ profile }) {
   const [jobType, setJobType] = useState('')
   const [serviceComplaint, setServiceComplaint] = useState('')
   const [technicianId, setTechnicianId] = useState('')
+  const [technician2Id, setTechnician2Id] = useState('')
+  const [technician3Id, setTechnician3Id] = useState('')
+  const [technician4Id, setTechnician4Id] = useState('')
   const [newTripChargeId, setNewTripChargeId] = useState(null)
   const [overrideBan, setOverrideBan] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -119,30 +127,34 @@ export default function Jobs({ profile }) {
   async function loadData(orgId) {
     if (!orgId) return
     setLoading(true)
-    const [propsRes, usersRes, jobsRes, jobTypesRes] = await Promise.all([
-      supabase
-        .from('properties')
-        .select('id, street_address, unit, city, state, zip, gate_code, customer_id, customers!properties_customer_id_fkey(display_name, is_banned), property_tenants(name, phone)')
-        .eq('org_id', orgId)
-        .eq('is_active', true)
-        .order('street_address'),
+    const [propsData, usersRes, jobsData, jobTypesRes] = await Promise.all([
+      fetchAllRows(() =>
+        supabase
+          .from('properties')
+          .select('id, street_address, unit, city, state, zip, gate_code, customer_id, customers!properties_customer_id_fkey(display_name, is_banned), property_tenants(name, phone)')
+          .eq('org_id', orgId)
+          .eq('is_active', true)
+          .order('street_address')
+      ),
       supabase.from('users').select('id, full_name').eq('org_id', orgId).order('full_name'),
-      supabase
-        .from('jobs')
-        .select(`
-          id, job_number, segment, status, job_date, start_time, duration_hours, job_type, service_complaint,
-          property_id, customer_id, trip_charge_price_id, on_my_way_at, arrival_at, completed_at, job_notes,
-          properties ( street_address, unit, city, state, zip, gate_code, property_tenants ( name, phone ) ),
-          job_technicians ( sort_order, users ( full_name ) ),
-          trip_charge:trip_charge_price_id ( location, access, hours, services ( name ) )
-        `)
-        .eq('org_id', orgId)
-        .order('job_date', { ascending: false }),
+      fetchAllRows(() =>
+        supabase
+          .from('jobs')
+          .select(`
+            id, job_number, segment, status, job_date, start_time, duration_hours, job_type, service_complaint,
+            property_id, customer_id, trip_charge_price_id, on_my_way_at, arrival_at, completed_at, job_notes,
+            properties ( street_address, unit, city, state, zip, gate_code, property_tenants ( name, phone ) ),
+            job_technicians ( sort_order, users ( full_name ) ),
+            trip_charge:trip_charge_price_id ( location, access, hours, services ( name ) )
+          `)
+          .eq('org_id', orgId)
+          .order('job_date', { ascending: false })
+      ),
       supabase.from('job_types').select('id, name').eq('org_id', orgId).eq('is_active', true).order('sort_order'),
     ])
-    setProperties(propsRes.data || [])
+    setProperties(propsData)
     setUsers(usersRes.data || [])
-    setJobs(jobsRes.data || [])
+    setJobs(jobsData)
     setJobTypes(jobTypesRes.data || [])
     if (jobTypesRes.data && jobTypesRes.data.length > 0) {
       setJobType(jobTypesRes.data[0].name)
@@ -154,6 +166,24 @@ export default function Jobs({ profile }) {
   useEffect(() => {
     loadData(selectedOrg)
   }, [selectedOrg])
+
+  useEffect(() => {
+    if (newCustomerId) {
+      supabase
+        .from('properties')
+        .select('id, street_address, unit, city')
+        .eq('customer_id', newCustomerId)
+        .eq('is_active', true)
+        .order('street_address')
+        .then(({ data }) => {
+          setNewCustomerProperties(data || [])
+          setPropertyId('')
+        })
+    } else {
+      setNewCustomerProperties([])
+      setPropertyId('')
+    }
+  }, [newCustomerId])
 
   useEffect(() => {
     localStorage.setItem('jobs_visible_columns_v2', JSON.stringify(visibleColumns))
@@ -177,8 +207,7 @@ export default function Jobs({ profile }) {
     return sortDirection === 'asc' ? ' ↑' : ' ↓'
   }
 
-  const selectedProperty = properties.find((p) => p.id === propertyId)
-  const isBannedSelected = selectedProperty?.customers?.is_banned
+  const isBannedSelected = newCustomerBanned
 
   function sortedTechs(job) {
     return (job.job_technicians || []).slice().sort((a, b) => a.sort_order - b.sort_order)
@@ -238,12 +267,17 @@ export default function Jobs({ profile }) {
   }
 
   function clearAddForm() {
+    setNewCustomerId('')
+    setNewCustomerBanned(false)
     setPropertyId('')
     setJobDate('')
     setStartTime('')
     setDurationHours('1')
     setServiceComplaint('')
     setTechnicianId('')
+    setTechnician2Id('')
+    setTechnician3Id('')
+    setTechnician4Id('')
     setNewTripChargeId(null)
     setOverrideBan(false)
     setError('')
@@ -252,7 +286,7 @@ export default function Jobs({ profile }) {
   async function handleAdd(e) {
     e.preventDefault()
     setError('')
-    if (!propertyId || !jobDate) return
+    if (!newCustomerId || !propertyId || !jobDate) return
 
     if (isBannedSelected && (!canOverrideBan || !overrideBan)) {
       setError(
@@ -264,8 +298,6 @@ export default function Jobs({ profile }) {
     }
 
     setSaving(true)
-
-    const property = properties.find((p) => p.id === propertyId)
 
     const { count } = await supabase
       .from('jobs')
@@ -283,7 +315,7 @@ export default function Jobs({ profile }) {
         job_number: jobNumber,
         segment: 1,
         property_id: propertyId,
-        customer_id: property.customer_id,
+        customer_id: newCustomerId,
         job_date: jobDate,
         start_time: startTimestamp,
         duration_hours: durationHours ? parseFloat(durationHours) : null,
@@ -300,22 +332,30 @@ export default function Jobs({ profile }) {
       return
     }
 
-    if (technicianId) {
-      await supabase.from('job_technicians').insert({
-        org_id: selectedOrg,
-        job_id: newJob.id,
-        user_id: technicianId,
-        sort_order: 1,
-      })
+    const techIds = [technicianId, technician2Id, technician3Id, technician4Id].filter(Boolean)
+    if (techIds.length > 0) {
+      await supabase.from('job_technicians').insert(
+        techIds.map((userId, idx) => ({
+          org_id: selectedOrg,
+          job_id: newJob.id,
+          user_id: userId,
+          sort_order: idx + 1,
+        }))
+      )
     }
 
     setSaving(false)
+    setNewCustomerId('')
+    setNewCustomerBanned(false)
     setPropertyId('')
     setJobDate('')
     setStartTime('')
     setDurationHours('1')
     setServiceComplaint('')
     setTechnicianId('')
+    setTechnician2Id('')
+    setTechnician3Id('')
+    setTechnician4Id('')
     setNewTripChargeId(null)
     setOverrideBan(false)
     loadData(selectedOrg)
@@ -630,12 +670,31 @@ export default function Jobs({ profile }) {
         <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap', flexDirection: 'column', alignItems: 'stretch' }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <div className="field">
+              <label htmlFor="custPick">Customer</label>
+              <CustomerSearchSelect
+                orgId={selectedOrg}
+                value={newCustomerId}
+                onChange={(id, customer) => {
+                  setNewCustomerId(id)
+                  setNewCustomerBanned(customer?.is_banned || false)
+                }}
+              />
+            </div>
+            <div className="field">
               <label htmlFor="propPick">Property</label>
-              <select id="propPick" value={propertyId} onChange={(e) => setPropertyId(e.target.value)} required>
-                <option value="">Select…</option>
-                {properties.map((p) => (
+              <select
+                id="propPick"
+                value={propertyId}
+                onChange={(e) => setPropertyId(e.target.value)}
+                required
+                disabled={!newCustomerId}
+              >
+                <option value="">
+                  {!newCustomerId ? 'Pick a customer first…' : newCustomerProperties.length === 0 ? 'No properties on file' : 'Select…'}
+                </option>
+                {newCustomerProperties.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.customers?.is_banned ? '⚠️ DO NOT SERVICE — ' : ''}{p.street_address} — {p.customers?.display_name}
+                    {p.street_address}{p.unit ? ` #${p.unit}` : ''}{p.city ? `, ${p.city}` : ''}
                   </option>
                 ))}
               </select>
@@ -664,15 +723,26 @@ export default function Jobs({ profile }) {
               <label htmlFor="complaint">Issue</label>
               <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling, or notes for a System Estimate visit" />
             </div>
-            <div className="field">
-              <label htmlFor="tech">Technician 1</label>
-              <select id="tech" value={technicianId} onChange={(e) => setTechnicianId(e.target.value)}>
-                <option value="">Unassigned</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.full_name}</option>
-                ))}
-              </select>
-            </div>
+            {[
+              { label: 'Technician 1', value: technicianId, set: setTechnicianId },
+              { label: 'Technician 2', value: technician2Id, set: setTechnician2Id },
+              { label: 'Technician 3', value: technician3Id, set: setTechnician3Id },
+              { label: 'Technician 4', value: technician4Id, set: setTechnician4Id },
+            ].map((slot, idx) => {
+              const chosen = [technicianId, technician2Id, technician3Id, technician4Id].filter(Boolean)
+              const availableUsers = users.filter((u) => u.id === slot.value || !chosen.includes(u.id))
+              return (
+                <div className="field" key={slot.label}>
+                  <label htmlFor={`tech${idx + 1}`}>{slot.label}</label>
+                  <select id={`tech${idx + 1}`} value={slot.value} onChange={(e) => slot.set(e.target.value)}>
+                    <option value="">Unassigned</option>
+                    {availableUsers.map((u) => (
+                      <option key={u.id} value={u.id}>{u.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )
+            })}
           </div>
 
           <div style={{ marginTop: 4 }}>
@@ -681,7 +751,7 @@ export default function Jobs({ profile }) {
           </div>
 
           <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 4 }}>
-            Segment, Street Address, Unit, City, State, Zip, Gate Code, Tenants, and Technician 2 come from the property record and job assignment — add or edit those on the Properties page or by editing this job after creation.
+            Segment, Street Address, Unit, City, State, Zip, Gate Code, and Tenants come from the property record — add or edit those on the Properties page or by editing this job after creation.
           </p>
 
           <div style={{ display: 'flex', gap: 8 }}>
