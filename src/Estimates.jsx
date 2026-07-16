@@ -10,6 +10,7 @@ const LINE_ITEM_COUNT = 9
 
 const APPROVAL_STATUS_OPTIONS = ['Pending', 'Approved', 'Rejected', 'Pending Financing']
 
+const ACTIONS_WIDTH = 140
 const FROZEN_KEYS = ['invoice_date', 'invoice_number', 'job_number', 'customer']
 
 const COLUMNS = [
@@ -46,6 +47,7 @@ export default function Estimates({ profile }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
+  const [showArchived, setShowArchived] = useState(false)
   const [sortField, setSortField] = useState('invoice_date')
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
@@ -75,7 +77,7 @@ export default function Estimates({ profile }) {
         .select(`
           id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
           discount_amount, discount_type, deposit, amount_due, total_paid, balance,
-          profit, profit_pct, sent_at, paid_at, estimating_technician_id, approval_status,
+          profit, profit_pct, sent_at, paid_at, estimating_technician_id, approval_status, is_archived,
           jobs (
             job_number,
             properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )
@@ -84,7 +86,8 @@ export default function Estimates({ profile }) {
           estimating_technician:estimating_technician_id ( full_name )
         `)
         .eq('org_id', orgId)
-        .eq('kind', 'estimate'),
+        .eq('kind', 'estimate')
+        .eq('is_archived', showArchived),
       supabase.from('users').select('id, full_name').eq('org_id', orgId).order('full_name'),
     ])
     setEstimates(estimatesRes.data || [])
@@ -94,7 +97,7 @@ export default function Estimates({ profile }) {
 
   useEffect(() => {
     loadEstimates(selectedOrg)
-  }, [selectedOrg])
+  }, [selectedOrg, showArchived])
 
   useEffect(() => {
     localStorage.setItem('estimates_visible_columns_v2', JSON.stringify(visibleColumns))
@@ -152,6 +155,13 @@ export default function Estimates({ profile }) {
     loadEstimates(selectedOrg)
   }
 
+  async function toggleArchive(est) {
+    const action = est.is_archived ? 'unarchive' : 'archive'
+    if (!window.confirm(`Are you sure you want to ${action} estimate ${est.invoice_number}?`)) return
+    await supabase.from('invoices').update({ is_archived: !est.is_archived }).eq('id', est.id)
+    loadEstimates(selectedOrg)
+  }
+
   function toggleSort(field) {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
@@ -204,14 +214,29 @@ export default function Estimates({ profile }) {
   })
 
   const visibleColumnDefs = COLUMNS.filter((c) => c.required || visibleColumns.includes(c.key))
-  const gridTemplateColumns = visibleColumnDefs.map((c) => c.width + 'px').join(' ') + ' 90px'
-  const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + c.width, 0) + 90
+  const gridTemplateColumns = ACTIONS_WIDTH + 'px ' + visibleColumnDefs.map((c) => c.width + 'px').join(' ')
+  const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + c.width, 0) + ACTIONS_WIDTH
 
   const stickyLeft = {}
-  let stickyCum = 0
+  let stickyCum = ACTIONS_WIDTH
   for (const key of FROZEN_KEYS) {
     stickyLeft[key] = stickyCum
     stickyCum += COLUMNS.find((c) => c.key === key).width
+  }
+
+  const actionsCellStyle = (rowBg) => ({
+    background: rowBg,
+    position: 'sticky',
+    left: 0,
+    zIndex: 2,
+    boxShadow: '2px 0 4px rgba(0,0,0,0.08)',
+  })
+  const actionsHeaderStyle = {
+    background: 'var(--route-blue)',
+    position: 'sticky',
+    left: 0,
+    zIndex: 3,
+    boxShadow: '2px 0 4px rgba(0,0,0,0.08)',
   }
 
   function cellStyle(key, rowBg) {
@@ -311,6 +336,15 @@ export default function Estimates({ profile }) {
             placeholder="Estimate #, job #, or customer…"
           />
         </div>
+        <label className="nav-link" style={{ cursor: 'pointer', marginBottom: 10 }}>
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+            style={{ marginRight: 6 }}
+          />
+          Show archived
+        </label>
         <div style={{ position: 'relative', marginBottom: 10 }}>
           <button className="logout-button" onClick={() => setShowColumnPicker(!showColumnPicker)}>
             Columns ▾
@@ -344,6 +378,7 @@ export default function Estimates({ profile }) {
         <>
         <div ref={scrollTableRef} onScroll={syncFromTable} style={{ overflowX: 'auto' }}>
           <div className="grid-table" style={{ gridTemplateColumns, minWidth: tableMinWidth }}>
+            <div className="grid-cell grid-head" style={actionsHeaderStyle}></div>
             {visibleColumnDefs.map((col) => (
               <div
                 key={col.key}
@@ -360,12 +395,19 @@ export default function Estimates({ profile }) {
                 {sortArrow(col.key)}
               </div>
             ))}
-            <div className="grid-cell grid-head"></div>
 
             {sorted.map((est, rowIdx) => {
               const rowBg = rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)'
               return (
               <div key={est.id} style={{ display: 'contents' }}>
+                <div className="grid-cell grid-actions" style={actionsCellStyle(rowBg)}>
+                  <Link to={'/estimate/' + est.job_id} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
+                    Edit
+                  </Link>
+                  <button className="logout-button" onClick={() => toggleArchive(est)}>
+                    {est.is_archived ? 'Unarchive' : 'Archive'}
+                  </button>
+                </div>
                 {visibleColumnDefs.map((col) => {
                   if (col.key === 'estimating_technician') {
                     return (
@@ -400,11 +442,6 @@ export default function Estimates({ profile }) {
                   }
                   return <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>{cellValue(est, col.key)}</div>
                 })}
-                <div className="grid-cell grid-actions" style={{ background: rowBg }}>
-                  <Link to={'/estimate/' + est.job_id} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
-                    View
-                  </Link>
-                </div>
               </div>
               )
             })}
