@@ -30,22 +30,9 @@ export default function Customers({ profile }) {
   const [customers, setCustomers] = useState([])
   const [showArchived, setShowArchived] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [displayName, setDisplayName] = useState('')
-  const [company, setCompany] = useState('')
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [spouseName, setSpouseName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [secondaryPhone, setSecondaryPhone] = useState('')
-  const [email, setEmail] = useState('')
-  const [email2, setEmail2] = useState('')
-  const [acquireDate, setAcquireDate] = useState('')
-  const [notes, setNotes] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [searchText, setSearchText] = useState('')
   const [newItemMode, setNewItemMode] = useState(null)
 
-  const [searchText, setSearchText] = useState('')
   const [sortField, setSortField] = useState('created_at')
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
@@ -129,61 +116,6 @@ export default function Customers({ profile }) {
   function sortArrow(field) {
     if (sortField !== field) return ''
     return sortDirection === 'asc' ? ' ↑' : ' ↓'
-  }
-
-  function clearAddForm() {
-    setDisplayName('')
-    setCompany('')
-    setFirstName('')
-    setLastName('')
-    setSpouseName('')
-    setPhone('')
-    setSecondaryPhone('')
-    setEmail('')
-    setEmail2('')
-    setAcquireDate('')
-    setNotes('')
-    setError('')
-  }
-
-  async function handleAdd(e) {
-    e.preventDefault()
-    setError('')
-    if (!displayName.trim() || !selectedOrg) return
-
-    setSaving(true)
-    const { error } = await supabase.from('customers').insert({
-      org_id: selectedOrg,
-      display_name: displayName.trim(),
-      company: company.trim() || null,
-      first_name: firstName.trim() || null,
-      last_name: lastName.trim() || null,
-      spouse_name: spouseName.trim() || null,
-      primary_phone: phone.trim() || null,
-      secondary_phone: secondaryPhone.trim() || null,
-      email_1: email.trim() || null,
-      email_2: email2.trim() || null,
-      acquire_date: acquireDate || null,
-      notes: notes.trim() || null,
-    })
-    setSaving(false)
-
-    if (error) {
-      setError(error.message)
-    } else {
-      setDisplayName('')
-      setCompany('')
-      setFirstName('')
-      setLastName('')
-      setSpouseName('')
-      setPhone('')
-      setSecondaryPhone('')
-      setEmail('')
-      setEmail2('')
-      setAcquireDate('')
-      setNotes('')
-      loadCustomers(selectedOrg)
-    }
   }
 
   function startEdit(c) {
@@ -315,146 +247,6 @@ export default function Customers({ profile }) {
         </div>
       )}
 
-      <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
-        <div className="field">
-          <label htmlFor="custName">Display Name</label>
-          <input
-            id="custName"
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="e.g. William Gaal"
-            required
-          />
-          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-            <button
-              type="button"
-              className="logout-button"
-              style={{ fontSize: 12, padding: '2px 8px' }}
-              onClick={() => setDisplayName((firstName + ' ' + lastName).trim())}
-              disabled={!firstName.trim() && !lastName.trim()}
-            >
-              Use First + Last
-            </button>
-            <button
-              type="button"
-              className="logout-button"
-              style={{ fontSize: 12, padding: '2px 8px' }}
-              onClick={() => setDisplayName(company.trim())}
-              disabled={!company.trim()}
-            >
-              Use Company
-            </button>
-          </div>
-        </div>
-        <div className="field">
-          <label htmlFor="custCompany">Company</label>
-          <input
-            id="custCompany"
-            type="text"
-            value={company}
-            onChange={(e) => setCompany(e.target.value)}
-            placeholder="optional"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="custFirstName">First Name</label>
-          <input
-            id="custFirstName"
-            type="text"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            placeholder="optional"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="custLastName">Last Name</label>
-          <input
-            id="custLastName"
-            type="text"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            placeholder="optional"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="custSpouseName">Spouse Name</label>
-          <input
-            id="custSpouseName"
-            type="text"
-            value={spouseName}
-            onChange={(e) => setSpouseName(e.target.value)}
-            placeholder="optional"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="custPhone">Phone</label>
-          <input
-            id="custPhone"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="(352) 555-0100"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="custPhone2">Phone 2</label>
-          <input
-            id="custPhone2"
-            type="tel"
-            value={secondaryPhone}
-            onChange={(e) => setSecondaryPhone(e.target.value)}
-            placeholder="optional"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="custEmail">Email</label>
-          <input
-            id="custEmail"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="optional"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="custEmail2">Email 2</label>
-          <input
-            id="custEmail2"
-            type="email"
-            value={email2}
-            onChange={(e) => setEmail2(e.target.value)}
-            placeholder="optional"
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="custAcquireDate">Acquire Date</label>
-          <input
-            id="custAcquireDate"
-            type="date"
-            value={acquireDate}
-            onChange={(e) => setAcquireDate(e.target.value)}
-          />
-        </div>
-        <div className="field" style={{ minWidth: 220 }}>
-          <label htmlFor="custNotes">Notes</label>
-          <input
-            id="custNotes"
-            type="text"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="optional"
-          />
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-          <button className="auth-button" type="submit" disabled={saving}>
-            {saving ? 'Adding…' : 'Add customer'}
-          </button>
-          <button type="button" className="logout-button" onClick={clearAddForm} disabled={saving}>
-            Cancel
-          </button>
-        </div>
-      </form>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="field" style={{ marginBottom: 0, minWidth: 220 }}>
@@ -502,8 +294,6 @@ export default function Customers({ profile }) {
           {sorted.length} customer{sorted.length !== 1 ? 's' : ''}
         </p>
       </div>
-
-      {error && <div className="auth-error">{error}</div>}
 
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
