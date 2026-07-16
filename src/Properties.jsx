@@ -58,6 +58,19 @@ export default function Properties({ profile }) {
   const [editTenant2Phone, setEditTenant2Phone] = useState('')
   const [editNotes, setEditNotes] = useState('')
 
+  const [expandedEquipmentId, setExpandedEquipmentId] = useState(null)
+  const [equipmentList, setEquipmentList] = useState([])
+  const [loadingEquipment, setLoadingEquipment] = useState(false)
+  const [equipEditingId, setEquipEditingId] = useState(null)
+  const blankEquipForm = {
+    system_label: '', outdoor_brand: '', outdoor_model: '', outdoor_serial: '',
+    indoor_brand: '', indoor_model: '', indoor_serial: '',
+    furnace_brand: '', furnace_model: '', furnace_serial: '',
+    install_date: '', notes: '',
+  }
+  const [equipForm, setEquipForm] = useState(blankEquipForm)
+  const [savingEquip, setSavingEquip] = useState(false)
+
   const isSuperAdmin = profile.role === 'super_admin'
 
   useEffect(() => {
@@ -200,6 +213,81 @@ export default function Properties({ profile }) {
     if (!window.confirm(`Are you sure you want to ${action} this property?`)) return
     await supabase.from('properties').update({ is_active: !p.is_active }).eq('id', p.id)
     loadData(selectedOrg)
+  }
+
+  async function loadEquipmentList(propertyId) {
+    setLoadingEquipment(true)
+    const { data } = await supabase
+      .from('property_equipment')
+      .select('*')
+      .eq('property_id', propertyId)
+      .order('created_at', { ascending: false })
+    setEquipmentList(data || [])
+    setLoadingEquipment(false)
+  }
+
+  async function toggleEquipment(propertyId) {
+    if (expandedEquipmentId === propertyId) {
+      setExpandedEquipmentId(null)
+      setEquipEditingId(null)
+      setEquipForm(blankEquipForm)
+      return
+    }
+    setExpandedEquipmentId(propertyId)
+    setEquipEditingId(null)
+    setEquipForm(blankEquipForm)
+    loadEquipmentList(propertyId)
+  }
+
+  function startEquipEdit(eq) {
+    setEquipEditingId(eq.id)
+    setEquipForm({
+      system_label: eq.system_label || '',
+      outdoor_brand: eq.outdoor_brand || '',
+      outdoor_model: eq.outdoor_model || '',
+      outdoor_serial: eq.outdoor_serial || '',
+      indoor_brand: eq.indoor_brand || '',
+      indoor_model: eq.indoor_model || '',
+      indoor_serial: eq.indoor_serial || '',
+      furnace_brand: eq.furnace_brand || '',
+      furnace_model: eq.furnace_model || '',
+      furnace_serial: eq.furnace_serial || '',
+      install_date: eq.install_date || '',
+      notes: eq.notes || '',
+    })
+  }
+
+  async function saveEquipment(propertyId) {
+    setSavingEquip(true)
+    const payload = {
+      system_label: equipForm.system_label.trim() || null,
+      outdoor_brand: equipForm.outdoor_brand.trim() || null,
+      outdoor_model: equipForm.outdoor_model.trim() || null,
+      outdoor_serial: equipForm.outdoor_serial.trim() || null,
+      indoor_brand: equipForm.indoor_brand.trim() || null,
+      indoor_model: equipForm.indoor_model.trim() || null,
+      indoor_serial: equipForm.indoor_serial.trim() || null,
+      furnace_brand: equipForm.furnace_brand.trim() || null,
+      furnace_model: equipForm.furnace_model.trim() || null,
+      furnace_serial: equipForm.furnace_serial.trim() || null,
+      install_date: equipForm.install_date || null,
+      notes: equipForm.notes.trim() || null,
+    }
+    if (equipEditingId) {
+      await supabase.from('property_equipment').update(payload).eq('id', equipEditingId)
+    } else {
+      await supabase.from('property_equipment').insert({ ...payload, org_id: selectedOrg, property_id: propertyId })
+    }
+    setSavingEquip(false)
+    setEquipEditingId(null)
+    setEquipForm(blankEquipForm)
+    loadEquipmentList(propertyId)
+  }
+
+  async function deleteEquipment(id, propertyId) {
+    if (!window.confirm('Remove this equipment record? This cannot be undone.')) return
+    await supabase.from('property_equipment').delete().eq('id', id)
+    loadEquipmentList(propertyId)
   }
 
   function cityStateZip(p) {
@@ -393,7 +481,8 @@ export default function Properties({ profile }) {
             {sorted.map((p, rowIdx) => {
               const rowBg = rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)'
               return (
-              editingId === p.id ? (
+              <div key={p.id} style={{ display: 'contents' }}>
+              {editingId === p.id ? (
                 <>
                   <div className="grid-cell grid-actions" style={{ background: rowBg }}>
                     <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(p.id)}>Save</button>
@@ -479,6 +568,9 @@ export default function Properties({ profile }) {
                     <button className="logout-button" onClick={() => toggleArchive(p)}>
                       {p.is_active ? 'Archive' : 'Reactivate'}
                     </button>
+                    <button className="logout-button" onClick={() => toggleEquipment(p.id)}>
+                      {expandedEquipmentId === p.id ? 'Hide Equipment' : 'Equipment'}
+                    </button>
                   </div>
                   <div className="grid-cell" style={{ background: rowBg }}>
                     {p.street_address}{p.unit ? ` #${p.unit}` : ''}
@@ -499,7 +591,112 @@ export default function Properties({ profile }) {
                   )}
                   {visibleColumns.includes('notes') && <div className="grid-cell" style={{ background: rowBg }}>{p.notes || '—'}</div>}
                 </>
-              )
+              )}
+
+              {expandedEquipmentId === p.id && (
+                <div className="grid-cell" style={{ gridColumn: '1 / -1', background: 'var(--ink)', padding: 16 }}>
+                  {loadingEquipment ? (
+                    <p style={{ color: 'var(--mist)' }}>Loading equipment…</p>
+                  ) : (
+                    <>
+                      {equipmentList.length === 0 ? (
+                        <p style={{ color: 'var(--mist)', marginTop: 0 }}>No equipment on file for this property yet.</p>
+                      ) : (
+                        equipmentList.map((eq) => (
+                          <div key={eq.id} style={{ background: 'var(--panel)', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <strong style={{ fontSize: 13 }}>{eq.system_label || 'System'}{eq.install_date ? ` — installed ${new Date(eq.install_date + 'T00:00:00').toLocaleDateString()}` : ''}</strong>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => startEquipEdit(eq)}>Edit</button>
+                                <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => deleteEquipment(eq.id, p.id)}>Delete</button>
+                              </div>
+                            </div>
+                            <div style={{ fontSize: 13, color: 'var(--mist)', marginTop: 6, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                              <div><strong>Outdoor:</strong> {[eq.outdoor_brand, eq.outdoor_model].filter(Boolean).join(' ') || '—'}{eq.outdoor_serial ? ` (SN: ${eq.outdoor_serial})` : ''}</div>
+                              <div><strong>Indoor:</strong> {[eq.indoor_brand, eq.indoor_model].filter(Boolean).join(' ') || '—'}{eq.indoor_serial ? ` (SN: ${eq.indoor_serial})` : ''}</div>
+                              <div><strong>Furnace:</strong> {[eq.furnace_brand, eq.furnace_model].filter(Boolean).join(' ') || '—'}{eq.furnace_serial ? ` (SN: ${eq.furnace_serial})` : ''}</div>
+                            </div>
+                            {eq.notes && <div style={{ fontSize: 12, color: 'var(--mist)', marginTop: 4 }}>{eq.notes}</div>}
+                          </div>
+                        ))
+                      )}
+
+                      <div style={{ background: 'var(--panel)', borderRadius: 8, padding: 12, marginTop: 12 }}>
+                        <strong style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
+                          {equipEditingId ? 'Edit Equipment' : 'Add Equipment'}
+                        </strong>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
+                            <label>System Label</label>
+                            <input type="text" value={equipForm.system_label} onChange={(e) => setEquipForm({ ...equipForm, system_label: e.target.value })} placeholder="e.g. Upstairs" />
+                          </div>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
+                            <label>Install Date</label>
+                            <input type="date" value={equipForm.install_date} onChange={(e) => setEquipForm({ ...equipForm, install_date: e.target.value })} />
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
+                            <label>Outdoor Brand</label>
+                            <input type="text" value={equipForm.outdoor_brand} onChange={(e) => setEquipForm({ ...equipForm, outdoor_brand: e.target.value })} />
+                          </div>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
+                            <label>Outdoor Model</label>
+                            <input type="text" value={equipForm.outdoor_model} onChange={(e) => setEquipForm({ ...equipForm, outdoor_model: e.target.value })} />
+                          </div>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
+                            <label>Outdoor Serial</label>
+                            <input type="text" value={equipForm.outdoor_serial} onChange={(e) => setEquipForm({ ...equipForm, outdoor_serial: e.target.value })} />
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
+                            <label>Indoor Brand</label>
+                            <input type="text" value={equipForm.indoor_brand} onChange={(e) => setEquipForm({ ...equipForm, indoor_brand: e.target.value })} />
+                          </div>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
+                            <label>Indoor Model</label>
+                            <input type="text" value={equipForm.indoor_model} onChange={(e) => setEquipForm({ ...equipForm, indoor_model: e.target.value })} />
+                          </div>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
+                            <label>Indoor Serial</label>
+                            <input type="text" value={equipForm.indoor_serial} onChange={(e) => setEquipForm({ ...equipForm, indoor_serial: e.target.value })} />
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
+                            <label>Furnace Brand</label>
+                            <input type="text" value={equipForm.furnace_brand} onChange={(e) => setEquipForm({ ...equipForm, furnace_brand: e.target.value })} />
+                          </div>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
+                            <label>Furnace Model</label>
+                            <input type="text" value={equipForm.furnace_model} onChange={(e) => setEquipForm({ ...equipForm, furnace_model: e.target.value })} />
+                          </div>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
+                            <label>Furnace Serial</label>
+                            <input type="text" value={equipForm.furnace_serial} onChange={(e) => setEquipForm({ ...equipForm, furnace_serial: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="field" style={{ marginBottom: 8, minWidth: 260 }}>
+                          <label>Notes</label>
+                          <input type="text" value={equipForm.notes} onChange={(e) => setEquipForm({ ...equipForm, notes: e.target.value })} placeholder="optional" />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button className="auth-button" style={{ width: 'auto', padding: '8px 20px' }} disabled={savingEquip} onClick={() => saveEquipment(p.id)}>
+                            {savingEquip ? 'Saving…' : equipEditingId ? 'Save Changes' : 'Add Equipment'}
+                          </button>
+                          {equipEditingId && (
+                            <button className="logout-button" onClick={() => { setEquipEditingId(null); setEquipForm(blankEquipForm) }}>
+                              Cancel Edit
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              </div>
               )
             })}
             {sorted.length === 0 && (
