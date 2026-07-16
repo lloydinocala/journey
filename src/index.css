@@ -524,6 +524,8 @@ body {
   font-size: 13px;
   font-weight: 600;
   border-left: 1px solid var(--line-strong);
+  background: var(--route-blue);
+  color: white;
 }
 
 .calendar-header-cell:first-child {
