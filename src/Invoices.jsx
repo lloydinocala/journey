@@ -8,6 +8,7 @@ import { exportToCSV } from './utils/csvExport'
 
 const LINE_ITEM_COUNT = 9
 
+const ACTIONS_WIDTH = 140
 const FROZEN_KEYS = ['invoice_date', 'invoice_number', 'job_number', 'customer']
 
 const COLUMNS = [
@@ -45,6 +46,7 @@ export default function Invoices({ profile }) {
   const [invoices, setInvoices] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [showArchived, setShowArchived] = useState(false)
   const [searchText, setSearchText] = useState('')
   const [sortField, setSortField] = useState('invoice_date')
   const [sortDirection, setSortDirection] = useState('desc')
@@ -74,7 +76,7 @@ export default function Invoices({ profile }) {
       .select(`
         id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
         discount_amount, discount_type, deposit, amount_due, total_paid, balance,
-        profit, profit_pct, paid_at, sent_at,
+        profit, profit_pct, paid_at, sent_at, is_archived,
         jobs (
           job_number, segment, status,
           properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) ),
@@ -84,13 +86,14 @@ export default function Invoices({ profile }) {
       `)
       .eq('org_id', orgId)
       .eq('kind', 'invoice')
+      .eq('is_archived', showArchived)
     setInvoices(data || [])
     setLoading(false)
   }
 
   useEffect(() => {
     loadInvoices(selectedOrg)
-  }, [selectedOrg])
+  }, [selectedOrg, showArchived])
 
   useEffect(() => {
     localStorage.setItem('invoices_visible_columns_v2', JSON.stringify(visibleColumns))
@@ -146,6 +149,13 @@ export default function Invoices({ profile }) {
 
   function statusLabel(inv) {
     return inv.paid_at ? 'Paid' : inv.sent_at ? 'Sent' : 'Draft'
+  }
+
+  async function toggleArchive(inv) {
+    const action = inv.is_archived ? 'unarchive' : 'archive'
+    if (!window.confirm(`Are you sure you want to ${action} invoice ${inv.invoice_number}?`)) return
+    await supabase.from('invoices').update({ is_archived: !inv.is_archived }).eq('id', inv.id)
+    loadInvoices(selectedOrg)
   }
 
   function toggleSort(field) {
@@ -204,11 +214,11 @@ export default function Invoices({ profile }) {
   const totalUnpaid = filtered.filter((inv) => !inv.paid_at).reduce((sum, inv) => sum + (inv.amount_due || 0), 0)
 
   const visibleColumnDefs = COLUMNS.filter((c) => c.required || visibleColumns.includes(c.key))
-  const gridTemplateColumns = visibleColumnDefs.map((c) => c.width + 'px').join(' ')
-  const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + c.width, 0)
+  const gridTemplateColumns = ACTIONS_WIDTH + 'px ' + visibleColumnDefs.map((c) => c.width + 'px').join(' ')
+  const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + c.width, 0) + ACTIONS_WIDTH
 
   const stickyLeft = {}
-  let stickyCum = 0
+  let stickyCum = ACTIONS_WIDTH
   for (const key of FROZEN_KEYS) {
     stickyLeft[key] = stickyCum
     stickyCum += COLUMNS.find((c) => c.key === key).width
@@ -216,6 +226,21 @@ export default function Invoices({ profile }) {
 
   function isCompletedUnpaid(inv) {
     return inv.jobs?.status === 'completed' && !inv.paid_at
+  }
+
+  const actionsCellStyle = (rowBg) => ({
+    background: rowBg,
+    position: 'sticky',
+    left: 0,
+    zIndex: 2,
+    boxShadow: '2px 0 4px rgba(0,0,0,0.08)',
+  })
+  const actionsHeaderStyle = {
+    background: 'var(--route-blue)',
+    position: 'sticky',
+    left: 0,
+    zIndex: 3,
+    boxShadow: '2px 0 4px rgba(0,0,0,0.08)',
   }
 
   function cellStyle(key, rowBg) {
@@ -325,6 +350,15 @@ export default function Invoices({ profile }) {
             placeholder="Invoice #, job #, or customer…"
           />
         </div>
+        <label className="nav-link" style={{ cursor: 'pointer', marginBottom: 10 }}>
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+            style={{ marginRight: 6 }}
+          />
+          Show archived
+        </label>
         <div style={{ position: 'relative', marginBottom: 10 }}>
           <button className="logout-button" onClick={() => setShowColumnPicker(!showColumnPicker)}>
             Columns ▾
@@ -358,6 +392,7 @@ export default function Invoices({ profile }) {
         <>
         <div ref={scrollTableRef} onScroll={syncFromTable} style={{ overflowX: 'auto' }}>
           <div className="grid-table" style={{ gridTemplateColumns, minWidth: tableMinWidth }}>
+            <div className="grid-cell grid-head" style={actionsHeaderStyle}></div>
             {visibleColumnDefs.map((col) => (
               <div
                 key={col.key}
@@ -379,7 +414,15 @@ export default function Invoices({ profile }) {
               const rowBg = rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)'
               const flagUnpaid = isCompletedUnpaid(inv)
               return (
-              <Link key={inv.id} to={'/invoice/' + inv.job_id} style={{ display: 'contents', textDecoration: 'none', color: 'inherit' }}>
+              <div key={inv.id} style={{ display: 'contents' }}>
+                <div className="grid-cell grid-actions" style={actionsCellStyle(rowBg)}>
+                  <Link to={'/invoice/' + inv.job_id} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
+                    Edit
+                  </Link>
+                  <button className="logout-button" onClick={() => toggleArchive(inv)}>
+                    {inv.is_archived ? 'Unarchive' : 'Archive'}
+                  </button>
+                </div>
                 {visibleColumnDefs.map((col) => {
                   const isInvoiceNumberCell = col.key === 'invoice_number'
                   const style = isInvoiceNumberCell && flagUnpaid
@@ -401,7 +444,7 @@ export default function Invoices({ profile }) {
                     </div>
                   )
                 })}
-              </Link>
+              </div>
               )
             })}
             {sorted.length === 0 && (
