@@ -12,7 +12,7 @@ function todayISO() {
 }
 
 const MODES = {
-  job: { title: 'New Job', submitLabel: 'Create Job', destination: (jobId) => `/tech/${jobId}`, allowNewCustomer: false },
+  job: { title: 'New Job', submitLabel: 'Create Job', destination: (jobId) => `/tech/${jobId}`, allowNewCustomer: true },
   'service-estimate': { title: 'New Service Estimate', submitLabel: 'Create & Start Estimate', destination: (jobId) => `/tech/estimate/${jobId}`, allowNewCustomer: true },
   'system-estimate': { title: 'New System Estimate', submitLabel: 'Create & Start Estimate', destination: (jobId) => `/tech/system-estimate/${jobId}`, allowNewCustomer: true },
 }
@@ -211,7 +211,7 @@ export default function TechNewJob({ profile, mode = 'job' }) {
 
     const { count } = await supabase.from('jobs').select('id', { count: 'exact', head: true }).eq('org_id', profile.org_id)
     const jobNumber = `J-${String((count || 0) + 1).padStart(4, '0')}`
-    const startTimestamp = startTime ? `${jobDate}T${startTime}:00` : null
+    const startTimestamp = startTime ? new Date(`${jobDate}T${startTime}:00`).toISOString() : null
 
     const { data: newJob, error: insertError } = await supabase
       .from('jobs')
