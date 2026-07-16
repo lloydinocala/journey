@@ -1,6 +1,17 @@
 import { useState } from 'react'
 import { formatDayLabel, isSameDay, timeToPixelY, pixelYToTimeString, getTotalGridHeight, getHourMarkers } from './utils/dateHelpers'
 
+// Convert a stored UTC timestamp to an "HH:MM" string in the browser's LOCAL
+// time. Using new Date(...).getHours()/getMinutes() here (rather than
+// slicing the raw ISO string) is what actually converts UTC to local — a
+// slice reads back whatever digits are literally stored, with no timezone
+// awareness at all.
+function localTimeString(isoString, fallback) {
+  if (!isoString) return fallback
+  const d = new Date(isoString)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 export default function CalendarGrid({ days, jobs, businessStart, businessEnd, onJobClick, onJobDrop }) {
   const [draggingId, setDraggingId] = useState(null)
   const totalHeight = getTotalGridHeight(businessStart, businessEnd)
@@ -19,7 +30,7 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
   }
 
   function blockStyle(job) {
-    const startTime = job.start_time ? job.start_time.slice(11, 16) : '08:00'
+    const startTime = localTimeString(job.start_time, '08:00')
     const top = timeToPixelY(startTime, businessStart, businessEnd)
     const [h, m] = startTime.split(':').map(Number)
     const endMinutes = h * 60 + m + (job.duration_hours || 1) * 60
@@ -37,7 +48,7 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
 
   function formatTimeLabel(job) {
     if (!job.start_time) return ''
-    const [h, m] = job.start_time.slice(11, 16).split(':').map(Number)
+    const [h, m] = localTimeString(job.start_time, '08:00').split(':').map(Number)
     const ampm = h >= 12 ? 'PM' : 'AM'
     const h12 = h % 12 === 0 ? 12 : h % 12
     return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
