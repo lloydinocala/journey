@@ -225,6 +225,18 @@ export default function Jobs({ profile }) {
     return new Date(job.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   }
 
+  // Build a proper timestamp from a date+time pair entered in the browser's
+  // local time. Using new Date(...) here (rather than sending the bare
+  // "YYYY-MM-DDTHH:MM:00" string straight to Supabase) makes JS interpret the
+  // value as local time, then .toISOString() converts it to a correct UTC
+  // instant with the right offset baked in — a bare string with no timezone
+  // marker gets interpreted as UTC by Postgres, which silently shifts the
+  // displayed time by however many hours off UTC the local zone is.
+  function toTimestamp(dateStr, timeStr) {
+    if (!timeStr) return null
+    return new Date(`${dateStr}T${timeStr}:00`).toISOString()
+  }
+
   function clearAddForm() {
     setPropertyId('')
     setJobDate('')
@@ -262,7 +274,7 @@ export default function Jobs({ profile }) {
 
     const jobNumber = `J-${String((count || 0) + 1).padStart(4, '0')}`
 
-    const startTimestamp = startTime ? `${jobDate}T${startTime}:00` : null
+    const startTimestamp = toTimestamp(jobDate, startTime)
 
     const { data: newJob, error } = await supabase
       .from('jobs')
@@ -341,7 +353,7 @@ export default function Jobs({ profile }) {
       .filter((j) => j.job_number === selectedContinueJob.job_number)
       .reduce((max, j) => Math.max(max, j.segment || 1), 1)
 
-    const startTimestamp = contStartTime ? `${contJobDate}T${contStartTime}:00` : null
+    const startTimestamp = toTimestamp(contJobDate, contStartTime)
 
     const { data: newSegmentJob, error } = await supabase
       .from('jobs')
@@ -434,7 +446,7 @@ export default function Jobs({ profile }) {
   }
 
   async function saveEdit(id) {
-    const startTimestamp = editStartTime ? `${editJobDate}T${editStartTime}:00` : null
+    const startTimestamp = toTimestamp(editJobDate, editStartTime)
     const editProperty = properties.find((p) => p.id === editPropertyId)
     await supabase
       .from('jobs')
