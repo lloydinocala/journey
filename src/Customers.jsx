@@ -5,6 +5,7 @@ import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import { exportToCSV } from './utils/csvExport'
+import { fetchAllRows } from './utils/csvImport'
 
 const COLUMNS = [
   { key: 'display_name', label: 'Name', required: true },
@@ -86,13 +87,19 @@ export default function Customers({ profile }) {
   async function loadCustomers(orgId) {
     if (!orgId) return
     setLoading(true)
-    const { data, error } = await supabase
-      .from('customers')
-      .select('id, display_name, company, first_name, last_name, spouse_name, primary_phone, secondary_phone, email_1, email_2, acquire_date, notes, created_at, is_active, is_banned, banned_reason')
-      .eq('org_id', orgId)
-      .eq('is_active', !showArchived)
-      .order('created_at', { ascending: false })
-    if (!error) setCustomers(data)
+    try {
+      const data = await fetchAllRows(() =>
+        supabase
+          .from('customers')
+          .select('id, display_name, company, first_name, last_name, spouse_name, primary_phone, secondary_phone, email_1, email_2, acquire_date, notes, created_at, is_active, is_banned, banned_reason')
+          .eq('org_id', orgId)
+          .eq('is_active', !showArchived)
+          .order('created_at', { ascending: false })
+      )
+      setCustomers(data)
+    } catch (e) {
+      console.error(e)
+    }
     setLoading(false)
   }
 
@@ -294,7 +301,10 @@ export default function Customers({ profile }) {
   return (
     <div>
       <div className="page-header-bar">
-        <h2>Customers</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <h2>Customers</h2>
+          <span className="badge">{customers.length.toLocaleString()} total</span>
+        </div>
         <NewItemDropdown onSelect={setNewItemMode} />
       </div>
 
