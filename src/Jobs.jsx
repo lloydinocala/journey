@@ -550,14 +550,30 @@ export default function Jobs({ profile }) {
     tenant_2: 120, tenant_2_phone: 110, technician_1: 130, technician_2: 130,
     on_my_way_at: 150, arrival_at: 150, completed_at: 150, status: 100, job_notes: 200,
   }
-  const gridTemplateColumns = visibleColumnDefs.map((c) => COLUMN_WIDTHS[c.key] + 'px').join(' ') + ' 240px'
-  const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + COLUMN_WIDTHS[c.key], 0) + 240
+  const ACTIONS_WIDTH = 240
+  const gridTemplateColumns = ACTIONS_WIDTH + 'px ' + visibleColumnDefs.map((c) => COLUMN_WIDTHS[c.key] + 'px').join(' ')
+  const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + COLUMN_WIDTHS[c.key], 0) + ACTIONS_WIDTH
 
   const stickyLeft = {}
-  let stickyCum = 0
+  let stickyCum = ACTIONS_WIDTH
   for (const key of FROZEN_KEYS) {
     stickyLeft[key] = stickyCum
     stickyCum += COLUMN_WIDTHS[key]
+  }
+
+  const actionsCellStyle = (rowBg) => ({
+    background: rowBg,
+    position: 'sticky',
+    left: 0,
+    zIndex: 2,
+    boxShadow: '2px 0 4px rgba(0,0,0,0.08)',
+  })
+  const actionsHeaderStyle = {
+    background: 'var(--route-blue)',
+    position: 'sticky',
+    left: 0,
+    zIndex: 3,
+    boxShadow: '2px 0 4px rgba(0,0,0,0.08)',
   }
 
   function cellStyle(key, rowBg) {
@@ -941,6 +957,7 @@ export default function Jobs({ profile }) {
         <>
         <div ref={scrollTableRef} onScroll={syncFromTable} style={{ overflowX: 'auto' }}>
           <div className="grid-table" style={{ gridTemplateColumns, minWidth: tableMinWidth }}>
+            <div className="grid-cell grid-head" style={actionsHeaderStyle}></div>
             {visibleColumnDefs.map((col) => (
               <div
                 key={col.key}
@@ -957,12 +974,43 @@ export default function Jobs({ profile }) {
                 {sortArrow(col.key)}
               </div>
             ))}
-            <div className="grid-cell grid-head"></div>
 
             {sorted.map((j, rowIdx) => {
               const rowBg = rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)'
               return editingId === j.id ? (
                 <>
+                  <div className="grid-cell grid-actions" style={{ ...actionsCellStyle(rowBg), flexDirection: 'column', alignItems: 'stretch' }}>
+                    <div style={{ marginBottom: 6 }}>
+                      {editTechnicians.map((t, idx) => (
+                        <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                          <span>{idx === 0 ? '★ ' : ''}{t.users?.full_name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeTechnicianFromJob(t.id, j.id)}
+                            style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: '0 4px' }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <select
+                        value=""
+                        onChange={(e) => { if (e.target.value) addTechnicianToJob(j.id, e.target.value) }}
+                        style={{ width: '100%', fontSize: 12, marginTop: 4 }}
+                      >
+                        <option value="">+ Add a technician…</option>
+                        {users
+                          .filter((u) => !editTechnicians.some((t) => t.user_id === u.id))
+                          .map((u) => (
+                            <option key={u.id} value={u.id}>{u.full_name}</option>
+                          ))}
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(j.id)}>Save</button>
+                      <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                    </div>
+                  </div>
                   {visibleColumnDefs.map((col) => {
                     if (col.key === 'job_number') return <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>{jobNumberDisplay(j)}</div>
                     if (col.key === 'job_date') return (
@@ -1026,41 +1074,15 @@ export default function Jobs({ profile }) {
                     )
                     return <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>{cellValue(j, col.key)}</div>
                   })}
-                  <div className="grid-cell grid-actions" style={{ background: rowBg, flexDirection: 'column', alignItems: 'stretch' }}>
-                    <div style={{ marginBottom: 6 }}>
-                      {editTechnicians.map((t, idx) => (
-                        <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-                          <span>{idx === 0 ? '★ ' : ''}{t.users?.full_name}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeTechnicianFromJob(t.id, j.id)}
-                            style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: '0 4px' }}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                      <select
-                        value=""
-                        onChange={(e) => { if (e.target.value) addTechnicianToJob(j.id, e.target.value) }}
-                        style={{ width: '100%', fontSize: 12, marginTop: 4 }}
-                      >
-                        <option value="">+ Add a technician…</option>
-                        {users
-                          .filter((u) => !editTechnicians.some((t) => t.user_id === u.id))
-                          .map((u) => (
-                            <option key={u.id} value={u.id}>{u.full_name}</option>
-                          ))}
-                      </select>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(j.id)}>Save</button>
-                      <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
-                    </div>
-                  </div>
                 </>
               ) : (
                 <>
+                  <div className="grid-cell grid-actions" style={actionsCellStyle(rowBg)}>
+                    <button className="logout-button" onClick={() => startEdit(j)}>Edit</button>
+                    <Link to={`/invoice/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Invoice</Link>
+                    <Link to={`/estimate/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Estimate</Link>
+                    <Link to={`/system-estimate/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>System Estimate</Link>
+                  </div>
                   {visibleColumnDefs.map((col) => (
                     <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                       {col.key === 'status' ? (
@@ -1070,12 +1092,6 @@ export default function Jobs({ profile }) {
                       )}
                     </div>
                   ))}
-                  <div className="grid-cell grid-actions" style={{ background: rowBg }}>
-                    <button className="logout-button" onClick={() => startEdit(j)}>Edit</button>
-                    <Link to={`/invoice/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Invoice</Link>
-                    <Link to={`/estimate/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Estimate</Link>
-                    <Link to={`/system-estimate/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>System Estimate</Link>
-                  </div>
                 </>
               )
             })}
