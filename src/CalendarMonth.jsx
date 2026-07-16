@@ -1,36 +1,31 @@
 import { useState } from 'react'
-
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
 function toLocalDateStr(d) {
   const year = d.getFullYear()
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const date = String(d.getDate()).padStart(2, '0')
   return `${year}-${month}-${date}`
 }
-
 export default function CalendarMonth({ monthDate, gridDays, jobs, onJobClick, onDayClick, onJobDrop }) {
   const [draggingId, setDraggingId] = useState(null)
   const today = new Date()
   const currentMonth = monthDate.getMonth()
-
   function jobsForDay(day) {
     return jobs.filter((j) => j.job_date === toLocalDateStr(day))
   }
-
   function formatJobTime(job) {
     if (!job.start_time) return ''
-    const [h, m] = job.start_time.slice(11, 16).split(':').map(Number)
+    const d = new Date(job.start_time)
+    const h = d.getHours()
+    const m = d.getMinutes()
     const ampm = h >= 12 ? 'PM' : 'AM'
     const h12 = h % 12 === 0 ? 12 : h % 12
     return `${h12}:${String(m).padStart(2, '0')}`
   }
-
   function handleDragStart(e, job) {
     e.dataTransfer.setData('text/plain', job.id)
     setDraggingId(job.id)
   }
-
   function handleDrop(e, day) {
     e.preventDefault()
     const jobId = e.dataTransfer.getData('text/plain')
@@ -38,7 +33,6 @@ export default function CalendarMonth({ monthDate, gridDays, jobs, onJobClick, o
     onJobDrop(jobId, toLocalDateStr(day))
     setDraggingId(null)
   }
-
   return (
     <div className="calendar-month-grid">
       {WEEKDAY_LABELS.map((label) => (
@@ -50,7 +44,6 @@ export default function CalendarMonth({ monthDate, gridDays, jobs, onJobClick, o
         const isToday = toLocalDateStr(day) === toLocalDateStr(today)
         const visibleJobs = dayJobs.slice(0, 3)
         const extraCount = dayJobs.length - visibleJobs.length
-
         return (
           <div
             key={toLocalDateStr(day)}
