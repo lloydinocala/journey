@@ -17,6 +17,7 @@ const COLUMNS = [
   { key: 'bill_to', label: 'Bill To' },
   { key: 'gate_code', label: 'Gate code' },
   { key: 'tenants', label: 'Tenants' },
+  { key: 'last_service', label: 'Last Service Date' },
   { key: 'notes', label: 'Notes' },
 ]
 
@@ -93,15 +94,31 @@ export default function Properties({ profile }) {
     if (!orgId) return
     setLoading(true)
     try {
-      const propertiesData = await fetchAllRows(() =>
-        supabase
-          .from('properties')
-          .select('id, customer_id, bill_to_customer_id, street_address, unit, city, county, state, zip, gate_code, notes, created_at, is_active, customers!properties_customer_id_fkey(display_name), bill_to:customers!properties_bill_to_customer_id_fkey(display_name), property_tenants(id, name, phone)')
-          .eq('org_id', orgId)
-          .eq('is_active', !showArchived)
-          .order('created_at', { ascending: false })
-      )
-      setProperties(propertiesData)
+      const [propertiesData, jobsData] = await Promise.all([
+        fetchAllRows(() =>
+          supabase
+            .from('properties')
+            .select('id, customer_id, bill_to_customer_id, street_address, unit, city, county, state, zip, gate_code, notes, created_at, is_active, customers!properties_customer_id_fkey(display_name), bill_to:customers!properties_bill_to_customer_id_fkey(display_name), property_tenants(id, name, phone)')
+            .eq('org_id', orgId)
+            .eq('is_active', !showArchived)
+            .order('created_at', { ascending: false })
+        ),
+        // Only completed jobs count as "service" — a scheduled-but-not-done
+        // visit isn't service performed yet.
+        fetchAllRows(() =>
+          supabase.from('jobs').select('property_id, job_date, status').eq('org_id', orgId).eq('status', 'completed')
+        ),
+      ])
+
+      const lastServiceByProperty = {}
+      jobsData.forEach((j) => {
+        if (!j.property_id || !j.job_date) return
+        if (!lastServiceByProperty[j.property_id] || j.job_date > lastServiceByProperty[j.property_id]) {
+          lastServiceByProperty[j.property_id] = j.job_date
+        }
+      })
+
+      setProperties(propertiesData.map((p) => ({ ...p, last_service_date: lastServiceByProperty[p.id] || null })))
     } catch (e) {
       console.error(e)
     }
@@ -340,6 +357,7 @@ export default function Properties({ profile }) {
         { label: 'Bill To', value: billToLabel },
         { key: 'gate_code', label: 'Gate Code' },
         { label: 'Tenants', value: tenantsLabel },
+        { label: 'Last Service Date', value: (p) => p.last_service_date || '' },
         { key: 'notes', label: 'Notes' },
         { label: 'Status', value: (p) => (p.is_active ? 'Active' : 'Archived') },
       ],
@@ -347,7 +365,7 @@ export default function Properties({ profile }) {
     )
   }
 
-  const gridCols = ['1.4fr']
+  const gridCols = ['1fr', '1.4fr']
     .concat(visibleColumns.includes('city') ? ['1fr'] : [])
     .concat(visibleColumns.includes('state') ? ['0.6fr'] : [])
     .concat(visibleColumns.includes('zip') ? ['0.7fr'] : [])
@@ -356,8 +374,8 @@ export default function Properties({ profile }) {
     .concat(visibleColumns.includes('bill_to') ? ['1.2fr'] : [])
     .concat(visibleColumns.includes('gate_code') ? ['0.8fr'] : [])
     .concat(visibleColumns.includes('tenants') ? ['1.6fr'] : [])
+    .concat(visibleColumns.includes('last_service') ? ['1fr'] : [])
     .concat(visibleColumns.includes('notes') ? ['1.4fr'] : [])
-    .concat(['1fr'])
     .join(' ')
 
   return (
@@ -513,6 +531,7 @@ export default function Properties({ profile }) {
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <div className="grid-table" style={{ gridTemplateColumns: gridCols }}>
+            <div className="grid-cell grid-head"></div>
             <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('street_address')}>
               Address{sortArrow('street_address')}
             </div>
@@ -548,14 +567,22 @@ export default function Properties({ profile }) {
             )}
             {visibleColumns.includes('gate_code') && <div className="grid-cell grid-head">Gate code</div>}
             {visibleColumns.includes('tenants') && <div className="grid-cell grid-head">Tenants</div>}
+            {visibleColumns.includes('last_service') && (
+              <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('last_service_date')}>
+                Last Service Date{sortArrow('last_service_date')}
+              </div>
+            )}
             {visibleColumns.includes('notes') && <div className="grid-cell grid-head">Notes</div>}
-            <div className="grid-cell grid-head"></div>
 
             {sorted.map((p, rowIdx) => {
               const rowBg = rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)'
               return (
               editingId === p.id ? (
                 <>
+                  <div className="grid-cell grid-actions" style={{ background: rowBg }}>
+                    <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(p.id)}>Save</button>
+                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                  </div>
                   <div className="grid-cell" style={{ background: rowBg }}>
                     <input type="text" value={editStreet} onChange={(e) => setEditStreet(e.target.value)} placeholder="Street" />
                     <input type="text" value={editUnit} onChange={(e) => setEditUnit(e.target.value)} placeholder="Unit" />
@@ -618,18 +645,25 @@ export default function Properties({ profile }) {
                       <input type="tel" value={editTenant2Phone} onChange={(e) => setEditTenant2Phone(e.target.value)} placeholder="Phone" />
                     </div>
                   )}
+                  {visibleColumns.includes('last_service') && (
+                    <div className="grid-cell" style={{ background: rowBg, color: 'var(--mist)' }}>
+                      {p.last_service_date ? new Date(p.last_service_date + 'T00:00:00').toLocaleDateString() : '—'}
+                    </div>
+                  )}
                   {visibleColumns.includes('notes') && (
                     <div className="grid-cell" style={{ background: rowBg }}>
                       <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
                     </div>
                   )}
-                  <div className="grid-cell grid-actions" style={{ background: rowBg }}>
-                    <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(p.id)}>Save</button>
-                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
-                  </div>
                 </>
               ) : (
                 <>
+                  <div className="grid-cell grid-actions" style={{ background: rowBg }}>
+                    <button className="logout-button" onClick={() => startEdit(p)}>Edit</button>
+                    <button className="logout-button" onClick={() => toggleArchive(p)}>
+                      {p.is_active ? 'Archive' : 'Reactivate'}
+                    </button>
+                  </div>
                   <div className="grid-cell" style={{ background: rowBg }}>
                     {p.street_address}{p.unit ? ` #${p.unit}` : ''}
                     {!p.is_active && <span className="status-pill status-canceled" style={{ marginLeft: 6 }}>Archived</span>}
@@ -642,13 +676,12 @@ export default function Properties({ profile }) {
                   {visibleColumns.includes('bill_to') && <div className="grid-cell" style={{ background: rowBg }}>{billToLabel(p) || 'Same as Customer'}</div>}
                   {visibleColumns.includes('gate_code') && <div className="grid-cell" style={{ background: rowBg }}>{p.gate_code || '—'}</div>}
                   {visibleColumns.includes('tenants') && <div className="grid-cell" style={{ background: rowBg }}>{tenantsLabel(p) || '—'}</div>}
+                  {visibleColumns.includes('last_service') && (
+                    <div className="grid-cell" style={{ background: rowBg }}>
+                      {p.last_service_date ? new Date(p.last_service_date + 'T00:00:00').toLocaleDateString() : 'Never'}
+                    </div>
+                  )}
                   {visibleColumns.includes('notes') && <div className="grid-cell" style={{ background: rowBg }}>{p.notes || '—'}</div>}
-                  <div className="grid-cell grid-actions" style={{ background: rowBg }}>
-                    <button className="logout-button" onClick={() => startEdit(p)}>Edit</button>
-                    <button className="logout-button" onClick={() => toggleArchive(p)}>
-                      {p.is_active ? 'Archive' : 'Reactivate'}
-                    </button>
-                  </div>
                 </>
               )
               )
