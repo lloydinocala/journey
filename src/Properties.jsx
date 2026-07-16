@@ -4,6 +4,7 @@ import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import { exportToCSV } from './utils/csvExport'
+import { fetchAllRows } from './utils/csvImport'
 
 const COLUMNS = [
   { key: 'street_address', label: 'Address', required: true },
@@ -91,17 +92,25 @@ export default function Properties({ profile }) {
   async function loadData(orgId) {
     if (!orgId) return
     setLoading(true)
-    const [customersRes, propertiesRes] = await Promise.all([
-      supabase.from('customers').select('id, display_name').eq('org_id', orgId).eq('is_active', true).order('display_name'),
-      supabase
-        .from('properties')
-        .select('id, customer_id, bill_to_customer_id, street_address, unit, city, county, state, zip, gate_code, notes, created_at, is_active, customers!properties_customer_id_fkey(display_name), bill_to:customers!properties_bill_to_customer_id_fkey(display_name), property_tenants(id, name, phone)')
-        .eq('org_id', orgId)
-        .eq('is_active', !showArchived)
-        .order('created_at', { ascending: false }),
-    ])
-    setCustomers(customersRes.data || [])
-    setProperties(propertiesRes.data || [])
+    try {
+      const [customersData, propertiesData] = await Promise.all([
+        fetchAllRows(() =>
+          supabase.from('customers').select('id, display_name').eq('org_id', orgId).eq('is_active', true).order('display_name')
+        ),
+        fetchAllRows(() =>
+          supabase
+            .from('properties')
+            .select('id, customer_id, bill_to_customer_id, street_address, unit, city, county, state, zip, gate_code, notes, created_at, is_active, customers!properties_customer_id_fkey(display_name), bill_to:customers!properties_bill_to_customer_id_fkey(display_name), property_tenants(id, name, phone)')
+            .eq('org_id', orgId)
+            .eq('is_active', !showArchived)
+            .order('created_at', { ascending: false })
+        ),
+      ])
+      setCustomers(customersData)
+      setProperties(propertiesData)
+    } catch (e) {
+      console.error(e)
+    }
     setLoading(false)
   }
 
@@ -360,7 +369,10 @@ export default function Properties({ profile }) {
   return (
     <div>
       <div className="page-header-bar">
-        <h2>Properties</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <h2>Properties</h2>
+          <span className="badge">{properties.length.toLocaleString()} total</span>
+        </div>
         <NewItemDropdown onSelect={setNewItemMode} />
       </div>
 
