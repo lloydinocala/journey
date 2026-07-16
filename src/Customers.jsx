@@ -512,6 +512,7 @@ export default function Customers({ profile }) {
           <table className="data-table">
             <thead>
               <tr>
+                <th></th>
                 <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('display_name')}>Name{sortArrow('display_name')}</th>
                 {visibleColumns.includes('company') && (
                   <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('company')}>Company{sortArrow('company')}</th>
@@ -544,13 +545,16 @@ export default function Customers({ profile }) {
                 {visibleColumns.includes('created_at') && (
                   <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('created_at')}>Added{sortArrow('created_at')}</th>
                 )}
-                <th></th>
               </tr>
             </thead>
             <tbody>
               {sorted.map((c) =>
                 editingId === c.id ? (
                   <tr key={c.id}>
+                    <td style={{ display: 'flex', gap: 8 }}>
+                      <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(c.id)}>Save</button>
+                      <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                    </td>
                     <td>
                       <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
                       <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
@@ -605,25 +609,9 @@ export default function Customers({ profile }) {
                       <td><input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} /></td>
                     )}
                     {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
-                    <td style={{ display: 'flex', gap: 8 }}>
-                      <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(c.id)}>Save</button>
-                      <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
-                    </td>
                   </tr>
                 ) : (
                   <tr key={c.id}>
-                    <td><Link to={`/customers/${c.id}`}>{c.display_name}</Link></td>
-                    {visibleColumns.includes('company') && <td>{c.company || '—'}</td>}
-                    {visibleColumns.includes('first_name') && <td>{c.first_name || '—'}</td>}
-                    {visibleColumns.includes('last_name') && <td>{c.last_name || '—'}</td>}
-                    {visibleColumns.includes('spouse_name') && <td>{c.spouse_name || '—'}</td>}
-                    {visibleColumns.includes('primary_phone') && <td>{c.primary_phone || '—'}</td>}
-                    {visibleColumns.includes('secondary_phone') && <td>{c.secondary_phone || '—'}</td>}
-                    {visibleColumns.includes('email_1') && <td>{c.email_1 || '—'}</td>}
-                    {visibleColumns.includes('email_2') && <td>{c.email_2 || '—'}</td>}
-                    {visibleColumns.includes('acquire_date') && <td>{c.acquire_date ? new Date(c.acquire_date + 'T00:00:00').toLocaleDateString() : '—'}</td>}
-                    {visibleColumns.includes('notes') && <td>{c.notes || '—'}</td>}
-                    {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
                     <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <button className="logout-button" onClick={() => startEdit(c)}>Edit</button>
                       <button className="logout-button" onClick={() => toggleArchive(c)}>
@@ -637,6 +625,18 @@ export default function Customers({ profile }) {
                         )
                       )}
                     </td>
+                    <td><Link to={`/customers/${c.id}`}>{c.display_name}</Link></td>
+                    {visibleColumns.includes('company') && <td>{c.company || '—'}</td>}
+                    {visibleColumns.includes('first_name') && <td>{c.first_name || '—'}</td>}
+                    {visibleColumns.includes('last_name') && <td>{c.last_name || '—'}</td>}
+                    {visibleColumns.includes('spouse_name') && <td>{c.spouse_name || '—'}</td>}
+                    {visibleColumns.includes('primary_phone') && <td>{c.primary_phone || '—'}</td>}
+                    {visibleColumns.includes('secondary_phone') && <td>{c.secondary_phone || '—'}</td>}
+                    {visibleColumns.includes('email_1') && <td>{c.email_1 || '—'}</td>}
+                    {visibleColumns.includes('email_2') && <td>{c.email_2 || '—'}</td>}
+                    {visibleColumns.includes('acquire_date') && <td>{c.acquire_date ? new Date(c.acquire_date + 'T00:00:00').toLocaleDateString() : '—'}</td>}
+                    {visibleColumns.includes('notes') && <td>{c.notes || '—'}</td>}
+                    {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
                   </tr>
                 )
               )}
