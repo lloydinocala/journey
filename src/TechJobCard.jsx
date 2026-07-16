@@ -117,6 +117,18 @@ export default function TechJobCard({ profile }) {
   const [approvalError, setApprovalError] = useState('')
   const [mapsMenuOpen, setMapsMenuOpen] = useState(false)
 
+  const [equipment, setEquipment] = useState([])
+  const [showEquipForm, setShowEquipForm] = useState(false)
+  const [equipEditingId, setEquipEditingId] = useState(null)
+  const blankEquipForm = {
+    system_label: '', outdoor_brand: '', outdoor_model: '', outdoor_serial: '',
+    indoor_brand: '', indoor_model: '', indoor_serial: '',
+    furnace_brand: '', furnace_model: '', furnace_serial: '',
+    install_date: '', notes: '',
+  }
+  const [equipForm, setEquipForm] = useState(blankEquipForm)
+  const [savingEquip, setSavingEquip] = useState(false)
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUid(data?.user?.id || null))
   }, [])
@@ -127,6 +139,73 @@ export default function TechJobCard({ profile }) {
     loadInvoice()
     loadApprovals()
   }, [jobId])
+
+  useEffect(() => {
+    if (job?.property_id) loadEquipment(job.property_id)
+  }, [job?.property_id])
+
+  async function loadEquipment(propertyId) {
+    const { data } = await supabase
+      .from('property_equipment')
+      .select('*')
+      .eq('property_id', propertyId)
+      .order('created_at', { ascending: false })
+    setEquipment(data || [])
+  }
+
+  function startEquipEdit(eq) {
+    setEquipEditingId(eq.id)
+    setEquipForm({
+      system_label: eq.system_label || '',
+      outdoor_brand: eq.outdoor_brand || '',
+      outdoor_model: eq.outdoor_model || '',
+      outdoor_serial: eq.outdoor_serial || '',
+      indoor_brand: eq.indoor_brand || '',
+      indoor_model: eq.indoor_model || '',
+      indoor_serial: eq.indoor_serial || '',
+      furnace_brand: eq.furnace_brand || '',
+      furnace_model: eq.furnace_model || '',
+      furnace_serial: eq.furnace_serial || '',
+      install_date: eq.install_date || '',
+      notes: eq.notes || '',
+    })
+    setShowEquipForm(true)
+  }
+
+  async function saveEquipment() {
+    if (!job?.property_id) return
+    setSavingEquip(true)
+    const payload = {
+      system_label: equipForm.system_label.trim() || null,
+      outdoor_brand: equipForm.outdoor_brand.trim() || null,
+      outdoor_model: equipForm.outdoor_model.trim() || null,
+      outdoor_serial: equipForm.outdoor_serial.trim() || null,
+      indoor_brand: equipForm.indoor_brand.trim() || null,
+      indoor_model: equipForm.indoor_model.trim() || null,
+      indoor_serial: equipForm.indoor_serial.trim() || null,
+      furnace_brand: equipForm.furnace_brand.trim() || null,
+      furnace_model: equipForm.furnace_model.trim() || null,
+      furnace_serial: equipForm.furnace_serial.trim() || null,
+      install_date: equipForm.install_date || null,
+      notes: equipForm.notes.trim() || null,
+    }
+    if (equipEditingId) {
+      await supabase.from('property_equipment').update(payload).eq('id', equipEditingId)
+    } else {
+      await supabase.from('property_equipment').insert({ ...payload, org_id: job.org_id, property_id: job.property_id })
+    }
+    setSavingEquip(false)
+    setEquipEditingId(null)
+    setEquipForm(blankEquipForm)
+    setShowEquipForm(false)
+    loadEquipment(job.property_id)
+  }
+
+  async function deleteEquipment(id) {
+    if (!window.confirm('Remove this equipment record?')) return
+    await supabase.from('property_equipment').delete().eq('id', id)
+    loadEquipment(job.property_id)
+  }
 
   async function loadJob() {
     setLoading(true)
@@ -522,6 +601,91 @@ export default function TechJobCard({ profile }) {
                 </div>
               )
             })}
+          </div>
+        </div>
+
+        <div className="section-card">
+          <div className="section-card-header">
+            <span>Equipment on File</span>
+            <button className="link-btn" onClick={() => { setShowEquipForm(!showEquipForm); setEquipEditingId(null); setEquipForm(blankEquipForm) }}>
+              {showEquipForm ? 'Close' : '+ Add'}
+            </button>
+          </div>
+          <div className="section-card-body">
+            {equipment.length === 0 && !showEquipForm && (
+              <p style={{ color: 'var(--mist)', fontSize: 13, margin: 0 }}>No equipment on file for this property yet.</p>
+            )}
+            {equipment.map((eq) => (
+              <div key={eq.id} className="line-item-card">
+                <div className="line-item-desc">
+                  {eq.system_label || 'System'}{eq.install_date ? ` — installed ${new Date(eq.install_date + 'T00:00:00').toLocaleDateString()}` : ''}
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--mist)', lineHeight: 1.6 }}>
+                  <div><strong>Outdoor:</strong> {[eq.outdoor_brand, eq.outdoor_model].filter(Boolean).join(' ') || '—'}{eq.outdoor_serial ? ` (SN: ${eq.outdoor_serial})` : ''}</div>
+                  <div><strong>Indoor:</strong> {[eq.indoor_brand, eq.indoor_model].filter(Boolean).join(' ') || '—'}{eq.indoor_serial ? ` (SN: ${eq.indoor_serial})` : ''}</div>
+                  <div><strong>Furnace:</strong> {[eq.furnace_brand, eq.furnace_model].filter(Boolean).join(' ') || '—'}{eq.furnace_serial ? ` (SN: ${eq.furnace_serial})` : ''}</div>
+                </div>
+                <div className="line-item-meta-row">
+                  <span>{eq.notes || ''}</span>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button className="remove-item-btn" style={{ color: '#2E7FC4' }} onClick={() => startEquipEdit(eq)}>Edit</button>
+                    <button className="remove-item-btn" onClick={() => deleteEquipment(eq.id)}>Remove</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {showEquipForm && (
+              <div style={{ marginTop: equipment.length > 0 ? 12 : 0 }}>
+                <div className="mobile-field">
+                  <label>System Label</label>
+                  <input type="text" value={equipForm.system_label} onChange={(e) => setEquipForm({ ...equipForm, system_label: e.target.value })} placeholder="e.g. Upstairs" />
+                </div>
+                <div className="mobile-field">
+                  <label>Install Date</label>
+                  <input type="date" value={equipForm.install_date} onChange={(e) => setEquipForm({ ...equipForm, install_date: e.target.value })} />
+                </div>
+
+                <p style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--mist)', textTransform: 'uppercase', margin: '10px 0 4px' }}>Outdoor Unit</p>
+                <div className="mobile-field-row">
+                  <div className="mobile-field"><label>Brand</label><input type="text" value={equipForm.outdoor_brand} onChange={(e) => setEquipForm({ ...equipForm, outdoor_brand: e.target.value })} /></div>
+                  <div className="mobile-field"><label>Model</label><input type="text" value={equipForm.outdoor_model} onChange={(e) => setEquipForm({ ...equipForm, outdoor_model: e.target.value })} /></div>
+                </div>
+                <div className="mobile-field">
+                  <label>Serial Number</label>
+                  <input type="text" value={equipForm.outdoor_serial} onChange={(e) => setEquipForm({ ...equipForm, outdoor_serial: e.target.value })} />
+                </div>
+
+                <p style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--mist)', textTransform: 'uppercase', margin: '10px 0 4px' }}>Indoor Unit</p>
+                <div className="mobile-field-row">
+                  <div className="mobile-field"><label>Brand</label><input type="text" value={equipForm.indoor_brand} onChange={(e) => setEquipForm({ ...equipForm, indoor_brand: e.target.value })} /></div>
+                  <div className="mobile-field"><label>Model</label><input type="text" value={equipForm.indoor_model} onChange={(e) => setEquipForm({ ...equipForm, indoor_model: e.target.value })} /></div>
+                </div>
+                <div className="mobile-field">
+                  <label>Serial Number</label>
+                  <input type="text" value={equipForm.indoor_serial} onChange={(e) => setEquipForm({ ...equipForm, indoor_serial: e.target.value })} />
+                </div>
+
+                <p style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--mist)', textTransform: 'uppercase', margin: '10px 0 4px' }}>Furnace</p>
+                <div className="mobile-field-row">
+                  <div className="mobile-field"><label>Brand</label><input type="text" value={equipForm.furnace_brand} onChange={(e) => setEquipForm({ ...equipForm, furnace_brand: e.target.value })} /></div>
+                  <div className="mobile-field"><label>Model</label><input type="text" value={equipForm.furnace_model} onChange={(e) => setEquipForm({ ...equipForm, furnace_model: e.target.value })} /></div>
+                </div>
+                <div className="mobile-field">
+                  <label>Serial Number</label>
+                  <input type="text" value={equipForm.furnace_serial} onChange={(e) => setEquipForm({ ...equipForm, furnace_serial: e.target.value })} />
+                </div>
+
+                <div className="mobile-field">
+                  <label>Notes</label>
+                  <input type="text" value={equipForm.notes} onChange={(e) => setEquipForm({ ...equipForm, notes: e.target.value })} placeholder="optional" />
+                </div>
+
+                <button className="action-btn primary" style={{ width: '100%' }} disabled={savingEquip} onClick={saveEquipment}>
+                  {savingEquip ? 'Saving…' : equipEditingId ? 'Save Changes' : 'Add Equipment'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
