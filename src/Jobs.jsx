@@ -97,38 +97,41 @@ export default function Jobs({ profile }) {
   async function loadData(orgId) {
     if (!orgId) return
     setLoading(true)
-    const [propsData, usersRes, jobsData, jobTypesRes] = await Promise.all([
-      fetchAllRows(() =>
-        supabase
-          .from('properties')
-          .select('id, street_address, unit, city, state, zip, gate_code, customer_id, customers!properties_customer_id_fkey(display_name, is_banned), property_tenants(name, phone)')
-          .eq('org_id', orgId)
-          .eq('is_active', true)
-          .order('street_address')
-      ),
-      supabase.from('users').select('id, full_name').eq('org_id', orgId).order('full_name'),
-      fetchAllRows(() =>
-        supabase
-          .from('jobs')
-          .select(`
-            id, job_number, segment, status, job_date, start_time, duration_hours, job_type, service_complaint,
-            property_id, customer_id, trip_charge_price_id, on_my_way_at, arrival_at, completed_at, job_notes,
-            properties ( street_address, unit, city, state, zip, gate_code, property_tenants ( name, phone ) ),
-            job_technicians ( sort_order, users ( full_name ) ),
-            trip_charge:trip_charge_price_id ( location, access, hours, services ( name ) )
-          `)
-          .eq('org_id', orgId)
-          .order('job_date', { ascending: false })
-      ),
-      supabase.from('job_types').select('id, name').eq('org_id', orgId).eq('is_active', true).order('sort_order'),
-    ])
-    setProperties(propsData)
-    setUsers(usersRes.data || [])
-    setJobs(jobsData)
-    setJobTypes(jobTypesRes.data || [])
-    if (jobTypesRes.data && jobTypesRes.data.length > 0) {
-      setJobType(jobTypesRes.data[0].name)
-      setContJobType(jobTypesRes.data[0].name)
+    try {
+      const [propsData, usersRes, jobsData, jobTypesRes] = await Promise.all([
+        fetchAllRows(() =>
+          supabase
+            .from('properties')
+            .select('id, street_address, unit, city, state, zip, gate_code, customer_id, customers!properties_customer_id_fkey(display_name, is_banned), property_tenants(name, phone)')
+            .eq('org_id', orgId)
+            .eq('is_active', true)
+            .order('street_address')
+        ),
+        supabase.from('users').select('id, full_name').eq('org_id', orgId).order('full_name'),
+        fetchAllRows(() =>
+          supabase
+            .from('jobs')
+            .select(`
+              id, job_number, segment, status, job_date, start_time, duration_hours, job_type, service_complaint,
+              property_id, customer_id, trip_charge_price_id, on_my_way_at, arrival_at, completed_at, job_notes,
+              properties ( street_address, unit, city, state, zip, gate_code, property_tenants ( name, phone ) ),
+              job_technicians ( sort_order, users ( full_name ) ),
+              trip_charge:trip_charge_price_id ( location, access, hours, services ( name ) )
+            `)
+            .eq('org_id', orgId)
+            .order('job_date', { ascending: false })
+        ),
+        supabase.from('job_types').select('id, name').eq('org_id', orgId).eq('is_active', true).order('sort_order'),
+      ])
+      setProperties(propsData)
+      setUsers(usersRes.data || [])
+      setJobs(jobsData)
+      setJobTypes(jobTypesRes.data || [])
+      if (jobTypesRes.data && jobTypesRes.data.length > 0) {
+        setJobType(jobTypesRes.data[0].name)
+      }
+    } catch (e) {
+      console.error(e)
     }
     setLoading(false)
   }
@@ -674,4 +677,3 @@ export default function Jobs({ profile }) {
     </div>
   )
 }
-
