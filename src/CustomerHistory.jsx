@@ -10,6 +10,7 @@ export default function CustomerHistory({ profile }) {
   const [jobs, setJobs] = useState([])
   const [invoices, setInvoices] = useState([])
   const [agreements, setAgreements] = useState([])
+  const [billingHistory, setBillingHistory] = useState({})
   const [attachments, setAttachments] = useState([])
   const [photoUrls, setPhotoUrls] = useState({})
   const [loading, setLoading] = useState(true)
@@ -71,6 +72,23 @@ export default function CustomerHistory({ profile }) {
     setJobs(jobsRes.data || [])
     setInvoices(invoicesRes.data || [])
     setAgreements(agreementsRes.data || [])
+
+    const agreementIds = (agreementsRes.data || []).map((a) => a.id)
+    if (agreementIds.length > 0) {
+      const { data: billingRows } = await supabase
+        .from('maintenance_agreement_billing_history')
+        .select('id, agreement_id, billed_date, amount, paid_at, payment_method, status')
+        .in('agreement_id', agreementIds)
+        .order('billed_date', { ascending: false })
+      const grouped = {}
+      ;(billingRows || []).forEach((b) => {
+        if (!grouped[b.agreement_id]) grouped[b.agreement_id] = []
+        grouped[b.agreement_id].push(b)
+      })
+      setBillingHistory(grouped)
+    } else {
+      setBillingHistory({})
+    }
 
     const jobIds = (jobsRes.data || []).map((j) => j.id)
     let attachmentRows = []
@@ -195,6 +213,30 @@ export default function CustomerHistory({ profile }) {
                 <p style={{ margin: '2px 0', color: 'var(--mist)' }}>
                   Next visit due {formatDate(a.next_visit_due_date)} · Last visit {formatDate(a.last_visit_completed_date)}
                 </p>
+                {(billingHistory[a.id] || []).length > 0 && (
+                  <table className="data-table" style={{ marginTop: 8, marginBottom: 0 }}>
+                    <thead>
+                      <tr>
+                        <th>Billed</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Paid</th>
+                        <th>Method</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {billingHistory[a.id].map((b) => (
+                        <tr key={b.id}>
+                          <td>{formatDate(b.billed_date)}</td>
+                          <td>{formatMoney(b.amount)}</td>
+                          <td><span className="badge">{b.status}</span></td>
+                          <td>{b.paid_at ? new Date(b.paid_at).toLocaleDateString() : '—'}</td>
+                          <td>{b.payment_method || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             ))}
           </div>
