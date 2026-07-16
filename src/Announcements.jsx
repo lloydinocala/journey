@@ -31,6 +31,12 @@ export default function Announcements() {
     return saved ? JSON.parse(saved) : COLUMNS.map((c) => c.key)
   })
 
+  const [editingId, setEditingId] = useState(null)
+  const [editTarget, setEditTarget] = useState(BROADCAST)
+  const [editSeverity, setEditSeverity] = useState('info')
+  const [editMessage, setEditMessage] = useState('')
+  const [editActive, setEditActive] = useState(true)
+
   useEffect(() => {
     supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
     loadAnnouncements()
@@ -95,8 +101,37 @@ export default function Announcements() {
     }
   }
 
-  async function toggleActive(a) {
-    await supabase.from('org_announcements').update({ is_active: !a.is_active }).eq('id', a.id)
+  function startEdit(a) {
+    setEditingId(a.id)
+    setEditTarget(a.org_id || BROADCAST)
+    setEditSeverity(a.severity)
+    setEditMessage(a.message)
+    setEditActive(a.is_active)
+  }
+
+  async function saveEdit(id) {
+    setError('')
+    if (!editMessage.trim()) return
+    const { error } = await supabase
+      .from('org_announcements')
+      .update({
+        org_id: editTarget === BROADCAST ? null : editTarget,
+        severity: editSeverity,
+        message: editMessage.trim(),
+        is_active: editActive,
+      })
+      .eq('id', id)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    setEditingId(null)
+    loadAnnouncements()
+  }
+
+  async function handleDelete(a) {
+    if (!window.confirm('Delete this announcement permanently? This cannot be undone.')) return
+    await supabase.from('org_announcements').delete().eq('id', a.id)
     loadAnnouncements()
   }
 
@@ -141,7 +176,7 @@ export default function Announcements() {
       <h2 className="page-title">Announcements</h2>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -12, marginBottom: 20 }}>
         Messages appear at the top of the app for whoever you target — above the
-        navigation bar, before they can miss it. Turn one off once it's resolved.
+        navigation bar, before they can miss it. Edit a message to switch it off, or delete it outright.
       </p>
 
       <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 28, flexWrap: 'wrap' }}>
@@ -221,7 +256,8 @@ export default function Announcements() {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div className="grid-table" style={{ gridTemplateColumns: '1fr 0.7fr 2fr 0.7fr 1fr' }}>
+        <div className="grid-table" style={{ gridTemplateColumns: '1.3fr 1fr 0.7fr 2fr 0.7fr' }}>
+          <div className="grid-cell grid-head"></div>
           <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('target')}>Target{sortArrow('target')}</div>
           {visibleColumns.includes('severity') && (
             <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('severity')}>Type{sortArrow('severity')}</div>
@@ -230,33 +266,68 @@ export default function Announcements() {
           {visibleColumns.includes('status') && (
             <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('status')}>Status{sortArrow('status')}</div>
           )}
-          <div className="grid-cell grid-head"></div>
 
-          {sorted.map((a) => (
-            <>
-              <div className="grid-cell">{targetLabel(a)}</div>
-              {visibleColumns.includes('severity') && (
-                <div className="grid-cell">
-                  <span className={`status-pill status-${a.severity === 'critical' ? 'past_due' : a.severity === 'warning' ? 'trial' : 'scheduled'}`}>
-                    {a.severity}
-                  </span>
+          {sorted.map((a) =>
+            editingId === a.id ? (
+              <>
+                <div className="grid-cell grid-actions">
+                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(a.id)}>Save</button>
+                  <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
                 </div>
-              )}
-              <div className="grid-cell">{a.message}</div>
-              {visibleColumns.includes('status') && (
                 <div className="grid-cell">
-                  <span className={`status-pill ${a.is_active ? 'status-active' : 'status-canceled'}`}>
-                    {a.is_active ? 'Active' : 'Off'}
-                  </span>
+                  <select value={editTarget} onChange={(e) => setEditTarget(e.target.value)}>
+                    <option value={BROADCAST}>All organizations</option>
+                    {orgs.map((o) => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </select>
                 </div>
-              )}
-              <div className="grid-cell grid-actions">
-                <button className="logout-button" onClick={() => toggleActive(a)}>
-                  {a.is_active ? 'Turn off' : 'Turn on'}
-                </button>
-              </div>
-            </>
-          ))}
+                {visibleColumns.includes('severity') && (
+                  <div className="grid-cell">
+                    <select value={editSeverity} onChange={(e) => setEditSeverity(e.target.value)}>
+                      <option value="info">Info (blue)</option>
+                      <option value="warning">Warning (amber)</option>
+                      <option value="critical">Critical (red)</option>
+                    </select>
+                  </div>
+                )}
+                <div className="grid-cell">
+                  <input type="text" value={editMessage} onChange={(e) => setEditMessage(e.target.value)} />
+                </div>
+                {visibleColumns.includes('status') && (
+                  <div className="grid-cell">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} />
+                      Showing now
+                    </label>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="grid-cell grid-actions">
+                  <button className="logout-button" onClick={() => startEdit(a)}>Edit</button>
+                  <button className="logout-button" onClick={() => handleDelete(a)}>Delete</button>
+                </div>
+                <div className="grid-cell">{targetLabel(a)}</div>
+                {visibleColumns.includes('severity') && (
+                  <div className="grid-cell">
+                    <span className={`status-pill status-${a.severity === 'critical' ? 'past_due' : a.severity === 'warning' ? 'trial' : 'scheduled'}`}>
+                      {a.severity}
+                    </span>
+                  </div>
+                )}
+                <div className="grid-cell">{a.message}</div>
+                {visibleColumns.includes('status') && (
+                  <div className="grid-cell">
+                    <span className={`status-pill ${a.is_active ? 'status-active' : 'status-canceled'}`}>
+                      {a.is_active ? 'Active' : 'Off'}
+                    </span>
+                  </div>
+                )}
+              </>
+            )
+          )}
           {sorted.length === 0 && (
             <div className="grid-cell" style={{ gridColumn: '1 / -1', color: 'var(--mist)' }}>No announcements found.</div>
           )}
