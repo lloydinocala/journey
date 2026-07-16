@@ -141,9 +141,14 @@ export default function Calendar({ profile }) {
   }
 
   async function handleGridDrop(jobId, newDateStr, newTimeStr) {
+    // newTimeStr is where on the grid the job was dropped — a local wall-clock
+    // time. Building it into a real Date and using toISOString() (rather than
+    // sending the bare "YYYY-MM-DDTHH:MM:00" string straight to Supabase) makes
+    // sure it's stored as a true UTC instant, not silently mislabeled as UTC.
+    const newStartTime = new Date(`${newDateStr}T${newTimeStr}:00`).toISOString()
     await supabase
       .from('jobs')
-      .update({ job_date: newDateStr, start_time: `${newDateStr}T${newTimeStr}:00` })
+      .update({ job_date: newDateStr, start_time: newStartTime })
       .eq('id', jobId)
     loadJobs()
   }
