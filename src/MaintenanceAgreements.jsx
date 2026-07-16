@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { exportToCSV } from './utils/csvExport'
 
+const ACTIONS_WIDTH = 300
 const FROZEN_KEYS = ['start_date', 'customer', 'property']
 
 const COLUMNS = [
@@ -16,7 +17,6 @@ const COLUMNS = [
   { key: 'status', label: 'Status', width: 100 },
   { key: 'next_visit_due_date', label: 'Next Visit Due', width: 130 },
   { key: 'last_visit_completed_date', label: 'Last Visit', width: 120 },
-  { key: 'actions', label: 'Actions', required: true, width: 260 },
 ]
 
 const DEFAULT_VISIBLE = COLUMNS.map((c) => c.key)
@@ -40,6 +40,7 @@ export default function MaintenanceAgreements({ profile }) {
   const [loading, setLoading] = useState(true)
 
   const [statusFilter, setStatusFilter] = useState('all')
+  const [showArchived, setShowArchived] = useState(false)
   const [searchText, setSearchText] = useState('')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -71,6 +72,15 @@ export default function MaintenanceAgreements({ profile }) {
   const [billingHistory, setBillingHistory] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(false)
 
+  const [editingId, setEditingId] = useState(null)
+  const [editTierId, setEditTierId] = useState('')
+  const [editBillingCycle, setEditBillingCycle] = useState('monthly')
+  const [editPrice, setEditPrice] = useState('')
+  const [editStatus, setEditStatus] = useState('')
+  const [editNextVisit, setEditNextVisit] = useState('')
+  const [editLastVisit, setEditLastVisit] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+
   const isSuperAdmin = profile.role === 'super_admin'
 
   useEffect(() => {
@@ -90,12 +100,13 @@ export default function MaintenanceAgreements({ profile }) {
         .from('maintenance_agreements')
         .select(`
           id, status, billing_cycle, price, start_date, next_visit_due_date, last_visit_completed_date,
-          stripe_subscription_id, canceled_at, canceled_reason, notes,
+          stripe_subscription_id, canceled_at, canceled_reason, notes, is_archived, tier_id,
           properties ( street_address, unit, city ),
           customers ( display_name, primary_phone, email_1 ),
           maintenance_agreement_tiers ( name )
         `)
         .eq('org_id', orgId)
+        .eq('is_archived', showArchived)
         .order('start_date', { ascending: false }),
       supabase
         .from('properties')
@@ -118,7 +129,7 @@ export default function MaintenanceAgreements({ profile }) {
 
   useEffect(() => {
     loadData(selectedOrg)
-  }, [selectedOrg])
+  }, [selectedOrg, showArchived])
 
   useEffect(() => {
     localStorage.setItem('maintenance_agreements_visible_columns_v1', JSON.stringify(visibleColumns))
@@ -210,6 +221,45 @@ export default function MaintenanceAgreements({ profile }) {
     loadData(selectedOrg)
   }
 
+  async function toggleArchive(agreement) {
+    const action = agreement.is_archived ? 'unarchive' : 'archive'
+    if (!window.confirm(`Are you sure you want to ${action} this agreement?`)) return
+    await supabase.from('maintenance_agreements').update({ is_archived: !agreement.is_archived }).eq('id', agreement.id)
+    loadData(selectedOrg)
+  }
+
+  function startEdit(a) {
+    setEditingId(a.id)
+    setEditTierId(a.tier_id || '')
+    setEditBillingCycle(a.billing_cycle || 'monthly')
+    setEditPrice(a.price != null ? String(a.price) : '')
+    setEditStatus(a.status)
+    setEditNextVisit(a.next_visit_due_date || '')
+    setEditLastVisit(a.last_visit_completed_date || '')
+    setEditNotes(a.notes || '')
+  }
+
+  async function saveEdit(a) {
+    const patch = {
+      status: editStatus,
+      next_visit_due_date: editNextVisit || null,
+      last_visit_completed_date: editLastVisit || null,
+      notes: editNotes.trim() || null,
+    }
+    // Tier/billing/price only change the record itself here, not any live Stripe
+    // subscription — safe to edit freely before a subscription exists, but for
+    // an agreement Stripe already knows about, changing these would desync what
+    // the customer's actually being charged from what this page shows.
+    if (!a.stripe_subscription_id) {
+      patch.tier_id = editTierId || null
+      patch.billing_cycle = editBillingCycle
+      patch.price = editPrice ? parseFloat(editPrice) : 0
+    }
+    await supabase.from('maintenance_agreements').update(patch).eq('id', a.id)
+    setEditingId(null)
+    loadData(selectedOrg)
+  }
+
   async function toggleHistory(agreementId) {
     if (expandedId === agreementId) {
       setExpandedId(null)
@@ -238,14 +288,29 @@ export default function MaintenanceAgreements({ profile }) {
   })
 
   const visibleColumnDefs = COLUMNS.filter((c) => c.required || visibleColumns.includes(c.key))
-  const gridTemplateColumns = visibleColumnDefs.map((c) => c.width + 'px').join(' ')
-  const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + c.width, 0)
+  const gridTemplateColumns = ACTIONS_WIDTH + 'px ' + visibleColumnDefs.map((c) => c.width + 'px').join(' ')
+  const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + c.width, 0) + ACTIONS_WIDTH
 
   const stickyLeft = {}
-  let stickyCum = 0
+  let stickyCum = ACTIONS_WIDTH
   for (const key of FROZEN_KEYS) {
     stickyLeft[key] = stickyCum
     stickyCum += COLUMNS.find((c) => c.key === key).width
+  }
+
+  const actionsCellStyle = (rowBg) => ({
+    background: rowBg,
+    position: 'sticky',
+    left: 0,
+    zIndex: 2,
+    boxShadow: '2px 0 4px rgba(0,0,0,0.08)',
+  })
+  const actionsHeaderStyle = {
+    background: 'var(--route-blue)',
+    position: 'sticky',
+    left: 0,
+    zIndex: 3,
+    boxShadow: '2px 0 4px rgba(0,0,0,0.08)',
   }
 
   function cellStyle(key, rowBg) {
@@ -306,7 +371,7 @@ export default function MaintenanceAgreements({ profile }) {
   function handleExport() {
     exportToCSV(
       filtered,
-      COLUMNS.filter((c) => c.key !== 'actions' && c.key !== 'status').map((c) => ({ label: c.label, value: (a) => cellValue(a, c.key) })).concat([{ label: 'Status', value: (a) => a.status }]),
+      COLUMNS.filter((c) => c.key !== 'status').map((c) => ({ label: c.label, value: (a) => cellValue(a, c.key) })).concat([{ label: 'Status', value: (a) => a.status }]),
       'maintenance-agreements-' + new Date().toISOString().slice(0, 10) + '.csv'
     )
   }
@@ -411,6 +476,15 @@ export default function MaintenanceAgreements({ profile }) {
           <label htmlFor="searchBox">Search</label>
           <input id="searchBox" type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Customer or property…" />
         </div>
+        <label className="nav-link" style={{ cursor: 'pointer', marginBottom: 10 }}>
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+            style={{ marginRight: 6 }}
+          />
+          Show archived
+        </label>
         <div style={{ position: 'relative', marginBottom: 10 }}>
           <button className="logout-button" onClick={() => setShowColumnPicker(!showColumnPicker)}>Columns ▾</button>
           {showColumnPicker && (
@@ -434,38 +508,109 @@ export default function MaintenanceAgreements({ profile }) {
         <>
         <div ref={scrollTableRef} onScroll={syncFromTable} style={{ overflowX: 'auto' }}>
           <div className="grid-table" style={{ gridTemplateColumns, minWidth: tableMinWidth }}>
+            <div className="grid-cell grid-head" style={actionsHeaderStyle}></div>
             {visibleColumnDefs.map((col) => (
               <div key={col.key} className="grid-cell grid-head" style={headerCellStyle(col.key)}>{col.label}</div>
             ))}
 
             {filtered.map((a, rowIdx) => {
               const rowBg = rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)'
+              const editable = editingId === a.id
               return (
                 <>
-                  {visibleColumnDefs.map((col) => (
-                    <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
-                      {col.key === 'status' ? (
-                        <span className={`status-pill status-${a.status}`}>{a.status.charAt(0).toUpperCase() + a.status.slice(1)}</span>
-                      ) : col.key === 'actions' ? (
-                        <div className="grid-actions">
-                          <button className="logout-button" onClick={() => toggleHistory(a.id)}>{expandedId === a.id ? 'Hide History' : 'History'}</button>
-                          {a.status === 'pending' && !a.stripe_subscription_id && (
-                            <button className="logout-button" disabled={checkoutBusyId === a.id} onClick={() => handleGetLink(a.id, a.customers?.display_name)}>
-                              {checkoutBusyId === a.id ? 'Generating…' : 'Get Link'}
-                            </button>
-                          )}
-                          {a.status !== 'canceled' && (
-                            <button className="logout-button" disabled={cancelBusyId === a.id} onClick={() => handleCancel(a)}>
-                              {cancelBusyId === a.id ? 'Canceling…' : 'Cancel'}
-                            </button>
+                  <div className="grid-cell grid-actions" style={{ ...actionsCellStyle(rowBg), flexDirection: 'column', alignItems: 'stretch' }}>
+                    {editable ? (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(a)}>Save</button>
+                        <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <div className="grid-actions">
+                        <button className="logout-button" onClick={() => startEdit(a)}>Edit</button>
+                        <button className="logout-button" onClick={() => toggleArchive(a)}>{a.is_archived ? 'Unarchive' : 'Archive'}</button>
+                        <button className="logout-button" onClick={() => toggleHistory(a.id)}>{expandedId === a.id ? 'Hide History' : 'History'}</button>
+                        {a.status === 'pending' && !a.stripe_subscription_id && (
+                          <button className="logout-button" disabled={checkoutBusyId === a.id} onClick={() => handleGetLink(a.id, a.customers?.display_name)}>
+                            {checkoutBusyId === a.id ? 'Generating…' : 'Get Link'}
+                          </button>
+                        )}
+                        {a.status !== 'canceled' && (
+                          <button className="logout-button" disabled={cancelBusyId === a.id} onClick={() => handleCancel(a)}>
+                            {cancelBusyId === a.id ? 'Canceling…' : 'Cancel'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {visibleColumnDefs.map((col) => {
+                    if (editable) {
+                      if (col.key === 'tier') return (
+                        <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
+                          {a.stripe_subscription_id ? (
+                            <span title="Tier can't be changed once billing has started — cancel and create a new agreement instead.">{cellValue(a, col.key)}</span>
+                          ) : (
+                            <select value={editTierId} onChange={(e) => setEditTierId(e.target.value)}>
+                              <option value="">Select…</option>
+                              {tiers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
                           )}
                         </div>
-                      ) : (
-                        cellValue(a, col.key)
-                      )}
+                      )
+                      if (col.key === 'billing_cycle') return (
+                        <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
+                          {a.stripe_subscription_id ? cellValue(a, col.key) : (
+                            <select value={editBillingCycle} onChange={(e) => setEditBillingCycle(e.target.value)}>
+                              <option value="monthly">Monthly</option>
+                              <option value="annual">Annual</option>
+                            </select>
+                          )}
+                        </div>
+                      )
+                      if (col.key === 'price') return (
+                        <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
+                          {a.stripe_subscription_id ? cellValue(a, col.key) : (
+                            <input type="number" step="0.01" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} style={{ width: '100%' }} />
+                          )}
+                        </div>
+                      )
+                      if (col.key === 'status') return (
+                        <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
+                          <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
+                            <option value="pending">Pending</option>
+                            <option value="active">Active</option>
+                            <option value="lapsed">Lapsed</option>
+                            <option value="canceled">Canceled</option>
+                          </select>
+                        </div>
+                      )
+                      if (col.key === 'next_visit_due_date') return (
+                        <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
+                          <input type="date" value={editNextVisit} onChange={(e) => setEditNextVisit(e.target.value)} />
+                        </div>
+                      )
+                      if (col.key === 'last_visit_completed_date') return (
+                        <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
+                          <input type="date" value={editLastVisit} onChange={(e) => setEditLastVisit(e.target.value)} />
+                        </div>
+                      )
+                    }
+                    return (
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
+                        {col.key === 'status' ? (
+                          <span className={`status-pill status-${a.status}`}>{a.status.charAt(0).toUpperCase() + a.status.slice(1)}</span>
+                        ) : (
+                          cellValue(a, col.key)
+                        )}
+                      </div>
+                    )
+                  })}
+                  {editable && (
+                    <div className="grid-cell" style={{ gridColumn: '1 / -1', background: rowBg }}>
+                      <label style={{ fontSize: 12, color: 'var(--mist)', display: 'block', marginBottom: 4 }}>Notes</label>
+                      <input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} style={{ width: '100%', maxWidth: 500 }} />
                     </div>
-                  ))}
-                  {expandedId === a.id && (
+                  )}
+                  {expandedId === a.id && !editable && (
                     <div className="grid-cell" style={{ gridColumn: '1 / -1', background: 'var(--ink)', padding: 16 }}>
                       {loadingHistory ? (
                         <p style={{ color: 'var(--mist)' }}>Loading billing history…</p>
