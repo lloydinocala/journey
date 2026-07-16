@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import ImportEngine from './ImportEngine'
+import { fetchAllRows } from './utils/csvImport'
 
 function normalize(s) {
   return (s || '').toLowerCase().trim().replace(/\s+/g, ' ')
@@ -28,21 +29,21 @@ const CONFIG = {
     { key: 'technician', header: 'Technician', aliases: ['tech', 'assigned to'] },
   ],
   lookupCaches: async (orgId) => {
-    const [customersRes, propertiesRes, usersRes] = await Promise.all([
-      supabase.from('customers').select('id, display_name').eq('org_id', orgId),
-      supabase.from('properties').select('id, customer_id, street_address').eq('org_id', orgId),
-      supabase.from('users').select('id, full_name').eq('org_id', orgId),
+    const [customersData, propertiesData, usersData] = await Promise.all([
+      fetchAllRows(() => supabase.from('customers').select('id, display_name').eq('org_id', orgId)),
+      fetchAllRows(() => supabase.from('properties').select('id, customer_id, street_address').eq('org_id', orgId)),
+      fetchAllRows(() => supabase.from('users').select('id, full_name').eq('org_id', orgId)),
     ])
     const customerMap = {}
-    ;(customersRes.data || []).forEach((c) => {
+    ;(customersData || []).forEach((c) => {
       customerMap[normalize(c.display_name)] = c.id
     })
     const propertyMap = {}
-    ;(propertiesRes.data || []).forEach((p) => {
+    ;(propertiesData || []).forEach((p) => {
       propertyMap[`${p.customer_id}::${normalize(p.street_address)}`] = p.id
     })
     const techMap = {}
-    ;(usersRes.data || []).forEach((u) => {
+    ;(usersData || []).forEach((u) => {
       techMap[normalize(u.full_name)] = u.id
     })
     return { customerMap, propertyMap, techMap }
