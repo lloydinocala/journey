@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import ImportEngine from './ImportEngine'
+import { fetchAllRows } from './utils/csvImport'
 
 function normalize(s) {
   return (s || '').toLowerCase().trim().replace(/\s+/g, ' ')
@@ -26,7 +27,9 @@ const CONFIG = {
   ],
   defaults: { is_active: true },
   lookupCaches: async (orgId) => {
-    const { data } = await supabase.from('customers').select('id, display_name').eq('org_id', orgId)
+    const data = await fetchAllRows(() =>
+      supabase.from('customers').select('id, display_name').eq('org_id', orgId)
+    )
     const customerMap = {}
     ;(data || []).forEach((c) => {
       customerMap[normalize(c.display_name)] = c.id
