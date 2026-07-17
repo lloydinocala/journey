@@ -145,10 +145,19 @@ export default function TechJobCard({ profile }) {
   }, [job?.property_id])
 
   async function loadEquipment(propertyId) {
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+    await supabase
+      .from('property_equipment')
+      .delete()
+      .eq('property_id', propertyId)
+      .eq('status', 'retired')
+      .lt('retired_at', ninetyDaysAgo)
+
     const { data } = await supabase
       .from('property_equipment')
       .select('*')
       .eq('property_id', propertyId)
+      .eq('status', 'active')
       .order('created_at', { ascending: false })
     setEquipment(data || [])
   }
@@ -192,7 +201,7 @@ export default function TechJobCard({ profile }) {
     if (equipEditingId) {
       await supabase.from('property_equipment').update(payload).eq('id', equipEditingId)
     } else {
-      await supabase.from('property_equipment').insert({ ...payload, org_id: job.org_id, property_id: job.property_id })
+      await supabase.from('property_equipment').insert({ ...payload, org_id: job.org_id, property_id: job.property_id, status: 'active' })
     }
     setSavingEquip(false)
     setEquipEditingId(null)
@@ -204,6 +213,12 @@ export default function TechJobCard({ profile }) {
   async function deleteEquipment(id) {
     if (!window.confirm('Remove this equipment record?')) return
     await supabase.from('property_equipment').delete().eq('id', id)
+    loadEquipment(job.property_id)
+  }
+
+  async function retireEquipment(eq) {
+    if (!window.confirm(`Mark "${eq.system_label || 'this system'}" as retired? Use this when it's been replaced — it stays on record for 90 days, then clears automatically.`)) return
+    await supabase.from('property_equipment').update({ status: 'retired', retired_at: new Date().toISOString() }).eq('id', eq.id)
     loadEquipment(job.property_id)
   }
 
@@ -629,6 +644,7 @@ export default function TechJobCard({ profile }) {
                   <span>{eq.notes || ''}</span>
                   <div style={{ display: 'flex', gap: 10 }}>
                     <button className="remove-item-btn" style={{ color: '#2E7FC4' }} onClick={() => startEquipEdit(eq)}>Edit</button>
+                    <button className="remove-item-btn" style={{ color: '#B8720A' }} onClick={() => retireEquipment(eq)}>Retire</button>
                     <button className="remove-item-btn" onClick={() => deleteEquipment(eq.id)}>Remove</button>
                   </div>
                 </div>
