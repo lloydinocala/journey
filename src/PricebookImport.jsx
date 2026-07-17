@@ -1,13 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
+import { fetchAllRows } from './utils/csvImport'
+import OrgPicker from './OrgPicker'
 
 function normKey(v) {
   const t = (v || '').toString().trim()
   return t === '' ? null : t
 }
 
-export default function PricebookImport({ orgId }) {
+export default function PricebookImport({ profile }) {
+  const isSuperAdmin = profile.role === 'super_admin'
+  const [orgs, setOrgs] = useState([])
+  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const orgId = selectedOrg
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
+        setOrgs(data || [])
+        if (!selectedOrg && data && data.length > 0) setSelectedOrg(data[0].id)
+      })
+    }
+  }, [])
+
   const [importing, setImporting] = useState(false)
   const [summary, setSummary] = useState(null)
   const [error, setError] = useState('')
@@ -56,11 +72,9 @@ export default function PricebookImport({ orgId }) {
         }
       }
 
-      const { data: existingServices, error: svcFetchErr } = await supabase
-        .from('services')
-        .select('id, category, name')
-        .eq('org_id', orgId)
-      if (svcFetchErr) throw svcFetchErr
+      const existingServices = await fetchAllRows(() =>
+        supabase.from('services').select('id, category, name').eq('org_id', orgId)
+      )
 
       const existingServiceMap = new Map()
       for (const s of existingServices) {
@@ -85,11 +99,9 @@ export default function PricebookImport({ orgId }) {
         servicesCreated += inserted.length
       }
 
-      const { data: existingPrices, error: priceFetchErr } = await supabase
-        .from('service_prices')
-        .select('id, service_id, location, access, hours, part_source')
-        .eq('org_id', orgId)
-      if (priceFetchErr) throw priceFetchErr
+      const existingPrices = await fetchAllRows(() =>
+        supabase.from('service_prices').select('id, service_id, location, access, hours, part_source').eq('org_id', orgId)
+      )
 
       function comboKey(serviceId, r) {
         return [serviceId, r.location || '', r.access || '', r.hours || '', r.part_source || ''].join('~~')
@@ -151,9 +163,19 @@ export default function PricebookImport({ orgId }) {
   }
 
   return (
-    <div style={{ marginBottom: 28 }}>
-      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Pricebook import</h3>
-      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 16 }}>
+    <div>
+      <h2 className="page-title">Import Services Pricebook</h2>
+
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>
+            Importing into organization
+          </label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+        </div>
+      )}
+
+      <p style={{ color: 'var(--mist)', fontSize: 14, marginBottom: 16 }}>
         Upload a CSV with columns: Category, Item, Location, Access, Hours, PartSrc, Price, Cost, TaskHrs,
         CustomerDisplay, Exempt. Re-uploading is safe — existing items are matched and updated, not duplicated.
       </p>
