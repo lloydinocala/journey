@@ -31,10 +31,6 @@ export default function TechEstimate({ profile }) {
   const [discountAmount, setDiscountAmount] = useState('0')
   const [taxRate, setTaxRate] = useState(0)
 
-  const [sendingEmail, setSendingEmail] = useState(false)
-  const [sendError, setSendError] = useState('')
-  const [copyLabel, setCopyLabel] = useState('Copy Link')
-
   async function loadJobAndEstimate() {
     setLoading(true)
     const { data: jobData } = await supabase
@@ -205,34 +201,6 @@ export default function TechEstimate({ profile }) {
     await supabase.from('invoices').update({ discount_type: discountType, discount_amount: parseFloat(discountAmount) || 0 }).eq('id', estimate.id)
   }
 
-  async function handleSendEmail() {
-    setSendingEmail(true)
-    setSendError('')
-    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId: estimate.id } })
-    setSendingEmail(false)
-    if (error) {
-      let detail = error.message
-      if (error.context) {
-        try { const body = await error.context.json(); if (body?.error) detail = body.error } catch {}
-      }
-      setSendError(detail)
-    } else if (data?.error) {
-      setSendError(data.error)
-    } else {
-      loadJobAndEstimate()
-    }
-  }
-
-  function payLinkUrl() {
-    return estimate ? `${window.location.origin}/view-invoice/${estimate.id}` : ''
-  }
-
-  function copyPayLink() {
-    navigator.clipboard.writeText(payLinkUrl())
-    setCopyLabel('Copied!')
-    setTimeout(() => setCopyLabel('Copy Link'), 1500)
-  }
-
   const subtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const taxableSubtotal = lineItems.filter((li) => li.taxable).reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const salesTax = taxableSubtotal * (taxRate / 100)
@@ -347,6 +315,9 @@ export default function TechEstimate({ profile }) {
             {pickServiceId && matchingVariants.length === 0 && job.trip_charge && (
               <p style={{ color: '#C0392B', fontSize: 12.5 }}>No price found for this service at the job's Location/Access/Hours.</p>
             )}
+            {!job.trip_charge && (
+              <p style={{ color: '#C0392B', fontSize: 12.5 }}>No trip charge set on this job — set it on the Jobs page first.</p>
+            )}
             {resolvedVariant && <p style={{ fontWeight: 700, color: 'var(--route-blue)', fontSize: 14 }}>${resolvedVariant.price.toFixed(2)}</p>}
             <button className="action-btn primary" style={{ flex: 'none', padding: '9px 20px' }} onClick={handleAddService} disabled={!resolvedVariant || addingService}>
               {addingService ? 'Adding…' : 'Add to Estimate'}
@@ -403,22 +374,18 @@ export default function TechEstimate({ profile }) {
         </div>
 
         <div className="section-card">
-          <div className="section-card-header"><span>Send to Customer</span></div>
+          <div className="section-card-header"><span>Review &amp; Send</span></div>
           <div className="section-card-body">
-            <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 0 }}>No login required for the customer.</p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="action-btn" style={{ flex: '1 1 auto' }} onClick={handleSendEmail} disabled={sendingEmail}>
-                {sendingEmail ? 'Sending…' : estimate.sent_at ? 'Resend' : 'Send to Customer'}
-              </button>
-              <button className="action-btn" style={{ flex: '1 1 auto', background: '#2E7FC4' }} onClick={() => window.open(payLinkUrl(), '_blank')}>
-                Open Link
-              </button>
-              <button className="action-btn" style={{ flex: '1 1 auto', background: '#F0F1F3', color: 'var(--paper)' }} onClick={copyPayLink}>
-                {copyLabel}
-              </button>
-            </div>
-            {estimate.sent_at && <p style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 8 }}>Last sent {new Date(estimate.sent_at).toLocaleString()}</p>}
-            {sendError && <p style={{ color: '#C0392B', fontSize: 12.5, marginTop: 8 }}>{sendError}</p>}
+            <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 0 }}>
+              Review the estimate exactly as the customer will see it, then send it.
+            </p>
+            <button
+              className="action-btn primary"
+              style={{ width: '100%', padding: '13px 0', fontSize: 14 }}
+              onClick={() => navigate(`/tech/invoice-view/${estimate.id}`)}
+            >
+              View &amp; Send Estimate
+            </button>
           </div>
         </div>
       </div>
