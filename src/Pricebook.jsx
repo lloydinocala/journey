@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
-import { fetchAllRows } from './utils/csvImport'
+import { fetchAllRows, normalizeForMatch } from './utils/csvImport'
 
 const LOCATIONS = ['Ground Level', 'Attic or Ceiling', 'Roof or Sub-Level']
 const ACCESS_OPTS = ['Standard Access', 'Difficult Access']
@@ -235,11 +235,11 @@ export default function Pricebook({ profile }) {
           const existingServices = await fetchAllRows(() =>
             supabase.from('services').select('id, category, name').eq('org_id', selectedOrg)
           )
-          const serviceMap = new Map(existingServices.map((s) => [`${s.category}|${s.name}`, s.id]))
+          const serviceMap = new Map(existingServices.map((s) => [`${normalizeForMatch(s.category)}|${normalizeForMatch(s.name)}`, s.id]))
 
           const neededKeys = new Map()
           for (const r of rows) {
-            const key = `${r.category}|${r.name}`
+            const key = `${normalizeForMatch(r.category)}|${normalizeForMatch(r.name)}`
             if (!serviceMap.has(key) && !neededKeys.has(key)) {
               neededKeys.set(key, { category: r.category, name: r.name, is_tax_exempt: r.is_tax_exempt })
             } else if (r.is_tax_exempt && neededKeys.has(key)) {
@@ -252,7 +252,7 @@ export default function Pricebook({ profile }) {
               .insert([...neededKeys.values()].map((s) => ({ org_id: selectedOrg, ...s })))
               .select('id, category, name')
             if (createErr) throw createErr
-            for (const s of created) serviceMap.set(`${s.category}|${s.name}`, s.id)
+            for (const s of created) serviceMap.set(`${normalizeForMatch(s.category)}|${normalizeForMatch(s.name)}`, s.id)
           }
 
           let updated = 0
@@ -260,7 +260,7 @@ export default function Pricebook({ profile }) {
           let failed = 0
 
           for (const r of rows) {
-            const serviceId = serviceMap.get(`${r.category}|${r.name}`)
+            const serviceId = serviceMap.get(`${normalizeForMatch(r.category)}|${normalizeForMatch(r.name)}`)
             if (!serviceId) { failed++; continue }
 
             if (r.is_tax_exempt) {
