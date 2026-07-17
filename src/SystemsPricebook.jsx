@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { fetchAllRows } from './utils/csvImport'
 
 const COLUMNS = [
   { key: 'system_type', label: 'System Type', required: true, width: 100, type: 'text' },
@@ -20,7 +21,7 @@ const COLUMNS = [
   { key: 'home_type', label: 'Home Type', width: 130, type: 'text' },
   { key: 'energy_star', label: 'Energy Star', width: 90, type: 'boolean' },
   { key: 'florida_rating', label: 'FL Rating', width: 80, type: 'number' },
-  { key: 'client_rating', label: 'Client Rating', width: 90, type: 'number' },
+  { key: 'clienta_rating', label: 'Client Rating', width: 90, type: 'number' },
   { key: 'labor_warranty', label: 'Labor Warranty', width: 100, type: 'text' },
   { key: 'quality_pledge', label: 'Quality Pledge', width: 100, type: 'boolean' },
   { key: 'quality_pledge_years', label: 'Pledge Years', width: 90, type: 'number' },
@@ -80,10 +81,12 @@ export default function SystemsPricebook({ profile }) {
   async function loadEquipment(orgId) {
     if (!orgId) return
     setLoading(true)
-    let query = supabase.from('equipment').select('*').eq('org_id', orgId)
-    if (!showInactive) query = query.eq('active', true)
-    const { data } = await query.order('system_type').order('size_tons').order('brand_family')
-    setEquipment(data || [])
+    const data = await fetchAllRows(() => {
+      let query = supabase.from('equipment').select('*').eq('org_id', orgId)
+      if (!showInactive) query = query.eq('active', true)
+      return query.order('system_type').order('size_tons').order('brand_family')
+    })
+    setEquipment(data)
     setLoading(false)
   }
 
@@ -466,3 +469,4 @@ export default function SystemsPricebook({ profile }) {
     </div>
   )
 }
+
