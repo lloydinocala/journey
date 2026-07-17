@@ -27,6 +27,8 @@ import JoinPlan from './JoinPlan'
 import SystemEstimate from './SystemEstimate'
 import SessionLog from './SessionLog'
 import CustomerImport from './CustomerImport'
+import PricebookImport from './PricebookImport'
+import EquipmentImport from './EquipmentImport'
 import PropertyImport from './PropertyImport'
 import JobImport from './JobImport'
 import TechJobs from './TechJobs'
@@ -131,6 +133,8 @@ function AuthenticatedApp() {
         <Route path="/import/customers" element={<CustomerImport profile={profile} />} />
         <Route path="/import/properties" element={<PropertyImport profile={profile} />} />
         <Route path="/import/jobs" element={<JobImport profile={profile} />} />
+        <Route path="/import/services-pricebook" element={<PricebookImport profile={profile} />} />
+        <Route path="/import/systems-pricebook" element={<EquipmentImport profile={profile} />} />
         <Route path="/calendar" element={<Calendar profile={profile} />} />
         <Route path="/pricebook" element={<Pricebook profile={profile} />} />
         <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />
@@ -164,3 +168,4 @@ export default function App() {
     </BrowserRouter>
   )
 }
+
