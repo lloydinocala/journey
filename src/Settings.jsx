@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
-import PricebookImport from './PricebookImport'
 
 export default function Settings({ profile }) {
   const [orgs, setOrgs] = useState([])
@@ -274,7 +273,6 @@ export default function Settings({ profile }) {
         </div>
       )}
 
-      <PricebookImport orgId={selectedOrg} />
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Logo</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 16 }}>
         Shown on your invoices. PNG or JPG works best.
