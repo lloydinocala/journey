@@ -301,6 +301,12 @@ export default function Properties({ profile }) {
     loadEquipmentList(propertyId)
   }
 
+  function daysUntilPurge(retiredAt) {
+    if (!retiredAt) return null
+    const daysSince = Math.floor((Date.now() - new Date(retiredAt).getTime()) / (1000 * 60 * 60 * 24))
+    return Math.max(90 - daysSince, 0)
+  }
+
   async function toggleRetired(eq, propertyId) {
     if (eq.status === 'retired') {
       await supabase.from('property_equipment').update({ status: 'active', retired_at: null }).eq('id', eq.id)
@@ -624,14 +630,23 @@ export default function Properties({ profile }) {
                         <p style={{ color: 'var(--mist)', marginTop: 0 }}>No active equipment on file for this property yet.</p>
                       ) : (
                         equipmentList.filter((eq) => eq.status !== 'retired').map((eq) => (
-                          <div key={eq.id} style={{ background: 'var(--panel)', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                          <div key={eq.id} style={{ background: 'var(--panel)', border: '1px solid rgba(76, 217, 123, 0.3)', borderRadius: 8, padding: 12, marginBottom: 8 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
                               <div style={{ display: 'flex', gap: 8 }}>
                                 <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => startEquipEdit(eq)}>Edit</button>
-                                <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => toggleRetired(eq, p.id)}>Retire</button>
+                                <button
+                                  className="logout-button"
+                                  style={{ fontSize: 12, padding: '2px 8px', background: 'rgba(242, 169, 60, 0.15)', color: 'var(--amber)', borderColor: 'rgba(242, 169, 60, 0.4)' }}
+                                  onClick={() => toggleRetired(eq, p.id)}
+                                >
+                                  Retire
+                                </button>
                                 <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => deleteEquipment(eq.id, p.id)}>Delete</button>
                               </div>
-                              <strong style={{ fontSize: 13 }}>{eq.system_label || 'System'}{eq.install_date ? ` — installed ${new Date(eq.install_date + 'T00:00:00').toLocaleDateString()}` : ''}</strong>
+                              <strong style={{ fontSize: 13 }}>
+                                {eq.system_label || 'System'}{eq.install_date ? ` — installed ${new Date(eq.install_date + 'T00:00:00').toLocaleDateString()}` : ''}{' '}
+                                <span className="status-pill status-active">Active</span>
+                              </strong>
                             </div>
                             <div style={{ fontSize: 13, color: 'var(--mist)', marginTop: 6, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                               <div><strong>Outdoor:</strong> {[eq.outdoor_brand, eq.outdoor_model].filter(Boolean).join(' ') || '—'}{eq.outdoor_serial ? ` (SN: ${eq.outdoor_serial})` : ''}</div>
@@ -649,15 +664,24 @@ export default function Properties({ profile }) {
                             Retired — clears automatically 90 days after retirement
                           </p>
                           {equipmentList.filter((eq) => eq.status === 'retired').map((eq) => (
-                            <div key={eq.id} style={{ background: 'var(--panel)', borderRadius: 8, padding: 12, marginBottom: 8, opacity: 0.7 }}>
+                            <div key={eq.id} style={{ background: 'var(--panel)', border: '1px solid rgba(255, 107, 107, 0.3)', borderRadius: 8, padding: 12, marginBottom: 8 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
                                 <div style={{ display: 'flex', gap: 8 }}>
                                   <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => startEquipEdit(eq)}>Edit</button>
-                                  <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => toggleRetired(eq, p.id)}>Reactivate</button>
+                                  <button
+                                    className="logout-button"
+                                    style={{ fontSize: 12, padding: '2px 8px', background: 'rgba(47, 93, 227, 0.12)', color: 'var(--route-blue)', borderColor: 'rgba(47, 93, 227, 0.4)', fontWeight: 600 }}
+                                    onClick={() => toggleRetired(eq, p.id)}
+                                  >
+                                    ↺ Recall
+                                  </button>
                                   <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => deleteEquipment(eq.id, p.id)}>Delete</button>
                                 </div>
                                 <strong style={{ fontSize: 13 }}>
-                                  {eq.system_label || 'System'} — <span className="status-pill status-canceled">Retired {eq.retired_at ? new Date(eq.retired_at).toLocaleDateString() : ''}</span>
+                                  {eq.system_label || 'System'} —{' '}
+                                  <span className="status-pill" style={{ background: 'rgba(255, 107, 107, 0.15)', color: '#C0392B' }}>
+                                    Retired {eq.retired_at ? new Date(eq.retired_at).toLocaleDateString() : ''} · clears in {daysUntilPurge(eq.retired_at)}d
+                                  </span>
                                 </strong>
                               </div>
                               <div style={{ fontSize: 13, color: 'var(--mist)', marginTop: 6, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
