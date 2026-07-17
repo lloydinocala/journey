@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { fetchAllRows } from './utils/csvImport'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -137,36 +138,45 @@ function OrgDashboard({ orgId, showAccounting, showOperations }) {
 
   async function loadAll(id) {
     setLoading(true)
-    const [orgRes, jobsRes, invoicesRes, customersRes, leadsRes, agreementsRes, approvalsRes] = await Promise.all([
-      supabase.from('organizations').select('name, payment_terms_days').eq('id', id).single(),
-      supabase
-        .from('jobs')
-        .select(`
-          id, job_number, status, job_date, customer_id,
-          technician_1:users!jobs_technician_1_id_fkey(id, full_name),
-          technician_2:users!jobs_technician_2_id_fkey(id, full_name)
-        `)
-        .eq('org_id', id),
-      supabase
-        .from('invoices')
-        .select('id, kind, invoice_date, job_total, balance, approval_status, paid_at, job_id, profit_pct')
-        .eq('org_id', id),
-      supabase.from('customers').select('id, created_at, is_active, is_banned').eq('org_id', id),
-      supabase.from('leads').select('id, status, created_at').eq('org_id', id),
-      supabase
-        .from('maintenance_agreements')
-        .select('id, status, billing_cycle, price, next_visit_due_date, tier:maintenance_agreement_tiers(name)')
-        .eq('org_id', id),
-      supabase.from('job_approvals').select('job_id, stage').eq('org_id', id),
-    ])
+    try {
+      const [orgRes, jobsData, invoicesData, customersData, leadsData, agreementsData, approvalsData] = await Promise.all([
+        supabase.from('organizations').select('name, payment_terms_days').eq('id', id).single(),
+        fetchAllRows(() =>
+          supabase
+            .from('jobs')
+            .select(`
+              id, job_number, status, job_date, customer_id,
+              job_technicians ( sort_order, users ( id, full_name ) )
+            `)
+            .eq('org_id', id)
+        ),
+        fetchAllRows(() =>
+          supabase
+            .from('invoices')
+            .select('id, kind, invoice_date, job_total, balance, approval_status, paid_at, job_id, profit_pct')
+            .eq('org_id', id)
+        ),
+        fetchAllRows(() => supabase.from('customers').select('id, created_at, is_active, is_banned').eq('org_id', id)),
+        fetchAllRows(() => supabase.from('leads').select('id, status, created_at').eq('org_id', id)),
+        fetchAllRows(() =>
+          supabase
+            .from('maintenance_agreements')
+            .select('id, status, billing_cycle, price, next_visit_due_date, tier:maintenance_agreement_tiers(name)')
+            .eq('org_id', id)
+        ),
+        fetchAllRows(() => supabase.from('job_approvals').select('job_id, stage').eq('org_id', id)),
+      ])
 
-    setOrgInfo(orgRes.data)
-    setJobs(jobsRes.data || [])
-    setInvoices(invoicesRes.data || [])
-    setCustomers(customersRes.data || [])
-    setLeads(leadsRes.data || [])
-    setAgreements(agreementsRes.data || [])
-    setApprovals(approvalsRes.data || [])
+      setOrgInfo(orgRes.data)
+      setJobs(jobsData)
+      setInvoices(invoicesData)
+      setCustomers(customersData)
+      setLeads(leadsData)
+      setAgreements(agreementsData)
+      setApprovals(approvalsData)
+    } catch (e) {
+      console.error(e)
+    }
     setLoading(false)
   }
 
@@ -180,7 +190,7 @@ function OrgDashboard({ orgId, showAccounting, showOperations }) {
 
   // Jobs
   const jobsToday = jobs.filter((j) => j.job_date === today)
-  const upcomingUnassigned = jobs.filter((j) => j.job_date >= today && !j.technician_1?.id)
+  const upcomingUnassigned = jobs.filter((j) => j.job_date >= today && (!j.job_technicians || j.job_technicians.length === 0))
   const incompleteJobs = jobs.filter((j) => j.status === 'incomplete')
 
   const invoicedJobIds = new Set(invoices.filter((i) => i.kind === 'invoice').map((i) => i.job_id))
@@ -270,10 +280,12 @@ function OrgDashboard({ orgId, showAccounting, showOperations }) {
   )
 
   // Team
+  function techsFor(job) {
+    return (job.job_technicians || []).map((jt) => jt.users).filter(Boolean)
+  }
   const techStats = {}
   jobs.forEach((j) => {
-    ;[j.technician_1, j.technician_2].forEach((t) => {
-      if (!t) return
+    techsFor(j).forEach((t) => {
       if (!techStats[t.id]) techStats[t.id] = { id: t.id, name: t.full_name, completed: 0, revenue: 0 }
       if (j.status === 'completed') techStats[t.id].completed += 1
     })
@@ -283,8 +295,8 @@ function OrgDashboard({ orgId, showAccounting, showOperations }) {
     .forEach((inv) => {
       const job = jobs.find((j) => j.id === inv.job_id)
       if (!job) return
-      ;[job.technician_1, job.technician_2].forEach((t) => {
-        if (!t || !techStats[t.id]) return
+      techsFor(job).forEach((t) => {
+        if (!techStats[t.id]) return
         techStats[t.id].revenue += Number(inv.job_total || 0)
       })
     })
