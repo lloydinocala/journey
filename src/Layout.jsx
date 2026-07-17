@@ -27,6 +27,8 @@ const CATEGORIES = [
     { label: 'Import Customers', path: '/import/customers' },
     { label: 'Import Properties', path: '/import/properties' },
     { label: 'Import Jobs', path: '/import/jobs' },
+    { label: 'Import Services Pricebook', path: '/import/services-pricebook' },
+    { label: 'Import Systems Pricebook', path: '/import/systems-pricebook' },
   ]},
 ]
 
