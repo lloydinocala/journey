@@ -181,29 +181,31 @@ export default function TechInvoiceView({ profile }) {
         </div>
 
         <div style={{ padding: '0 14px 14px' }}>
-          {!isEstimate && (
-            <div className="section-card">
-              <div className="section-card-header"><span>Send &amp; Pay</span></div>
-              <div className="section-card-body">
-                <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 0 }}>No login required for the customer.</p>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button className="action-btn primary" style={{ flex: '1 1 auto' }} onClick={handleSendEmail} disabled={sendingEmail}>
-                    {sendingEmail ? 'Sending…' : invoiceRow?.sent_at ? 'Resend to Customer' : 'Send to Customer'}
-                  </button>
-                  <button className="action-btn" style={{ flex: '1 1 auto', background: '#2E7FC4' }} onClick={() => window.open(payLinkUrl(), '_blank')}>
-                    Open Card Pay Link
-                  </button>
-                  <button className="action-btn" style={{ flex: '1 1 auto', background: '#F0F1F3', color: 'var(--paper)' }} onClick={copyPayLink}>
-                    {copyLabel}
-                  </button>
-                </div>
-                {invoiceRow?.sent_at && (
-                  <p style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 8 }}>Last sent {new Date(invoiceRow.sent_at).toLocaleString()}</p>
+          <div className="section-card">
+            <div className="section-card-header"><span>{isEstimate ? 'Send' : 'Send & Pay'}</span></div>
+            <div className="section-card-body">
+              <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 0 }}>No login required for the customer.</p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button className="action-btn primary" style={{ flex: '1 1 auto' }} onClick={handleSendEmail} disabled={sendingEmail}>
+                  {sendingEmail ? 'Sending…' : invoiceRow?.sent_at ? 'Resend to Customer' : 'Send to Customer'}
+                </button>
+                {!isEstimate && (
+                  <>
+                    <button className="action-btn" style={{ flex: '1 1 auto', background: '#2E7FC4' }} onClick={() => window.open(payLinkUrl(), '_blank')}>
+                      Open Card Pay Link
+                    </button>
+                    <button className="action-btn" style={{ flex: '1 1 auto', background: '#F0F1F3', color: 'var(--paper)' }} onClick={copyPayLink}>
+                      {copyLabel}
+                    </button>
+                  </>
                 )}
-                {sendError && <p style={{ color: '#C0392B', fontSize: 12.5, marginTop: 8 }}>{sendError}</p>}
               </div>
+              {invoiceRow?.sent_at && (
+                <p style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 8 }}>Last sent {new Date(invoiceRow.sent_at).toLocaleString()}</p>
+              )}
+              {sendError && <p style={{ color: '#C0392B', fontSize: 12.5, marginTop: 8 }}>{sendError}</p>}
             </div>
-          )}
+          </div>
 
           {!isEstimate && !invoiceRow?.paid_at && (
             <div className="section-card">
