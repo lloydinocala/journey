@@ -217,6 +217,17 @@ export default function Properties({ profile }) {
 
   async function loadEquipmentList(propertyId) {
     setLoadingEquipment(true)
+    // Housekeeping: retired equipment is only kept ~90 days (long enough to
+    // cover a size-for-size compliance check after a system swap) — clear out
+    // anything older before showing the list, rather than keeping it forever.
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+    await supabase
+      .from('property_equipment')
+      .delete()
+      .eq('property_id', propertyId)
+      .eq('status', 'retired')
+      .lt('retired_at', ninetyDaysAgo)
+
     const { data } = await supabase
       .from('property_equipment')
       .select('*')
@@ -276,7 +287,7 @@ export default function Properties({ profile }) {
     if (equipEditingId) {
       await supabase.from('property_equipment').update(payload).eq('id', equipEditingId)
     } else {
-      await supabase.from('property_equipment').insert({ ...payload, org_id: selectedOrg, property_id: propertyId })
+      await supabase.from('property_equipment').insert({ ...payload, org_id: selectedOrg, property_id: propertyId, status: 'active' })
     }
     setSavingEquip(false)
     setEquipEditingId(null)
@@ -287,6 +298,16 @@ export default function Properties({ profile }) {
   async function deleteEquipment(id, propertyId) {
     if (!window.confirm('Remove this equipment record? This cannot be undone.')) return
     await supabase.from('property_equipment').delete().eq('id', id)
+    loadEquipmentList(propertyId)
+  }
+
+  async function toggleRetired(eq, propertyId) {
+    if (eq.status === 'retired') {
+      await supabase.from('property_equipment').update({ status: 'active', retired_at: null }).eq('id', eq.id)
+    } else {
+      if (!window.confirm(`Mark "${eq.system_label || 'this system'}" as retired? It'll stay on record for 90 days (for size-for-size compliance), then clear automatically.`)) return
+      await supabase.from('property_equipment').update({ status: 'retired', retired_at: new Date().toISOString() }).eq('id', eq.id)
+    }
     loadEquipmentList(propertyId)
   }
 
@@ -599,17 +620,18 @@ export default function Properties({ profile }) {
                     <p style={{ color: 'var(--mist)' }}>Loading equipment…</p>
                   ) : (
                     <>
-                      {equipmentList.length === 0 ? (
-                        <p style={{ color: 'var(--mist)', marginTop: 0 }}>No equipment on file for this property yet.</p>
+                      {equipmentList.filter((eq) => eq.status !== 'retired').length === 0 ? (
+                        <p style={{ color: 'var(--mist)', marginTop: 0 }}>No active equipment on file for this property yet.</p>
                       ) : (
-                        equipmentList.map((eq) => (
+                        equipmentList.filter((eq) => eq.status !== 'retired').map((eq) => (
                           <div key={eq.id} style={{ background: 'var(--panel)', borderRadius: 8, padding: 12, marginBottom: 8 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                              <strong style={{ fontSize: 13 }}>{eq.system_label || 'System'}{eq.install_date ? ` — installed ${new Date(eq.install_date + 'T00:00:00').toLocaleDateString()}` : ''}</strong>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
                               <div style={{ display: 'flex', gap: 8 }}>
                                 <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => startEquipEdit(eq)}>Edit</button>
+                                <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => toggleRetired(eq, p.id)}>Retire</button>
                                 <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => deleteEquipment(eq.id, p.id)}>Delete</button>
                               </div>
+                              <strong style={{ fontSize: 13 }}>{eq.system_label || 'System'}{eq.install_date ? ` — installed ${new Date(eq.install_date + 'T00:00:00').toLocaleDateString()}` : ''}</strong>
                             </div>
                             <div style={{ fontSize: 13, color: 'var(--mist)', marginTop: 6, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                               <div><strong>Outdoor:</strong> {[eq.outdoor_brand, eq.outdoor_model].filter(Boolean).join(' ') || '—'}{eq.outdoor_serial ? ` (SN: ${eq.outdoor_serial})` : ''}</div>
@@ -619,6 +641,34 @@ export default function Properties({ profile }) {
                             {eq.notes && <div style={{ fontSize: 12, color: 'var(--mist)', marginTop: 4 }}>{eq.notes}</div>}
                           </div>
                         ))
+                      )}
+
+                      {equipmentList.some((eq) => eq.status === 'retired') && (
+                        <div style={{ marginTop: 16 }}>
+                          <p style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--mist)', textTransform: 'uppercase', margin: '0 0 8px' }}>
+                            Retired — clears automatically 90 days after retirement
+                          </p>
+                          {equipmentList.filter((eq) => eq.status === 'retired').map((eq) => (
+                            <div key={eq.id} style={{ background: 'var(--panel)', borderRadius: 8, padding: 12, marginBottom: 8, opacity: 0.7 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => startEquipEdit(eq)}>Edit</button>
+                                  <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => toggleRetired(eq, p.id)}>Reactivate</button>
+                                  <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => deleteEquipment(eq.id, p.id)}>Delete</button>
+                                </div>
+                                <strong style={{ fontSize: 13 }}>
+                                  {eq.system_label || 'System'} — <span className="status-pill status-canceled">Retired {eq.retired_at ? new Date(eq.retired_at).toLocaleDateString() : ''}</span>
+                                </strong>
+                              </div>
+                              <div style={{ fontSize: 13, color: 'var(--mist)', marginTop: 6, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                                <div><strong>Outdoor:</strong> {[eq.outdoor_brand, eq.outdoor_model].filter(Boolean).join(' ') || '—'}{eq.outdoor_serial ? ` (SN: ${eq.outdoor_serial})` : ''}</div>
+                                <div><strong>Indoor:</strong> {[eq.indoor_brand, eq.indoor_model].filter(Boolean).join(' ') || '—'}{eq.indoor_serial ? ` (SN: ${eq.indoor_serial})` : ''}</div>
+                                <div><strong>Furnace:</strong> {[eq.furnace_brand, eq.furnace_model].filter(Boolean).join(' ') || '—'}{eq.furnace_serial ? ` (SN: ${eq.furnace_serial})` : ''}</div>
+                              </div>
+                              {eq.notes && <div style={{ fontSize: 12, color: 'var(--mist)', marginTop: 4 }}>{eq.notes}</div>}
+                            </div>
+                          ))}
+                        </div>
                       )}
 
                       <div style={{ background: 'var(--panel)', borderRadius: 8, padding: 12, marginTop: 12 }}>
