@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { fetchAllRows } from './utils/csvImport'
 
 const LOCATIONS = ['Ground Level', 'Attic or Ceiling', 'Roof or Sub-Level']
 const ACCESS_OPTS = ['Standard Access', 'Difficult Access']
@@ -16,6 +17,8 @@ export default function Pricebook({ profile }) {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [showArchived, setShowArchived] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importSummary, setImportSummary] = useState('')
 
   const [newServiceName, setNewServiceName] = useState('')
   const [newServiceCategory, setNewServiceCategory] = useState('')
@@ -84,14 +87,16 @@ export default function Pricebook({ profile }) {
   async function loadServices(orgId) {
     if (!orgId) return
     setLoadingServices(true)
-    const { data } = await supabase
-      .from('services')
-      .select('id, category, name, is_tax_exempt, is_active')
-      .eq('org_id', orgId)
-      .eq('is_active', !showArchived)
-      .order('category')
-      .order('name')
-    setServices(data || [])
+    const data = await fetchAllRows(() =>
+      supabase
+        .from('services')
+        .select('id, category, name, is_tax_exempt, is_active')
+        .eq('org_id', orgId)
+        .eq('is_active', !showArchived)
+        .order('category')
+        .order('name')
+    )
+    setServices(data)
     setLoadingServices(false)
   }
 
@@ -153,19 +158,21 @@ export default function Pricebook({ profile }) {
 
   async function handleExport() {
     setExporting(true)
-    const { data: allServices } = await supabase
-      .from('services')
-      .select('id, category, name, is_tax_exempt')
-      .eq('org_id', selectedOrg)
-    const { data: allVariants } = await supabase
-      .from('service_prices')
-      .select('service_id, location, access, hours, part_source, customer_display, price, cost, task_hours')
-      .eq('org_id', selectedOrg)
+    const allServices = await fetchAllRows(() =>
+      supabase.from('services').select('id, category, name, is_tax_exempt').eq('org_id', selectedOrg)
+    )
+    const allVariants = await fetchAllRows(() =>
+      supabase
+        .from('service_prices')
+        .select('id, service_id, location, access, hours, part_source, customer_display, price, cost, task_hours')
+        .eq('org_id', selectedOrg)
+    )
 
-    const serviceMap = new Map((allServices || []).map((s) => [s.id, s]))
-    const rows = (allVariants || []).map((v) => {
+    const serviceMap = new Map(allServices.map((s) => [s.id, s]))
+    const rows = allVariants.map((v) => {
       const svc = serviceMap.get(v.service_id)
       return {
+        PriceID: v.id,
         Category: svc?.category || '',
         Item: svc?.name || '',
         Location: v.location || '',
@@ -189,6 +196,115 @@ export default function Pricebook({ profile }) {
     a.click()
     URL.revokeObjectURL(url)
     setExporting(false)
+  }
+
+  // Mirrors Systems Pricebook's export/edit/re-import workflow: a row with a
+  // PriceID updates that exact existing service_prices row (and keeps its
+  // parent service's category/name/exempt flag in sync); a row with no
+  // PriceID is a brand-new price point, same find-or-create-service logic
+  // the standalone Import Services Pricebook page uses.
+  function handleImportFile(e) {
+    const file = e.target.files[0]
+    if (!file || !selectedOrg) return
+    setImporting(true)
+    setImportSummary('')
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const rows = results.data
+            .map((r) => ({
+              priceId: (r.PriceID || '').toString().trim() || null,
+              category: (r.Category || '').toString().trim(),
+              name: (r.Item || '').toString().trim(),
+              location: (r.Location || '').toString().trim() || null,
+              access: (r.Access || '').toString().trim() || null,
+              hours: (r.Hours || '').toString().trim() || null,
+              part_source: (r.PartSrc || '').toString().trim() || null,
+              customer_display: (r.CustomerDisplay || '').toString().trim() || null,
+              price: r.Price === '' || r.Price === undefined ? null : parseFloat(r.Price),
+              cost: r.Cost === '' || r.Cost === undefined ? null : parseFloat(r.Cost),
+              task_hours: r.TaskHrs === '' || r.TaskHrs === undefined ? null : parseFloat(r.TaskHrs),
+              is_tax_exempt: ['true', '1', 'yes'].includes((r.Exempt || '').toString().trim().toLowerCase()),
+            }))
+            .filter((r) => r.category && r.name)
+
+          // Find-or-create every service referenced, same as the standalone importer.
+          const existingServices = await fetchAllRows(() =>
+            supabase.from('services').select('id, category, name').eq('org_id', selectedOrg)
+          )
+          const serviceMap = new Map(existingServices.map((s) => [`${s.category}|${s.name}`, s.id]))
+
+          const neededKeys = new Map()
+          for (const r of rows) {
+            const key = `${r.category}|${r.name}`
+            if (!serviceMap.has(key) && !neededKeys.has(key)) {
+              neededKeys.set(key, { category: r.category, name: r.name, is_tax_exempt: r.is_tax_exempt })
+            } else if (r.is_tax_exempt && neededKeys.has(key)) {
+              neededKeys.get(key).is_tax_exempt = true
+            }
+          }
+          if (neededKeys.size > 0) {
+            const { data: created, error: createErr } = await supabase
+              .from('services')
+              .insert([...neededKeys.values()].map((s) => ({ org_id: selectedOrg, ...s })))
+              .select('id, category, name')
+            if (createErr) throw createErr
+            for (const s of created) serviceMap.set(`${s.category}|${s.name}`, s.id)
+          }
+
+          let updated = 0
+          let inserted = 0
+          let failed = 0
+
+          for (const r of rows) {
+            const serviceId = serviceMap.get(`${r.category}|${r.name}`)
+            if (!serviceId) { failed++; continue }
+
+            if (r.is_tax_exempt) {
+              await supabase.from('services').update({ is_tax_exempt: true }).eq('id', serviceId)
+            }
+
+            const payload = {
+              service_id: serviceId,
+              location: r.location,
+              access: r.access,
+              hours: r.hours,
+              part_source: r.part_source,
+              customer_display: r.customer_display,
+              price: r.price,
+              cost: r.cost,
+              task_hours: r.task_hours,
+            }
+
+            if (r.priceId) {
+              const { error } = await supabase.from('service_prices').update(payload).eq('id', r.priceId).eq('org_id', selectedOrg)
+              if (error) failed++
+              else updated++
+            } else {
+              const { error } = await supabase.from('service_prices').insert({ org_id: selectedOrg, ...payload })
+              if (error) failed++
+              else inserted++
+            }
+          }
+
+          setImportSummary(`${updated} updated, ${inserted} added` + (failed ? `, ${failed} failed` : '') + '.')
+        } catch (err) {
+          setImportSummary('Import failed: ' + err.message)
+        }
+        setImporting(false)
+        e.target.value = ''
+        loadServices(selectedOrg)
+        if (selectedServiceId) loadVariants(selectedServiceId)
+      },
+      error: (err) => {
+        setImportSummary('Import failed to parse: ' + err.message)
+        setImporting(false)
+        e.target.value = ''
+      },
+    })
   }
 async function loadVariants(serviceId) {
     setLoadingVariants(true)
@@ -278,11 +394,18 @@ async function loadVariants(serviceId) {
     <div>
      <h2 className="page-title">Pricebook</h2>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+        <label className="logout-button" style={{ cursor: 'pointer', margin: 0 }}>
+          {importing ? 'Importing…' : 'Import CSV'}
+          <input type="file" accept=".csv" onChange={handleImportFile} disabled={importing} style={{ display: 'none' }} />
+        </label>
         <button className="logout-button" onClick={handleExport} disabled={exporting || !selectedOrg}>
           {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
       </div>
+      {importSummary && (
+        <p style={{ textAlign: 'right', color: 'var(--mist)', fontSize: 13, marginTop: -14, marginBottom: 16 }}>{importSummary}</p>
+      )}
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>
