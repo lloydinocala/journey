@@ -23,6 +23,7 @@ import Estimate from './Estimate'
 import Estimates from './Estimates'
 import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
+import JoinPlan from './JoinPlan'
 import SystemEstimate from './SystemEstimate'
 import SessionLog from './SessionLog'
 import CustomerImport from './CustomerImport'
@@ -157,6 +158,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/view-invoice/:invoiceId" element={<PublicInvoice />} />
+        <Route path="/join-plan/:propertyId" element={<JoinPlan />} />
         <Route path="*" element={<AuthenticatedApp />} />
       </Routes>
     </BrowserRouter>
