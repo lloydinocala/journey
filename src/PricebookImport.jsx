@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
-import { fetchAllRows } from './utils/csvImport'
+import { fetchAllRows, normalizeForMatch } from './utils/csvImport'
 import OrgPicker from './OrgPicker'
 
 function normKey(v) {
@@ -64,7 +64,7 @@ export default function PricebookImport({ profile }) {
 
       const serviceMap = new Map()
       for (const r of rows) {
-        const key = `${r.category}|${r.name}`
+        const key = `${normalizeForMatch(r.category)}|${normalizeForMatch(r.name)}`
         if (!serviceMap.has(key)) {
           serviceMap.set(key, { category: r.category, name: r.name, is_tax_exempt: r.is_tax_exempt })
         } else if (r.is_tax_exempt) {
@@ -78,7 +78,7 @@ export default function PricebookImport({ profile }) {
 
       const existingServiceMap = new Map()
       for (const s of existingServices) {
-        existingServiceMap.set(`${s.category}|${s.name}`, s.id)
+        existingServiceMap.set(`${normalizeForMatch(s.category)}|${normalizeForMatch(s.name)}`, s.id)
       }
 
       const newServices = []
@@ -94,7 +94,7 @@ export default function PricebookImport({ profile }) {
         const { data: inserted, error: insErr } = await supabase.from('services').insert(batch).select('id, category, name')
         if (insErr) throw insErr
         for (const s of inserted) {
-          existingServiceMap.set(`${s.category}|${s.name}`, s.id)
+          existingServiceMap.set(`${normalizeForMatch(s.category)}|${normalizeForMatch(s.name)}`, s.id)
         }
         servicesCreated += inserted.length
       }
@@ -104,7 +104,7 @@ export default function PricebookImport({ profile }) {
       )
 
       function comboKey(serviceId, r) {
-        return [serviceId, r.location || '', r.access || '', r.hours || '', r.part_source || ''].join('~~')
+        return [serviceId, normalizeForMatch(r.location), normalizeForMatch(r.access), normalizeForMatch(r.hours), normalizeForMatch(r.part_source)].join('~~')
       }
 
       const existingPriceMap = new Map()
@@ -115,7 +115,7 @@ export default function PricebookImport({ profile }) {
       const toInsert = []
       const toUpdate = []
       for (const r of rows) {
-        const serviceId = existingServiceMap.get(`${r.category}|${r.name}`)
+        const serviceId = existingServiceMap.get(`${normalizeForMatch(r.category)}|${normalizeForMatch(r.name)}`)
         if (!serviceId) continue
         const key = comboKey(serviceId, r)
         const existingId = existingPriceMap.get(key)
