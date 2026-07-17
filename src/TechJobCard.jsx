@@ -129,6 +129,11 @@ export default function TechJobCard({ profile }) {
   const [equipForm, setEquipForm] = useState(blankEquipForm)
   const [savingEquip, setSavingEquip] = useState(false)
 
+  const [sendingPlans, setSendingPlans] = useState(false)
+  const [plansError, setPlansError] = useState('')
+  const [plansSentTo, setPlansSentTo] = useState(null)
+  const [copyPlansLabel, setCopyPlansLabel] = useState('Copy Link')
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUid(data?.user?.id || null))
   }, [])
@@ -220,6 +225,38 @@ export default function TechJobCard({ profile }) {
     if (!window.confirm(`Mark "${eq.system_label || 'this system'}" as retired? Use this when it's been replaced — it stays on record for 90 days, then clears automatically.`)) return
     await supabase.from('property_equipment').update({ status: 'retired', retired_at: new Date().toISOString() }).eq('id', eq.id)
     loadEquipment(job.property_id)
+  }
+
+  function plansLinkUrl() {
+    return `${window.location.origin}/join-plan/${job.property_id}`
+  }
+
+  function copyPlansLink() {
+    navigator.clipboard.writeText(plansLinkUrl())
+    setCopyPlansLabel('Copied!')
+    setTimeout(() => setCopyPlansLabel('Copy Link'), 1500)
+  }
+
+  async function handleSendPlans() {
+    setSendingPlans(true)
+    setPlansError('')
+    setPlansSentTo(null)
+    const { data, error } = await supabase.functions.invoke('send-agreement-options-email', { body: { propertyId: job.property_id } })
+    setSendingPlans(false)
+    if (error) {
+      let detail = error.message
+      if (error.context) {
+        try {
+          const body = await error.context.json()
+          if (body?.error) detail = body.error
+        } catch {}
+      }
+      setPlansError(detail)
+    } else if (data?.error) {
+      setPlansError(data.error)
+    } else {
+      setPlansSentTo(data?.sentTo || null)
+    }
   }
 
   async function loadJob() {
@@ -706,11 +743,24 @@ export default function TechJobCard({ profile }) {
         </div>
 
         <div className="section-card">
-          <div className="section-card-header"><span>Maintenance Agreements</span></div>
-          <div className="section-card-body action-rows">
-            <Link to={`/maintenance-agreements?propertyId=${job.property_id}`} className="action-row highlight">
-              <IconShield /><span>Maintenance Agreements</span><span className="chev">›</span>
-            </Link>
+          <div className="section-card-header"><span><IconShield /> Maintenance Plans</span></div>
+          <div className="section-card-body">
+            <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 0 }}>
+              Sends all plan options in one email — the customer picks a tier and pays, no login required.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="action-btn primary" style={{ flex: '1 1 auto' }} onClick={handleSendPlans} disabled={sendingPlans}>
+                {sendingPlans ? 'Sending…' : 'Send Plan Options'}
+              </button>
+              <button className="action-btn" style={{ flex: '1 1 auto', background: '#2E7FC4' }} onClick={() => window.open(plansLinkUrl(), '_blank')}>
+                Open Link
+              </button>
+              <button className="action-btn" style={{ flex: '1 1 auto', background: '#F0F1F3', color: 'var(--paper)' }} onClick={copyPlansLink}>
+                {copyPlansLabel}
+              </button>
+            </div>
+            {plansSentTo && <p style={{ fontSize: 12, color: '#1F7A43', marginTop: 8 }}>Sent to {plansSentTo}</p>}
+            {plansError && <p style={{ fontSize: 12.5, color: '#C0392B', marginTop: 8 }}>{plansError}</p>}
           </div>
         </div>
 
