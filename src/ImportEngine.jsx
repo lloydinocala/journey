@@ -86,7 +86,7 @@ export default function ImportEngine({ config, orgId }) {
       if (result.error) {
         bad.push({ rowNum: idx + 2, reason: result.error, raw: mappedRow })
       } else {
-        good.push({ ...defaults, org_id: orgId, ...result.data })
+        good.push({ data: { ...defaults, org_id: orgId, ...result.data }, extra: result.extra || {} })
       }
     })
 
@@ -105,8 +105,16 @@ export default function ImportEngine({ config, orgId }) {
       const chunk = validRows.slice(i, i + chunkSize)
       const outcomes = await Promise.all(
         chunk.map(async (row) => {
-          const { error } = await supabase.from(config.table).insert(row)
-          return error ? { row, error: error.message } : { row, error: null }
+          const { data: inserted, error } = await supabase.from(config.table).insert(row.data).select('id').single()
+          if (error) return { row: row.data, error: error.message }
+          if (config.afterInsert) {
+            try {
+              await config.afterInsert(inserted, row.extra, orgId)
+            } catch (e) {
+              return { row: row.data, error: 'Saved, but follow-up step failed: ' + e.message }
+            }
+          }
+          return { row: row.data, error: null }
         })
       )
       outcomes.forEach((o) => {
