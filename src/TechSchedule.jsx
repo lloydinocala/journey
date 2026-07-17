@@ -108,7 +108,6 @@ export default function TechSchedule({ profile }) {
       .from('jobs')
       .select(`
         id, job_number, segment, status, job_date, start_time, job_type, service_complaint,
-        technician_1_id, technician_2_id,
         properties ( street_address, unit, city, state, zip ),
         customers ( display_name ),
         job_technicians ( user_id, users ( full_name ) )
@@ -128,7 +127,7 @@ export default function TechSchedule({ profile }) {
     const rangeEnd = toISO(y, m, 0) // last day of month (day 0 of next month)
     const { data } = await supabase
       .from('jobs')
-      .select('id, job_date, status, technician_1_id, technician_2_id, job_technicians ( user_id )')
+      .select('id, job_date, status, job_technicians ( user_id )')
       .eq('org_id', profile.org_id)
       .gte('job_date', rangeStart)
       .lte('job_date', rangeEnd)
@@ -143,7 +142,6 @@ export default function TechSchedule({ profile }) {
 
   function jobMatchesFilter(job) {
     if (techFilter === 'all') return true
-    if (job.technician_1_id === techFilter || job.technician_2_id === techFilter) return true
     return (job.job_technicians || []).some((jt) => jt.user_id === techFilter)
   }
 
