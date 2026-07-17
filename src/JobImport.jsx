@@ -74,9 +74,18 @@ const CONFIG = {
         job_type: row.job_type || null,
         service_complaint: row.service_complaint || null,
         job_notes: row.job_notes || null,
-        technician_1_id: technicianId,
       },
+      extra: { technicianId },
     }
+  },
+  afterInsert: async (inserted, extra, orgId) => {
+    if (!extra.technicianId) return
+    await supabase.from('job_technicians').insert({
+      org_id: orgId,
+      job_id: inserted.id,
+      user_id: extra.technicianId,
+      sort_order: 1,
+    })
   },
 }
 
