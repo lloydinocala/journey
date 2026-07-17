@@ -614,6 +614,18 @@ export default function TechJobCard({ profile }) {
                     </div>
                   ) : approvingStage === stage ? (
                     <div style={{ marginTop: 8 }}>
+                      {!invoice || !(invoice.job_total || invoice.amount_due) ? (
+                        <div style={{ background: 'rgba(255, 107, 107, 0.12)', border: '1px solid rgba(255, 107, 107, 0.3)', borderRadius: 8, padding: '10px 12px', marginBottom: 10, fontSize: 12.5, color: '#C0392B' }}>
+                          No amount on the invoice yet — add the line items in Invoice Builder above before getting a signature, so the customer sees the real price.
+                        </div>
+                      ) : (
+                        <div style={{ background: '#F7F9FA', borderRadius: 8, padding: '10px 12px', marginBottom: 10, textAlign: 'center' }}>
+                          <div style={{ fontSize: 11, color: 'var(--mist)', textTransform: 'uppercase', letterSpacing: 0.3 }}>Amount being approved</div>
+                          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--route-blue)' }}>
+                            ${(invoice.job_total ?? invoice.amount_due).toFixed(2)}
+                          </div>
+                        </div>
+                      )}
                       <input
                         type="text"
                         value={approverName}
