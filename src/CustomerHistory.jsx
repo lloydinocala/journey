@@ -48,8 +48,7 @@ export default function CustomerHistory({ profile }) {
         .select(`
           id, job_number, segment, status, job_date, job_type, service_complaint, job_notes, completed_at,
           property:properties(street_address, unit, city, state, zip),
-          technician_1:users!jobs_technician_1_id_fkey(full_name),
-          technician_2:users!jobs_technician_2_id_fkey(full_name)
+          job_technicians ( sort_order, users ( full_name ) )
         `)
         .eq('customer_id', customerId)
         .order('job_date', { ascending: false }),
@@ -133,7 +132,11 @@ export default function CustomerHistory({ profile }) {
   }
 
   function techNames(job) {
-    const names = [job.technician_1?.full_name, job.technician_2?.full_name].filter(Boolean)
+    const names = (job.job_technicians || [])
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((jt) => jt.users?.full_name)
+      .filter(Boolean)
     return names.length ? names.join(', ') : '—'
   }
 
