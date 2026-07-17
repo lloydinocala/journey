@@ -95,3 +95,12 @@ export async function fetchAllRows(buildQuery, pageSize = 1000) {
   }
   return allRows
 }
+
+// For MATCHING purposes only (never for what's actually stored/displayed) —
+// treats "Ground Level", "ground level", and "Ground  Level" as the same
+// value, so re-imports with inconsistent capitalization or spacing (common
+// across years of hand-entered data) update the existing record instead of
+// silently creating a duplicate.
+export function normalizeForMatch(v) {
+  return (v || '').toString().trim().toLowerCase().replace(/\s+/g, ' ')
+}
