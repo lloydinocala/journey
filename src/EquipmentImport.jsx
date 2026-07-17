@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
-import { fetchAllRows } from './utils/csvImport'
+import { fetchAllRows, normalizeForMatch } from './utils/csvImport'
 import OrgPicker from './OrgPicker'
 
 function normText(v) {
@@ -27,9 +27,9 @@ function normInt(v) {
 // reliably matched against anything already on file, so it's always inserted
 // fresh rather than risking a wrong match.
 function matchKey(r) {
-  if (r.ahri_ref) return 'ahri:' + r.ahri_ref
+  if (r.ahri_ref) return 'ahri:' + normalizeForMatch(r.ahri_ref)
   if (r.outdoor_model || r.indoor_model || r.furnace_model) {
-    return 'combo:' + [r.outdoor_model, r.indoor_model, r.furnace_model, r.size_tons].join('~~')
+    return 'combo:' + [r.outdoor_model, r.indoor_model, r.furnace_model, r.size_tons].map(normalizeForMatch).join('~~')
   }
   return null
 }
