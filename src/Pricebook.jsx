@@ -19,6 +19,7 @@ export default function Pricebook({ profile }) {
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importProgress, setImportProgress] = useState('')
+  const [importFailedRows, setImportFailedRows] = useState([])
   const [importSummary, setImportSummary] = useState('')
 
   const [newServiceName, setNewServiceName] = useState('')
@@ -209,6 +210,7 @@ export default function Pricebook({ profile }) {
     if (!file || !selectedOrg) return
     setImporting(true)
     setImportSummary('')
+    setImportFailedRows([])
 
     const text = await readFileSmart(file)
 
@@ -278,9 +280,14 @@ export default function Pricebook({ profile }) {
           let failed = 0
           const toInsert = []
           const toUpdate = []
+          const failedRows = []
           for (const r of rows) {
             const serviceId = serviceMap.get(`${normalizeForMatch(r.category)}|${normalizeForMatch(r.name)}`)
-            if (!serviceId) { failed++; continue }
+            if (!serviceId) {
+              failed++
+              failedRows.push({ category: r.category, name: r.name, location: r.location, access: r.access, hours: r.hours, part_source: r.part_source, reason: 'Could not resolve or create a matching service for this Category/Item.' })
+              continue
+            }
             const payload = {
               service_id: serviceId,
               location: r.location,
@@ -292,15 +299,32 @@ export default function Pricebook({ profile }) {
               cost: r.cost,
               task_hours: r.task_hours,
             }
-            if (r.priceId) toUpdate.push({ priceId: r.priceId, payload })
-            else toInsert.push({ org_id: selectedOrg, ...payload })
+            if (r.priceId) toUpdate.push({ priceId: r.priceId, payload, source: r })
+            else toInsert.push({ row: { org_id: selectedOrg, ...payload }, source: r })
           }
 
+          // Batch inserts are atomic — one bad row fails the whole batch of up
+          // to 300, including every good row riding along with it. On a batch
+          // failure, retry that batch's rows one at a time so the good ones
+          // still get saved, and only the genuinely bad ones get reported.
           let inserted = 0
           for (let i = 0; i < toInsert.length; i += 300) {
             const batch = toInsert.slice(i, i + 300)
-            const { error: insErr } = await supabase.from('service_prices').insert(batch)
-            if (insErr) { failed += batch.length } else { inserted += batch.length }
+            const { error: insErr } = await supabase.from('service_prices').insert(batch.map((b) => b.row))
+            if (!insErr) {
+              inserted += batch.length
+            } else {
+              for (const item of batch) {
+                const { error: rowErr } = await supabase.from('service_prices').insert(item.row)
+                if (rowErr) {
+                  failed++
+                  const r = item.source
+                  failedRows.push({ category: r.category, name: r.name, location: r.location, access: r.access, hours: r.hours, part_source: r.part_source, reason: rowErr.message })
+                } else {
+                  inserted++
+                }
+              }
+            }
             setImportProgress(`Adding price points… ${Math.min(i + 300, toInsert.length)} of ${toInsert.length}`)
           }
 
@@ -311,11 +335,20 @@ export default function Pricebook({ profile }) {
             const results = await Promise.all(
               chunk.map(({ priceId, payload }) => supabase.from('service_prices').update(payload).eq('id', priceId).eq('org_id', selectedOrg))
             )
-            results.forEach((r) => { if (r.error) failed++; else updated++ })
+            results.forEach((r, idx) => {
+              if (r.error) {
+                failed++
+                const src = chunk[idx].source
+                failedRows.push({ category: src.category, name: src.name, location: src.location, access: src.access, hours: src.hours, part_source: src.part_source, reason: r.error.message })
+              } else {
+                updated++
+              }
+            })
             setImportProgress(`Updating price points… ${Math.min(i + updateChunkSize, toUpdate.length)} of ${toUpdate.length}`)
           }
 
           setImportSummary(`${updated} updated, ${inserted} added` + (failed ? `, ${failed} failed` : '') + '.')
+          setImportFailedRows(failedRows)
         } catch (err) {
           setImportSummary('Import failed: ' + err.message)
         }
@@ -426,7 +459,10 @@ async function loadVariants(serviceId) {
 
   return (
     <div>
-     <h2 className="page-title">Pricebook</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <h2 className="page-title" style={{ margin: 0 }}>Pricebook</h2>
+        <span className="badge">{services.length.toLocaleString()} total</span>
+      </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         <label className="logout-button" style={{ cursor: 'pointer', margin: 0 }}>
@@ -442,6 +478,27 @@ async function loadVariants(serviceId) {
       )}
       {importSummary && (
         <p style={{ textAlign: 'right', color: 'var(--mist)', fontSize: 13, marginTop: -14, marginBottom: 16 }}>{importSummary}</p>
+      )}
+      {importFailedRows.length > 0 && (
+        <p style={{ textAlign: 'right', marginTop: -14, marginBottom: 16 }}>
+          <button
+            className="logout-button"
+            onClick={() => {
+              const csv = Papa.unparse(importFailedRows.map((r) => ({
+                Category: r.category, Item: r.name, Location: r.location, Access: r.access, Hours: r.hours, PartSrc: r.part_source, Reason: r.reason,
+              })))
+              const blob = new Blob([csv], { type: 'text/csv' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `pricebook-import-failures-${new Date().toISOString().slice(0, 10)}.csv`
+              a.click()
+              URL.revokeObjectURL(url)
+            }}
+          >
+            Download {importFailedRows.length} failed row{importFailedRows.length === 1 ? '' : 's'} (CSV)
+          </button>
+        </p>
       )}
 
       {isSuperAdmin && (
