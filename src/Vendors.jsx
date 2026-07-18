@@ -89,7 +89,10 @@ export default function Vendors({ profile }) {
   return (
     <div>
       <div className="page-header-bar">
-        <h2>Vendors</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <h2>Vendors</h2>
+          <span className="badge">{vendors.length.toLocaleString()} total</span>
+        </div>
         <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => setShowAddForm(!showAddForm)}>
           {showAddForm ? 'Cancel' : '+ New Vendor'}
         </button>
