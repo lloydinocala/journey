@@ -176,6 +176,26 @@ export default function SystemsPricebook({ profile }) {
     loadEquipment(selectedOrg)
   }
 
+  function downloadTemplate() {
+    const example = {
+      ID: '', 'System Type': 'Apt CrossOver', 'Size (Tons)': '1.5', 'Brand Family': 'Trending in 2026',
+      'Outdoor Brand': 'BRYANT', 'Outdoor Series': 'D5C Series', 'Outdoor Model': 'D5CUHAH18AAK', 'Indoor Brand': 'BRYANT',
+      'Indoor Model': 'D5MUWAQ18XA3', 'Furnace Model': '', 'AHRI Ref #': '217730630', 'Cooling Cap': '18000',
+      EER2: '12.1', SEER2: '19.3', 'Home Type': 'Both', 'Energy Star': 'TRUE', 'FL Rating': '4.5',
+      'Client Rating': '4.9', 'Labor Warranty': '2', 'Quality Pledge': 'FALSE', 'Pledge Years': '', 'Pledge Issuer': '',
+      Lineset: '3/4" & 3/8" Copper Lines', Subtotal: '6500', 'Our Cost': '', 'Installation Price': '25000',
+      Recommended: 'TRUE', Active: 'TRUE',
+    }
+    const csv = Papa.unparse([example])
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'systems-pricebook-template.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function handleExport() {
     setExporting(true)
     const rows = sorted.map((e) => {
@@ -342,6 +362,7 @@ export default function SystemsPricebook({ profile }) {
         <button className="logout-button" onClick={handleExport} disabled={exporting || !selectedOrg}>
           {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
+        <button className="logout-button" onClick={downloadTemplate} type="button">Download Template</button>
       </div>
       {importing && importProgress && (
         <p style={{ textAlign: 'right', fontSize: 13, color: 'var(--mist)', marginTop: 0, marginBottom: 12 }}>{importProgress}</p>
