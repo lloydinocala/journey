@@ -104,3 +104,19 @@ export async function fetchAllRows(buildQuery, pageSize = 1000) {
 export function normalizeForMatch(v) {
   return (v || '').toString().trim().toLowerCase().replace(/\s+/g, ' ')
 }
+
+// Excel on Windows commonly saves CSVs as Windows-1252 (aka CP1252), not
+// UTF-8 — smart quotes, em-dashes, and accented characters all encode
+// differently. The browser's default file-reading assumes UTF-8, so those
+// bytes come through corrupted (usually replaced with a broken glyph)
+// without ever raising an error. This tries strict UTF-8 first; if the file
+// isn't actually valid UTF-8, it falls back to Windows-1252, which can
+// decode any byte sequence, rather than silently mangling the text.
+export async function readFileSmart(file) {
+  const buffer = await file.arrayBuffer()
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buffer)
+  } catch {
+    return new TextDecoder('windows-1252').decode(buffer)
+  }
+}
