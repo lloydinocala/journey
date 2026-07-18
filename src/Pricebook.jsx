@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
-import { fetchAllRows, normalizeForMatch, readFileSmart } from './utils/csvImport'
+import { fetchAllRows, normalizeForMatch, readFileSmart, normPrice } from './utils/csvImport'
 
 const LOCATIONS = ['Ground Level', 'Attic or Ceiling', 'Roof or Sub-Level']
 const ACCESS_OPTS = ['Standard Access', 'Difficult Access']
@@ -18,6 +18,7 @@ export default function Pricebook({ profile }) {
   const [showArchived, setShowArchived] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState('')
   const [importSummary, setImportSummary] = useState('')
 
   const [newServiceName, setNewServiceName] = useState('')
@@ -226,9 +227,9 @@ export default function Pricebook({ profile }) {
               hours: (r.Hours || '').toString().trim() || null,
               part_source: (r.PartSrc || '').toString().trim() || null,
               customer_display: (r.CustomerDisplay || '').toString().trim() || null,
-              price: r.Price === '' || r.Price === undefined ? null : parseFloat(r.Price),
-              cost: r.Cost === '' || r.Cost === undefined ? null : parseFloat(r.Cost),
-              task_hours: r.TaskHrs === '' || r.TaskHrs === undefined ? null : parseFloat(r.TaskHrs),
+              price: r.Price === '' || r.Price === undefined ? null : normPrice(r.Price),
+              cost: r.Cost === '' || r.Cost === undefined ? null : normPrice(r.Cost),
+              task_hours: r.TaskHrs === '' || r.TaskHrs === undefined ? null : normPrice(r.TaskHrs),
               is_tax_exempt: ['true', '1', 'yes'].includes((r.Exempt || '').toString().trim().toLowerCase()),
             }))
             .filter((r) => r.category && r.name)
@@ -249,26 +250,37 @@ export default function Pricebook({ profile }) {
             }
           }
           if (neededKeys.size > 0) {
-            const { data: created, error: createErr } = await supabase
-              .from('services')
-              .insert([...neededKeys.values()].map((s) => ({ org_id: selectedOrg, ...s })))
-              .select('id, category, name')
-            if (createErr) throw createErr
-            for (const s of created) serviceMap.set(`${normalizeForMatch(s.category)}|${normalizeForMatch(s.name)}`, s.id)
+            const newServicesList = [...neededKeys.values()].map((s) => ({ org_id: selectedOrg, ...s }))
+            for (let i = 0; i < newServicesList.length; i += 300) {
+              const batch = newServicesList.slice(i, i + 300)
+              const { data: created, error: createErr } = await supabase.from('services').insert(batch).select('id, category, name')
+              if (createErr) throw createErr
+              for (const s of created) serviceMap.set(`${normalizeForMatch(s.category)}|${normalizeForMatch(s.name)}`, s.id)
+            }
           }
 
-          let updated = 0
-          let inserted = 0
-          let failed = 0
+          // Tax-exempt only needs setting once per service, not once per price row.
+          const exemptServiceIds = new Set()
+          for (const r of rows) {
+            if (r.is_tax_exempt) {
+              const sid = serviceMap.get(`${normalizeForMatch(r.category)}|${normalizeForMatch(r.name)}`)
+              if (sid) exemptServiceIds.add(sid)
+            }
+          }
+          for (const sid of exemptServiceIds) {
+            await supabase.from('services').update({ is_tax_exempt: true }).eq('id', sid)
+          }
 
+          // Split into inserts vs updates so brand-new rows (the overwhelming
+          // majority on a fresh import) go in true multi-row batches — a few
+          // hundred network calls instead of one per row, which is what was
+          // silently failing past the first ~100 rows before.
+          let failed = 0
+          const toInsert = []
+          const toUpdate = []
           for (const r of rows) {
             const serviceId = serviceMap.get(`${normalizeForMatch(r.category)}|${normalizeForMatch(r.name)}`)
             if (!serviceId) { failed++; continue }
-
-            if (r.is_tax_exempt) {
-              await supabase.from('services').update({ is_tax_exempt: true }).eq('id', serviceId)
-            }
-
             const payload = {
               service_id: serviceId,
               location: r.location,
@@ -280,16 +292,27 @@ export default function Pricebook({ profile }) {
               cost: r.cost,
               task_hours: r.task_hours,
             }
+            if (r.priceId) toUpdate.push({ priceId: r.priceId, payload })
+            else toInsert.push({ org_id: selectedOrg, ...payload })
+          }
 
-            if (r.priceId) {
-              const { error } = await supabase.from('service_prices').update(payload).eq('id', r.priceId).eq('org_id', selectedOrg)
-              if (error) failed++
-              else updated++
-            } else {
-              const { error } = await supabase.from('service_prices').insert({ org_id: selectedOrg, ...payload })
-              if (error) failed++
-              else inserted++
-            }
+          let inserted = 0
+          for (let i = 0; i < toInsert.length; i += 300) {
+            const batch = toInsert.slice(i, i + 300)
+            const { error: insErr } = await supabase.from('service_prices').insert(batch)
+            if (insErr) { failed += batch.length } else { inserted += batch.length }
+            setImportProgress(`Adding price points… ${Math.min(i + 300, toInsert.length)} of ${toInsert.length}`)
+          }
+
+          let updated = 0
+          const updateChunkSize = 15
+          for (let i = 0; i < toUpdate.length; i += updateChunkSize) {
+            const chunk = toUpdate.slice(i, i + updateChunkSize)
+            const results = await Promise.all(
+              chunk.map(({ priceId, payload }) => supabase.from('service_prices').update(payload).eq('id', priceId).eq('org_id', selectedOrg))
+            )
+            results.forEach((r) => { if (r.error) failed++; else updated++ })
+            setImportProgress(`Updating price points… ${Math.min(i + updateChunkSize, toUpdate.length)} of ${toUpdate.length}`)
           }
 
           setImportSummary(`${updated} updated, ${inserted} added` + (failed ? `, ${failed} failed` : '') + '.')
@@ -297,6 +320,7 @@ export default function Pricebook({ profile }) {
           setImportSummary('Import failed: ' + err.message)
         }
         setImporting(false)
+        setImportProgress('')
         e.target.value = ''
         loadServices(selectedOrg)
         if (selectedServiceId) loadVariants(selectedServiceId)
@@ -304,6 +328,7 @@ export default function Pricebook({ profile }) {
       error: (err) => {
         setImportSummary('Import failed to parse: ' + err.message)
         setImporting(false)
+        setImportProgress('')
         e.target.value = ''
       },
     })
@@ -412,6 +437,9 @@ async function loadVariants(serviceId) {
           {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
       </div>
+      {importing && importProgress && (
+        <p style={{ textAlign: 'right', color: 'var(--mist)', fontSize: 13, marginTop: -14, marginBottom: 16 }}>{importProgress}</p>
+      )}
       {importSummary && (
         <p style={{ textAlign: 'right', color: 'var(--mist)', fontSize: 13, marginTop: -14, marginBottom: 16 }}>{importSummary}</p>
       )}
