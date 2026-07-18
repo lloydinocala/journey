@@ -433,7 +433,10 @@ export default function Jobs({ profile }) {
   return (
     <div>
       <div className="page-header-bar">
-        <h2>Jobs</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <h2>Jobs</h2>
+          <span className="badge">{jobs.length.toLocaleString()} total</span>
+        </div>
         <NewItemDropdown onSelect={setNewItemMode} />
       </div>
 
