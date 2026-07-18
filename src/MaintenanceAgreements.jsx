@@ -383,7 +383,10 @@ export default function MaintenanceAgreements({ profile }) {
 
   return (
     <div>
-      <h2 className="page-title">Maintenance Agreements</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <h2 className="page-title" style={{ margin: 0 }}>Maintenance Agreements</h2>
+        <span className="badge">{agreements.length.toLocaleString()} total</span>
+      </div>
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>
