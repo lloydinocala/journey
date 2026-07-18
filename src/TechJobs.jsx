@@ -93,47 +93,33 @@ export default function TechJobs({ profile }) {
       return
     }
 
-    // A tech can be assigned via technician_1_id/technician_2_id, or via job_technicians
-    // for jobs with more than two techs — check both to be safe.
-    const [directRes, viaJoinRes] = await Promise.all([
-      supabase
-        .from('jobs')
-        .select(`
-          id, job_number, segment, status, job_date, start_time, job_type, service_complaint,
-          properties ( street_address, unit, city, state, zip ),
-          customers ( display_name )
-        `)
-        .eq('org_id', orgId)
-        .eq('job_date', date)
-        .or(`technician_1_id.eq.${uid},technician_2_id.eq.${uid}`),
-      supabase
-        .from('job_technicians')
-        .select('job_id')
-        .eq('org_id', orgId)
-        .eq('user_id', uid),
-    ])
+    // job_technicians is the single source of truth for assignment — find
+    // this tech's job IDs for the day, then load those jobs' full details.
+    const { data: assignedRows } = await supabase
+      .from('job_technicians')
+      .select('job_id')
+      .eq('org_id', orgId)
+      .eq('user_id', uid)
 
-    const direct = directRes.data || []
-    const joinJobIds = (viaJoinRes.data || []).map((r) => r.job_id)
-    const haveIds = new Set(direct.map((j) => j.id))
-    const extraIds = joinJobIds.filter((id) => !haveIds.has(id))
-
-    let extra = []
-    if (extraIds.length > 0) {
-      const { data } = await supabase
-        .from('jobs')
-        .select(`
-          id, job_number, segment, status, job_date, start_time, job_type, service_complaint,
-          properties ( street_address, unit, city, state, zip ),
-          customers ( display_name )
-        `)
-        .eq('org_id', orgId)
-        .eq('job_date', date)
-        .in('id', extraIds)
-      extra = data || []
+    const jobIds = [...new Set((assignedRows || []).map((r) => r.job_id))]
+    if (jobIds.length === 0) {
+      setJobs([])
+      setLoading(false)
+      return
     }
 
-    const all = [...direct, ...extra].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
+    const { data } = await supabase
+      .from('jobs')
+      .select(`
+        id, job_number, segment, status, job_date, start_time, job_type, service_complaint,
+        properties ( street_address, unit, city, state, zip ),
+        customers ( display_name )
+      `)
+      .eq('org_id', orgId)
+      .eq('job_date', date)
+      .in('id', jobIds)
+
+    const all = (data || []).sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
     setJobs(all)
     setLoading(false)
   }
