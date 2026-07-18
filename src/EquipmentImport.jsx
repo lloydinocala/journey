@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
-import { fetchAllRows, normalizeForMatch } from './utils/csvImport'
+import { fetchAllRows, normalizeForMatch, readFileSmart, normPrice } from './utils/csvImport'
 import OrgPicker from './OrgPicker'
 
 function normText(v) {
@@ -12,8 +12,7 @@ function normBool(v) {
   return ['true', '1', 'yes'].includes((v || '').toString().trim().toLowerCase())
 }
 function normNumber(v) {
-  const n = parseFloat(v)
-  return Number.isFinite(n) ? n : null
+  return normPrice(v) === 0 && !String(v || '').trim() ? null : normPrice(v)
 }
 function normInt(v) {
   const n = parseInt(v, 10)
@@ -50,7 +49,9 @@ export default function EquipmentImport({ profile }) {
   }, [])
 
   const [importing, setImporting] = useState(false)
+  const [progress, setProgress] = useState('')
   const [summary, setSummary] = useState(null)
+  const [failedRows, setFailedRows] = useState([])
   const [error, setError] = useState('')
 
   async function handleFile(e) {
@@ -58,10 +59,11 @@ export default function EquipmentImport({ profile }) {
     if (!file || !orgId) return
     setError('')
     setSummary(null)
+    setFailedRows([])
     setImporting(true)
 
     try {
-      const text = await file.text()
+      const text = await readFileSmart(file)
       const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
       if (parsed.errors && parsed.errors.length > 0) {
         throw new Error(`CSV parse error: ${parsed.errors[0].message} (row ${parsed.errors[0].row})`)
@@ -119,39 +121,65 @@ export default function EquipmentImport({ profile }) {
 
       const toInsert = []
       const toUpdate = []
+      const failedRows = []
       let unmatched = 0
 
       for (const r of rows) {
         const key = matchKey(r)
         const existingId = key ? existingMap.get(key) : null
         if (existingId) {
-          toUpdate.push({ id: existingId, ...r })
+          toUpdate.push({ id: existingId, row: r })
         } else {
-          toInsert.push({ org_id: orgId, ...r })
+          toInsert.push({ row: { org_id: orgId, ...r } })
           if (!key) unmatched++
         }
       }
 
+      function rowLabel(r) {
+        return r.ahri_ref || [r.outdoor_model, r.indoor_model, r.furnace_model].filter(Boolean).join(' / ') || '(no identifying model or AHRI ref)'
+      }
+
+      // Batch inserts are atomic — one bad row fails the whole batch of up to
+      // 300, including every good row riding along with it. On a batch
+      // failure, retry that batch's rows one at a time so the good ones
+      // still get saved, and only the genuinely bad ones get reported.
       let created = 0
       for (let i = 0; i < toInsert.length; i += 300) {
         const batch = toInsert.slice(i, i + 300)
-        const { error: insErr } = await supabase.from('equipment').insert(batch)
-        if (insErr) throw insErr
-        created += batch.length
+        const { error: insErr } = await supabase.from('equipment').insert(batch.map((b) => b.row))
+        if (!insErr) {
+          created += batch.length
+        } else {
+          for (const item of batch) {
+            const { error: rowErr } = await supabase.from('equipment').insert(item.row)
+            if (rowErr) failedRows.push({ system: rowLabel(item.row), reason: rowErr.message })
+            else created++
+          }
+        }
+        setProgress(`Adding systems… ${Math.min(i + 300, toInsert.length)} of ${toInsert.length}`)
       }
 
       let updated = 0
-      for (const u of toUpdate) {
-        const { id, ...payload } = u
-        await supabase.from('equipment').update(payload).eq('id', id)
-        updated++
+      const updateChunkSize = 15
+      for (let i = 0; i < toUpdate.length; i += updateChunkSize) {
+        const chunk = toUpdate.slice(i, i + updateChunkSize)
+        const results = await Promise.all(
+          chunk.map(({ id, row }) => supabase.from('equipment').update(row).eq('id', id))
+        )
+        results.forEach((r, idx) => {
+          if (r.error) failedRows.push({ system: rowLabel(chunk[idx].row), reason: r.error.message })
+          else updated++
+        })
+        setProgress(`Updating systems… ${Math.min(i + updateChunkSize, toUpdate.length)} of ${toUpdate.length}`)
       }
 
-      setSummary({ created, updated, unmatched, totalRows: rows.length })
+      setSummary({ created, updated, unmatched, totalRows: rows.length, failed: failedRows.length })
+      setFailedRows(failedRows)
     } catch (err) {
       setError(err.message)
     } finally {
       setImporting(false)
+      setProgress('')
       e.target.value = ''
     }
   }
@@ -180,13 +208,33 @@ export default function EquipmentImport({ profile }) {
         model combination when no AHRI reference is given) gets updated rather than duplicated.
       </p>
       <input type="file" accept=".csv" onChange={handleFile} disabled={importing || !orgId} />
-      {importing && <p style={{ color: 'var(--mist)', marginTop: 8 }}>Importing…</p>}
+      {importing && <p style={{ color: 'var(--mist)', marginTop: 8 }}>{progress || 'Importing…'}</p>}
       {error && <div className="auth-error" style={{ marginTop: 12 }}>{error}</div>}
       {summary && (
         <div style={{ background: 'rgba(76, 217, 123, 0.12)', border: '1px solid rgba(76, 217, 123, 0.3)', color: '#1F7A43', fontSize: 13, padding: '10px 12px', borderRadius: 8, marginTop: 12 }}>
-          Imported {summary.totalRows} rows: {summary.created} new systems, {summary.updated} updated.
+          Imported {summary.totalRows} rows: {summary.created} new systems, {summary.updated} updated
+          {summary.failed ? `, ${summary.failed} failed` : ''}.
           {summary.unmatched > 0 && ` ${summary.unmatched} row(s) had no AHRI reference or model to match on, so they were added as new.`}
         </div>
+      )}
+      {failedRows.length > 0 && (
+        <p style={{ marginTop: 8 }}>
+          <button
+            className="logout-button"
+            onClick={() => {
+              const csv = Papa.unparse(failedRows.map((r) => ({ System: r.system, Reason: r.reason })))
+              const blob = new Blob([csv], { type: 'text/csv' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `systems-pricebook-import-failures-${new Date().toISOString().slice(0, 10)}.csv`
+              a.click()
+              URL.revokeObjectURL(url)
+            }}
+          >
+            Download {failedRows.length} failed row{failedRows.length === 1 ? '' : 's'} (CSV)
+          </button>
+        </p>
       )}
     </div>
   )
