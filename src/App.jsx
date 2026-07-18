@@ -8,6 +8,9 @@ import Dashboard from './Dashboard'
 import Organizations from './Organizations'
 import Customers from './Customers'
 import CustomerHistory from './CustomerHistory'
+import JobsManagement from './JobsManagement'
+import Vendors from './Vendors'
+import VendorDetail from './VendorDetail'
 import Properties from './Properties'
 import Jobs from './Jobs'
 import Settings from './Settings'
@@ -125,6 +128,9 @@ function AuthenticatedApp() {
         <Route path="/" element={profile.role === 'tech' ? <Navigate to="/tech" replace /> : <Dashboard profile={profile} />} />
         <Route path="/customers" element={<Customers profile={profile} />} />
         <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
+        <Route path="/jobs-management" element={<JobsManagement profile={profile} />} />
+        <Route path="/vendors" element={<Vendors profile={profile} />} />
+        <Route path="/vendors/:vendorId" element={<VendorDetail profile={profile} />} />
         <Route path="/properties" element={<Properties profile={profile} />} />
         <Route path="/jobs" element={<Jobs profile={profile} />} />
         <Route path="/settings" element={<Settings profile={profile} />} />
