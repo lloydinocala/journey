@@ -120,3 +120,13 @@ export async function readFileSmart(file) {
     return new TextDecoder('windows-1252').decode(buffer)
   }
 }
+
+// parseFloat("$175.00") returns NaN, not 175 — dollar signs and thousand-
+// separator commas are common in hand-formatted spreadsheet exports and need
+// stripping before parsing, or the value silently becomes 0 instead of
+// erroring or importing correctly.
+export function normPrice(v) {
+  const cleaned = (v || '').toString().replace(/[$,]/g, '').trim()
+  const n = parseFloat(cleaned)
+  return Number.isFinite(n) ? n : 0
+}
