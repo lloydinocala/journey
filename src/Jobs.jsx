@@ -267,6 +267,9 @@ export default function Jobs({ profile }) {
   async function saveEdit(id) {
     const startTimestamp = toTimestamp(editJobDate, editStartTime)
     const editProperty = properties.find((p) => p.id === editPropertyId)
+    const currentJob = jobs.find((j) => j.id === id)
+    const oldTripChargeId = currentJob?.trip_charge_price_id || null
+
     await supabase
       .from('jobs')
       .update({
@@ -282,6 +285,70 @@ export default function Jobs({ profile }) {
         trip_charge_price_id: editTripChargeId || null,
       })
       .eq('id', id)
+
+    // The trip charge gets copied into an invoice/estimate line item once,
+    // at the time it's first set — it's a snapshot, not a live link. If the
+    // selection just changed, sync that snapshot forward too, but only for a
+    // line item that still reads exactly like the old trip charge, so a tech's
+    // manual edits to that line never get silently overwritten.
+    if (editTripChargeId && editTripChargeId !== oldTripChargeId) {
+      const { data: newTC } = await supabase
+        .from('service_prices')
+        .select('customer_display, price, task_hours')
+        .eq('id', editTripChargeId)
+        .single()
+
+      let oldDisplay = null
+      if (oldTripChargeId) {
+        const { data: oldTC } = await supabase
+          .from('service_prices')
+          .select('customer_display')
+          .eq('id', oldTripChargeId)
+          .single()
+        oldDisplay = oldTC?.customer_display || null
+      }
+
+      if (newTC && oldDisplay) {
+        const { data: relatedInvoices } = await supabase
+          .from('invoices')
+          .select('id, subtotal, sales_tax, discount_type, discount_amount')
+          .eq('job_id', id)
+          .in('kind', ['invoice', 'estimate'])
+
+        for (const inv of relatedInvoices || []) {
+          const { data: matchingLineItems } = await supabase
+            .from('invoice_line_items')
+            .select('id, quantity, taxable')
+            .eq('invoice_id', inv.id)
+            .eq('description', oldDisplay)
+
+          for (const li of matchingLineItems || []) {
+            await supabase
+              .from('invoice_line_items')
+              .update({ description: newTC.customer_display, unit_price: newTC.price })
+              .eq('id', li.id)
+          }
+
+          if ((matchingLineItems || []).length > 0) {
+            const { data: allLineItems } = await supabase
+              .from('invoice_line_items')
+              .select('quantity, unit_price, taxable')
+              .eq('invoice_id', inv.id)
+            const subtotal = (allLineItems || []).reduce((sum, l) => sum + l.quantity * l.unit_price, 0)
+            const taxableSubtotal = (allLineItems || []).filter((l) => l.taxable).reduce((sum, l) => sum + l.quantity * l.unit_price, 0)
+            const { data: orgTax } = await supabase.from('organizations').select('sales_tax_rate').eq('id', selectedOrg).single()
+            const salesTax = taxableSubtotal * ((orgTax?.sales_tax_rate || 0) / 100)
+            const discountValue = inv.discount_type === 'percent' ? subtotal * ((inv.discount_amount || 0) / 100) : (inv.discount_amount || 0)
+            const total = Math.max(subtotal + salesTax - discountValue, 0)
+            await supabase
+              .from('invoices')
+              .update({ subtotal, sales_tax: salesTax, job_total: total, amount_due: total, balance: total })
+              .eq('id', inv.id)
+          }
+        }
+      }
+    }
+
     setEditingId(null)
     loadData(selectedOrg)
   }
