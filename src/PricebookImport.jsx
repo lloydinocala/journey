@@ -30,6 +30,23 @@ export default function PricebookImport({ profile }) {
   const [summary, setSummary] = useState(null)
   const [error, setError] = useState('')
 
+  function downloadTemplate() {
+    const csv = Papa.unparse([
+      {
+        Category: 'Single Capacitors', Item: '5 mf Run Capacitor', Location: 'Ground Level', Access: 'Standard Access',
+        Hours: 'Standard Hours', PartSrc: 'Aftermarket', Price: '175.00', Cost: '0.00', TaskHrs: '1',
+        CustomerDisplay: '5 mf Run Capacitor — Aftermarket', Exempt: 'FALSE',
+      },
+    ])
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'services-pricebook-template.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function handleFile(e) {
     const file = e.target.files[0]
     if (!file || !orgId) return
@@ -215,7 +232,10 @@ export default function PricebookImport({ profile }) {
         Upload a CSV with columns: Category, Item, Location, Access, Hours, PartSrc, Price, Cost, TaskHrs,
         CustomerDisplay, Exempt. Re-uploading is safe — existing items are matched and updated, not duplicated.
       </p>
-      <input type="file" accept=".csv" onChange={handleFile} disabled={importing || !orgId} />
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input type="file" accept=".csv" onChange={handleFile} disabled={importing || !orgId} />
+        <button className="logout-button" onClick={downloadTemplate} type="button">Download Template</button>
+      </div>
       {importing && <p style={{ color: 'var(--mist)', marginTop: 8 }}>{progress || 'Importing…'}</p>}
       {error && <div className="auth-error" style={{ marginTop: 12 }}>{error}</div>}
       {summary && (
