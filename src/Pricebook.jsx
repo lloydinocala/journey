@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
-import { fetchAllRows, normalizeForMatch } from './utils/csvImport'
+import { fetchAllRows, normalizeForMatch, readFileSmart } from './utils/csvImport'
 
 const LOCATIONS = ['Ground Level', 'Attic or Ceiling', 'Roof or Sub-Level']
 const ACCESS_OPTS = ['Standard Access', 'Difficult Access']
@@ -203,13 +203,15 @@ export default function Pricebook({ profile }) {
   // parent service's category/name/exempt flag in sync); a row with no
   // PriceID is a brand-new price point, same find-or-create-service logic
   // the standalone Import Services Pricebook page uses.
-  function handleImportFile(e) {
+  async function handleImportFile(e) {
     const file = e.target.files[0]
     if (!file || !selectedOrg) return
     setImporting(true)
     setImportSummary('')
 
-    Papa.parse(file, {
+    const text = await readFileSmart(file)
+
+    Papa.parse(text, {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
@@ -513,37 +515,37 @@ async function loadVariants(serviceId) {
       {loadingServices ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div className="grid-table" style={{ gridTemplateColumns: '1.2fr 1.6fr 0.8fr 0.8fr 1fr' }}>
+        <div className="grid-table" style={{ gridTemplateColumns: '1fr 1.2fr 1.6fr 0.8fr 0.8fr' }}>
+          <div className="grid-cell grid-head"></div>
           <div className="grid-cell grid-head">Category</div>
           <div className="grid-cell grid-head">Service</div>
           <div className="grid-cell grid-head">Taxable</div>
           <div className="grid-cell grid-head">Status</div>
-          <div className="grid-cell grid-head"></div>
 
           {filteredServices.map((s) =>
             editingServiceId === s.id ? (
               <>
-                <div className="grid-cell"><input type="text" value={editServiceCategory} onChange={(e) => setEditServiceCategory(e.target.value)} /></div>
-                <div className="grid-cell"><input type="text" value={editServiceName} onChange={(e) => setEditServiceName(e.target.value)} /></div>
-                <div className="grid-cell">{s.is_tax_exempt ? 'No' : 'Yes'}</div>
-                <div className="grid-cell">{s.is_active ? 'Active' : 'Archived'}</div>
                 <div className="grid-cell grid-actions">
                   <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEditService(s.id)}>Save</button>
                   <button className="logout-button" onClick={() => setEditingServiceId(null)}>Cancel</button>
                 </div>
+                <div className="grid-cell"><input type="text" value={editServiceCategory} onChange={(e) => setEditServiceCategory(e.target.value)} /></div>
+                <div className="grid-cell"><input type="text" value={editServiceName} onChange={(e) => setEditServiceName(e.target.value)} /></div>
+                <div className="grid-cell">{s.is_tax_exempt ? 'No' : 'Yes'}</div>
+                <div className="grid-cell">{s.is_active ? 'Active' : 'Archived'}</div>
               </>
             ) : (
               <>
+                <div className="grid-cell grid-actions">
+                  <button className="logout-button" onClick={() => selectService(s)}>Prices</button>
+                  <button className="logout-button" onClick={() => startEditService(s)}>Rename</button>
+                  <button className="logout-button" onClick={() => toggleServiceActive(s)}>{s.is_active ? 'Archive' : 'Reactivate'}</button>
+                </div>
                 <div className="grid-cell">{s.category}</div>
                 <div className="grid-cell">{s.name}</div>
                 <div className="grid-cell">{s.is_tax_exempt ? 'No' : 'Yes'}</div>
                 <div className="grid-cell">
                   <span className={`status-pill ${s.is_active ? 'status-active' : 'status-canceled'}`}>{s.is_active ? 'Active' : 'Archived'}</span>
-                </div>
-                <div className="grid-cell grid-actions">
-                  <button className="logout-button" onClick={() => selectService(s)}>Prices</button>
-                  <button className="logout-button" onClick={() => startEditService(s)}>Rename</button>
-                  <button className="logout-button" onClick={() => toggleServiceActive(s)}>{s.is_active ? 'Archive' : 'Reactivate'}</button>
                 </div>
               </>
             )
@@ -609,7 +611,8 @@ async function loadVariants(serviceId) {
           {loadingVariants ? (
             <p style={{ color: 'var(--mist)' }}>Loading…</p>
           ) : (
-            <div className="grid-table" style={{ gridTemplateColumns: '1fr 1fr 1fr 0.8fr 1.4fr 0.8fr 0.8fr 0.8fr 1.2fr' }}>
+            <div className="grid-table" style={{ gridTemplateColumns: '1.2fr 1fr 1fr 1fr 0.8fr 1.4fr 0.8fr 0.8fr 0.8fr' }}>
+              <div className="grid-cell grid-head"></div>
               <div className="grid-cell grid-head">Location</div>
               <div className="grid-cell grid-head">Access</div>
               <div className="grid-cell grid-head">Hours</div>
@@ -618,11 +621,14 @@ async function loadVariants(serviceId) {
               <div className="grid-cell grid-head">Price</div>
               <div className="grid-cell grid-head">Cost</div>
               <div className="grid-cell grid-head">Task hrs</div>
-              <div className="grid-cell grid-head"></div>
 
               {variants.map((v) =>
                 editingVariantId === v.id ? (
                   <>
+                    <div className="grid-cell grid-actions">
+                      <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEditVariant(v.id)}>Save</button>
+                      <button className="logout-button" onClick={() => setEditingVariantId(null)}>Cancel</button>
+                    </div>
                     <div className="grid-cell">
                       <select value={editLocation} onChange={(e) => setEditLocation(e.target.value)}>
                         {LOCATIONS.map((l) => <option key={l} value={l}>{l}</option>)}
@@ -647,13 +653,13 @@ async function loadVariants(serviceId) {
                     <div className="grid-cell"><input type="number" step="0.01" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} /></div>
                     <div className="grid-cell"><input type="number" step="0.01" value={editCost} onChange={(e) => setEditCost(e.target.value)} /></div>
                     <div className="grid-cell"><input type="number" step="0.01" value={editTaskHours} onChange={(e) => setEditTaskHours(e.target.value)} /></div>
-                    <div className="grid-cell grid-actions">
-                      <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEditVariant(v.id)}>Save</button>
-                      <button className="logout-button" onClick={() => setEditingVariantId(null)}>Cancel</button>
-                    </div>
                   </>
                 ) : (
                   <>
+                    <div className="grid-cell grid-actions">
+                      <button className="logout-button" onClick={() => startEditVariant(v)}>Edit</button>
+                      <button className="logout-button" onClick={() => toggleVariantActive(v)}>{v.is_active ? 'Off' : 'On'}</button>
+                    </div>
                     <div className="grid-cell">{v.location || '—'}</div>
                     <div className="grid-cell">{v.access || '—'}</div>
                     <div className="grid-cell">{v.hours || '—'}</div>
@@ -662,10 +668,6 @@ async function loadVariants(serviceId) {
                     <div className="grid-cell">${v.price.toFixed(2)}</div>
                     <div className="grid-cell">${v.cost.toFixed(2)}</div>
                     <div className="grid-cell">{v.task_hours}</div>
-                    <div className="grid-cell grid-actions">
-                      <button className="logout-button" onClick={() => startEditVariant(v)}>Edit</button>
-                      <button className="logout-button" onClick={() => toggleVariantActive(v)}>{v.is_active ? 'Off' : 'On'}</button>
-                    </div>
                   </>
                 )
               )}
