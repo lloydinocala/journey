@@ -7,6 +7,8 @@ const CATEGORIES = [
   { key: 'operations', label: 'Operations', items: [
     { label: 'Calendar', path: '/calendar' },
     { label: 'Jobs', path: '/jobs' },
+    { label: 'Jobs Management', path: '/jobs-management' },
+    { label: 'Vendors', path: '/vendors' },
     { label: 'Properties', path: '/properties' },
     { label: 'Customers', path: '/customers' },
     { label: 'Maintenance Agreements', path: '/maintenance-agreements' },
