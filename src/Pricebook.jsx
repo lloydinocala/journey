@@ -158,6 +158,23 @@ export default function Pricebook({ profile }) {
     loadServices(selectedOrg)
   }
 
+  function downloadTemplate() {
+    const csv = Papa.unparse([
+      {
+        PriceID: '', Category: 'Single Capacitors', Item: '5 mf Run Capacitor', Location: 'Ground Level',
+        Access: 'Standard Access', Hours: 'Standard Hours', PartSrc: 'Aftermarket', Price: '175.00', Cost: '0.00',
+        TaskHrs: '1', CustomerDisplay: '5 mf Run Capacitor — Aftermarket', Exempt: 'FALSE',
+      },
+    ])
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'services-pricebook-template.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function handleExport() {
     setExporting(true)
     const allServices = await fetchAllRows(() =>
@@ -472,6 +489,7 @@ async function loadVariants(serviceId) {
         <button className="logout-button" onClick={handleExport} disabled={exporting || !selectedOrg}>
           {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
+        <button className="logout-button" onClick={downloadTemplate} type="button">Download Template</button>
       </div>
       {importing && importProgress && (
         <p style={{ textAlign: 'right', color: 'var(--mist)', fontSize: 13, marginTop: -14, marginBottom: 16 }}>{importProgress}</p>
