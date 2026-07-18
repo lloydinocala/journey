@@ -21,7 +21,7 @@ const COLUMNS = [
   { key: 'home_type', label: 'Home Type', width: 130, type: 'text' },
   { key: 'energy_star', label: 'Energy Star', width: 90, type: 'boolean' },
   { key: 'florida_rating', label: 'FL Rating', width: 80, type: 'number' },
-  { key: 'clienta_rating', label: 'Client Rating', width: 90, type: 'number' },
+  { key: 'client_rating', label: 'Client Rating', width: 90, type: 'number' },
   { key: 'labor_warranty', label: 'Labor Warranty', width: 100, type: 'text' },
   { key: 'quality_pledge', label: 'Quality Pledge', width: 100, type: 'boolean' },
   { key: 'quality_pledge_years', label: 'Pledge Years', width: 90, type: 'number' },
