@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
-import { fetchAllRows, normalizeForMatch } from './utils/csvImport'
+import { fetchAllRows, normalizeForMatch, normPrice, readFileSmart } from './utils/csvImport'
 import OrgPicker from './OrgPicker'
 
 function normKey(v) {
@@ -25,6 +25,7 @@ export default function PricebookImport({ profile }) {
   }, [])
 
   const [importing, setImporting] = useState(false)
+  const [progress, setProgress] = useState('')
   const [summary, setSummary] = useState(null)
   const [error, setError] = useState('')
 
@@ -36,7 +37,7 @@ export default function PricebookImport({ profile }) {
     setImporting(true)
 
     try {
-      const text = await file.text()
+      const text = await readFileSmart(file)
       const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
       if (parsed.errors && parsed.errors.length > 0) {
         throw new Error(`CSV parse error: ${parsed.errors[0].message} (row ${parsed.errors[0].row})`)
@@ -51,9 +52,9 @@ export default function PricebookImport({ profile }) {
           hours: normKey(r.Hours),
           part_source: normKey(r.PartSrc),
           customer_display: normKey(r.CustomerDisplay),
-          price: parseFloat(r.Price) || 0,
-          cost: parseFloat(r.Cost) || 0,
-          task_hours: parseFloat(r.TaskHrs) || 0,
+          price: normPrice(r.Price),
+          cost: normPrice(r.Cost),
+          task_hours: normPrice(r.TaskHrs),
           is_tax_exempt: ['true', '1', 'yes'].includes((r.Exempt || '').toString().trim().toLowerCase()),
         }))
         .filter((r) => r.category && r.name)
@@ -147,10 +148,14 @@ export default function PricebookImport({ profile }) {
       }
 
       let pricesUpdated = 0
-      for (const u of toUpdate) {
-        const { id, ...payload } = u
-        await supabase.from('service_prices').update(payload).eq('id', id)
-        pricesUpdated++
+      const updateChunkSize = 15
+      for (let i = 0; i < toUpdate.length; i += updateChunkSize) {
+        const chunk = toUpdate.slice(i, i + updateChunkSize)
+        await Promise.all(
+          chunk.map(({ id, ...payload }) => supabase.from('service_prices').update(payload).eq('id', id))
+        )
+        pricesUpdated += chunk.length
+        setProgress(`Updating price points… ${pricesUpdated} of ${toUpdate.length}`)
       }
 
       setSummary({ servicesCreated, pricesCreated, pricesUpdated, totalRows: rows.length })
@@ -158,6 +163,7 @@ export default function PricebookImport({ profile }) {
       setError(err.message)
     } finally {
       setImporting(false)
+      setProgress('')
       e.target.value = ''
     }
   }
@@ -180,7 +186,7 @@ export default function PricebookImport({ profile }) {
         CustomerDisplay, Exempt. Re-uploading is safe — existing items are matched and updated, not duplicated.
       </p>
       <input type="file" accept=".csv" onChange={handleFile} disabled={importing || !orgId} />
-      {importing && <p style={{ color: 'var(--mist)', marginTop: 8 }}>Importing…</p>}
+      {importing && <p style={{ color: 'var(--mist)', marginTop: 8 }}>{progress || 'Importing…'}</p>}
       {error && <div className="auth-error" style={{ marginTop: 12 }}>{error}</div>}
       {summary && (
         <div style={{ background: 'rgba(76, 217, 123, 0.12)', border: '1px solid rgba(76, 217, 123, 0.3)', color: '#1F7A43', fontSize: 13, padding: '10px 12px', borderRadius: 8, marginTop: 12 }}>
