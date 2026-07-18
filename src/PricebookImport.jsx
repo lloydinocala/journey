@@ -26,6 +26,7 @@ export default function PricebookImport({ profile }) {
 
   const [importing, setImporting] = useState(false)
   const [progress, setProgress] = useState('')
+  const [failedRows, setFailedRows] = useState([])
   const [summary, setSummary] = useState(null)
   const [error, setError] = useState('')
 
@@ -34,6 +35,7 @@ export default function PricebookImport({ profile }) {
     if (!file || !orgId) return
     setError('')
     setSummary(null)
+    setFailedRows([])
     setImporting(true)
 
     try {
@@ -115,9 +117,13 @@ export default function PricebookImport({ profile }) {
 
       const toInsert = []
       const toUpdate = []
+      const failedRows = []
       for (const r of rows) {
         const serviceId = existingServiceMap.get(`${normalizeForMatch(r.category)}|${normalizeForMatch(r.name)}`)
-        if (!serviceId) continue
+        if (!serviceId) {
+          failedRows.push({ category: r.category, name: r.name, location: r.location, access: r.access, hours: r.hours, part_source: r.part_source, reason: 'Could not resolve or create a matching service for this Category/Item.' })
+          continue
+        }
         const key = comboKey(serviceId, r)
         const existingId = existingPriceMap.get(key)
         const payload = {
@@ -133,32 +139,56 @@ export default function PricebookImport({ profile }) {
           task_hours: r.task_hours,
         }
         if (existingId) {
-          toUpdate.push({ id: existingId, ...payload })
+          toUpdate.push({ id: existingId, payload, source: r })
         } else {
-          toInsert.push(payload)
+          toInsert.push({ row: payload, source: r })
         }
       }
 
+      // Batch inserts are atomic — one bad row fails the whole batch of up to
+      // 300, including every good row riding along with it. On a batch
+      // failure, retry that batch's rows one at a time so the good ones
+      // still get saved, and only the genuinely bad ones get reported.
       let pricesCreated = 0
       for (let i = 0; i < toInsert.length; i += 300) {
         const batch = toInsert.slice(i, i + 300)
-        const { error: insErr } = await supabase.from('service_prices').insert(batch)
-        if (insErr) throw insErr
-        pricesCreated += batch.length
+        const { error: insErr } = await supabase.from('service_prices').insert(batch.map((b) => b.row))
+        if (!insErr) {
+          pricesCreated += batch.length
+        } else {
+          for (const item of batch) {
+            const { error: rowErr } = await supabase.from('service_prices').insert(item.row)
+            if (rowErr) {
+              const r = item.source
+              failedRows.push({ category: r.category, name: r.name, location: r.location, access: r.access, hours: r.hours, part_source: r.part_source, reason: rowErr.message })
+            } else {
+              pricesCreated++
+            }
+          }
+        }
+        setProgress(`Adding price points… ${Math.min(i + 300, toInsert.length)} of ${toInsert.length}`)
       }
 
       let pricesUpdated = 0
       const updateChunkSize = 15
       for (let i = 0; i < toUpdate.length; i += updateChunkSize) {
         const chunk = toUpdate.slice(i, i + updateChunkSize)
-        await Promise.all(
-          chunk.map(({ id, ...payload }) => supabase.from('service_prices').update(payload).eq('id', id))
+        const results = await Promise.all(
+          chunk.map(({ id, payload }) => supabase.from('service_prices').update(payload).eq('id', id))
         )
-        pricesUpdated += chunk.length
-        setProgress(`Updating price points… ${pricesUpdated} of ${toUpdate.length}`)
+        results.forEach((r, idx) => {
+          if (r.error) {
+            const src = chunk[idx].source
+            failedRows.push({ category: src.category, name: src.name, location: src.location, access: src.access, hours: src.hours, part_source: src.part_source, reason: r.error.message })
+          } else {
+            pricesUpdated++
+          }
+        })
+        setProgress(`Updating price points… ${Math.min(i + updateChunkSize, toUpdate.length)} of ${toUpdate.length}`)
       }
 
-      setSummary({ servicesCreated, pricesCreated, pricesUpdated, totalRows: rows.length })
+      setSummary({ servicesCreated, pricesCreated, pricesUpdated, totalRows: rows.length, failed: failedRows.length })
+      setFailedRows(failedRows)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -190,8 +220,30 @@ export default function PricebookImport({ profile }) {
       {error && <div className="auth-error" style={{ marginTop: 12 }}>{error}</div>}
       {summary && (
         <div style={{ background: 'rgba(76, 217, 123, 0.12)', border: '1px solid rgba(76, 217, 123, 0.3)', color: '#1F7A43', fontSize: 13, padding: '10px 12px', borderRadius: 8, marginTop: 12 }}>
-          Imported {summary.totalRows} rows: {summary.servicesCreated} new services, {summary.pricesCreated} new price points, {summary.pricesUpdated} updated.
+          Imported {summary.totalRows} rows: {summary.servicesCreated} new services, {summary.pricesCreated} new price points, {summary.pricesUpdated} updated
+          {summary.failed ? `, ${summary.failed} failed` : ''}.
         </div>
+      )}
+      {failedRows.length > 0 && (
+        <p style={{ marginTop: 8 }}>
+          <button
+            className="logout-button"
+            onClick={() => {
+              const csv = Papa.unparse(failedRows.map((r) => ({
+                Category: r.category, Item: r.name, Location: r.location, Access: r.access, Hours: r.hours, PartSrc: r.part_source, Reason: r.reason,
+              })))
+              const blob = new Blob([csv], { type: 'text/csv' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `services-pricebook-import-failures-${new Date().toISOString().slice(0, 10)}.csv`
+              a.click()
+              URL.revokeObjectURL(url)
+            }}
+          >
+            Download {failedRows.length} failed row{failedRows.length === 1 ? '' : 's'} (CSV)
+          </button>
+        </p>
       )}
     </div>
   )
