@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
@@ -328,6 +328,13 @@ async function loadVariants(serviceId) {
     loadVariants(s.id)
   }
 
+  const variantsPanelRef = useRef(null)
+  useEffect(() => {
+    if (selectedServiceId && variantsPanelRef.current) {
+      variantsPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [selectedServiceId])
+
   async function handleAddVariant(e) {
     e.preventDefault()
     setVariantError('')
@@ -556,7 +563,7 @@ async function loadVariants(serviceId) {
         </div>
       )}
 {selectedServiceId && (
-        <div style={{ marginTop: 32 }}>
+        <div ref={variantsPanelRef} style={{ marginTop: 32 }}>
           <h3 style={{ fontSize: 16, marginBottom: 4 }}>{selectedServiceInfo?.category} — {selectedServiceInfo?.name}</h3>
           <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0, marginBottom: 16 }}>Price variants for this service</p>
 
