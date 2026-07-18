@@ -19,6 +19,16 @@ function normInt(v) {
   return Number.isFinite(n) ? n : null
 }
 
+// Accepts either this page's own PascalCase headers, or the human-readable
+// headers produced by the Systems Pricebook page's own Export CSV button —
+// the same underlying data, uploaded from either place, should just work.
+function pick(row, ...keys) {
+  for (const k of keys) {
+    if (row[k] !== undefined && row[k] !== '') return row[k]
+  }
+  return row[keys[0]]
+}
+
 // AHRI reference numbers are the HVAC industry's actual unique ID for a specific
 // outdoor+indoor+furnace combination — the natural key for matching a re-import
 // back to an existing system. When a row has no AHRI ref, fall back to matching
@@ -71,39 +81,42 @@ export default function EquipmentImport({ profile }) {
 
       const rows = parsed.data
         .map((r) => ({
-          ahri_ref: normText(r.AhriRef),
-          recommended: normBool(r.Recommended),
-          home_type: normText(r.HomeType),
-          brand_family: normText(r.BrandFamily),
-          outdoor_brand: normText(r.OutdoorBrand),
-          outdoor_series: normText(r.OutdoorSeries),
-          outdoor_model: normText(r.OutdoorModel),
-          indoor_brand: normText(r.IndoorBrand),
-          indoor_model: normText(r.IndoorModel),
-          furnace_model: normText(r.FurnaceModel),
-          size_tons: normNumber(r.SizeTons),
-          cooling_capacity: normInt(r.CoolingCapacity),
-          eer2: normNumber(r.EER2),
-          seer2: normNumber(r.SEER2),
-          manufactured_in: normText(r.ManufacturedIn),
-          system_type: normText(r.SystemType),
-          energy_star: normBool(r.EnergyStar),
-          florida_rating: normNumber(r.FloridaRating),
-          client_rating: normNumber(r.ClientRating),
-          labor_warranty: normText(r.LaborWarranty),
-          quality_pledge: normBool(r.QualityPledge),
-          quality_pledge_years: normInt(r.QualityPledgeYears),
-          quality_pledge_issuer: normText(r.QualityPledgeIssuer),
-          lineset_requirements: normText(r.LinesetRequirements),
-          subtotal: normNumber(r.Subtotal),
-          installation_costs: normNumber(r.InstallationCosts),
-          installation_price: normNumber(r.InstallationPrice),
-          active: r.Active === undefined || r.Active === '' ? true : normBool(r.Active),
+          ahri_ref: normText(pick(r, 'AhriRef', 'AHRI Ref #')),
+          recommended: normBool(pick(r, 'Recommended', 'Recommended')),
+          home_type: normText(pick(r, 'HomeType', 'Home Type')),
+          brand_family: normText(pick(r, 'BrandFamily', 'Brand Family')),
+          outdoor_brand: normText(pick(r, 'OutdoorBrand', 'Outdoor Brand')),
+          outdoor_series: normText(pick(r, 'OutdoorSeries', 'Outdoor Series')),
+          outdoor_model: normText(pick(r, 'OutdoorModel', 'Outdoor Model')),
+          indoor_brand: normText(pick(r, 'IndoorBrand', 'Indoor Brand')),
+          indoor_model: normText(pick(r, 'IndoorModel', 'Indoor Model')),
+          furnace_model: normText(pick(r, 'FurnaceModel', 'Furnace Model')),
+          size_tons: normNumber(pick(r, 'SizeTons', 'Size (Tons)')),
+          cooling_capacity: normInt(pick(r, 'CoolingCapacity', 'Cooling Cap')),
+          eer2: normNumber(pick(r, 'EER2', 'EER2')),
+          seer2: normNumber(pick(r, 'SEER2', 'SEER2')),
+          manufactured_in: normText(pick(r, 'ManufacturedIn', 'Manufactured In')),
+          system_type: normText(pick(r, 'SystemType', 'System Type')),
+          energy_star: normBool(pick(r, 'EnergyStar', 'Energy Star')),
+          florida_rating: normNumber(pick(r, 'FloridaRating', 'FL Rating')),
+          client_rating: normNumber(pick(r, 'ClientRating', 'Client Rating')),
+          labor_warranty: normText(pick(r, 'LaborWarranty', 'Labor Warranty')),
+          quality_pledge: normBool(pick(r, 'QualityPledge', 'Quality Pledge')),
+          quality_pledge_years: normInt(pick(r, 'QualityPledgeYears', 'Pledge Years')),
+          quality_pledge_issuer: normText(pick(r, 'QualityPledgeIssuer', 'Pledge Issuer')),
+          lineset_requirements: normText(pick(r, 'LinesetRequirements', 'Lineset')),
+          subtotal: normNumber(pick(r, 'Subtotal', 'Subtotal')),
+          installation_costs: normNumber(pick(r, 'InstallationCosts', 'Our Cost')),
+          installation_price: normNumber(pick(r, 'InstallationPrice', 'Installation Price')),
+          active: (() => {
+            const v = pick(r, 'Active', 'Active')
+            return v === undefined || v === '' ? true : normBool(v)
+          })(),
         }))
         .filter((r) => r.ahri_ref || r.outdoor_model)
 
       if (rows.length === 0) {
-        throw new Error('No valid rows found. Each row needs at least an AhriRef or an OutdoorModel to identify the system.')
+        throw new Error('No valid rows found. Each row needs at least an AhriRef (or "AHRI Ref #") or an OutdoorModel (or "Outdoor Model") to identify the system.')
       }
 
       const existingEquipment = await fetchAllRows(() =>
@@ -202,6 +215,10 @@ export default function EquipmentImport({ profile }) {
         OutdoorModel, IndoorBrand, IndoorModel, FurnaceModel, SizeTons, CoolingCapacity, EER2, SEER2, ManufacturedIn,
         SystemType, EnergyStar, FloridaRating, ClientRating, LaborWarranty, QualityPledge, QualityPledgeYears,
         QualityPledgeIssuer, LinesetRequirements, Subtotal, InstallationCosts, InstallationPrice, Active.
+      </p>
+      <p style={{ color: 'var(--mist)', fontSize: 13, marginBottom: 8 }}>
+        A file exported from the Systems Pricebook page itself also works — its column names ("AHRI Ref #", "Size
+        (Tons)", "Our Cost", etc.) are recognized automatically, no renaming needed.
       </p>
       <p style={{ color: 'var(--mist)', fontSize: 13, marginBottom: 16 }}>
         Re-uploading is safe — a system already on file (matched by AHRI reference, or by the outdoor/indoor/furnace
