@@ -318,7 +318,14 @@ export default function TechJobCard({ profile }) {
     if (newStatus === 'in_progress') patch.arrival_at = now
     if (newStatus === 'completed') patch.completed_at = now
     const { error } = await supabase.from('jobs').update(patch).eq('id', jobId)
-    if (!error) setJob((prev) => ({ ...prev, ...patch }))
+    if (!error) {
+      setJob((prev) => ({ ...prev, ...patch }))
+      // Fire-and-forget — a notification hiccup should never block the tech
+      // from moving the job forward, so this doesn't await or surface errors.
+      if (newStatus === 'on_my_way') {
+        supabase.functions.invoke('send-on-my-way-notification', { body: { jobId } }).catch(() => {})
+      }
+    }
     setSaving(false)
   }
 
