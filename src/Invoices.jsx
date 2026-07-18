@@ -320,7 +320,10 @@ export default function Invoices({ profile }) {
   return (
     <div>
       <div className="page-header-bar">
-        <h2>Invoices</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <h2>Invoices</h2>
+          <span className="badge">{invoices.length.toLocaleString()} total</span>
+        </div>
         <NewItemDropdown onSelect={setNewItemMode} />
       </div>
 
