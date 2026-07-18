@@ -64,6 +64,27 @@ export default function EquipmentImport({ profile }) {
   const [failedRows, setFailedRows] = useState([])
   const [error, setError] = useState('')
 
+  function downloadTemplate() {
+    const csv = Papa.unparse([
+      {
+        AhriRef: '217730630', Recommended: 'TRUE', HomeType: 'Both', BrandFamily: 'Trending in 2026',
+        OutdoorBrand: 'BRYANT', OutdoorSeries: 'D5C Series', OutdoorModel: 'D5CUHAH18AAK', IndoorBrand: 'BRYANT',
+        IndoorModel: 'D5MUWAQ18XA3', FurnaceModel: '', SizeTons: '1.5', CoolingCapacity: '18000', EER2: '12.1',
+        SEER2: '19.3', ManufacturedIn: '', SystemType: 'Apt CrossOver', EnergyStar: 'TRUE', FloridaRating: '4.5',
+        ClientRating: '4.9', LaborWarranty: '2', QualityPledge: 'FALSE', QualityPledgeYears: '', QualityPledgeIssuer: '',
+        LinesetRequirements: '3/4" & 3/8" Copper Lines', Subtotal: '6500', InstallationCosts: '', InstallationPrice: '25000',
+        Active: 'TRUE',
+      },
+    ])
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'systems-pricebook-template.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function handleFile(e) {
     const file = e.target.files[0]
     if (!file || !orgId) return
@@ -224,7 +245,10 @@ export default function EquipmentImport({ profile }) {
         Re-uploading is safe — a system already on file (matched by AHRI reference, or by the outdoor/indoor/furnace
         model combination when no AHRI reference is given) gets updated rather than duplicated.
       </p>
-      <input type="file" accept=".csv" onChange={handleFile} disabled={importing || !orgId} />
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input type="file" accept=".csv" onChange={handleFile} disabled={importing || !orgId} />
+        <button className="logout-button" onClick={downloadTemplate} type="button">Download Template</button>
+      </div>
       {importing && <p style={{ color: 'var(--mist)', marginTop: 8 }}>{progress || 'Importing…'}</p>}
       {error && <div className="auth-error" style={{ marginTop: 12 }}>{error}</div>}
       {summary && (
