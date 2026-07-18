@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
-import { fetchAllRows } from './utils/csvImport'
+import { fetchAllRows, readFileSmart, normPrice } from './utils/csvImport'
 
 const COLUMNS = [
   { key: 'system_type', label: 'System Type', required: true, width: 100, type: 'text' },
@@ -51,6 +51,8 @@ export default function SystemsPricebook({ profile }) {
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importSummary, setImportSummary] = useState('')
+  const [importProgress, setImportProgress] = useState('')
+  const [importFailedRows, setImportFailedRows] = useState([])
 
   const [systemTypeFilter, setSystemTypeFilter] = useState('')
   const [brandFamilyFilter, setBrandFamilyFilter] = useState('')
@@ -194,19 +196,26 @@ export default function SystemsPricebook({ profile }) {
     setExporting(false)
   }
 
-  function handleImportFile(e) {
+  async function handleImportFile(e) {
     const file = e.target.files[0]
     if (!file) return
     setImporting(true)
     setImportSummary('')
+    setImportProgress('')
+    setImportFailedRows([])
 
-    Papa.parse(file, {
+    const text = await readFileSmart(file)
+
+    Papa.parse(text, {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
         let updated = 0
         let inserted = 0
-        let failed = 0
+        const failedRows = []
+
+        const toInsert = []
+        const toUpdate = []
 
         for (const row of results.data) {
           const id = (row.ID || '').trim()
@@ -216,8 +225,7 @@ export default function SystemsPricebook({ profile }) {
             const raw = row[label]
             const type = KEY_TO_TYPE[key]
             if (type === 'number') {
-              fields[key] = raw === '' || raw === undefined ? null : parseFloat(raw)
-              if (Number.isNaN(fields[key])) fields[key] = null
+              fields[key] = raw === '' || raw === undefined ? null : normPrice(raw)
             } else if (type === 'boolean') {
               fields[key] = parseBoolean(raw)
             } else {
@@ -226,27 +234,56 @@ export default function SystemsPricebook({ profile }) {
           }
           fields.org_id = selectedOrg
 
-          if (id) {
-            const { error } = await supabase.from('equipment').update(fields).eq('id', id).eq('org_id', selectedOrg)
-            if (error) failed++
-            else updated++
+          const label = fields.outdoor_model || fields.ahri_ref || '(no identifying model or AHRI ref)'
+          if (id) toUpdate.push({ id, fields, label })
+          else toInsert.push({ fields, label })
+        }
+
+        // Batch inserts are atomic — one bad row fails the whole batch of up
+        // to 300, including every good row riding along with it. On a batch
+        // failure, retry that batch's rows one at a time so the good ones
+        // still get saved, and only the genuinely bad ones get reported.
+        for (let i = 0; i < toInsert.length; i += 300) {
+          const batch = toInsert.slice(i, i + 300)
+          const { error: insErr } = await supabase.from('equipment').insert(batch.map((b) => b.fields))
+          if (!insErr) {
+            inserted += batch.length
           } else {
-            const { error } = await supabase.from('equipment').insert(fields)
-            if (error) failed++
-            else inserted++
+            for (const item of batch) {
+              const { error: rowErr } = await supabase.from('equipment').insert(item.fields)
+              if (rowErr) failedRows.push({ system: item.label, reason: rowErr.message })
+              else inserted++
+            }
           }
+          setImportProgress(`Adding systems… ${Math.min(i + 300, toInsert.length)} of ${toInsert.length}`)
+        }
+
+        const updateChunkSize = 15
+        for (let i = 0; i < toUpdate.length; i += updateChunkSize) {
+          const chunk = toUpdate.slice(i, i + updateChunkSize)
+          const outcomes = await Promise.all(
+            chunk.map(({ id, fields }) => supabase.from('equipment').update(fields).eq('id', id).eq('org_id', selectedOrg))
+          )
+          outcomes.forEach((r, idx) => {
+            if (r.error) failedRows.push({ system: chunk[idx].label, reason: r.error.message })
+            else updated++
+          })
+          setImportProgress(`Updating systems… ${Math.min(i + updateChunkSize, toUpdate.length)} of ${toUpdate.length}`)
         }
 
         setImportSummary(
-          `${updated} updated, ${inserted} added` + (failed ? `, ${failed} failed` : '') + '.'
+          `${updated} updated, ${inserted} added` + (failedRows.length ? `, ${failedRows.length} failed` : '') + '.'
         )
+        setImportFailedRows(failedRows)
         setImporting(false)
+        setImportProgress('')
         e.target.value = ''
         loadEquipment(selectedOrg)
       },
       error: (err) => {
         setImportSummary('Import failed to parse: ' + err.message)
         setImporting(false)
+        setImportProgress('')
         e.target.value = ''
       },
     })
@@ -292,7 +329,10 @@ export default function SystemsPricebook({ profile }) {
 
   return (
     <div>
-      <h2 className="page-title">Systems Pricebook</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <h2 className="page-title" style={{ margin: 0 }}>Systems Pricebook</h2>
+        <span className="badge">{equipment.length.toLocaleString()} total</span>
+      </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <label className="logout-button" style={{ cursor: 'pointer', margin: 0 }}>
@@ -303,8 +343,30 @@ export default function SystemsPricebook({ profile }) {
           {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
       </div>
+      {importing && importProgress && (
+        <p style={{ textAlign: 'right', fontSize: 13, color: 'var(--mist)', marginTop: 0, marginBottom: 12 }}>{importProgress}</p>
+      )}
       {importSummary && (
         <p style={{ textAlign: 'right', fontSize: 13, color: 'var(--mist)', marginTop: 0, marginBottom: 12 }}>{importSummary}</p>
+      )}
+      {importFailedRows.length > 0 && (
+        <p style={{ textAlign: 'right', marginTop: 0, marginBottom: 12 }}>
+          <button
+            className="logout-button"
+            onClick={() => {
+              const csv = Papa.unparse(importFailedRows.map((r) => ({ System: r.system, Reason: r.reason })))
+              const blob = new Blob([csv], { type: 'text/csv' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `systems-pricebook-import-failures-${new Date().toISOString().slice(0, 10)}.csv`
+              a.click()
+              URL.revokeObjectURL(url)
+            }}
+          >
+            Download {importFailedRows.length} failed row{importFailedRows.length === 1 ? '' : 's'} (CSV)
+          </button>
+        </p>
       )}
 
       {isSuperAdmin && (
