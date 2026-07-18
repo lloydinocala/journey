@@ -314,7 +314,10 @@ export default function Estimates({ profile }) {
   return (
     <div>
       <div className="page-header-bar">
-        <h2>Job Estimates</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <h2>Job Estimates</h2>
+          <span className="badge">{estimates.length.toLocaleString()} total</span>
+        </div>
         <NewItemDropdown onSelect={setNewItemMode} />
       </div>
 
