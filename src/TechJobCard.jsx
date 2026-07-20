@@ -16,6 +16,16 @@ const STATUS_LABEL = {
   canceled: 'Canceled',
 }
 
+const INCOMPLETE_REASONS = [
+  'Estimate provided — customer approved follow-up work',
+  'Awaiting parts or materials',
+  'Needs estimate — information still pending',
+  'Weather or site conditions prevented completion',
+  'Customer-authorized part not on truck',
+  'Emergency or scheduling interruption',
+  'Other',
+]
+
 const STAGE_LABELS = {
   work_approved_to_begin: 'Work Approved to Begin',
   work_finished: 'Work Finished',
@@ -134,6 +144,11 @@ export default function TechJobCard({ profile }) {
   const [plansError, setPlansError] = useState('')
   const [plansSentTo, setPlansSentTo] = useState(null)
   const [copyPlansLabel, setCopyPlansLabel] = useState('Copy Link')
+
+  const [showIncompleteModal, setShowIncompleteModal] = useState(false)
+  const [incompleteReason, setIncompleteReason] = useState('')
+  const [savingIncomplete, setSavingIncomplete] = useState(false)
+  const [incompleteError, setIncompleteError] = useState('')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUid(data?.user?.id || null))
@@ -330,6 +345,62 @@ export default function TechJobCard({ profile }) {
     setSaving(false)
   }
 
+  async function submitIncomplete() {
+    if (!job) return
+    if (!incompleteReason) {
+      setIncompleteError('Pick a reason.')
+      return
+    }
+    setSavingIncomplete(true)
+    setIncompleteError('')
+
+    // Marking incomplete does two things together: flips the job's status so
+    // the office sees it's done-for-now, and creates the Jobs Management
+    // tracking record with the reason. An estimate is NOT required — the tech
+    // flagging it is what lands it in the office queue. If an estimate later
+    // gets attached (desktop or approval), it enriches this same record.
+    const { error: statusErr } = await supabase
+      .from('jobs')
+      .update({ status: 'incomplete' })
+      .eq('id', jobId)
+    if (statusErr) {
+      setIncompleteError(statusErr.message)
+      setSavingIncomplete(false)
+      return
+    }
+
+    // Avoid stacking duplicate open records for the same job if the tech taps
+    // this more than once — reuse an existing one, just update its reason.
+    const { data: existing } = await supabase
+      .from('job_incomplete_records')
+      .select('id')
+      .eq('job_id', jobId)
+      .limit(1)
+
+    if (existing && existing.length > 0) {
+      await supabase
+        .from('job_incomplete_records')
+        .update({ reason: incompleteReason })
+        .eq('id', existing[0].id)
+    } else {
+      const { error: recErr } = await supabase.from('job_incomplete_records').insert({
+        org_id: job.org_id,
+        job_id: jobId,
+        reason: incompleteReason,
+      })
+      if (recErr) {
+        setIncompleteError(recErr.message)
+        setSavingIncomplete(false)
+        return
+      }
+    }
+
+    setJob((prev) => ({ ...prev, status: 'incomplete' }))
+    setSavingIncomplete(false)
+    setShowIncompleteModal(false)
+    setIncompleteReason('')
+  }
+
   async function saveNotes() {
     setSaving(true)
     const { error } = await supabase.from('jobs').update({ internal_notes: notes }).eq('id', jobId)
@@ -467,6 +538,25 @@ export default function TechJobCard({ profile }) {
             Complete
           </button>
         </div>
+
+        {(status === 'in_progress' || status === 'on_my_way') && (
+          <button
+            className="action-btn incomplete-btn"
+            style={{ width: '100%', marginTop: 8, background: 'var(--alert-orange)' }}
+            disabled={saving}
+            onClick={() => { setIncompleteReason(''); setIncompleteError(''); setShowIncompleteModal(true) }}
+          >
+            Mark Incomplete — Needs Follow-Up
+          </button>
+        )}
+
+        {status === 'incomplete' && (
+          <div className="section-card" style={{ marginTop: 8, borderColor: 'var(--alert-orange)' }}>
+            <div className="section-card-body" style={{ color: 'var(--alert-orange)', fontWeight: 700 }}>
+              Marked incomplete — the office has this in the follow-up queue.
+            </div>
+          </div>
+        )}
 
         <div className="section-card">
           <div className="section-card-header"><span>Customer</span></div>
@@ -823,6 +913,53 @@ export default function TechJobCard({ profile }) {
           </div>
         </div>
       </div>
+
+      {showIncompleteModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => !savingIncomplete && setShowIncompleteModal(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1000 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: '#fff', width: '100%', maxWidth: 520, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, paddingBottom: 32 }}
+          >
+            <h3 style={{ margin: '0 0 4px', fontSize: 18 }}>Mark Job Incomplete</h3>
+            <p style={{ color: 'var(--mist)', fontSize: 14, margin: '0 0 16px' }}>
+              This tells the office the job is done for now but needs a follow-up visit. Pick the reason.
+            </p>
+            <select
+              value={incompleteReason}
+              onChange={(e) => setIncompleteReason(e.target.value)}
+              style={{ width: '100%', padding: '12px', fontSize: 16, borderRadius: 8, border: '1px solid var(--border)', marginBottom: 12 }}
+            >
+              <option value="">Select a reason…</option>
+              {INCOMPLETE_REASONS.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            {incompleteError && <div className="auth-error" style={{ marginBottom: 12 }}>{incompleteError}</div>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className="action-btn"
+                style={{ background: '#E5E9EC', color: 'var(--paper)' }}
+                disabled={savingIncomplete}
+                onClick={() => setShowIncompleteModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="action-btn"
+                style={{ background: 'var(--alert-orange)' }}
+                disabled={savingIncomplete}
+                onClick={submitIncomplete}
+              >
+                {savingIncomplete ? 'Saving…' : 'Confirm Incomplete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
