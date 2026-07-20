@@ -10,7 +10,7 @@ const LINE_ITEM_COUNT = 9
 
 const APPROVAL_STATUS_OPTIONS = ['Pending', 'Approved', 'Rejected', 'Pending Financing']
 
-const ACTIONS_WIDTH = 140
+const ACTIONS_WIDTH = 210
 const FROZEN_KEYS = ['invoice_date', 'invoice_number', 'job_number', 'customer']
 
 const COLUMNS = [
@@ -159,6 +159,41 @@ export default function Estimates({ profile }) {
     const action = est.is_archived ? 'unarchive' : 'archive'
     if (!window.confirm(`Are you sure you want to ${action} estimate ${est.invoice_number}?`)) return
     await supabase.from('invoices').update({ is_archived: !est.is_archived }).eq('id', est.id)
+    loadEstimates(selectedOrg)
+  }
+
+  async function addToIncompleteJobs(est) {
+    if (!est.job_id) {
+      alert('This estimate has no linked job, so it can\'t be added to Incomplete Jobs.')
+      return
+    }
+    // Flip the job incomplete and attach this estimate to its tracking record,
+    // creating one if the tech/office hasn't already. Reuses an existing record
+    // so this stays in sync with the mobile button and the estimate-page button.
+    const { error: statusErr } = await supabase.from('jobs').update({ status: 'incomplete' }).eq('id', est.job_id)
+    if (statusErr) {
+      alert('Error: ' + statusErr.message)
+      return
+    }
+    const { data: existing } = await supabase
+      .from('job_incomplete_records')
+      .select('id')
+      .eq('job_id', est.job_id)
+      .limit(1)
+    if (existing && existing.length > 0) {
+      await supabase.from('job_incomplete_records').update({ estimate_id: est.id }).eq('id', existing[0].id)
+    } else {
+      const { error: recErr } = await supabase.from('job_incomplete_records').insert({
+        org_id: selectedOrg,
+        job_id: est.job_id,
+        estimate_id: est.id,
+      })
+      if (recErr) {
+        alert('Error: ' + recErr.message)
+        return
+      }
+    }
+    alert('Added to Incomplete Jobs — check the Jobs Management page.')
     loadEstimates(selectedOrg)
   }
 
@@ -407,6 +442,9 @@ export default function Estimates({ profile }) {
                   <Link to={'/estimate/' + est.job_id} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
                     Edit
                   </Link>
+                  <button className="logout-button" onClick={() => addToIncompleteJobs(est)}>
+                    + Incomplete
+                  </button>
                   <button className="logout-button" onClick={() => toggleArchive(est)}>
                     {est.is_archived ? 'Unarchive' : 'Archive'}
                   </button>
