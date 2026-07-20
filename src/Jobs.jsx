@@ -291,6 +291,37 @@ export default function Jobs({ profile }) {
       return
     }
 
+    // Setting status to "incomplete" here should land the job in the office's
+    // Incomplete Jobs queue, same as the mobile "Mark Incomplete" button does.
+    // Only create a record when the job WASN'T already incomplete (avoid
+    // stacking on every re-save), and reuse an existing record if one's there.
+    if (editStatus === 'incomplete' && currentJob?.status !== 'incomplete') {
+      const { data: existingRec } = await supabase
+        .from('job_incomplete_records')
+        .select('id')
+        .eq('job_id', id)
+        .limit(1)
+
+      if (!existingRec || existingRec.length === 0) {
+        // Auto-link the job's estimate if one exists, so the office record is
+        // pre-populated rather than empty.
+        const { data: est } = await supabase
+          .from('invoices')
+          .select('id')
+          .eq('job_id', id)
+          .eq('kind', 'estimate')
+          .order('created_at', { ascending: false })
+          .limit(1)
+
+        await supabase.from('job_incomplete_records').insert({
+          org_id: currentJob?.org_id || selectedOrg,
+          job_id: id,
+          estimate_id: est && est.length > 0 ? est[0].id : null,
+          reason: 'Marked incomplete from office (Jobs page)',
+        })
+      }
+    }
+
     // The trip charge gets copied into an invoice/estimate line item once,
     // at the time it's first set — it's a snapshot, not a live link. If the
     // selection just changed, sync that snapshot forward too, but only for a
