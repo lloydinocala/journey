@@ -30,6 +30,8 @@ export default function Estimate({ profile }) {
 
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sendError, setSendError] = useState('')
+  const [addingIncomplete, setAddingIncomplete] = useState(false)
+  const [incompleteMsg, setIncompleteMsg] = useState('')
 
   async function loadJobAndEstimate() {
     setLoading(true)
@@ -245,6 +247,47 @@ export default function Estimate({ profile }) {
       .from('invoices')
       .update({ discount_type: discountType, discount_amount: parseFloat(discountAmount) || 0 })
       .eq('id', estimate.id)
+  }
+
+  async function handleAddToIncomplete() {
+    if (!job || !estimate) return
+    setAddingIncomplete(true)
+    setIncompleteMsg('')
+
+    // Attach this estimate to the job's Incomplete Jobs record. If the tech
+    // already marked the job incomplete from the field, this enriches that
+    // same record with the estimate; if not, it creates one now. Flips the
+    // job to incomplete either way so it surfaces in the office queue.
+    const { error: statusErr } = await supabase.from('jobs').update({ status: 'incomplete' }).eq('id', job.id)
+    if (statusErr) {
+      setIncompleteMsg('Error: ' + statusErr.message)
+      setAddingIncomplete(false)
+      return
+    }
+
+    const { data: existing } = await supabase
+      .from('job_incomplete_records')
+      .select('id')
+      .eq('job_id', job.id)
+      .limit(1)
+
+    if (existing && existing.length > 0) {
+      await supabase.from('job_incomplete_records').update({ estimate_id: estimate.id }).eq('id', existing[0].id)
+    } else {
+      const { error: recErr } = await supabase.from('job_incomplete_records').insert({
+        org_id: job.org_id,
+        job_id: job.id,
+        estimate_id: estimate.id,
+      })
+      if (recErr) {
+        setIncompleteMsg('Error: ' + recErr.message)
+        setAddingIncomplete(false)
+        return
+      }
+    }
+
+    setAddingIncomplete(false)
+    setIncompleteMsg('Added to Incomplete Jobs — check the Jobs Management page.')
   }
 
   async function handleSendEmail() {
@@ -496,13 +539,21 @@ export default function Estimate({ profile }) {
                 Open
               </button>
             </div>
-            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <button className="auth-button" style={{ width: 'auto', padding: '8px 20px' }} onClick={handleSendEmail} disabled={sendingEmail}>
                 {sendingEmail ? 'Sending…' : estimate.sent_at ? 'Resend to Customer' : 'Send to Customer'}
               </button>
               {estimate.sent_at && (
                 <span style={{ fontSize: 13, color: 'var(--mist)' }}>
                   Last sent {new Date(estimate.sent_at).toLocaleString()}
+                </span>
+              )}
+              <button className="logout-button" style={{ width: 'auto', padding: '8px 20px' }} onClick={handleAddToIncomplete} disabled={addingIncomplete}>
+                {addingIncomplete ? 'Adding…' : 'Add to Incomplete Jobs'}
+              </button>
+              {incompleteMsg && (
+                <span style={{ fontSize: 13, color: incompleteMsg.startsWith('Error') ? 'var(--alert-orange)' : 'var(--route-blue)' }}>
+                  {incompleteMsg}
                 </span>
               )}
             </div>
