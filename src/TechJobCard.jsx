@@ -96,6 +96,7 @@ export default function TechJobCard({ profile }) {
   const { jobId } = useParams()
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
+  const cameraInputRef = useRef(null)
 
   const [job, setJob] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -534,14 +535,27 @@ export default function TechJobCard({ profile }) {
         <div className="section-card">
           <div className="section-card-header">
             <span><IconCamera /> Photo Attachments</span>
-            <button className="link-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-              {uploading ? 'Uploading…' : '+ Add'}
-            </button>
+            <div style={{ display: 'flex', gap: 14 }}>
+              <button className="link-btn" onClick={() => cameraInputRef.current?.click()} disabled={uploading}>
+                {uploading ? 'Uploading…' : 'Take Photo'}
+              </button>
+              <button className="link-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                Upload
+              </button>
+            </div>
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              style={{ display: 'none' }}
+              onChange={handlePhotoSelect}
+            />
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
-              capture="environment"
               multiple
               style={{ display: 'none' }}
               onChange={handlePhotoSelect}
