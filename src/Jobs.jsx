@@ -270,7 +270,7 @@ export default function Jobs({ profile }) {
     const currentJob = jobs.find((j) => j.id === id)
     const oldTripChargeId = currentJob?.trip_charge_price_id || null
 
-    await supabase
+    const { error: saveError } = await supabase
       .from('jobs')
       .update({
         property_id: editPropertyId,
@@ -285,6 +285,11 @@ export default function Jobs({ profile }) {
         trip_charge_price_id: editTripChargeId || null,
       })
       .eq('id', id)
+
+    if (saveError) {
+      alert('Could not save this job: ' + saveError.message)
+      return
+    }
 
     // The trip charge gets copied into an invoice/estimate line item once,
     // at the time it's first set — it's a snapshot, not a live link. If the
