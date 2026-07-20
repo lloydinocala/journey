@@ -52,7 +52,7 @@ export default function JobsManagement({ profile }) {
             .from('job_incomplete_records')
             .select(`
               id, job_id, estimate_id, warranty_or_cash, claim_status, customer_communication,
-              equipment_brand, equipment_model, equipment_serial, created_at,
+              equipment_brand, equipment_model, equipment_serial, created_at, reason,
               jobs ( id, job_number, segment, job_date, status, property_id,
                 properties ( street_address, customers!properties_customer_id_fkey ( display_name, primary_phone ) )
               )
@@ -194,6 +194,8 @@ export default function JobsManagement({ profile }) {
                     <th>Seg #</th>
                     <th>Customer</th>
                     <th>Phone</th>
+                    <th>Reason</th>
+                    <th>Estimate</th>
                     <th>Brand</th>
                     <th>Model #</th>
                     <th>Serial #</th>
@@ -214,6 +216,14 @@ export default function JobsManagement({ profile }) {
                         <td>{rec.job.segment}</td>
                         <td>{rec.job.properties?.customers?.display_name || '—'}</td>
                         <td>{rec.job.properties?.customers?.primary_phone || '—'}</td>
+                        <td style={{ maxWidth: 180, fontSize: 12 }}>{rec.reason || '—'}</td>
+                        <td>
+                          {rec.estimate_id ? (
+                            <Link to={`/estimate/${rec.job.id}`} className="status-pill status-active" style={{ textDecoration: 'none' }}>Estimate linked</Link>
+                          ) : (
+                            <Link to={`/estimate/${rec.job.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Attach estimate</Link>
+                          )}
+                        </td>
                         <td>
                           <input type="text" value={rec.equipment_brand || ''} onChange={(e) => updateRecordField(rec.id, 'equipment_brand', e.target.value)} style={{ width: 90 }} />
                         </td>
@@ -252,7 +262,7 @@ export default function JobsManagement({ profile }) {
                       </tr>
                       {addingPartFor === rec.id && (
                         <tr key={rec.id + '-form'}>
-                          <td colSpan="14" style={{ background: 'var(--ink)', padding: 16 }}>
+                          <td colSpan="16" style={{ background: 'var(--ink)', padding: 16 }}>
                             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                               <div className="field" style={{ marginBottom: 0, minWidth: 200 }}>
                                 <label>Part Description</label>
