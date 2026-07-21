@@ -8,6 +8,14 @@ import TripChargePicker from './TripChargePicker'
 import { exportToCSV } from './utils/csvExport'
 import { fetchAllRows } from './utils/csvImport'
 
+function formatPhone(raw) {
+  if (!raw) return raw
+  const d = ('' + raw).replace(/\D/g, '')
+  if (d.length === 10) return d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6)
+  if (d.length === 11 && d[0] === '1') return d.slice(1, 4) + '-' + d.slice(4, 7) + '-' + d.slice(7)
+  return raw
+}
+
 const FROZEN_KEYS = ['job_number', 'segment', 'job_date', 'street_address']
 
 const COLUMNS = [
@@ -183,7 +191,7 @@ export default function Jobs({ profile }) {
   function tenantAt(job, idx, field) {
     const t = sortedTenants(job)[idx]
     if (!t) return ''
-    return field === 'phone' ? t.phone || '' : t.name || ''
+    return field === 'phone' ? (formatPhone(t.phone) || '') : t.name || ''
   }
 
   function jobNumberDisplay(job) {
