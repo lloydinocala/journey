@@ -77,6 +77,11 @@ export default function Layout({ profile }) {
       })
     }
     await supabase.auth.signOut()
+    // Clear the clock-in prompt flag so it shows again on the next login,
+    // not just the next new tab. (sessionStorage otherwise persists per tab.)
+    try {
+      Object.keys(sessionStorage).forEach((k) => { if (k.startsWith('clockPromptSeen:')) sessionStorage.removeItem(k) })
+    } catch (e) { /* ignore */ }
   }
 
   const activeCategoryData = allCategories.find((c) => c.key === expandedCategory)
