@@ -10,7 +10,8 @@ export default function ClockInPrompt({ profile }) {
   const [show, setShow] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  const sessionKey = `clockPromptSeen:${profile?.id}`
+  const today = new Date().toISOString().slice(0, 10)
+  const seenKey = `clockPromptSeen:${profile?.id}:${today}`
 
   useEffect(() => {
     let cancelled = false
@@ -21,7 +22,7 @@ export default function ClockInPrompt({ profile }) {
         return
       }
       // Don't nag twice in one session.
-      if (sessionStorage.getItem(sessionKey)) {
+      if (localStorage.getItem(seenKey)) {
         setChecked(true)
         return
       }
@@ -50,14 +51,14 @@ export default function ClockInPrompt({ profile }) {
     })
     setBusy(false)
     if (error) { alert('Could not clock in: ' + error.message); return }
-    sessionStorage.setItem(sessionKey, '1')
+    localStorage.setItem(seenKey, '1')
     setShow(false)
     // Let the sidebar clock refresh
     window.dispatchEvent(new Event('clock-changed'))
   }
 
   function skip() {
-    sessionStorage.setItem(sessionKey, '1')
+    localStorage.setItem(seenKey, '1')
     setShow(false)
   }
 
