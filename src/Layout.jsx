@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import AnnouncementBanner from './AnnouncementBanner'
 import ClockWidget from './ClockWidget'
+import ClockInPrompt from './ClockInPrompt'
 
 const CATEGORIES = [
   { key: 'operations', label: 'Operations', items: [
@@ -24,6 +25,7 @@ const CATEGORIES = [
   { key: 'admin', label: 'Admin', items: [
     { label: 'Team', path: '/team' },
     { label: 'Payroll Capture', path: '/payroll' },
+    { label: 'Time Clock', path: '/time-clock' },
     { label: 'Sign-In Log', path: '/session-log' },
     { label: 'Settings', path: '/settings' },
   ]},
@@ -81,6 +83,7 @@ export default function Layout({ profile }) {
 
   return (
     <div className="app-shell-v2">
+      <ClockInPrompt profile={profile} />
       <AnnouncementBanner profile={profile} />
       <div className="shell-body">
         <div className="sidebar-rail">
