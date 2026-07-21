@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import AnnouncementBanner from './AnnouncementBanner'
+import ClockWidget from './ClockWidget'
 
 const CATEGORIES = [
   { key: 'operations', label: 'Operations', items: [
@@ -97,6 +98,11 @@ export default function Layout({ profile }) {
             </button>
           ))}
           <div className="rail-spacer" />
+          {!isSuperAdmin && profile?.id && profile?.org_id && (
+            <div style={{ marginBottom: 12 }}>
+              <ClockWidget userId={profile.id} orgId={profile.org_id} variant="desktop" />
+            </div>
+          )}
           {isSuperAdmin && <span className="badge" style={{ marginBottom: 12 }}>Super Admin</span>}
           <button className="rail-item" onClick={() => window.location.reload(true)}>Refresh</button>
           <button className="rail-item" onClick={handleLogout}>Sign out</button>
