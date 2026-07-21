@@ -67,6 +67,36 @@ export default function Layout({ profile }) {
   }, [location.pathname])
 
   async function handleLogout() {
+    // If they're clocked in (open shift), offer to clock out too — catches the
+    // common forgotten-clock-out at end of day.
+    try {
+      const { data: userData } = await supabase.auth.getUser()
+      const uid = userData?.user?.id
+      if (uid) {
+        const { data: openShifts } = await supabase
+          .from('time_clock_events')
+          .select('id')
+          .eq('user_id', uid)
+          .is('clock_out', null)
+          .limit(1)
+        if (openShifts && openShifts.length > 0) {
+          const alsoClockOut = window.confirm('You are still clocked in. Clock out now too?')
+          if (alsoClockOut) {
+            // End any open break first, then close the shift.
+            const { data: openBreaks } = await supabase
+              .from('clock_breaks')
+              .select('id')
+              .eq('clock_event_id', openShifts[0].id)
+              .is('break_end', null)
+              .limit(1)
+            if (openBreaks && openBreaks.length > 0) {
+              await supabase.from('clock_breaks').update({ break_end: new Date().toISOString() }).eq('id', openBreaks[0].id)
+            }
+            await supabase.from('time_clock_events').update({ clock_out: new Date().toISOString() }).eq('id', openShifts[0].id)
+          }
+        }
+      }
+    } catch (e) { /* don't block sign-out on a clock hiccup */ }
     const { data } = await supabase.auth.getUser()
     if (data?.user) {
       await supabase.from('session_log').insert({
