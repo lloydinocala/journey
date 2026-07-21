@@ -7,6 +7,14 @@ import { exportToCSV } from './utils/csvExport'
 import { fetchAllRows } from './utils/csvImport'
 import CustomerSearchSelect from './CustomerSearchSelect'
 
+function formatPhone(raw) {
+  if (!raw) return raw
+  const d = ('' + raw).replace(/\D/g, '')
+  if (d.length === 10) return d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6)
+  if (d.length === 11 && d[0] === '1') return d.slice(1, 4) + '-' + d.slice(4, 7) + '-' + d.slice(7)
+  return raw
+}
+
 const COLUMNS = [
   { key: 'street_address', label: 'Address', required: true },
   { key: 'city', label: 'City' },
@@ -323,7 +331,7 @@ export default function Properties({ profile }) {
 
   function tenantsLabel(p) {
     return (p.property_tenants || [])
-      .map((t) => t.name + (t.phone ? ' — ' + t.phone : ''))
+      .map((t) => t.name + (t.phone ? ' — ' + formatPhone(t.phone) : ''))
       .join('; ')
   }
 
