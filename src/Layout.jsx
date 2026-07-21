@@ -22,6 +22,7 @@ const CATEGORIES = [
   ]},
   { key: 'admin', label: 'Admin', items: [
     { label: 'Team', path: '/team' },
+    { label: 'Payroll Capture', path: '/payroll' },
     { label: 'Sign-In Log', path: '/session-log' },
     { label: 'Settings', path: '/settings' },
   ]},
