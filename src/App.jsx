@@ -95,7 +95,7 @@ function AuthenticatedApp() {
       return
     }
     Promise.all([
-      supabase.from('users').select('full_name, role, org_id, is_field_supervisor').eq('id', session.user.id).single(),
+      supabase.from('users').select('id, full_name, role, org_id, is_field_supervisor').eq('id', session.user.id).single(),
       supabase.from('user_permissions').select('permission_key').eq('user_id', session.user.id),
     ]).then(([userRes, permsRes]) => {
       if (!userRes.data) {
