@@ -60,6 +60,8 @@ export default function Layout({ profile }) {
   const allCategories = isSuperAdmin ? [...CATEGORIES, PLATFORM_CATEGORY] : CATEGORIES
 
   const [expandedCategory, setExpandedCategory] = useState(getCategoryForPath(location.pathname))
+  const [logoutShiftId, setLogoutShiftId] = useState(null)  // open shift id when logging out
+  const [loggingOut, setLoggingOut] = useState(false)
 
   useEffect(() => {
     const cat = getCategoryForPath(location.pathname)
@@ -67,8 +69,8 @@ export default function Layout({ profile }) {
   }, [location.pathname])
 
   async function handleLogout() {
-    // If they're clocked in (open shift), offer to clock out too — catches the
-    // common forgotten-clock-out at end of day.
+    // If they're clocked in (open shift), show a colorful prompt offering to
+    // clock out too — catches the common forgotten-clock-out at end of day.
     try {
       const { data: userData } = await supabase.auth.getUser()
       const uid = userData?.user?.id
@@ -80,23 +82,32 @@ export default function Layout({ profile }) {
           .is('clock_out', null)
           .limit(1)
         if (openShifts && openShifts.length > 0) {
-          const alsoClockOut = window.confirm('You are still clocked in. Clock out now too?')
-          if (alsoClockOut) {
-            // End any open break first, then close the shift.
-            const { data: openBreaks } = await supabase
-              .from('clock_breaks')
-              .select('id')
-              .eq('clock_event_id', openShifts[0].id)
-              .is('break_end', null)
-              .limit(1)
-            if (openBreaks && openBreaks.length > 0) {
-              await supabase.from('clock_breaks').update({ break_end: new Date().toISOString() }).eq('id', openBreaks[0].id)
-            }
-            await supabase.from('time_clock_events').update({ clock_out: new Date().toISOString() }).eq('id', openShifts[0].id)
-          }
+          setLogoutShiftId(openShifts[0].id)  // open the styled modal; it finishes logout
+          return
         }
       }
     } catch (e) { /* don't block sign-out on a clock hiccup */ }
+    finishLogout(false, null)
+  }
+
+  async function finishLogout(alsoClockOut, shiftId) {
+    setLoggingOut(true)
+    try {
+      if (alsoClockOut && shiftId) {
+        // End any open break first, then close the shift.
+        const { data: openBreaks } = await supabase
+          .from('clock_breaks')
+          .select('id')
+          .eq('clock_event_id', shiftId)
+          .is('break_end', null)
+          .limit(1)
+        if (openBreaks && openBreaks.length > 0) {
+          await supabase.from('clock_breaks').update({ break_end: new Date().toISOString() }).eq('id', openBreaks[0].id)
+        }
+        await supabase.from('time_clock_events').update({ clock_out: new Date().toISOString() }).eq('id', shiftId)
+      }
+    } catch (e) { /* ignore clock hiccup */ }
+
     const { data } = await supabase.auth.getUser()
     if (data?.user) {
       await supabase.from('session_log').insert({
@@ -107,8 +118,6 @@ export default function Layout({ profile }) {
       })
     }
     await supabase.auth.signOut()
-    // Clear the clock-in prompt flag so it shows again on the next login,
-    // not just the next new tab. (sessionStorage otherwise persists per tab.)
     try {
       Object.keys(sessionStorage).forEach((k) => { if (k.startsWith('clockPromptSeen:')) sessionStorage.removeItem(k) })
     } catch (e) { /* ignore */ }
@@ -119,6 +128,37 @@ export default function Layout({ profile }) {
   return (
     <div className="app-shell-v2">
       <ClockInPrompt profile={profile} />
+      {logoutShiftId && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.75)', zIndex: 4500,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 0, maxWidth: 440, width: '100%', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.35)' }}>
+            <div style={{ background: '#B00020', color: '#fff', padding: '18px 24px', fontSize: 20, fontWeight: 800, textAlign: 'center' }}>
+              ⏱ You're still clocked in
+            </div>
+            <div style={{ padding: 24, textAlign: 'center' }}>
+              <p style={{ color: '#334155', marginTop: 0, marginBottom: 24, fontSize: 15 }}>
+                You're about to sign out but you haven't clocked out. Do you want to clock out now too?
+              </p>
+              <button
+                onClick={async () => { await finishLogout(true, logoutShiftId); setLogoutShiftId(null) }}
+                disabled={loggingOut}
+                style={{ width: '100%', padding: '16px', borderRadius: 12, border: 'none', background: '#B00020', color: '#fff', fontWeight: 800, fontSize: 17, cursor: 'pointer', marginBottom: 10 }}
+              >
+                {loggingOut ? 'Clocking out…' : 'Yes — Clock Out & Sign Out'}
+              </button>
+              <button
+                onClick={async () => { await finishLogout(false, logoutShiftId); setLogoutShiftId(null) }}
+                disabled={loggingOut}
+                style={{ width: '100%', padding: '12px', borderRadius: 12, border: '1px solid #CBD5E1', background: '#fff', color: '#334155', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+              >
+                No — Stay Clocked In, Just Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <AnnouncementBanner profile={profile} />
       <div className="shell-body">
         <div className="sidebar-rail">
