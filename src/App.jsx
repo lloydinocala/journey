@@ -10,6 +10,7 @@ import Customers from './Customers'
 import CustomerHistory from './CustomerHistory'
 import JobsManagement from './JobsManagement'
 import PayrollCapture from './PayrollCapture'
+import TimeClock from './TimeClock'
 import EmployeePayroll from './EmployeePayroll'
 import Vendors from './Vendors'
 import VendorDetail from './VendorDetail'
@@ -134,6 +135,7 @@ function AuthenticatedApp() {
         <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
         <Route path="/jobs-management" element={<JobsManagement profile={profile} />} />
         <Route path="/payroll" element={<PayrollCapture profile={profile} />} />
+        <Route path="/time-clock" element={<TimeClock profile={profile} />} />
         <Route path="/payroll/employee/:userId" element={<EmployeePayroll profile={profile} />} />
         <Route path="/vendors" element={<Vendors profile={profile} />} />
         <Route path="/vendors/:vendorId" element={<VendorDetail profile={profile} />} />
