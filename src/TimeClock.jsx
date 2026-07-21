@@ -28,6 +28,7 @@ export default function TimeClock({ profile }) {
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [loading, setLoading] = useState(true)
   const [events, setEvents] = useState([])
+  const [breaksByEvent, setBreaksByEvent] = useState({})
   const [employees, setEmployees] = useState([])
   const [editing, setEditing] = useState(null)      // event id being edited
   const [editIn, setEditIn] = useState('')
@@ -58,7 +59,24 @@ export default function TimeClock({ profile }) {
     ])
     setEvents(evRes.data || [])
     setEmployees(empRes.data || [])
+
+    // Load breaks nested in these shifts
+    const evIds = (evRes.data || []).map((e) => e.id)
+    const bmap = {}
+    if (evIds.length > 0) {
+      const { data: brk } = await supabase.from('clock_breaks').select('*').in('clock_event_id', evIds).order('break_start')
+      ;(brk || []).forEach((b) => {
+        if (!bmap[b.clock_event_id]) bmap[b.clock_event_id] = []
+        bmap[b.clock_event_id].push(b)
+      })
+    }
+    setBreaksByEvent(bmap)
     setLoading(false)
+  }
+
+  async function toggleBreakPaid(brk) {
+    await supabase.from('clock_breaks').update({ is_paid: !brk.is_paid }).eq('id', brk.id)
+    load()
   }
 
   function empName(id) {
@@ -197,6 +215,26 @@ export default function TimeClock({ profile }) {
                         Corrected {fmt(ev.edited_at)} by {empName(ev.edited_by)} · original In {fmt(ev.original_clock_in)} / Out {fmt(ev.original_clock_out)}
                         {ev.notes ? ` · ${ev.notes}` : ''}
                       </span>
+                    )}
+                    {(breaksByEvent[ev.id] || []).length > 0 && (
+                      <div style={{ width: '100%', fontSize: 12, color: 'var(--mist)', marginTop: 4 }}>
+                        {(breaksByEvent[ev.id] || []).map((b) => {
+                          const bmin = b.break_start && b.break_end ? Math.round((new Date(b.break_end) - new Date(b.break_start)) / 60000) : null
+                          return (
+                            <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 0' }}>
+                              <span>Lunch: {fmt(b.break_start)} → {b.break_end ? fmt(b.break_end) : 'in progress'} {bmin != null ? `(${bmin} min)` : ''}</span>
+                              <button
+                                className="logout-button"
+                                style={{ padding: '2px 8px', fontSize: 11 }}
+                                onClick={() => toggleBreakPaid(b)}
+                                title="Toggle whether this break is paid (not subtracted) or unpaid (subtracted from hours)"
+                              >
+                                {b.is_paid ? 'Paid' : 'Unpaid'}
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
                     )}
                   </div>
                 ) : (
