@@ -134,14 +134,33 @@ export default function PayrollCapture({ profile }) {
     const weekEndDate = addDays(weekStart, 6)
     const { data: clockData } = await supabase
       .from('time_clock_events')
-      .select('user_id, clock_in, clock_out')
+      .select('id, user_id, clock_in, clock_out')
       .eq('org_id', selectedOrg)
       .gte('clock_in', weekStart + 'T00:00:00')
       .lte('clock_in', weekEndDate + 'T23:59:59')
       .not('clock_out', 'is', null)
+
+    // Pull unpaid breaks for those shifts and subtract them — unpaid meal time
+    // is not compensable, so it must come out of the hours-worked figure.
+    const shiftIds = (clockData || []).map((e) => e.id)
+    const breakByShift = {}
+    if (shiftIds.length > 0) {
+      const { data: brk } = await supabase
+        .from('clock_breaks')
+        .select('clock_event_id, break_start, break_end, is_paid')
+        .in('clock_event_id', shiftIds)
+        .eq('is_paid', false)
+        .not('break_end', 'is', null)
+      ;(brk || []).forEach((b) => {
+        const ms = new Date(b.break_end).getTime() - new Date(b.break_start).getTime()
+        if (ms > 0) breakByShift[b.clock_event_id] = (breakByShift[b.clock_event_id] || 0) + ms
+      })
+    }
+
     const hoursMap = {}
     ;(clockData || []).forEach((e) => {
-      const ms = new Date(e.clock_out).getTime() - new Date(e.clock_in).getTime()
+      let ms = new Date(e.clock_out).getTime() - new Date(e.clock_in).getTime()
+      ms -= (breakByShift[e.id] || 0) // subtract unpaid break time
       if (ms > 0) hoursMap[e.user_id] = (hoursMap[e.user_id] || 0) + ms / 3600000
     })
     // round to 2 decimals
