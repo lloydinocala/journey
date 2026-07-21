@@ -14,6 +14,17 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([array], { type: mime })
 }
 
+const NOT_PRESENT_REASONS = [
+  'Verbal approval — in person',
+  'Phone verbal approval',
+  'Text or email approval',
+  'Unable to sign (physical limitation)',
+  'Approved by spouse or household member',
+  'Approved by property manager or landlord',
+  'Tenant present, owner approved remotely',
+  'Other',
+]
+
 export default function TechInvoiceView({ profile }) {
   const { invoiceId } = useParams()
   const navigate = useNavigate()
@@ -39,6 +50,7 @@ export default function TechInvoiceView({ profile }) {
   const [approverName, setApproverName] = useState('')
   const [signatureDataUrl, setSignatureDataUrl] = useState(null)
   const [useTypedFallback, setUseTypedFallback] = useState(false)
+  const [notPresentReason, setNotPresentReason] = useState('')
   const [approvalError, setApprovalError] = useState('')
   const [savingApproval, setSavingApproval] = useState(false)
 
@@ -163,13 +175,20 @@ export default function TechInvoiceView({ profile }) {
   // for a tech to fumble.
   async function handleApproveEstimate() {
     setApprovalError('')
-    if (!approverName.trim()) {
-      setApprovalError('Enter the customer\'s name.')
-      return
-    }
-    if (!useTypedFallback && !signatureDataUrl) {
-      setApprovalError('Capture a signature, or check "Customer not present" to use a typed approval instead.')
-      return
+    if (useTypedFallback) {
+      if (!notPresentReason) {
+        setApprovalError('Pick a reason the customer could not sign.')
+        return
+      }
+    } else {
+      if (!approverName.trim()) {
+        setApprovalError('Enter the name of the person signing.')
+        return
+      }
+      if (!signatureDataUrl) {
+        setApprovalError('Capture a signature, or check "Customer not present" to record a reason instead.')
+        return
+      }
     }
 
     setSavingApproval(true)
@@ -193,7 +212,7 @@ export default function TechInvoiceView({ profile }) {
       .from('invoices')
       .update({
         approved_at: now,
-        approved_by: approverName.trim(),
+        approved_by: useTypedFallback ? `Not present — ${notPresentReason}` : approverName.trim(),
         approval_signature_url: signaturePath,
       })
       .eq('id', invoiceId)
@@ -307,26 +326,37 @@ export default function TechInvoiceView({ profile }) {
                   </>
                 ) : (
                   <div>
-                    <input
-                      type="text"
-                      value={approverName}
-                      onChange={(e) => setApproverName(e.target.value)}
-                      placeholder="Customer name"
-                      style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8, boxSizing: 'border-box', fontSize: 13 }}
-                    />
                     <label style={{ display: 'block', fontSize: 12.5, marginBottom: 8, cursor: 'pointer' }}>
                       <input
                         type="checkbox"
                         checked={useTypedFallback}
-                        onChange={(e) => { setUseTypedFallback(e.target.checked); setSignatureDataUrl(null) }}
+                        onChange={(e) => { setUseTypedFallback(e.target.checked); setSignatureDataUrl(null); setNotPresentReason('') }}
                         style={{ marginRight: 6 }}
                       />
-                      Customer not present (typed approval, no signature)
+                      Customer not present (record reason instead of signature)
                     </label>
-                    {!useTypedFallback && (
-                      <div style={{ marginBottom: 8 }}>
-                        <SignaturePad onChange={setSignatureDataUrl} />
-                      </div>
+                    {useTypedFallback ? (
+                      <select
+                        value={notPresentReason}
+                        onChange={(e) => setNotPresentReason(e.target.value)}
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8, boxSizing: 'border-box', fontSize: 13 }}
+                      >
+                        <option value="">Why can't the customer sign?…</option>
+                        {NOT_PRESENT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={approverName}
+                          onChange={(e) => setApproverName(e.target.value)}
+                          placeholder="Name of person signing"
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8, boxSizing: 'border-box', fontSize: 13 }}
+                        />
+                        <div style={{ marginBottom: 8 }}>
+                          <SignaturePad onChange={setSignatureDataUrl} />
+                        </div>
+                      </>
                     )}
                     {approvalError && <p style={{ color: '#C0392B', fontSize: 12, marginBottom: 8 }}>{approvalError}</p>}
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -336,7 +366,7 @@ export default function TechInvoiceView({ profile }) {
                       <button
                         className="action-btn"
                         style={{ flex: 'none', padding: '8px 16px', background: '#F0F1F3', color: 'var(--paper)' }}
-                        onClick={() => { setApproving(false); setApproverName(''); setSignatureDataUrl(null); setUseTypedFallback(false); setApprovalError('') }}
+                        onClick={() => { setApproving(false); setApproverName(''); setSignatureDataUrl(null); setUseTypedFallback(false); setNotPresentReason(''); setApprovalError('') }}
                       >
                         Cancel
                       </button>
