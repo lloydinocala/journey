@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { signOutMobile } from './utils/mobileSessionLog'
 import MobileNav, { isFieldAdmin } from './MobileNav'
+import ClockWidget from './ClockWidget'
 
 const STATUS_LABEL = {
   scheduled: 'Scheduled',
@@ -33,6 +34,8 @@ export default function TechJobs({ profile }) {
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [date, setDate] = useState(todayISO())
+  const [effUid, setEffUid] = useState(null)
+  const [effOrgId, setEffOrgId] = useState(null)
 
   // Super-admin preview mode: pick an org + a "viewing as" user, since a super_admin
   // account has no org_id / assigned jobs of its own.
@@ -93,6 +96,9 @@ export default function TechJobs({ profile }) {
       return
     }
 
+    setEffUid(uid)
+    setEffOrgId(orgId)
+
     // job_technicians is the single source of truth for assignment — find
     // this tech's job IDs for the day, then load those jobs' full details.
     const { data: assignedRows } = await supabase
@@ -146,6 +152,9 @@ export default function TechJobs({ profile }) {
       </div>
 
       <div className="mobile-body">
+        {effUid && effOrgId && (
+          <ClockWidget userId={effUid} orgId={effOrgId} variant="mobile" />
+        )}
         {isSuperAdmin && (
           <div className="preview-banner">
             <div className="preview-banner-label">Super Admin Preview</div>
