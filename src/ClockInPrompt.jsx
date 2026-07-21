@@ -8,6 +8,7 @@ import { supabase } from './utils/supabase'
 export default function ClockInPrompt({ profile }) {
   const [checked, setChecked] = useState(false)   // finished the open-shift lookup
   const [show, setShow] = useState(false)
+  const [stale, setStale] = useState(false)       // open shift from a prior day
   const [busy, setBusy] = useState(false)
 
   const today = new Date().toISOString().slice(0, 10)
@@ -26,15 +27,31 @@ export default function ClockInPrompt({ profile }) {
         setChecked(true)
         return
       }
-      // Skip if already clocked in (open shift exists).
+      // Look for an open shift (clocked in, not out).
       const { data } = await supabase
         .from('time_clock_events')
-        .select('id')
+        .select('id, clock_in')
         .eq('user_id', profile.id)
         .is('clock_out', null)
+        .order('clock_in', { ascending: false })
         .limit(1)
       if (cancelled) return
-      if (!data || data.length === 0) setShow(true)
+
+      if (data && data.length > 0) {
+        // They have an open shift. If it started before today, it's stale —
+        // they forgot to clock out. Prompt them to see a supervisor rather
+        // than auto-adjusting (a human must correct time — legally safest).
+        const startedDay = new Date(data[0].clock_in).toISOString().slice(0, 10)
+        if (startedDay < today) {
+          setStale(true)
+          setShow(true)
+        }
+        // If the open shift is from today, they're simply already clocked in —
+        // no popup needed.
+      } else {
+        // Not clocked in — show the normal clock-in prompt.
+        setShow(true)
+      }
       setChecked(true)
     }
     check()
@@ -63,6 +80,32 @@ export default function ClockInPrompt({ profile }) {
   }
 
   if (!checked || !show) return null
+
+  if (stale) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.75)', zIndex: 4000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+      }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 440, width: '100%', textAlign: 'center' }}>
+          <h2 style={{ margin: '0 0 8px', color: '#B00020' }}>You're still clocked in from a previous day</h2>
+          <p style={{ color: '#334155', marginTop: 0, marginBottom: 24 }}>
+            It looks like a clock-out was missed. Please see your supervisor for a time adjustment — they can correct your hours. Don't start a new shift until this is resolved.
+          </p>
+          <button
+            onClick={skip}
+            disabled={busy}
+            style={{
+              width: '100%', padding: '14px', borderRadius: 12, border: 'none',
+              background: '#334155', color: '#fff', fontWeight: 700, fontSize: 16, cursor: 'pointer',
+            }}
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{
