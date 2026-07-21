@@ -74,7 +74,7 @@ export default function Invoice({ profile }) {
     setLoading(true)
     const { data: jobData } = await supabase
       .from('jobs')
-      .select('id, job_number, job_date, org_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
+      .select('id, job_number, job_date, org_id, customer_id, trip_charge_price_id, auth_diagnose_only, auth_limit_amount, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
       .eq('id', jobId)
       .single()
     setJob(jobData)
@@ -584,6 +584,23 @@ async function loadLineItems(invoiceId) {
           </div>
 <div className="auth-card" style={{ maxWidth: 500, marginTop: 24 }}>
             <h3 style={{ marginTop: 0, fontSize: 15 }}>Approvals</h3>
+            {job?.auth_diagnose_only && (
+              <div style={{ background: '#B00020', color: '#fff', padding: '10px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
+                ⚠ DIAGNOSE ONLY — no repairs were authorized on this job until approved.
+              </div>
+            )}
+            {!job?.auth_diagnose_only && job?.auth_limit_amount != null && (
+              <div style={{
+                background: totalDue > Number(job.auth_limit_amount) ? '#B00020' : 'var(--panel)',
+                color: totalDue > Number(job.auth_limit_amount) ? '#fff' : 'var(--paper)',
+                border: '1px solid var(--border)',
+                padding: '10px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, marginBottom: 8,
+              }}>
+                {totalDue > Number(job.auth_limit_amount)
+                  ? `⚠ Invoice total $${totalDue.toFixed(2)} EXCEEDS the $${Number(job.auth_limit_amount).toFixed(2)} authorization — re-authorization required.`
+                  : `Authorized up to $${Number(job.auth_limit_amount).toFixed(2)} · current total $${totalDue.toFixed(2)}.`}
+              </div>
+            )}
             {STAGE_ORDER.map((stage) => {
               const existing = approvals.find((a) => a.stage === stage)
               return (
