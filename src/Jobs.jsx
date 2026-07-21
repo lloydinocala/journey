@@ -87,6 +87,8 @@ export default function Jobs({ profile }) {
   const [editStatus, setEditStatus] = useState('')
   const [editJobNotes, setEditJobNotes] = useState('')
   const [editTripChargeId, setEditTripChargeId] = useState(null)
+  const [editAuthDiagnoseOnly, setEditAuthDiagnoseOnly] = useState(false)
+  const [editAuthLimitAmount, setEditAuthLimitAmount] = useState('')
   const [editTechnicians, setEditTechnicians] = useState([])
   const [addTechChoice, setAddTechChoice] = useState('')
 
@@ -121,7 +123,7 @@ export default function Jobs({ profile }) {
             .from('jobs')
             .select(`
               id, job_number, segment, status, job_date, start_time, duration_hours, job_type, service_complaint,
-              property_id, customer_id, trip_charge_price_id, on_my_way_at, arrival_at, completed_at, job_notes,
+              property_id, customer_id, trip_charge_price_id, on_my_way_at, arrival_at, completed_at, job_notes, auth_diagnose_only, auth_limit_amount,
               properties ( street_address, unit, city, state, zip, gate_code, property_tenants ( name, phone ) ),
               job_technicians ( sort_order, users ( full_name ) ),
               trip_charge:trip_charge_price_id ( location, access, hours, services ( name ) )
@@ -247,6 +249,8 @@ export default function Jobs({ profile }) {
     setEditStatus(j.status)
     setEditJobNotes(j.job_notes || '')
     setEditTripChargeId(j.trip_charge_price_id || null)
+    setEditAuthDiagnoseOnly(j.auth_diagnose_only || false)
+    setEditAuthLimitAmount(j.auth_limit_amount != null ? String(j.auth_limit_amount) : '')
     setAddTechChoice('')
     loadTechniciansForJob(j.id)
   }
@@ -291,6 +295,8 @@ export default function Jobs({ profile }) {
         status: editStatus,
         job_notes: editJobNotes.trim() || null,
         trip_charge_price_id: editTripChargeId || null,
+        auth_diagnose_only: editAuthDiagnoseOnly,
+        auth_limit_amount: editAuthDiagnoseOnly ? null : (editAuthLimitAmount ? parseFloat(editAuthLimitAmount) : null),
       })
       .eq('id', id)
 
@@ -693,6 +699,18 @@ export default function Jobs({ profile }) {
                     if (col.key === 'trip_charge') return (
                       <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <TripChargePicker orgId={selectedOrg} value={editTripChargeId} onChange={setEditTripChargeId} />
+                        <div style={{ marginTop: 6, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                            <input type="checkbox" checked={editAuthDiagnoseOnly} onChange={(e) => { setEditAuthDiagnoseOnly(e.target.checked); if (e.target.checked) setEditAuthLimitAmount('') }} />
+                            Diagnose only
+                          </label>
+                          {!editAuthDiagnoseOnly && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              Auth limit $
+                              <input type="number" step="0.01" min="0" value={editAuthLimitAmount} onChange={(e) => setEditAuthLimitAmount(e.target.value)} placeholder="none" style={{ width: 90 }} />
+                            </span>
+                          )}
+                        </div>
                       </div>
                     )
                     if (col.key === 'job_type') return (
