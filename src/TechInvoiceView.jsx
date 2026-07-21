@@ -54,6 +54,19 @@ export default function TechInvoiceView({ profile }) {
   const [approvalError, setApprovalError] = useState('')
   const [savingApproval, setSavingApproval] = useState(false)
 
+  // Work-authorization-to-begin (invoice side): a tech recording that a landlord
+  // or owner authorized the work — often by phone, sight unseen. Writes to
+  // job_approvals stage 'work_approved_to_begin' so it shows up in the desktop
+  // invoice's Approvals section too (same place the office records it).
+  const [workAuth, setWorkAuth] = useState(null)
+  const [authorizing, setAuthorizing] = useState(false)
+  const [authNotPresent, setAuthNotPresent] = useState(false)
+  const [authName, setAuthName] = useState('')
+  const [authReason, setAuthReason] = useState('')
+  const [authSig, setAuthSig] = useState(null)
+  const [savingAuth, setSavingAuth] = useState(false)
+  const [authError, setAuthError] = useState('')
+
   async function loadAll() {
     setLoading(true)
     setError('')
@@ -81,6 +94,18 @@ export default function TechInvoiceView({ profile }) {
     setDocData(docRes.data)
     setInvoiceRow(rowRes.data)
     setPayments(paymentsRes.data || [])
+
+    // Pull any existing "work approved to begin" authorization for this job.
+    if (rowRes.data?.job_id) {
+      const { data: authRows } = await supabase
+        .from('job_approvals')
+        .select('*')
+        .eq('job_id', rowRes.data.job_id)
+        .eq('stage', 'work_approved_to_begin')
+        .order('created_at', { ascending: false })
+        .limit(1)
+      setWorkAuth(authRows && authRows.length > 0 ? authRows[0] : null)
+    }
 
     const balance = (rowRes.data?.job_total || 0) - (rowRes.data?.total_paid || 0)
     setPaymentAmount(balance > 0 ? balance.toFixed(2) : '')
@@ -173,6 +198,42 @@ export default function TechInvoiceView({ profile }) {
   // today. This automatically flips the job's status to "incomplete" and
   // creates the office's tracking record — no separate mobile status button
   // for a tech to fumble.
+  async function submitWorkAuth() {
+    setAuthError('')
+    if (authNotPresent) {
+      if (!authReason) { setAuthError('Pick how the work was authorized.'); return }
+    } else {
+      if (!authName.trim()) { setAuthError('Enter the name of the person authorizing.'); return }
+      if (!authSig) { setAuthError('Capture a signature, or check "Not present" to record a reason instead.'); return }
+    }
+    setSavingAuth(true)
+
+    let signaturePath = null
+    if (!authNotPresent && authSig) {
+      const blob = dataUrlToBlob(authSig)
+      const path = `${invoiceRow.org_id}/${invoiceId}/work-auth-${Date.now()}.png`
+      const { error: upErr } = await supabase.storage.from('signatures').upload(path, blob, { contentType: 'image/png' })
+      if (upErr) { setAuthError(upErr.message); setSavingAuth(false); return }
+      signaturePath = path
+    }
+
+    const { error: insErr } = await supabase.from('job_approvals').insert({
+      job_id: invoiceRow.job_id,
+      org_id: invoiceRow.org_id,
+      stage: 'work_approved_to_begin',
+      approved_by: authNotPresent ? `Not present — ${authReason}` : authName.trim(),
+      approved_at: new Date().toISOString(),
+      amount: invoiceRow.job_total || 0,
+      signature_url: signaturePath,
+    })
+    if (insErr) { setAuthError(insErr.message); setSavingAuth(false); return }
+
+    setSavingAuth(false)
+    setAuthorizing(false)
+    setAuthName(''); setAuthReason(''); setAuthSig(null); setAuthNotPresent(false)
+    loadAll()
+  }
+
   async function handleApproveEstimate() {
     setApprovalError('')
     if (useTypedFallback) {
@@ -278,6 +339,78 @@ export default function TechInvoiceView({ profile }) {
         <div style={{ padding: 14 }}>
           <InvoiceDocument data={docData} footer={null} />
         </div>
+
+        {!isEstimate && (
+          <div style={{ padding: '0 14px 14px' }}>
+            <div className="section-card">
+              <div className="section-card-header"><span>Authorization to Begin Work</span></div>
+              <div className="section-card-body">
+                {workAuth ? (
+                  <p style={{ color: '#1F7A43', fontWeight: 700, fontSize: 13, margin: 0 }}>
+                    ✓ Authorized by {workAuth.approved_by} on {new Date(workAuth.approved_at).toLocaleString()}
+                  </p>
+                ) : !authorizing ? (
+                  <>
+                    <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 0 }}>
+                      Record who authorized this work — including a landlord or owner who approved it by phone without being on site.
+                    </p>
+                    <button className="action-btn primary" style={{ width: '100%' }} onClick={() => setAuthorizing(true)}>
+                      Record Authorization
+                    </button>
+                  </>
+                ) : (
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12.5, marginBottom: 8, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={authNotPresent}
+                        onChange={(e) => { setAuthNotPresent(e.target.checked); setAuthSig(null); setAuthReason('') }}
+                        style={{ marginRight: 6 }}
+                      />
+                      Not present (record reason instead of signature)
+                    </label>
+                    {authNotPresent ? (
+                      <select
+                        value={authReason}
+                        onChange={(e) => setAuthReason(e.target.value)}
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8, boxSizing: 'border-box', fontSize: 13 }}
+                      >
+                        <option value="">How was the work authorized?…</option>
+                        {NOT_PRESENT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={authName}
+                          onChange={(e) => setAuthName(e.target.value)}
+                          placeholder="Name of person authorizing"
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8, boxSizing: 'border-box', fontSize: 13 }}
+                        />
+                        <div style={{ marginBottom: 8 }}>
+                          <SignaturePad onChange={setAuthSig} />
+                        </div>
+                      </>
+                    )}
+                    {authError && <p style={{ color: '#C0392B', fontSize: 12, marginBottom: 8 }}>{authError}</p>}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="action-btn primary" style={{ flex: 'none', padding: '8px 16px' }} onClick={submitWorkAuth} disabled={savingAuth}>
+                        {savingAuth ? 'Saving…' : 'Confirm Authorization'}
+                      </button>
+                      <button
+                        className="action-btn"
+                        style={{ flex: 'none', padding: '8px 16px', background: '#F0F1F3', color: 'var(--paper)' }}
+                        onClick={() => { setAuthorizing(false); setAuthName(''); setAuthReason(''); setAuthSig(null); setAuthNotPresent(false); setAuthError('') }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={{ padding: '0 14px 14px' }}>
           <div className="section-card">
