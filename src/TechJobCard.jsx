@@ -289,7 +289,7 @@ export default function TechJobCard({ profile }) {
       .from('jobs')
       .select(`
         id, org_id, property_id, job_number, segment, status, job_date, start_time, duration_hours, job_type,
-        service_complaint, internal_notes, on_my_way_at, arrival_at, completed_at,
+        service_complaint, internal_notes, on_my_way_at, arrival_at, completed_at, auth_diagnose_only, auth_limit_amount,
         properties ( street_address, unit, city, state, zip ),
         customers ( display_name, spouse_name, primary_phone, secondary_phone, email_1 ),
         trip_charge:trip_charge_price_id ( location, access, hours, price, services ( name ) )
@@ -512,6 +512,23 @@ export default function TechJobCard({ profile }) {
       </div>
 
       <div className="mobile-body">
+        {(job.auth_diagnose_only || job.auth_limit_amount != null) && (
+          <div style={{
+            background: job.auth_diagnose_only ? '#B00020' : 'var(--alert-orange)',
+            color: '#fff',
+            padding: '12px 14px',
+            borderRadius: 10,
+            fontWeight: 800,
+            fontSize: 17,
+            textAlign: 'center',
+            marginBottom: 12,
+            letterSpacing: 0.3,
+          }}>
+            {job.auth_diagnose_only
+              ? '⚠ DIAGNOSE ONLY — no repairs authorized until approved'
+              : `⚠ AUTHORIZED UP TO $${Number(job.auth_limit_amount).toFixed(2)} — do not exceed without re-authorization`}
+          </div>
+        )}
         {mapImg && (
           <a
             className="property-header"
