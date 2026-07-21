@@ -965,7 +965,7 @@ body {
 }
 
 .job-detail-title {
-  font-size: 19px;
+  font-size: 21px;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1003,12 +1003,14 @@ body {
 }
 
 .mobile-nav-item svg {
-  margin: 0 auto 2px;
+  margin: 0 auto 3px;
   display: block;
+  width: 26px;
+  height: 26px;
 }
 
 .mobile-nav-item span {
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -1045,7 +1047,7 @@ body {
 }
 
 .job-card-customer {
-  font-size: 18.5px;
+  font-size: 20px;
   font-weight: 700;
 }
 
@@ -1126,7 +1128,7 @@ body {
 }
 
 .customer-name {
-  font-size: 18.5px;
+  font-size: 20px;
   font-weight: 700;
 }
 
