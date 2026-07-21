@@ -348,7 +348,23 @@ export default function TechJobCard({ profile }) {
       // Fire-and-forget — a notification hiccup should never block the tech
       // from moving the job forward, so this doesn't await or surface errors.
       if (newStatus === 'on_my_way') {
-        supabase.functions.invoke('send-on-my-way-notification', { body: { jobId } }).catch(() => {})
+        // Grab the tech's location to compute a driving-time ETA. If they deny
+        // permission or it times out, we still send the notification without an
+        // ETA (the function handles missing coords gracefully).
+        const sendNotify = (coords) => {
+          const body = { jobId }
+          if (coords) { body.techLat = coords.latitude; body.techLng = coords.longitude }
+          supabase.functions.invoke('send-on-my-way-notification', { body }).catch(() => {})
+        }
+        if ('geolocation' in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => sendNotify(pos.coords),
+            () => sendNotify(null), // denied or unavailable — send without ETA
+            { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+          )
+        } else {
+          sendNotify(null)
+        }
       }
     }
     setSaving(false)
