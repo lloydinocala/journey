@@ -3,6 +3,18 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import SignaturePad from './SignaturePad'
 
+const NOT_PRESENT_REASONS = [
+  'Phone verbal authorization',
+  'Verbal authorization — in person',
+  'Text or email authorization',
+  'Landlord / property owner authorized remotely',
+  'Property manager authorized remotely',
+  'Unoccupied property — owner authorized by phone',
+  'Unable to sign (physical limitation)',
+  'Approved by spouse or household member',
+  'Other',
+]
+
 function ApprovalSignatureImage({ path }) {
   const [url, setUrl] = useState(null)
 
@@ -56,6 +68,7 @@ export default function Invoice({ profile }) {
   const [approverName, setApproverName] = useState('')
   const [signatureDataUrl, setSignatureDataUrl] = useState(null)
   const [useTypedFallback, setUseTypedFallback] = useState(false)
+  const [notPresentReason, setNotPresentReason] = useState('')
 
   async function loadJobAndInvoice() {
     setLoading(true)
@@ -268,10 +281,17 @@ async function loadLineItems(invoiceId) {
   }
 
   async function submitApproval(stage) {
-    if (!approverName.trim()) return
-    if (!useTypedFallback && !signatureDataUrl) {
-      setError('Please capture a signature, or check "Customer not present" to use a typed approval instead.')
-      return
+    if (useTypedFallback) {
+      if (!notPresentReason) {
+        setError('Pick a reason the customer/authorizer could not sign.')
+        return
+      }
+    } else {
+      if (!approverName.trim()) return
+      if (!signatureDataUrl) {
+        setError('Please capture a signature, or check "Not present" to record a reason instead.')
+        return
+      }
     }
     setError('')
 
@@ -291,7 +311,7 @@ async function loadLineItems(invoiceId) {
       job_id: jobId,
       org_id: job.org_id,
       stage,
-      approved_by: approverName.trim(),
+      approved_by: useTypedFallback ? `Not present — ${notPresentReason}` : approverName.trim(),
       approved_at: new Date().toISOString(),
       amount: totalDue,
       signature_url: signaturePath,
@@ -300,6 +320,7 @@ async function loadLineItems(invoiceId) {
     setApproverName('')
     setSignatureDataUrl(null)
     setUseTypedFallback(false)
+    setNotPresentReason('')
     loadApprovals(jobId)
   }
 
@@ -581,32 +602,43 @@ async function loadLineItems(invoiceId) {
                     </div>
                   ) : approvingStage === stage ? (
                     <div style={{ marginTop: 8 }}>
-                      <input
-                        type="text"
-                        value={approverName}
-                        onChange={(e) => setApproverName(e.target.value)}
-                        placeholder="Customer name"
-                        style={{ width: '100%', padding: '8px 10px', background: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--paper)', marginBottom: 8, boxSizing: 'border-box' }}
-                      />
                       <label style={{ display: 'block', fontSize: 13, marginBottom: 8, cursor: 'pointer' }}>
                         <input
                           type="checkbox"
                           checked={useTypedFallback}
-                          onChange={(e) => { setUseTypedFallback(e.target.checked); setSignatureDataUrl(null) }}
+                          onChange={(e) => { setUseTypedFallback(e.target.checked); setSignatureDataUrl(null); setNotPresentReason('') }}
                           style={{ marginRight: 6 }}
                         />
-                        Customer not present (typed approval, no signature)
+                        Not present (record reason instead of signature)
                       </label>
-                      {!useTypedFallback && (
-                        <div style={{ marginBottom: 8 }}>
-                          <SignaturePad onChange={setSignatureDataUrl} />
-                        </div>
+                      {useTypedFallback ? (
+                        <select
+                          value={notPresentReason}
+                          onChange={(e) => setNotPresentReason(e.target.value)}
+                          style={{ width: '100%', padding: '8px 10px', background: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--paper)', marginBottom: 8, boxSizing: 'border-box' }}
+                        >
+                          <option value="">Why can't they sign?…</option>
+                          {NOT_PRESENT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      ) : (
+                        <>
+                          <input
+                            type="text"
+                            value={approverName}
+                            onChange={(e) => setApproverName(e.target.value)}
+                            placeholder="Name of person signing"
+                            style={{ width: '100%', padding: '8px 10px', background: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--paper)', marginBottom: 8, boxSizing: 'border-box' }}
+                          />
+                          <div style={{ marginBottom: 8 }}>
+                            <SignaturePad onChange={setSignatureDataUrl} />
+                          </div>
+                        </>
                       )}
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button className="auth-button" style={{ width: 'auto', padding: '8px 16px', margin: 0 }} onClick={() => submitApproval(stage)}>Confirm</button>
                         <button
                           className="logout-button"
-                          onClick={() => { setApprovingStage(null); setApproverName(''); setSignatureDataUrl(null); setUseTypedFallback(false) }}
+                          onClick={() => { setApprovingStage(null); setApproverName(''); setSignatureDataUrl(null); setUseTypedFallback(false); setNotPresentReason('') }}
                         >
                           Cancel
                         </button>
