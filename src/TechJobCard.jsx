@@ -33,6 +33,14 @@ const STAGE_LABELS = {
 }
 const STAGE_ORDER = ['work_approved_to_begin', 'work_finished', 'payment']
 
+function formatPhone(raw) {
+  if (!raw) return raw
+  const d = ('' + raw).replace(/\D/g, '')
+  if (d.length === 10) return d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6)
+  if (d.length === 11 && d[0] === '1') return d.slice(1, 4) + '-' + d.slice(4, 7) + '-' + d.slice(7)
+  return raw
+}
+
 function isIOS() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent)
 }
@@ -283,7 +291,8 @@ export default function TechJobCard({ profile }) {
         id, org_id, property_id, job_number, segment, status, job_date, start_time, duration_hours, job_type,
         service_complaint, internal_notes, on_my_way_at, arrival_at, completed_at,
         properties ( street_address, unit, city, state, zip ),
-        customers ( display_name, spouse_name, primary_phone, secondary_phone, email_1 )
+        customers ( display_name, spouse_name, primary_phone, secondary_phone, email_1 ),
+        trip_charge:trip_charge_price_id ( location, access, hours, price, services ( name ) )
       `)
       .eq('id', jobId)
       .single()
@@ -603,7 +612,7 @@ export default function TechJobCard({ profile }) {
             )}
             {[customer?.primary_phone, customer?.secondary_phone].filter(Boolean).map((p) => (
               <div key={p} className="phone-row">
-                <span>{p}</span>
+                <span>{formatPhone(p)}</span>
                 <div className="phone-actions">
                   <a href={`tel:${p}`} title="Call"><IconPhone /></a>
                   <a href={`sms:${p}`} title="Text"><IconMessage /></a>
@@ -619,6 +628,16 @@ export default function TechJobCard({ profile }) {
             <div className="kv-row"><span>Date &amp; Time</span><strong>{date}, {time}</strong></div>
             {job.duration_hours && <div className="kv-row"><span>Planned Duration</span><strong>{job.duration_hours} hr</strong></div>}
             {job.service_complaint && <div className="kv-row"><span>Issue</span><strong>{job.service_complaint}</strong></div>}
+            {job.trip_charge && (
+              <div className="kv-row">
+                <span>Trip Charge</span>
+                <strong>
+                  {job.trip_charge.services?.name}
+                  {job.trip_charge.location ? ` — ${job.trip_charge.location}/${(job.trip_charge.access || '').replace(' Access','')}/${(job.trip_charge.hours || '').replace(' Hours','')}` : ''}
+                  {typeof job.trip_charge.price === 'number' ? ` · $${job.trip_charge.price.toFixed(2)}` : ''}
+                </strong>
+              </div>
+            )}
           </div>
         </div>
 
