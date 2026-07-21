@@ -7,6 +7,14 @@ import QuickAddModal from './QuickAddModal'
 import { exportToCSV } from './utils/csvExport'
 import { fetchAllRows } from './utils/csvImport'
 
+function formatPhone(raw) {
+  if (!raw) return raw
+  const d = ('' + raw).replace(/\D/g, '')
+  if (d.length === 10) return d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6)
+  if (d.length === 11 && d[0] === '1') return d.slice(1, 4) + '-' + d.slice(4, 7) + '-' + d.slice(7)
+  return raw
+}
+
 const COLUMNS = [
   { key: 'display_name', label: 'Name', required: true },
   { key: 'company', label: 'Company' },
@@ -420,8 +428,8 @@ export default function Customers({ profile }) {
                     {visibleColumns.includes('first_name') && <td>{c.first_name || '—'}</td>}
                     {visibleColumns.includes('last_name') && <td>{c.last_name || '—'}</td>}
                     {visibleColumns.includes('spouse_name') && <td>{c.spouse_name || '—'}</td>}
-                    {visibleColumns.includes('primary_phone') && <td>{c.primary_phone || '—'}</td>}
-                    {visibleColumns.includes('secondary_phone') && <td>{c.secondary_phone || '—'}</td>}
+                    {visibleColumns.includes('primary_phone') && <td>{formatPhone(c.primary_phone) || '—'}</td>}
+                    {visibleColumns.includes('secondary_phone') && <td>{formatPhone(c.secondary_phone) || '—'}</td>}
                     {visibleColumns.includes('email_1') && <td>{c.email_1 || '—'}</td>}
                     {visibleColumns.includes('email_2') && <td>{c.email_2 || '—'}</td>}
                     {visibleColumns.includes('acquire_date') && <td>{c.acquire_date ? new Date(c.acquire_date + 'T00:00:00').toLocaleDateString() : '—'}</td>}
