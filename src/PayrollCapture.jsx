@@ -83,6 +83,7 @@ export default function PayrollCapture({ profile }) {
   const [employees, setEmployees] = useState([])
   const [weeks, setWeeks] = useState([])          // payroll_weeks for this org+week
   const [components, setComponents] = useState({}) // weekId -> {base, bonuses[], commissions[]}
+  const [clockHours, setClockHours] = useState({}) // userId -> total clocked hours this week
   const [expanded, setExpanded] = useState(null)   // weekId currently open for editing
   const [busy, setBusy] = useState(false)
 
@@ -126,6 +127,26 @@ export default function PayrollCapture({ profile }) {
       ;(commRes.data || []).forEach((x) => { if (map[x.week_id]) map[x.week_id].commissions.push(x) })
     }
     setComponents(map)
+
+    // Sum completed clock events (both clock_in and clock_out set) per employee
+    // for this week — the actual compensable hours worked, for the legal
+    // higher-of comparison against performance/piece pay.
+    const weekEndDate = addDays(weekStart, 6)
+    const { data: clockData } = await supabase
+      .from('time_clock_events')
+      .select('user_id, clock_in, clock_out')
+      .eq('org_id', selectedOrg)
+      .gte('clock_in', weekStart + 'T00:00:00')
+      .lte('clock_in', weekEndDate + 'T23:59:59')
+      .not('clock_out', 'is', null)
+    const hoursMap = {}
+    ;(clockData || []).forEach((e) => {
+      const ms = new Date(e.clock_out).getTime() - new Date(e.clock_in).getTime()
+      if (ms > 0) hoursMap[e.user_id] = (hoursMap[e.user_id] || 0) + ms / 3600000
+    })
+    // round to 2 decimals
+    Object.keys(hoursMap).forEach((k) => { hoursMap[k] = +hoursMap[k].toFixed(2) })
+    setClockHours(hoursMap)
     setLoading(false)
   }
 
@@ -357,6 +378,7 @@ export default function PayrollCapture({ profile }) {
                     week={week}
                     comp={components[week.id] || { base: null, bonuses: [], commissions: [] }}
                     readOnly={week.status === 'archived'}
+                    clockHours={clockHours[emp.id]}
                     onSetPayType={(pt) => setBasePayType(week.id, pt)}
                     onUpdateBase={updateBaseField}
                     onAddBonus={() => addBonus(week.id)}
@@ -380,7 +402,7 @@ export default function PayrollCapture({ profile }) {
 
 // ---- week editor sub-component ---------------------------------------------
 
-function WeekEditor({ week, comp, readOnly, onSetPayType, onUpdateBase, onAddBonus, onUpdateBonus, onRemoveBonus, onAddCommission, onUpdateCommission, onRemoveCommission, live }) {
+function WeekEditor({ week, comp, readOnly, clockHours, onSetPayType, onUpdateBase, onAddBonus, onUpdateBonus, onRemoveBonus, onAddCommission, onUpdateCommission, onRemoveCommission, live }) {
   const base = comp.base
   const numInput = (val, onChange, ph) => (
     <input type="number" step="0.01" defaultValue={val ?? ''} disabled={readOnly}
@@ -393,6 +415,18 @@ function WeekEditor({ week, comp, readOnly, onSetPayType, onUpdateBase, onAddBon
       {/* BASE PAY */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 700, marginBottom: 8 }}>Base Pay</div>
+
+        {clockHours != null && (
+          <div style={{ background: '#EEF4FF', border: '1px solid #C7D9F5', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 13 }}>
+            <strong>{clockHours} hrs</strong> clocked this week (from the shift clock — actual compensable hours).
+            {!readOnly && base?.pay_type === 'wages' && (
+              <button className="logout-button" style={{ marginLeft: 10 }} onClick={() => onUpdateBase(base.id, 'hours_clocked_in', clockHours)}>
+                Use for hours clocked
+              </button>
+            )}
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
           <label>Type:</label>
           <select value={base?.pay_type || ''} disabled={readOnly} onChange={(e) => e.target.value && onSetPayType(e.target.value)}>
@@ -429,6 +463,17 @@ function WeekEditor({ week, comp, readOnly, onSetPayType, onUpdateBase, onAddBon
           </div>
         )}
         {base && <div style={{ marginTop: 6, fontWeight: 700 }}>Base due: {money(live.base)}</div>}
+
+        {base && (base.pay_type === 'performance' || base.pay_type === 'piece_rate') && clockHours != null && (
+          <div style={{ marginTop: 8, padding: 10, background: '#FFF8E6', border: '1px solid #F0DFA8', borderRadius: 8, fontSize: 13 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Hourly floor check (FLSA)</div>
+            <div>Performance/piece amount: <strong>{money(live.base)}</strong></div>
+            <div>Actual hours ({clockHours}) × rate ({money(base.hourly_rate)}): <strong>{money((Number(clockHours) || 0) * (Number(base.hourly_rate) || 0))}</strong></div>
+            <div style={{ marginTop: 4, color: 'var(--mist)' }}>
+              The employee must be paid the higher of the two. Verify the rate used here is at least the applicable minimum wage.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* BONUSES */}
