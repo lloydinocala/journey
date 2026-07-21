@@ -21,6 +21,13 @@ export default function ClockWidget({ userId, orgId, variant = 'mobile', onChang
     return () => { if (tick.current) clearInterval(tick.current) }
   }, [userId])
 
+  // Refresh when another surface (e.g. the login popup) changes clock state.
+  useEffect(() => {
+    function onClockChanged() { if (userId) loadOpenShift() }
+    window.addEventListener('clock-changed', onClockChanged)
+    return () => window.removeEventListener('clock-changed', onClockChanged)
+  }, [userId])
+
   // live elapsed timer while clocked in
   useEffect(() => {
     if (openShift) {
