@@ -53,6 +53,8 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
   const [technician3Id, setTechnician3Id] = useState('')
   const [technician4Id, setTechnician4Id] = useState('')
   const [tripChargeId, setTripChargeId] = useState(null)
+  const [authDiagnoseOnly, setAuthDiagnoseOnly] = useState(false)
+  const [authLimitAmount, setAuthLimitAmount] = useState('')
   const [overrideBan, setOverrideBan] = useState(false)
 
   const [continueSearchText, setContinueSearchText] = useState('')
@@ -377,6 +379,8 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
           job_type: jobType,
           service_complaint: serviceComplaint.trim() || null,
           trip_charge_price_id: tripChargeId || null,
+          auth_diagnose_only: authDiagnoseOnly,
+          auth_limit_amount: authDiagnoseOnly ? null : (authLimitAmount ? parseFloat(authLimitAmount) : null),
         })
         .select()
         .single()
@@ -828,6 +832,35 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
               <div className="field">
                 <label>Trip charge (sets Location/Access/Time for this job)</label>
                 <TripChargePicker orgId={orgId} value={tripChargeId} onChange={setTripChargeId} />
+              </div>
+
+              <div className="field">
+                <label>Work authorization limit</label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400, cursor: 'pointer', marginBottom: 6 }}>
+                  <input
+                    type="checkbox"
+                    checked={authDiagnoseOnly}
+                    onChange={(e) => { setAuthDiagnoseOnly(e.target.checked); if (e.target.checked) setAuthLimitAmount('') }}
+                  />
+                  Diagnose only — no repairs authorized until approved
+                </label>
+                {!authDiagnoseOnly && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={authLimitAmount}
+                      onChange={(e) => setAuthLimitAmount(e.target.value)}
+                      placeholder="Authorized dollar limit (leave blank if none)"
+                      style={{ flex: 1 }}
+                    />
+                  </div>
+                )}
+                <p style={{ fontSize: 12, color: 'var(--mist)', marginTop: 4, marginBottom: 0 }}>
+                  Shown to the tech on their phone. The office is warned if the invoice total exceeds this limit.
+                </p>
               </div>
 
               {selectedCustomerIsBanned && (
