@@ -43,7 +43,7 @@ import TechSchedule from './TechSchedule'
 import TechNewJob from './TechNewJob'
 import TechApollo from './TechApollo'
 import TechInvoiceView from './TechInvoiceView'
-import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';
+// import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
 
 async function logSignIn(userId) {
   const { data } = await supabase.from('users').select('org_id').eq('id', userId).single()
@@ -126,7 +126,7 @@ function AuthenticatedApp() {
       <Route path="/tech/apollo" element={<TechApollo profile={profile} />} />
       <Route path="/tech/invoice-view/:invoiceId" element={<TechInvoiceView profile={profile} />} />
       <Route element={<Layout profile={profile} />}>
-        <Route path="/rewards-hvac" element={<PayrollDashboard />} />
+        {/* <Route path="/rewards-hvac" element={<PayrollDashboard />} /> */}  {/* TODO: re-enable with the import above when Payroll module is finished */}
         <Route path="/" element={profile.role === 'tech' ? <Navigate to="/tech" replace /> : <Dashboard profile={profile} />} />
         <Route path="/customers" element={<Customers profile={profile} />} />
         <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
