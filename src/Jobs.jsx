@@ -154,9 +154,6 @@ export default function Jobs({ profile }) {
       setUsers(usersRes.data || [])
       setJobs(jobsData)
       setJobTypes(jobTypesRes.data || [])
-      if (jobTypesRes.data && jobTypesRes.data.length > 0) {
-        setJobType(jobTypesRes.data[0].name)
-      }
     } catch (e) {
       console.error(e)
     }
