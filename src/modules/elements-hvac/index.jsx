@@ -9,6 +9,8 @@ import ElementsSettings from './ElementsSettings'
 import FleetDashboard from './FleetDashboard'
 import FleetVehicles from './FleetVehicles'
 import FleetFuel from './FleetFuel'
+import FleetMaintenance from './FleetMaintenance'
+import FleetRenewals from './FleetRenewals'
 
 // Each entry rendered in App.jsx as <Route path element={<Component profile={profile} />} />
 export const ELEMENTS_ROUTES = [
@@ -39,6 +41,8 @@ export const ELEMENTS_FLEET_ROUTES = [
   { path: '/fleet', Component: FleetDashboard },
   { path: '/fleet/vehicles', Component: FleetVehicles },
   { path: '/fleet/fuel', Component: FleetFuel },
+  { path: '/fleet/maintenance', Component: FleetMaintenance },
+  { path: '/fleet/renewals', Component: FleetRenewals },
 ]
 
 export const ELEMENTS_FLEET_NAV = {
@@ -48,5 +52,7 @@ export const ELEMENTS_FLEET_NAV = {
     { label: 'Fleet Dashboard', path: '/fleet' },
     { label: 'Vehicles', path: '/fleet/vehicles' },
     { label: 'Fuel Log', path: '/fleet/fuel' },
+    { label: 'Maintenance', path: '/fleet/maintenance' },
+    { label: 'Renewals', path: '/fleet/renewals' },
   ],
 }

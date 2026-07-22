@@ -118,32 +118,140 @@ export function computeMeterFlags(metersAsc, weeklyCeiling = 1500) {
   return out
 }
 
+// ---- Preventive maintenance -----------------------------------------------
+export async function listPmSchedules(orgId, vehicleId = null) {
+  let q = supabase.from('elements_pm_schedules').select('*').eq('org_id', orgId)
+  if (vehicleId) q = q.eq('vehicle_id', vehicleId)
+  const { data } = await q.eq('is_active', true).order('task_name')
+  return data || []
+}
+export async function addPmSchedule(orgId, row) {
+  return supabase.from('elements_pm_schedules').insert({ org_id: orgId, ...row }).select().single()
+}
+export async function updatePmSchedule(id, patch) {
+  return supabase.from('elements_pm_schedules').update(patch).eq('id', id)
+}
+export async function archivePmSchedule(id) {
+  return supabase.from('elements_pm_schedules').update({ is_active: false }).eq('id', id)
+}
+export async function addServiceRecord(orgId, row) {
+  return supabase.from('elements_service_records').insert({ org_id: orgId, ...row }).select().single()
+}
+// Log a completed service: writes history + resets the schedule baseline.
+export async function completePm(orgId, sch, { odometer, date, description, cost }) {
+  await addServiceRecord(orgId, {
+    vehicle_id: sch.vehicle_id, pm_schedule_id: sch.id,
+    service_date: date, odometer: odometer ?? null,
+    description: description || sch.task_name, total_cost: cost ?? null,
+  })
+  return updatePmSchedule(sch.id, { last_done_meter: odometer ?? sch.last_done_meter, last_done_date: date })
+}
+
+// ---- Renewals -------------------------------------------------------------
+export async function listRenewals(orgId, vehicleId = null) {
+  let q = supabase.from('elements_renewals').select('*').eq('org_id', orgId)
+  if (vehicleId) q = q.eq('vehicle_id', vehicleId)
+  const { data } = await q.eq('is_active', true).order('due_date')
+  return data || []
+}
+export async function addRenewal(orgId, row) {
+  return supabase.from('elements_renewals').insert({ org_id: orgId, ...row }).select().single()
+}
+export async function updateRenewal(id, patch) {
+  return supabase.from('elements_renewals').update(patch).eq('id', id)
+}
+export async function archiveRenewal(id) {
+  return supabase.from('elements_renewals').update({ is_active: false }).eq('id', id)
+}
+
+// ---- Date + status helpers ------------------------------------------------
+export function todayStr() { return new Date().toISOString().slice(0, 10) }
+function parseDay(s) { return new Date(s + 'T00:00:00') }
+function addDays(s, n) { const d = parseDay(s); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
+function daysBetween(fromStr, toStr) { return Math.round((parseDay(toStr) - parseDay(fromStr)) / 86400000) }
+
+// Latest odometer per vehicle across fuel fills + meter readings (max value)
+export function computeLatestOdometers(fuel, meters) {
+  const map = {}
+  const bump = (vid, val) => { if (val != null && (map[vid] == null || val > map[vid])) map[vid] = val }
+  fuel.forEach((f) => bump(f.vehicle_id, f.odometer != null ? Number(f.odometer) : null))
+  meters.forEach((m) => bump(m.vehicle_id, Number(m.reading)))
+  return map
+}
+export async function latestOdometersByVehicle(orgId) {
+  const [fuel, meters] = await Promise.all([listFuel(orgId), listMeters(orgId)])
+  return computeLatestOdometers(fuel, meters)
+}
+
+export function pmStatus(sch, currentMeter, today = todayStr()) {
+  const interval = Number(sch.interval_value)
+  const thr = sch.due_soon_threshold != null ? Number(sch.due_soon_threshold) : null
+  if (sch.interval_type === 'days') {
+    if (!sch.last_done_date) return { state: 'unknown', color: 'amber', label: 'Set a last-done date' }
+    const due = addDays(sch.last_done_date, interval)
+    const remaining = daysBetween(today, due)
+    const soon = thr != null ? thr : Math.max(7, Math.round(interval * 0.1))
+    if (remaining < 0) return { state: 'overdue', color: 'red', label: `Overdue ${Math.abs(remaining)}d`, due }
+    if (remaining <= soon) return { state: 'due_soon', color: 'amber', label: `Due in ${remaining}d`, due }
+    return { state: 'ok', color: null, label: `Due ${due}`, due }
+  }
+  const unit = sch.interval_type === 'hours' ? 'h' : 'mi'
+  if (sch.last_done_meter == null || currentMeter == null) return { state: 'unknown', color: 'amber', label: 'Need odometer baseline' }
+  const dueAt = Number(sch.last_done_meter) + interval
+  const remaining = dueAt - Number(currentMeter)
+  const soon = thr != null ? thr : Math.max(500, Math.round(interval * 0.1))
+  if (remaining <= 0) return { state: 'overdue', color: 'red', label: `Overdue ${Math.round(-remaining).toLocaleString()} ${unit}`, dueAt }
+  if (remaining <= soon) return { state: 'due_soon', color: 'amber', label: `Due in ${Math.round(remaining).toLocaleString()} ${unit}`, dueAt }
+  return { state: 'ok', color: null, label: `Due at ${Math.round(dueAt).toLocaleString()} ${unit}`, dueAt }
+}
+
+export function renewalStatus(r, today = todayStr()) {
+  const remaining = daysBetween(today, r.due_date)
+  const soon = Number(r.due_soon_days ?? 30)
+  if (remaining < 0) return { state: 'overdue', color: 'red', label: `Overdue ${Math.abs(remaining)}d` }
+  if (remaining <= soon) return { state: 'due_soon', color: 'amber', label: `Due in ${remaining}d` }
+  return { state: 'ok', color: null, label: `Due ${r.due_date}` }
+}
+
+const RENEWAL_LABELS = { registration: 'Registration', insurance: 'Insurance', inspection: 'Inspection', other: 'Other' }
+export const renewalName = (r) => (r.renewal_type === 'other' ? (r.label || 'Other') : RENEWAL_LABELS[r.renewal_type] || r.renewal_type)
+
 // Roll everything up per vehicle for the Fleet Dashboard.
 export async function dashboardData(orgId) {
-  const [vehicles, fuel, meters] = await Promise.all([
-    listVehicles(orgId),
-    listFuel(orgId),
-    listMeters(orgId),
+  const [vehicles, fuel, meters, pms, renewals] = await Promise.all([
+    listVehicles(orgId), listFuel(orgId), listMeters(orgId), listPmSchedules(orgId), listRenewals(orgId),
   ])
-  const fuelBy = {}, meterBy = {}
+  const fuelBy = {}, meterBy = {}, pmBy = {}, renBy = {}
   fuel.forEach((f) => { (fuelBy[f.vehicle_id] = fuelBy[f.vehicle_id] || []).push(f) })
   meters.forEach((m) => { (meterBy[m.vehicle_id] = meterBy[m.vehicle_id] || []).push(m) })
+  pms.forEach((p) => { (pmBy[p.vehicle_id] = pmBy[p.vehicle_id] || []).push(p) })
+  renewals.forEach((r) => { (renBy[r.vehicle_id] = renBy[r.vehicle_id] || []).push(r) })
+  const latestOdo = computeLatestOdometers(fuel, meters)
+  const today = todayStr()
 
   return vehicles.map((v) => {
     const fm = computeFuelMetrics(v, fuelBy[v.id] || [])
     const mm = computeMeterFlags(meterBy[v.id] || [])
     const last = fm[fm.length - 1] || null
-    // latest odometer across fuel + meter readings
-    const odoCandidates = [
-      ...(fuelBy[v.id] || []).filter((f) => f.odometer != null).map((f) => ({ v: Number(f.odometer), d: f.fill_date })),
-      ...(meterBy[v.id] || []).map((m) => ({ v: Number(m.reading), d: m.reading_date })),
-    ].sort((a, b) => (a.d < b.d ? 1 : -1))
     const cpgVals = fm.map((x) => x.cpg).filter((x) => x != null)
     const avgCpg = cpgVals.length ? cpgVals.reduce((s, x) => s + x, 0) / cpgVals.length : null
     const flags = [...fm.flatMap((x) => x.flags), ...mm.flatMap((x) => x.flags)]
+
+    // maintenance + renewal flags
+    ;(pmBy[v.id] || []).forEach((p) => {
+      const st = pmStatus(p, latestOdo[v.id] ?? null, today)
+      if (st.state === 'overdue') flags.push({ code: 'pm_overdue', color: 'red', label: `${p.task_name}: overdue` })
+      else if (st.state === 'due_soon') flags.push({ code: 'pm_due', color: 'amber', label: `${p.task_name}: ${st.label.toLowerCase()}` })
+    })
+    ;(renBy[v.id] || []).forEach((r) => {
+      const st = renewalStatus(r, today)
+      if (st.state === 'overdue') flags.push({ code: 'renewal_overdue', color: 'red', label: `${renewalName(r)}: overdue` })
+      else if (st.state === 'due_soon') flags.push({ code: 'renewal_due', color: 'amber', label: `${renewalName(r)}: ${st.label.toLowerCase()}` })
+    })
+
     return {
       vehicle: v,
-      latestOdometer: odoCandidates[0]?.v ?? null,
+      latestOdometer: latestOdo[v.id] ?? null,
       lastMpg: last?.mpg ?? null,
       avgCpg,
       lastFillDate: last?.fill_date ?? null,
