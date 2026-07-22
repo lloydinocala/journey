@@ -46,6 +46,7 @@ import TechSchedule from './TechSchedule'
 import TechNewJob from './TechNewJob'
 import TechApollo from './TechApollo'
 import TechInvoiceView from './TechInvoiceView'
+import { ELEMENTS_ROUTES } from './modules/elements-hvac'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
 
 async function logSignIn(userId) {
@@ -159,6 +160,10 @@ function AuthenticatedApp() {
         <Route path="/system-estimate/:jobId" element={<SystemEstimate profile={profile} />} />
         <Route path="/estimates" element={<Estimates profile={profile} />} />
         <Route path="/invoices" element={<Invoices profile={profile} />} />
+        {/* Elements-HVAC · Inventory module (self-contained routes) */}
+        {ELEMENTS_ROUTES.map((r) => (
+          <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
+        ))}
         {profile.role === 'super_admin' && (
           <Route path="/announcements" element={<Announcements />} />
         )}

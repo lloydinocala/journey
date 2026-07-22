@@ -162,6 +162,8 @@ export default function TechInvoice({ profile }) {
       taxable: !svc?.is_tax_exempt,
       is_custom: false,
       sort_order: nextSort,
+      service_id: pickServiceId,           // Elements-HVAC: enables inventory consumption
+      service_price_id: resolvedVariant.id,
     })
     setAddingService(false)
     setPickCategory('')

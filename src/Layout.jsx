@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import AnnouncementBanner from './AnnouncementBanner'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
+import { ELEMENTS_NAV } from './modules/elements-hvac'
 
 const CATEGORIES = [
   { key: 'operations', label: 'Operations', items: [
@@ -49,6 +50,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/maintenance-tiers')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
   if (pathname.startsWith('/team') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
+  if (pathname.startsWith('/elements')) return 'elements'
   if (pathname.startsWith('/import')) return 'import'
   if (pathname.startsWith('/organizations') || pathname.startsWith('/announcements')) return 'platform'
   return null
@@ -57,7 +59,8 @@ function getCategoryForPath(pathname) {
 export default function Layout({ profile }) {
   const location = useLocation()
   const isSuperAdmin = profile?.role === 'super_admin'
-  const allCategories = isSuperAdmin ? [...CATEGORIES, PLATFORM_CATEGORY] : CATEGORIES
+  const baseCategories = profile?.role === 'tech' ? CATEGORIES : [...CATEGORIES, ELEMENTS_NAV]
+  const allCategories = isSuperAdmin ? [...baseCategories, PLATFORM_CATEGORY] : baseCategories
 
   const [expandedCategory, setExpandedCategory] = useState(getCategoryForPath(location.pathname))
   const [logoutShiftId, setLogoutShiftId] = useState(null)  // open shift id when logging out
