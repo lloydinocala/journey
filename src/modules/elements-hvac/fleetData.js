@@ -263,6 +263,46 @@ export function costRollup(serviceRecords) {
 }
 const SEVERITY_COLOR = { critical: 'red', high: 'red', medium: 'amber', low: 'amber' }
 
+// ---- Route mileage / GPS (2a.2) -------------------------------------------
+export async function listRouteDays(orgId, sinceIso = null) {
+  let q = supabase.from('elements_route_days').select('*').eq('org_id', orgId)
+  if (sinceIso) q = q.gte('day', sinceIso)
+  const { data } = await q.order('day', { ascending: false })
+  return data || []
+}
+
+// Miles-driven (odometer delta from fuel) vs miles-explained (job routes) per
+// vehicle over a trailing window — the core honest-use analysis.
+export async function routeAnalysis(orgId, days = 30) {
+  const since = new Date(); since.setDate(since.getDate() - days)
+  const sinceIso = since.toISOString().slice(0, 10)
+  const [vehicles, routeDays, fuel, gpsRes] = await Promise.all([
+    listVehicles(orgId),
+    listRouteDays(orgId, sinceIso),
+    listFuel(orgId),
+    supabase.from('elements_vehicle_gps').select('user_id, captured_at').eq('org_id', orgId).gte('captured_at', sinceIso + 'T00:00:00'),
+  ])
+  const explBy = {}
+  routeDays.forEach((r) => { explBy[r.vehicle_id] = (explBy[r.vehicle_id] || 0) + (Number(r.explained_miles) || 0) })
+  const odoBy = {}
+  fuel.forEach((f) => { if (f.fill_date >= sinceIso && f.odometer != null) (odoBy[f.vehicle_id] = odoBy[f.vehicle_id] || []).push(Number(f.odometer)) })
+  const drivenBy = {}
+  Object.entries(odoBy).forEach(([vid, arr]) => { drivenBy[vid] = Math.max(...arr) - Math.min(...arr) })
+  const crumbByUser = {}
+  ;(gpsRes.data || []).forEach((g) => { crumbByUser[g.user_id] = (crumbByUser[g.user_id] || 0) + 1 })
+
+  return vehicles.map((v) => {
+    const explained = explBy[v.id] != null ? explBy[v.id] : null
+    const driven = drivenBy[v.id] != null ? drivenBy[v.id] : null
+    const crumbs = v.assigned_user_id ? (crumbByUser[v.assigned_user_id] || 0) : 0
+    let flag = null
+    if (driven != null && explained != null && explained > 0 && driven > explained * 1.2 + 50) {
+      flag = { color: 'red', label: `Drove ~${Math.round(driven)} mi; jobs explain ~${Math.round(explained)} mi` }
+    }
+    return { vehicle: v, explained, driven, gap: (driven != null && explained != null) ? driven - explained : null, crumbs, flag }
+  })
+}
+
 // Roll everything up per vehicle for the Fleet Dashboard.
 export async function dashboardData(orgId) {
   const [vehicles, fuel, meters, pms, renewals, issues] = await Promise.all([

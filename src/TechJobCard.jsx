@@ -355,6 +355,14 @@ export default function TechJobCard({ profile }) {
           const body = { jobId }
           if (coords) { body.techLat = coords.latitude; body.techLng = coords.longitude }
           supabase.functions.invoke('send-on-my-way-notification', { body }).catch(() => {})
+          // Elements-HVAC: persist a GPS breadcrumb for entitled orgs (fleet route + fuel-location checks).
+          // Fire-and-forget and independent of the notification/Twilio.
+          if (coords && profile?.elementsEntitled) {
+            supabase.from('elements_vehicle_gps').insert({
+              org_id: profile.org_id, user_id: profile.id, job_id: jobId,
+              lat: coords.latitude, lng: coords.longitude, event: 'on_my_way',
+            }).then(() => {}, () => {})
+          }
         }
         if ('geolocation' in navigator) {
           navigator.geolocation.getCurrentPosition(
