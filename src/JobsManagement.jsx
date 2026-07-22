@@ -2,11 +2,23 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import NewItemDropdown from './NewItemDropdown'
+import QuickAddModal from './QuickAddModal'
 import { fetchAllRows } from './utils/csvImport'
 
 const WARRANTY_OPTIONS = ['Warranty', 'Cash']
 const CLAIM_STATUS_OPTIONS = ['Not Eligible', 'Pending', 'Approved']
 const COMM_OPTIONS = ['Pending', 'Notified', 'Price Approved']
+
+const STATUS_LABELS = {
+  unscheduled: 'Unscheduled',
+  scheduled: 'Scheduled',
+  on_my_way: 'On My Way',
+  in_progress: 'In Progress',
+  incomplete: 'Incomplete',
+  completed: 'Completed',
+  canceled: 'Canceled',
+}
 
 function todayISO() {
   const d = new Date()
@@ -30,6 +42,7 @@ export default function JobsManagement({ profile }) {
   const [addingPartFor, setAddingPartFor] = useState(null)
   const [partForm, setPartForm] = useState(blankPartForm)
   const [savingPart, setSavingPart] = useState(false)
+  const [newItemMode, setNewItemMode] = useState(null)
 
   const isSuperAdmin = profile.role === 'super_admin'
 
@@ -97,7 +110,8 @@ export default function JobsManagement({ profile }) {
         .filter((p) => !p.delivery_verified && p.expected_delivery_date)
         .map((p) => p.expected_delivery_date)
         .sort()[0] || null
-      return { ...rec, job, isRed, scheduledDate, relatedParts, nextDeliveryDate }
+      const currentStatus = currentSegmentJob?.status || job.status
+      return { ...rec, job, isRed, scheduledDate, relatedParts, nextDeliveryDate, currentStatus }
     })
     .filter(Boolean)
 
@@ -165,7 +179,10 @@ export default function JobsManagement({ profile }) {
 
   return (
     <div>
-      <h2 className="page-title">Jobs Management</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <h2 className="page-title" style={{ margin: 0 }}>Jobs Management</h2>
+        <NewItemDropdown onSelect={setNewItemMode} />
+      </div>
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>
@@ -258,7 +275,7 @@ export default function JobsManagement({ profile }) {
                           ) : '—'}
                         </td>
                         <td>{rec.scheduledDate ? new Date(rec.scheduledDate + 'T00:00:00').toLocaleDateString() : '—'}</td>
-                        <td><span className={`status-pill status-${rec.isRed ? 'past_due' : 'trial'}`}>{rec.isRed ? 'Incomplete' : 'Scheduled'}</span></td>
+                        <td><span className={`status-pill status-${rec.currentStatus}`}>{STATUS_LABELS[rec.currentStatus] || rec.currentStatus}</span></td>
                         <td><button className="logout-button" onClick={() => startAddPart(rec)}>+ Add Part</button></td>
                       </tr>
                       {addingPartFor === rec.id && (
@@ -387,6 +404,16 @@ export default function JobsManagement({ profile }) {
             </div>
           )}
         </>
+      )}
+
+      {newItemMode && (
+        <QuickAddModal
+          mode={newItemMode}
+          orgId={selectedOrg}
+          profile={profile}
+          onClose={() => setNewItemMode(null)}
+          onCreated={() => loadAll(selectedOrg)}
+        />
       )}
     </div>
   )

@@ -68,6 +68,7 @@ export default function TechSystemEstimate({ profile }) {
           bills_to_customer_id: jobData.customer_id,
           discount_type: 'dollar',
           kind: 'estimate',
+          estimate_type: 'system',
         })
         .select()
         .single()

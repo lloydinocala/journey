@@ -48,6 +48,7 @@ const COLUMNS = [
 const DEFAULT_VISIBLE = COLUMNS.map((c) => c.key)
 
 const STATUS_OPTIONS = [
+  { value: 'unscheduled', label: 'Unscheduled' },
   { value: 'scheduled', label: 'Scheduled' },
   { value: 'on_my_way', label: 'On my way' },
   { value: 'in_progress', label: 'In progress' },
