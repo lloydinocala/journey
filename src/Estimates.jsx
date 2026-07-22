@@ -18,7 +18,7 @@ const LINE_ITEM_COUNT = 9
 
 const APPROVAL_STATUS_OPTIONS = ['Pending', 'Approved', 'Rejected', 'Pending Financing']
 
-const ACTIONS_WIDTH = 210
+const ACTIONS_WIDTH = 320
 const FROZEN_KEYS = ['invoice_date', 'invoice_number', 'job_number', 'customer']
 
 const COLUMNS = [
@@ -60,6 +60,7 @@ export default function Estimates({ profile }) {
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [newItemMode, setNewItemMode] = useState(null)
+  const [sendingId, setSendingId] = useState(null)
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('estimates_visible_columns_v2')
     return saved ? JSON.parse(saved) : DEFAULT_VISIBLE
@@ -85,7 +86,7 @@ export default function Estimates({ profile }) {
         .select(`
           id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
           discount_amount, discount_type, deposit, amount_due, total_paid, balance,
-          profit, profit_pct, sent_at, paid_at, estimating_technician_id, approval_status, is_archived,
+          profit, profit_pct, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, is_archived,
           jobs (
             job_number,
             properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )
@@ -95,6 +96,7 @@ export default function Estimates({ profile }) {
         `)
         .eq('org_id', orgId)
         .eq('kind', 'estimate')
+        .is('deleted_at', null)
         .eq('is_archived', showArchived),
       supabase.from('users').select('id, full_name').eq('org_id', orgId).order('full_name'),
     ])
@@ -168,6 +170,31 @@ export default function Estimates({ profile }) {
     if (!window.confirm(`Are you sure you want to ${action} estimate ${est.invoice_number}?`)) return
     await supabase.from('invoices').update({ is_archived: !est.is_archived }).eq('id', est.id)
     loadEstimates(selectedOrg)
+  }
+
+  async function sendEstimate(est) {
+    const verb = est.sent_at ? 'Resend' : 'Send'
+    if (!window.confirm(`${verb} estimate ${est.invoice_number} to the customer's email on file?`)) return
+    setSendingId(est.id)
+    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId: est.id } })
+    setSendingId(null)
+    if (error) {
+      let msg = error.message || 'Send failed.'
+      try { const body = await error.context.json(); if (body?.error) msg = body.error } catch (_) { /* ignore */ }
+      alert(`Could not ${verb.toLowerCase()} this estimate: ${msg}`)
+      return
+    }
+    if (data?.error) { alert(`Could not ${verb.toLowerCase()} this estimate: ${data.error}`); return }
+    alert(`Estimate ${est.invoice_number} sent to ${data?.sentTo || 'the customer'}.`)
+    loadEstimates(selectedOrg)
+  }
+
+  function sentTitle(est) {
+    if (!est.sent_at) return 'Not sent yet'
+    const when = new Date(est.sent_at).toLocaleString()
+    const to = est.last_sent_to ? ` to ${est.last_sent_to}` : ''
+    const times = est.sent_count > 1 ? ` · sent ${est.sent_count}×` : ''
+    return `Last sent ${when}${to}${times}`
   }
 
   async function addToIncompleteJobs(est) {
@@ -450,6 +477,12 @@ export default function Estimates({ profile }) {
                   <Link to={'/estimate/' + est.job_id} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
                     Edit
                   </Link>
+                  <a href={'/view-invoice/' + est.id} target="_blank" rel="noopener noreferrer" className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
+                    View
+                  </a>
+                  <button className="logout-button" disabled={sendingId === est.id} title={sentTitle(est)} onClick={() => sendEstimate(est)}>
+                    {sendingId === est.id ? 'Sending…' : est.sent_at ? 'Resend' : 'Send'}
+                  </button>
                   <button className="logout-button" onClick={() => addToIncompleteJobs(est)}>
                     + Incomplete
                   </button>

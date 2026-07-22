@@ -8,7 +8,7 @@ import { exportToCSV } from './utils/csvExport'
 
 const LINE_ITEM_COUNT = 9
 
-const ACTIONS_WIDTH = 140
+const ACTIONS_WIDTH = 250
 const FROZEN_KEYS = ['invoice_date', 'invoice_number', 'job_number', 'customer']
 
 const COLUMNS = [
@@ -52,6 +52,7 @@ export default function Invoices({ profile }) {
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [newItemMode, setNewItemMode] = useState(null)
+  const [sendingId, setSendingId] = useState(null)
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('invoices_visible_columns_v2')
     return saved ? JSON.parse(saved) : DEFAULT_VISIBLE
@@ -76,7 +77,7 @@ export default function Invoices({ profile }) {
       .select(`
         id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
         discount_amount, discount_type, deposit, amount_due, total_paid, balance,
-        profit, profit_pct, paid_at, sent_at, is_archived,
+        profit, profit_pct, paid_at, sent_at, sent_count, last_sent_to, is_archived,
         jobs (
           job_number, segment, status,
           properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) ),
@@ -86,6 +87,7 @@ export default function Invoices({ profile }) {
       `)
       .eq('org_id', orgId)
       .eq('kind', 'invoice')
+      .is('deleted_at', null)
       .eq('is_archived', showArchived)
     setInvoices(data || [])
     setLoading(false)
@@ -156,6 +158,31 @@ export default function Invoices({ profile }) {
     if (!window.confirm(`Are you sure you want to ${action} invoice ${inv.invoice_number}?`)) return
     await supabase.from('invoices').update({ is_archived: !inv.is_archived }).eq('id', inv.id)
     loadInvoices(selectedOrg)
+  }
+
+  async function sendInvoice(inv) {
+    const verb = inv.sent_at ? 'Resend' : 'Send'
+    if (!window.confirm(`${verb} invoice ${inv.invoice_number} to the customer's email on file?`)) return
+    setSendingId(inv.id)
+    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId: inv.id } })
+    setSendingId(null)
+    if (error) {
+      let msg = error.message || 'Send failed.'
+      try { const body = await error.context.json(); if (body?.error) msg = body.error } catch (_) { /* ignore */ }
+      alert(`Could not ${verb.toLowerCase()} this invoice: ${msg}`)
+      return
+    }
+    if (data?.error) { alert(`Could not ${verb.toLowerCase()} this invoice: ${data.error}`); return }
+    alert(`Invoice ${inv.invoice_number} sent to ${data?.sentTo || 'the customer'}.`)
+    loadInvoices(selectedOrg)
+  }
+
+  function sentTitle(inv) {
+    if (!inv.sent_at) return 'Not sent yet'
+    const when = new Date(inv.sent_at).toLocaleString()
+    const to = inv.last_sent_to ? ` to ${inv.last_sent_to}` : ''
+    const times = inv.sent_count > 1 ? ` · sent ${inv.sent_count}×` : ''
+    return `Last sent ${when}${to}${times}`
   }
 
   function toggleSort(field) {
@@ -422,6 +449,12 @@ export default function Invoices({ profile }) {
                   <Link to={'/invoice/' + inv.job_id} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
                     Edit
                   </Link>
+                  <a href={'/view-invoice/' + inv.id} target="_blank" rel="noopener noreferrer" className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
+                    View
+                  </a>
+                  <button className="logout-button" disabled={sendingId === inv.id} title={sentTitle(inv)} onClick={() => sendInvoice(inv)}>
+                    {sendingId === inv.id ? 'Sending…' : inv.sent_at ? 'Resend' : 'Send'}
+                  </button>
                   <button className="logout-button" onClick={() => toggleArchive(inv)}>
                     {inv.is_archived ? 'Unarchive' : 'Archive'}
                   </button>

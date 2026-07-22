@@ -56,6 +56,8 @@ const STATUS_OPTIONS = [
   { value: 'canceled', label: 'Canceled' },
 ]
 
+const DELETE_REASONS = ['Customer Canceled', 'Duplicate Job', 'Created in Error', 'Test/Training Entry', 'Other']
+
 export default function Jobs({ profile }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
@@ -92,8 +94,17 @@ export default function Jobs({ profile }) {
   const [editTechnicians, setEditTechnicians] = useState([])
   const [addTechChoice, setAddTechChoice] = useState('')
 
+  const [showDeleted, setShowDeleted] = useState(false)
+  const [deletedJobs, setDeletedJobs] = useState([])
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteReason, setDeleteReason] = useState('')
+  const [deleteNote, setDeleteNote] = useState('')
+  const [deleteError, setDeleteError] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
   const isSuperAdmin = profile.role === 'super_admin'
   const canOverrideBan = profile.role === 'super_admin' || profile.role === 'org_admin'
+  const canDelete = profile.role === 'super_admin' || profile.role === 'org_admin'
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -129,6 +140,7 @@ export default function Jobs({ profile }) {
               trip_charge:trip_charge_price_id ( location, access, hours, services ( name ) )
             `)
             .eq('org_id', orgId)
+            .is('deleted_at', null)
             .order('job_date', { ascending: false })
         ),
         supabase.from('job_types').select('id, name').eq('org_id', orgId).eq('is_active', true).order('sort_order'),
@@ -149,6 +161,57 @@ export default function Jobs({ profile }) {
   useEffect(() => {
     loadData(selectedOrg)
   }, [selectedOrg])
+
+  async function loadDeletedJobs() {
+    if (!selectedOrg) return
+    const { data } = await supabase
+      .from('jobs')
+      .select('id, job_number, segment, status, job_date, deleted_at, deleted_reason, deleted_note, deleted_by, properties ( street_address )')
+      .eq('org_id', selectedOrg)
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', { ascending: false })
+    setDeletedJobs(data || [])
+  }
+
+  function openDeleteModal(j) {
+    setDeleteTarget(j)
+    setDeleteReason('')
+    setDeleteNote('')
+    setDeleteError('')
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    if (!deleteReason) { setDeleteError('Please choose a reason.'); return }
+    if (deleteReason === 'Other' && !deleteNote.trim()) { setDeleteError('Please add a note describing the reason.'); return }
+    setDeleting(true)
+    setDeleteError('')
+    const { data, error } = await supabase.rpc('soft_delete_job', {
+      p_job_id: deleteTarget.id,
+      p_reason: deleteReason,
+      p_note: deleteNote.trim() || null,
+    })
+    setDeleting(false)
+    if (error) { setDeleteError(error.message); return }
+    if (data && data.ok === false) { setDeleteError(data.error || 'Could not delete this job.'); return }
+    setDeleteTarget(null)
+    loadData(selectedOrg)
+    if (showDeleted) loadDeletedJobs()
+  }
+
+  async function restoreJob(j) {
+    const { data, error } = await supabase.rpc('restore_job', { p_job_id: j.id })
+    if (error) { alert('Could not restore this job: ' + error.message); return }
+    if (data && data.ok === false) { alert(data.error || 'Could not restore this job.'); return }
+    loadDeletedJobs()
+    loadData(selectedOrg)
+  }
+
+  function toggleShowDeleted() {
+    const next = !showDeleted
+    setShowDeleted(next)
+    if (next) loadDeletedJobs()
+  }
 
   useEffect(() => {
     localStorage.setItem('jobs_visible_columns_v2', JSON.stringify(visibleColumns))
@@ -608,13 +671,59 @@ export default function Jobs({ profile }) {
         <button className="logout-button" style={{ marginBottom: 10 }} onClick={handleExport}>
           Export CSV
         </button>
+        {canDelete && (
+          <button className="logout-button" style={{ marginBottom: 10 }} onClick={toggleShowDeleted}>
+            {showDeleted ? '← Back to Active Jobs' : 'View Deleted Jobs'}
+          </button>
+        )}
         <p style={{ color: 'var(--mist)', fontSize: 14, margin: '0 0 12px' }}>
-          {sorted.length} job{sorted.length !== 1 ? 's' : ''}
+          {showDeleted
+            ? `${deletedJobs.length} deleted job${deletedJobs.length !== 1 ? 's' : ''}`
+            : `${sorted.length} job${sorted.length !== 1 ? 's' : ''}`}
         </p>
       </div>
 
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
+      ) : showDeleted ? (
+        <div style={{ overflowX: 'auto' }}>
+          {deletedJobs.length === 0 ? (
+            <p style={{ color: 'var(--mist)' }}>No deleted jobs.</p>
+          ) : (
+            <table className="data-table" style={{ minWidth: 1000 }}>
+              <thead>
+                <tr>
+                  <th>Job #</th>
+                  <th>Date</th>
+                  <th>Address</th>
+                  <th>Status</th>
+                  <th>Reason</th>
+                  <th>Note</th>
+                  <th>Deleted By</th>
+                  <th>Deleted At</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {deletedJobs.map((j) => (
+                  <tr key={j.id}>
+                    <td>{j.job_number}{j.segment > 1 ? ' · Seg ' + j.segment : ''}</td>
+                    <td>{j.job_date || '—'}</td>
+                    <td>{j.properties?.street_address || '—'}</td>
+                    <td><span className={`status-pill status-${j.status}`}>{j.status}</span></td>
+                    <td>{j.deleted_reason || '—'}</td>
+                    <td style={{ maxWidth: 220, fontSize: 12 }}>{j.deleted_note || '—'}</td>
+                    <td>{users.find((u) => u.id === j.deleted_by)?.full_name || '—'}</td>
+                    <td style={{ fontSize: 12 }}>{j.deleted_at ? new Date(j.deleted_at).toLocaleString() : '—'}</td>
+                    <td>
+                      <button className="auth-button" style={{ width: 'auto', padding: '4px 14px', margin: 0 }} onClick={() => restoreJob(j)}>Restore</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       ) : (
         <>
         <div ref={scrollTableRef} onScroll={syncFromTable} style={{ overflowX: 'auto' }}>
@@ -756,6 +865,9 @@ export default function Jobs({ profile }) {
                     <Link to={`/invoice/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Invoice</Link>
                     <Link to={`/estimate/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Estimate</Link>
                     <Link to={`/system-estimate/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>System Estimate</Link>
+                    {canDelete && (
+                      <button className="logout-button" style={{ color: '#C0392B', borderColor: '#C0392B' }} onClick={() => openDeleteModal(j)}>Delete</button>
+                    )}
                   </div>
                   {visibleColumnDefs.map((col) => (
                     <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
@@ -805,6 +917,49 @@ export default function Jobs({ profile }) {
           onClose={() => setNewItemMode(null)}
           onCreated={() => loadData(selectedOrg)}
         />
+      )}
+
+      {deleteTarget && (
+        <div className="modal-backdrop" onClick={() => { if (!deleting) setDeleteTarget(null) }}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0 }}>
+              Delete {deleteTarget.job_number}{deleteTarget.segment > 1 ? ' · Seg ' + deleteTarget.segment : ''}?
+            </h3>
+            <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>
+              This removes the job from all lists and from Customer Job History. Any linked estimates and unsent draft
+              invoices are removed with it. Nothing is erased — an admin can restore it later from “View Deleted Jobs,”
+              and the reason below is kept for your records.
+            </p>
+            <div className="field">
+              <label>Reason<span style={{ color: '#C0392B' }}> *</span></label>
+              <select value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)}>
+                <option value="">Select a reason…</option>
+                {DELETE_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label>Note {deleteReason === 'Other' ? <span style={{ color: '#C0392B' }}>*</span> : '(optional)'}</label>
+              <input
+                type="text"
+                value={deleteNote}
+                onChange={(e) => setDeleteNote(e.target.value)}
+                placeholder="Add any detail for the record…"
+              />
+            </div>
+            {deleteError && <div className="auth-error" style={{ marginBottom: 12 }}>{deleteError}</div>}
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button
+                className="auth-button"
+                style={{ width: 'auto', margin: 0, background: '#C0392B' }}
+                disabled={deleting}
+                onClick={confirmDelete}
+              >
+                {deleting ? 'Deleting…' : 'Delete Job'}
+              </button>
+              <button className="logout-button" disabled={deleting} onClick={() => setDeleteTarget(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

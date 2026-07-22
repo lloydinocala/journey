@@ -149,12 +149,14 @@ function OrgDashboard({ orgId, showAccounting, showOperations }) {
               job_technicians ( sort_order, users ( id, full_name ) )
             `)
             .eq('org_id', id)
+            .is('deleted_at', null)
         ),
         fetchAllRows(() =>
           supabase
             .from('invoices')
             .select('id, kind, invoice_date, job_total, balance, approval_status, paid_at, job_id, profit_pct')
             .eq('org_id', id)
+            .is('deleted_at', null)
         ),
         fetchAllRows(() => supabase.from('customers').select('id, created_at, is_active, is_banned').eq('org_id', id)),
         fetchAllRows(() => supabase.from('leads').select('id, status, created_at').eq('org_id', id)),

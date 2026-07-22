@@ -95,6 +95,7 @@ export default function Calendar({ profile }) {
         'id, job_number, job_date, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(display_name, is_banned))'
       )
       .eq('org_id', selectedOrg)
+      .is('deleted_at', null)
       .gte('job_date', rangeStart)
       .lte('job_date', rangeEnd)
 

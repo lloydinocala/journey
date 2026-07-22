@@ -123,6 +123,7 @@ export default function TechJobs({ profile }) {
       `)
       .eq('org_id', orgId)
       .eq('job_date', date)
+      .is('deleted_at', null)
       .in('id', jobIds)
 
     const all = (data || []).sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))

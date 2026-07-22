@@ -110,7 +110,7 @@ export default function Properties({ profile }) {
         // Only completed jobs count as "service" — a scheduled-but-not-done
         // visit isn't service performed yet.
         fetchAllRows(() =>
-          supabase.from('jobs').select('property_id, job_date, status').eq('org_id', orgId).eq('status', 'completed')
+          supabase.from('jobs').select('property_id, job_date, status').eq('org_id', orgId).eq('status', 'completed').is('deleted_at', null)
         ),
       ])
 

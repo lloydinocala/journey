@@ -51,11 +51,13 @@ export default function CustomerHistory({ profile }) {
           job_technicians ( sort_order, users ( full_name ) )
         `)
         .eq('customer_id', customerId)
+        .is('deleted_at', null)
         .order('job_date', { ascending: false }),
       supabase
         .from('invoices')
         .select('id, invoice_number, invoice_date, kind, job_total, amount_due, balance, paid_at, approval_status')
         .eq('bills_to_customer_id', customerId)
+        .is('deleted_at', null)
         .order('invoice_date', { ascending: false }),
       supabase
         .from('maintenance_agreements')

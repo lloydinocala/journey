@@ -53,14 +53,14 @@ export default function JobsManagement({ profile }) {
             .select(`
               id, job_id, estimate_id, warranty_or_cash, claim_status, customer_communication,
               equipment_brand, equipment_model, equipment_serial, created_at, reason,
-              jobs ( id, job_number, segment, job_date, status, property_id,
+              jobs ( id, job_number, segment, job_date, status, property_id, deleted_at,
                 properties ( street_address, customers!properties_customer_id_fkey ( display_name, primary_phone ) )
               )
             `)
             .eq('org_id', orgId)
             .order('created_at', { ascending: false })
         ),
-        fetchAllRows(() => supabase.from('jobs').select('id, job_number, segment, status, job_date').eq('org_id', orgId)),
+        fetchAllRows(() => supabase.from('jobs').select('id, job_number, segment, status, job_date').eq('org_id', orgId).is('deleted_at', null)),
         fetchAllRows(() => supabase.from('parts_orders').select('*').eq('org_id', orgId).order('created_at', { ascending: false })),
         fetchAllRows(() => supabase.from('vendors').select('id, name, phone').eq('org_id', orgId).eq('is_active', true).order('name')),
       ])
@@ -85,6 +85,7 @@ export default function JobsManagement({ profile }) {
     .map((rec) => {
       const job = rec.jobs
       if (!job) return null
+      if (job.deleted_at) return null
       const siblingSegments = allJobs.filter((j) => j.job_number === job.job_number)
       const maxSegment = siblingSegments.reduce((max, j) => Math.max(max, j.segment || 1), 1)
       const currentSegmentJob = siblingSegments.find((j) => j.segment === maxSegment)
