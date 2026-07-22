@@ -148,6 +148,8 @@ export default function TechEstimate({ profile }) {
       taxable: !svc?.is_tax_exempt,
       is_custom: false,
       sort_order: nextSort,
+      service_id: pickServiceId,           // Elements-HVAC: stamped for later invoice consumption
+      service_price_id: resolvedVariant.id,
     })
     setAddingService(false)
     setPickCategory('')
