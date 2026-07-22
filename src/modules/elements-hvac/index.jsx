@@ -6,6 +6,9 @@ import ElementsItems from './ElementsItems'
 import ElementsServiceMap from './ElementsServiceMap'
 import ElementsUsageReport from './ElementsUsageReport'
 import ElementsSettings from './ElementsSettings'
+import FleetDashboard from './FleetDashboard'
+import FleetVehicles from './FleetVehicles'
+import FleetFuel from './FleetFuel'
 
 // Each entry rendered in App.jsx as <Route path element={<Component profile={profile} />} />
 export const ELEMENTS_ROUTES = [
@@ -28,5 +31,22 @@ export const ELEMENTS_NAV = {
     { label: 'Service → Part Mapping', path: '/elements/service-map' },
     { label: 'Parts Usage', path: '/elements/usage' },
     { label: 'Inventory Settings', path: '/elements/settings' },
+  ],
+}
+
+// Fleet (Module 2) — same self-contained pattern, same entitlement gate.
+export const ELEMENTS_FLEET_ROUTES = [
+  { path: '/fleet', Component: FleetDashboard },
+  { path: '/fleet/vehicles', Component: FleetVehicles },
+  { path: '/fleet/fuel', Component: FleetFuel },
+]
+
+export const ELEMENTS_FLEET_NAV = {
+  key: 'fleet',
+  label: 'Elements · Fleet',
+  items: [
+    { label: 'Fleet Dashboard', path: '/fleet' },
+    { label: 'Vehicles', path: '/fleet/vehicles' },
+    { label: 'Fuel Log', path: '/fleet/fuel' },
   ],
 }
