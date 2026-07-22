@@ -184,8 +184,8 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
   async function handleContinueSubmit(e) {
     e.preventDefault()
     setError('')
-    if (!selectedContinueJob || !contJobDate) {
-      setError('Please pick a date.')
+    if (!selectedContinueJob) {
+      setError('Please pick a job.')
       return
     }
     setSaving(true)
@@ -204,13 +204,13 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
         segment: maxSegment + 1,
         property_id: selectedContinueJob.property_id,
         customer_id: selectedContinueJob.customer_id,
-        job_date: contJobDate,
+        job_date: contJobDate || null,
         start_time: startTimestamp,
         duration_hours: contDuration ? parseFloat(contDuration) : null,
         job_type: contJobType,
         service_complaint: contComplaint.trim() || null,
         trip_charge_price_id: contTripChargeId || null,
-        status: 'scheduled',
+        status: contJobDate ? 'scheduled' : 'unscheduled',
       })
       .select()
       .single()
@@ -489,8 +489,8 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
               </button>
               <div style={{ display: 'flex', gap: 8 }}>
                 <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="contDate">Date</label>
-                  <input id="contDate" type="date" value={contJobDate} onChange={(e) => setContJobDate(e.target.value)} required />
+                  <label htmlFor="contDate">Date <span style={{ color: 'var(--mist)', fontWeight: 400 }}>(optional)</span></label>
+                  <input id="contDate" type="date" value={contJobDate} onChange={(e) => setContJobDate(e.target.value)} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="contStart">Start time</label>

@@ -347,6 +347,7 @@ body {
   font-size: 15px;
 }
 
+.status-unscheduled { background: rgba(124, 58, 237, 0.15); color: #6D28D9; }
 .status-scheduled { background: rgba(47, 93, 227, 0.15); color: #2F5DE3; }
 .status-on_my_way { background: rgba(242, 169, 60, 0.15); color: var(--amber); }
 .status-in_progress { background: rgba(242, 169, 60, 0.15); color: var(--amber); }
