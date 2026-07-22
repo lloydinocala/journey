@@ -70,7 +70,11 @@ export default function Jobs({ profile }) {
   const [newItemMode, setNewItemMode] = useState(null)
   const [error, setError] = useState('')
 
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [visibleStatuses, setVisibleStatuses] = useState(() => {
+    const saved = localStorage.getItem('jobs_visible_statuses')
+    return saved ? JSON.parse(saved) : STATUS_OPTIONS.map((s) => s.value)
+  })
+  const [showStatusPicker, setShowStatusPicker] = useState(false)
   const [searchText, setSearchText] = useState('')
   const [sortField, setSortField] = useState('job_date')
   const [sortDirection, setSortDirection] = useState('desc')
@@ -217,6 +221,14 @@ export default function Jobs({ profile }) {
   useEffect(() => {
     localStorage.setItem('jobs_visible_columns_v2', JSON.stringify(visibleColumns))
   }, [visibleColumns])
+
+  useEffect(() => {
+    localStorage.setItem('jobs_visible_statuses', JSON.stringify(visibleStatuses))
+  }, [visibleStatuses])
+
+  function toggleStatus(v) {
+    setVisibleStatuses((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]))
+  }
 
   function toggleColumn(key) {
     setVisibleColumns((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
@@ -468,7 +480,7 @@ export default function Jobs({ profile }) {
   }
 
   const filtered = jobs.filter((j) => {
-    if (statusFilter !== 'all' && j.status !== statusFilter) return false
+    if (!visibleStatuses.includes(j.status)) return false
     if (!searchText) return true
     const q = searchText.toLowerCase()
     return (
@@ -631,14 +643,33 @@ export default function Jobs({ profile }) {
       {error && <div className="auth-error">{error}</div>}
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div className="field" style={{ marginBottom: 0, minWidth: 160 }}>
-          <label htmlFor="statusFilter">Status</label>
-          <select id="statusFilter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="all">All</option>
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
+        <div style={{ position: 'relative', marginBottom: 0, minWidth: 160 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Status</label>
+          <button className="logout-button" onClick={() => setShowStatusPicker(!showStatusPicker)}>
+            {visibleStatuses.length === STATUS_OPTIONS.length
+              ? 'All statuses ▾'
+              : visibleStatuses.length === 0
+              ? 'No statuses ▾'
+              : `${visibleStatuses.length} of ${STATUS_OPTIONS.length} ▾`}
+          </button>
+          {showStatusPicker && (
+            <div className="org-picker-list" style={{ right: 'auto', left: 0, minWidth: 240, maxHeight: 360 }}>
+              <div style={{ display: 'flex', gap: 8, padding: '6px 10px', borderBottom: '1px solid var(--border)' }}>
+                <button className="logout-button" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => setVisibleStatuses(STATUS_OPTIONS.map((s) => s.value))}>
+                  Show all
+                </button>
+                <button className="logout-button" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => setVisibleStatuses(STATUS_OPTIONS.map((s) => s.value).filter((v) => v !== 'completed' && v !== 'canceled'))}>
+                  Hide completed &amp; canceled
+                </button>
+              </div>
+              {STATUS_OPTIONS.map((s) => (
+                <label key={s.value} className="org-picker-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={visibleStatuses.includes(s.value)} onChange={() => toggleStatus(s.value)} />
+                  {s.label}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
         <div className="field" style={{ marginBottom: 0, minWidth: 220 }}>
           <label htmlFor="searchBox">Search</label>

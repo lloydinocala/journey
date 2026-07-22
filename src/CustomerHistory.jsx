@@ -15,6 +15,7 @@ export default function CustomerHistory({ profile }) {
   const [photoUrls, setPhotoUrls] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [lightbox, setLightbox] = useState(null)
 
   useEffect(() => {
     loadAll()
@@ -340,7 +341,8 @@ export default function CustomerHistory({ profile }) {
                     <img
                       src={photoUrls[a.id]}
                       alt={a.caption || a.file_name}
-                      style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd' }}
+                      onClick={() => setLightbox({ url: photoUrls[a.id], caption: a.caption, date: a.taken_at })}
+                      style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd', cursor: 'zoom-in' }}
                     />
                   ) : (
                     <div style={{ width: '100%', height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #ddd', borderRadius: 6, color: 'var(--mist)' }}>
@@ -355,6 +357,32 @@ export default function CustomerHistory({ profile }) {
           )}
         </div>
       </div>
+
+      {lightbox && (
+        <div
+          className="no-print"
+          onClick={() => setLightbox(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 5000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}
+        >
+          <button
+            onClick={() => setLightbox(null)}
+            style={{ position: 'fixed', top: 16, right: 20, background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 16, cursor: 'pointer' }}
+          >
+            ✕ Close
+          </button>
+          <img
+            src={lightbox.url}
+            alt={lightbox.caption || ''}
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '95vw', maxHeight: '88vh', objectFit: 'contain', borderRadius: 8, boxShadow: '0 10px 40px rgba(0,0,0,0.5)', cursor: 'default' }}
+          />
+          {(lightbox.caption || lightbox.date) && (
+            <div style={{ color: '#fff', marginTop: 12, fontSize: 14, textAlign: 'center' }}>
+              {lightbox.caption}{lightbox.caption && lightbox.date ? ' · ' : ''}{lightbox.date ? formatDate(lightbox.date) : ''}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
