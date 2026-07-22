@@ -25,7 +25,7 @@ export const ELEMENTS_NAV = {
     { label: 'Inventory Overview', path: '/elements' },
     { label: 'Locations', path: '/elements/locations' },
     { label: 'Item Catalog', path: '/elements/items' },
-    { label: 'Service → SKU Mapping', path: '/elements/service-map' },
+    { label: 'Service → Part Mapping', path: '/elements/service-map' },
     { label: 'Parts Usage', path: '/elements/usage' },
     { label: 'Inventory Settings', path: '/elements/settings' },
   ],

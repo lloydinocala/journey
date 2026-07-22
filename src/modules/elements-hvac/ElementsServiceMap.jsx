@@ -3,22 +3,13 @@
 // (usually 1:1). Auto-suggests SKUs for unmapped parts; labor/diagnostic
 // services are left untracked. Admin approves before anything is created.
 import { useState, useEffect, useMemo } from 'react'
-import { listServices, listMaps, listItems, createItemAndMap, mapExistingItem, unmap } from './data'
+import { listServices, listMaps, listItems, createItemAndMap, mapExistingItem, unmap, deriveSku } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
 // Heuristic: services whose category/name look like labor, diagnosis, fees,
 // memberships, etc. are NOT tracked parts.
 const LABOR_RE = /(service call|diagnos|trip|labor|inspection|maintenance|membership|agreement|discount|\bfee\b|dispatch|tune[- ]?up|estimate|permit|warranty|callback)/i
 const isLikelyPart = (svc) => !LABOR_RE.test(`${svc.category || ''} ${svc.name || ''}`)
-
-function deriveSku(name, taken) {
-  let base = (name || 'ITEM').toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 36) || 'ITEM'
-  let sku = base
-  let n = 2
-  while (taken.has(sku.toLowerCase())) { sku = `${base}-${n}`; n += 1 }
-  taken.add(sku.toLowerCase())
-  return sku
-}
 
 export default function ElementsServiceMap({ profile }) {
   const org = useOrgSelector(profile)
@@ -117,18 +108,18 @@ export default function ElementsServiceMap({ profile }) {
     <div>
       <div className="page-header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <h2>Service → SKU Mapping</h2>
+          <h2>Service → Part Mapping</h2>
           <span className="badge">{mappedCount}/{services.length} services mapped</span>
         </div>
         <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={busy || unmappedParts.length === 0} onClick={bulkCreate}>
-          Auto-create {unmappedParts.length} parts SKU{unmappedParts.length === 1 ? '' : 's'}
+          Auto-create {unmappedParts.length} part{unmappedParts.length === 1 ? '' : 's'}
         </button>
       </div>
       <OrgBar {...org} />
 
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>
-        Each parts service maps to one inventory SKU. Labor, diagnosis, trip, and membership services are
-        left untracked (they consume no stock). Auto-create proposes a SKU for every unmapped parts service;
+        Each parts service maps to one inventory part. Labor, diagnosis, trip, and membership services are
+        left untracked (they consume no stock). Auto-create adds a part for every unmapped parts service;
         review and edit the results on the Item Catalog page.
       </p>
 
@@ -158,13 +149,13 @@ export default function ElementsServiceMap({ profile }) {
                 {s.maps.length > 0 ? (
                   s.maps.map((m) => (
                     <span key={m.id} className="badge" style={{ marginRight: 6, background: '#1B3A6B', color: '#fff' }}>
-                      {m.item?.sku || 'SKU'} ×{m.qty_per}
+                      {m.item?.description || m.item?.sku} ×{m.qty_per}
                     </span>
                   ))
                 ) : isLikelyPart(s) ? (
                   <select defaultValue="" onChange={(e) => mapTo(s, e.target.value)} disabled={busy}>
-                    <option value="">— map to existing SKU —</option>
-                    {items.map((it) => <option key={it.id} value={it.id}>{it.sku}</option>)}
+                    <option value="">— map to existing part —</option>
+                    {items.map((it) => <option key={it.id} value={it.id}>{it.description || it.sku}</option>)}
                   </select>
                 ) : (
                   <span style={{ color: 'var(--mist)', fontStyle: 'italic' }}>untracked (labor / diagnostic)</span>
@@ -174,7 +165,7 @@ export default function ElementsServiceMap({ profile }) {
                 {s.maps.length > 0 ? (
                   s.maps.map((m) => <button key={m.id} className="logout-button" onClick={() => removeMap(m.id)} style={{ marginRight: 6 }}>Unmap</button>)
                 ) : isLikelyPart(s) ? (
-                  <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={busy} onClick={() => createOne(s)}>+ Create SKU</button>
+                  <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={busy} onClick={() => createOne(s)}>+ Create part</button>
                 ) : null}
               </td>
             </tr>

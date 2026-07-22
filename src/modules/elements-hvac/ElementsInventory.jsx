@@ -6,8 +6,8 @@ import { useOrgSelector, OrgBar, EnabledPill, DisabledNotice } from './shared'
 
 const CARDS = [
   { path: '/elements/locations', title: 'Locations', desc: 'Warehouses and trucks; assign a technician to each truck.' },
-  { path: '/elements/items', title: 'Item Catalog', desc: 'Parts and consumables (SKUs), cost, vendor, units.' },
-  { path: '/elements/service-map', title: 'Service → SKU Mapping', desc: 'Link pricebook parts to SKUs so invoices deduct stock.' },
+  { path: '/elements/items', title: 'Item Catalog', desc: 'Parts and consumables — description, cost, vendor, units.' },
+  { path: '/elements/service-map', title: 'Service → Part Mapping', desc: 'Link pricebook parts to inventory parts so invoices deduct stock.' },
   { path: '/elements/usage', title: 'Parts Usage', desc: 'What each truck/technician consumed, from the ledger.' },
   { path: '/elements/settings', title: 'Inventory Settings', desc: 'Enable the module, issue-day, and reorder defaults.' },
 ]
@@ -52,7 +52,7 @@ export default function ElementsInventory({ profile }) {
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
         <Stat label="Trucks" value={stats.trucks} />
         <Stat label="Warehouses" value={stats.warehouses} />
-        <Stat label="SKUs" value={stats.items} />
+        <Stat label="Parts" value={stats.items} />
         <Stat label="Mapped services" value={stats.mapped} />
       </div>
 

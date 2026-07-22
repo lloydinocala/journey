@@ -1,11 +1,11 @@
 // Elements-HVAC · Item catalog (SKUs) — parts and consumables
 import { useState, useEffect } from 'react'
 import { supabase } from '../../utils/supabase'
-import { listItems, addItem, updateItem } from './data'
+import { listItems, addItem, updateItem, deriveSku } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
 const blank = {
-  sku: '', description: '', category: '', item_class: 'part',
+  description: '', category: '', item_class: 'part',
   base_uom: 'each', stock_uom: '', units_per_stock_uom: '', vendor_part_no: '',
   last_cost: '', barcode: '', primary_vendor_id: '',
 }
@@ -36,11 +36,12 @@ export default function ElementsItems({ profile }) {
   async function handleAdd(e) {
     e.preventDefault()
     setError('')
-    if (!form.sku.trim()) { setError('SKU is required.'); return }
+    if (!form.description.trim()) { setError('Part description is required.'); return }
     setSaving(true)
+    const taken = new Set(items.map((i) => (i.sku || '').toLowerCase()))
     const { error: err } = await addItem(org.selectedOrg, {
-      sku: form.sku.trim(),
-      description: form.description.trim() || null,
+      sku: deriveSku(form.description, taken),   // internal key, generated from the name
+      description: form.description.trim(),
       category: form.category.trim() || null,
       item_class: form.item_class,
       base_uom: form.base_uom.trim() || 'each',
@@ -84,8 +85,7 @@ export default function ElementsItems({ profile }) {
 
       {showForm && (
         <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
-          <div className="field"><label>SKU</label><input type="text" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} required /></div>
-          <div className="field" style={{ minWidth: 220 }}><label>Description</label><input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+          <div className="field" style={{ minWidth: 240 }}><label>Part description</label><input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="e.g. Blower Motor 1/2 HP" required /></div>
           <div className="field"><label>Category</label><input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></div>
           <div className="field">
             <label>Class</label>
@@ -130,13 +130,12 @@ export default function ElementsItems({ profile }) {
 
       <table className="data-table">
         <thead>
-          <tr><th></th><th>SKU</th><th>Description</th><th>Category</th><th>Class</th><th>Units</th><th>Last cost</th></tr>
+          <tr><th></th><th>Part</th><th>Category</th><th>Class</th><th>Vendor part #</th><th>Units</th><th>Last cost</th></tr>
         </thead>
         <tbody>
           {filtered.map((it) => (
             <tr key={it.id}>
               <td><button className="logout-button" onClick={() => inlineUpdate(it, { is_active: !it.is_active })}>{it.is_active ? 'Archive' : 'Restore'}</button></td>
-              <td>{it.sku}</td>
               <td>{it.description || '—'}</td>
               <td>{it.category || '—'}</td>
               <td>
@@ -145,6 +144,7 @@ export default function ElementsItems({ profile }) {
                   <option value="consumable">Consumable</option>
                 </select>
               </td>
+              <td style={{ color: 'var(--mist)' }}>{it.vendor_part_no || '—'}</td>
               <td style={{ color: 'var(--mist)', fontSize: 13 }}>
                 {it.base_uom}{it.stock_uom ? ` · ${it.units_per_stock_uom || '?'}/${it.stock_uom}` : ''}
               </td>
@@ -152,7 +152,7 @@ export default function ElementsItems({ profile }) {
             </tr>
           ))}
           {filtered.length === 0 && (
-            <tr><td colSpan="7" style={{ color: 'var(--mist)' }}>No items. Add SKUs here, or use Service Mapping to auto-create them from your pricebook.</td></tr>
+            <tr><td colSpan="7" style={{ color: 'var(--mist)' }}>No parts yet. Add them here, or use Service Mapping to auto-create them from your pricebook.</td></tr>
           )}
         </tbody>
       </table>

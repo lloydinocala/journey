@@ -3,6 +3,17 @@
 // read-only from the module's perspective; the module owns every elements_* table.
 import { supabase } from '../../utils/supabase'
 
+// Generate a stable internal key (kept under the hood; users work in part names).
+// `taken` is a Set of lowercased keys already in use, to avoid collisions.
+export function deriveSku(name, taken) {
+  let base = (name || 'ITEM').toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 36) || 'ITEM'
+  let key = base
+  let n = 2
+  while (taken && taken.has(key.toLowerCase())) { key = `${base}-${n}`; n += 1 }
+  if (taken) taken.add(key.toLowerCase())
+  return key
+}
+
 // ---- Settings -------------------------------------------------------------
 export async function getSettings(orgId) {
   const { data } = await supabase

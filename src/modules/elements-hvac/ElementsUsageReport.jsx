@@ -91,12 +91,11 @@ export default function ElementsUsageReport({ profile }) {
               <div style={{ fontWeight: 700, color: '#1B3A6B' }}>${g.totalCost.toFixed(2)}</div>
             </div>
             <table className="data-table" style={{ margin: 0 }}>
-              <thead><tr><th>SKU</th><th>Description</th><th style={{ textAlign: 'right' }}>Qty used</th><th style={{ textAlign: 'right' }}>Cost</th></tr></thead>
+              <thead><tr><th>Part</th><th style={{ textAlign: 'right' }}>Qty used</th><th style={{ textAlign: 'right' }}>Cost</th></tr></thead>
               <tbody>
                 {Object.values(g.items).sort((a, b) => b.cost - a.cost).map((it) => (
                   <tr key={it.sku}>
-                    <td>{it.sku}</td>
-                    <td>{it.description || '—'}</td>
+                    <td>{it.description || it.sku}</td>
                     <td style={{ textAlign: 'right' }}>{it.qty}</td>
                     <td style={{ textAlign: 'right' }}>${it.cost.toFixed(2)}</td>
                   </tr>
