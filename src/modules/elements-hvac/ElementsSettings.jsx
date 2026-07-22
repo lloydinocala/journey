@@ -15,13 +15,15 @@ export default function ElementsSettings({ profile }) {
     if (!org.selectedOrg) return
     const s = await getSettings(org.selectedOrg)
     setSettings(
-      s || {
-        enabled: false,
-        issue_day_of_week: 1,
-        replenish_mode: 'restock_to_par',
-        default_lead_time_days: 2,
-        safety_days: 7,
-      }
+      s
+        ? { ...s, issue_days: s.issue_days || [] }
+        : {
+            enabled: false,
+            issue_days: [2, 5], // Tue + Fri — a common lean-inventory cadence; adjust per subscriber
+            replenish_mode: 'restock_to_par',
+            default_lead_time_days: 2,
+            safety_days: 7,
+          }
     )
   }
   useEffect(() => { load() }, [org.selectedOrg])
@@ -33,7 +35,7 @@ export default function ElementsSettings({ profile }) {
     setSettings(next)
     const { error } = await upsertSettings(org.selectedOrg, {
       enabled: next.enabled,
-      issue_day_of_week: next.issue_day_of_week,
+      issue_days: next.issue_days || [],
       replenish_mode: next.replenish_mode || 'restock_to_par',
       default_lead_time_days: next.default_lead_time_days,
       safety_days: next.safety_days,
@@ -43,6 +45,12 @@ export default function ElementsSettings({ profile }) {
   }
 
   if (!settings) return <p style={{ color: 'var(--mist)' }}>Loading…</p>
+
+  const toggleDay = (i) => {
+    const set = new Set(settings.issue_days || [])
+    if (set.has(i)) set.delete(i); else set.add(i)
+    setSettings({ ...settings, issue_days: [...set].sort((a, b) => a - b) })
+  }
 
   return (
     <div>
@@ -78,16 +86,35 @@ export default function ElementsSettings({ profile }) {
           </button>
         </div>
 
-        <form className="inline-form" style={{ flexWrap: 'wrap' }} onSubmit={(e) => { e.preventDefault(); save({}) }}>
-          <div className="field">
-            <label>Weekly truck issue-day</label>
-            <select
-              value={settings.issue_day_of_week ?? 1}
-              onChange={(e) => setSettings({ ...settings, issue_day_of_week: parseInt(e.target.value, 10) })}
-            >
-              {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
-            </select>
+        <div className="field" style={{ marginBottom: 18 }}>
+          <label>Weekly truck restock day(s)</label>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {DAYS.map((d, i) => {
+              const on = (settings.issue_days || []).includes(i)
+              return (
+                <button
+                  type="button"
+                  key={i}
+                  onClick={() => toggleDay(i)}
+                  style={{
+                    padding: '8px 12px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                    border: on ? '1px solid #1B3A6B' : '1px solid var(--border)',
+                    background: on ? '#1B3A6B' : '#fff',
+                    color: on ? '#fff' : 'var(--mist)',
+                  }}
+                >
+                  {d.slice(0, 3)}
+                </button>
+              )
+            })}
           </div>
+          <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 6 }}>
+            Pick one or more days. Trucks are restocked to PAR on each selected day — more frequent
+            restocks keep both truck and shop backup inventory lower.
+          </p>
+        </div>
+
+        <form className="inline-form" style={{ flexWrap: 'wrap' }} onSubmit={(e) => { e.preventDefault(); save({}) }}>
           <div className="field">
             <label>Default vendor lead time (days)</label>
             <input
