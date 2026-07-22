@@ -59,7 +59,9 @@ function getCategoryForPath(pathname) {
 export default function Layout({ profile }) {
   const location = useLocation()
   const isSuperAdmin = profile?.role === 'super_admin'
-  const baseCategories = profile?.role === 'tech' ? CATEGORIES : [...CATEGORIES, ELEMENTS_NAV]
+  // Elements-HVAC appears only for the platform owner or an entitled subscriber.
+  const showElements = profile?.role !== 'tech' && (isSuperAdmin || profile?.elementsEntitled)
+  const baseCategories = showElements ? [...CATEGORIES, ELEMENTS_NAV] : CATEGORIES
   const allCategories = isSuperAdmin ? [...baseCategories, PLATFORM_CATEGORY] : baseCategories
 
   const [expandedCategory, setExpandedCategory] = useState(getCategoryForPath(location.pathname))

@@ -95,20 +95,29 @@ function AuthenticatedApp() {
       setProfile(null)
       return
     }
-    Promise.all([
-      supabase.from('users').select('id, full_name, role, org_id, is_field_supervisor').eq('id', session.user.id).single(),
-      supabase.from('user_permissions').select('permission_key').eq('user_id', session.user.id),
-    ]).then(([userRes, permsRes]) => {
-      if (!userRes.data) {
-        setProfile(null)
-        supabase.auth.signOut()
-        return
-      }
-      setProfile({
-        ...userRes.data,
-        permissions: (permsRes.data || []).map((p) => p.permission_key),
+    supabase
+      .from('users')
+      .select('id, full_name, role, org_id, is_field_supervisor')
+      .eq('id', session.user.id)
+      .single()
+      .then(async (userRes) => {
+        if (!userRes.data) {
+          setProfile(null)
+          supabase.auth.signOut()
+          return
+        }
+        const [permsRes, elemRes] = await Promise.all([
+          supabase.from('user_permissions').select('permission_key').eq('user_id', session.user.id),
+          userRes.data.org_id
+            ? supabase.from('elements_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
+            : Promise.resolve({ data: null }),
+        ])
+        setProfile({
+          ...userRes.data,
+          permissions: (permsRes.data || []).map((p) => p.permission_key),
+          elementsEntitled: !!elemRes?.data?.entitled,   // Elements-HVAC subscription gate
+        })
       })
-    })
   }, [session])
 
   if (session === undefined) return null
@@ -160,8 +169,8 @@ function AuthenticatedApp() {
         <Route path="/system-estimate/:jobId" element={<SystemEstimate profile={profile} />} />
         <Route path="/estimates" element={<Estimates profile={profile} />} />
         <Route path="/invoices" element={<Invoices profile={profile} />} />
-        {/* Elements-HVAC · Inventory module (self-contained routes) */}
-        {ELEMENTS_ROUTES.map((r) => (
+        {/* Elements-HVAC · Inventory module — gated on subscription (super admin) or entitlement */}
+        {(profile.role === 'super_admin' || profile.elementsEntitled) && ELEMENTS_ROUTES.map((r) => (
           <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
         ))}
         {profile.role === 'super_admin' && (
