@@ -18,6 +18,7 @@ export default function FleetVehicles({ profile }) {
   const [showArchived, setShowArchived] = useState(false)
   const [form, setForm] = useState(blank)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -46,13 +47,27 @@ export default function FleetVehicles({ profile }) {
     }))
   }
 
-  async function handleAdd(e) {
+  function startEdit(v) {
+    setEditingId(v.id)
+    setForm({
+      location_id: v.location_id || '', name: v.name || '', assigned_user_id: v.assigned_user_id || '',
+      year: v.year ?? '', make: v.make || '', model: v.model || '', vin: v.vin || '',
+      license_plate: v.license_plate || '', color: v.color || '',
+      tank_capacity_gal: v.tank_capacity_gal ?? '', expected_mpg_low: v.expected_mpg_low ?? '',
+      expected_mpg_high: v.expected_mpg_high ?? '', status: v.status || 'active',
+    })
+    setShowForm(true); setError('')
+  }
+  function startNew() { setEditingId(null); setForm(blank); setShowForm(true); setError('') }
+  function cancelForm() { setEditingId(null); setForm(blank); setShowForm(false); setError('') }
+
+  async function handleSubmit(e) {
     e.preventDefault()
     setError('')
     if (!form.name.trim()) { setError('Name is required.'); return }
     setSaving(true)
     const num = (x) => (x === '' || x == null ? null : Number(x))
-    const { error: err } = await addVehicle(org.selectedOrg, {
+    const payload = {
       location_id: form.location_id || null,
       name: form.name.trim(),
       assigned_user_id: form.assigned_user_id || null,
@@ -61,10 +76,13 @@ export default function FleetVehicles({ profile }) {
       tank_capacity_gal: num(form.tank_capacity_gal),
       expected_mpg_low: num(form.expected_mpg_low), expected_mpg_high: num(form.expected_mpg_high),
       status: form.status,
-    })
+    }
+    const { error: err } = editingId
+      ? await updateVehicle(editingId, payload)
+      : await addVehicle(org.selectedOrg, payload)
     setSaving(false)
     if (err) { setError(err.message); return }
-    setForm(blank); setShowForm(false); load()
+    cancelForm(); load()
   }
 
   return (
@@ -74,14 +92,15 @@ export default function FleetVehicles({ profile }) {
           <h2>Fleet Vehicles</h2>
           <span className="badge">{vehicles.length} shown</span>
         </div>
-        <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => setShowForm(!showForm)}>
+        <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => (showForm ? cancelForm() : startNew())}>
           {showForm ? 'Cancel' : '+ New Vehicle'}
         </button>
       </div>
       <OrgBar {...org} />
 
       {showForm && (
-        <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
+        <form className="inline-form" onSubmit={handleSubmit} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
+          {editingId && <div style={{ flexBasis: '100%', fontWeight: 700, color: '#1B3A6B' }}>Editing {form.name || 'vehicle'}</div>}
           <div className="field" style={{ minWidth: 200 }}>
             <label>Linked truck (inventory)</label>
             <select value={form.location_id} onChange={(e) => pickTruck(e.target.value)}>
@@ -105,7 +124,7 @@ export default function FleetVehicles({ profile }) {
           <div className="field" style={{ width: 110 }}><label>Tank (gal)</label><input type="number" step="any" value={form.tank_capacity_gal} onChange={(e) => setForm({ ...form, tank_capacity_gal: e.target.value })} placeholder="e.g. 26" /></div>
           <div className="field" style={{ width: 110 }}><label>MPG low</label><input type="number" step="any" value={form.expected_mpg_low} onChange={(e) => setForm({ ...form, expected_mpg_low: e.target.value })} placeholder="e.g. 12" /></div>
           <div className="field" style={{ width: 110 }}><label>MPG high</label><input type="number" step="any" value={form.expected_mpg_high} onChange={(e) => setForm({ ...form, expected_mpg_high: e.target.value })} placeholder="e.g. 20" /></div>
-          <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto' }}>{saving ? 'Adding…' : 'Add vehicle'}</button>
+          <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto' }}>{saving ? 'Saving…' : (editingId ? 'Save changes' : 'Add vehicle')}</button>
         </form>
       )}
       {error && <div className="auth-error" style={{ marginBottom: 16 }}>{error}</div>}
@@ -125,7 +144,10 @@ export default function FleetVehicles({ profile }) {
         <tbody>
           {vehicles.map((v) => (
             <tr key={v.id}>
-              <td><button className="logout-button" onClick={async () => { await updateVehicle(v.id, { is_active: !v.is_active }); load() }}>{v.is_active ? 'Archive' : 'Restore'}</button></td>
+              <td style={{ display: 'flex', gap: 6 }}>
+                <button className="logout-button" onClick={() => startEdit(v)}>Edit</button>
+                <button className="logout-button" onClick={async () => { await updateVehicle(v.id, { is_active: !v.is_active }); load() }}>{v.is_active ? 'Archive' : 'Restore'}</button>
+              </td>
               <td>{v.name}</td>
               <td style={{ color: 'var(--mist)' }}>{truckName(v.location_id)}</td>
               <td>{techName(v.assigned_user_id)}</td>
