@@ -87,7 +87,7 @@ export default function Estimates({ profile }) {
           id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
           discount_amount, discount_type, deposit, amount_due, total_paid, balance,
           profit, profit_pct, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, is_archived,
-          jobs (
+          jobs!invoices_job_id_fkey (
             job_number,
             properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )
           ),

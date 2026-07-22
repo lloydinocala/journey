@@ -8,7 +8,7 @@ import { exportToCSV } from './utils/csvExport'
 
 const LINE_ITEM_COUNT = 9
 
-const ACTIONS_WIDTH = 250
+const ACTIONS_WIDTH = 320
 const FROZEN_KEYS = ['invoice_date', 'invoice_number', 'job_number', 'customer']
 
 const COLUMNS = [
@@ -78,7 +78,7 @@ export default function Invoices({ profile }) {
         id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
         discount_amount, discount_type, deposit, amount_due, total_paid, balance,
         profit, profit_pct, paid_at, sent_at, sent_count, last_sent_to, is_archived,
-        jobs (
+        jobs!invoices_job_id_fkey (
           job_number, segment, status,
           properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) ),
           job_technicians ( sort_order, users ( full_name ) )
@@ -149,8 +149,17 @@ export default function Invoices({ profile }) {
     return inv.profit_pct === null || inv.profit_pct === undefined ? '—' : Number(inv.profit_pct).toFixed(1) + '%'
   }
 
+  function isPaid(inv) {
+    return inv.paid_at != null || Number(inv.balance || 0) <= 0
+  }
+
   function statusLabel(inv) {
-    return inv.paid_at ? 'Paid' : inv.sent_at ? 'Sent' : 'Draft'
+    return isPaid(inv) ? 'Paid' : inv.sent_at ? 'Sent' : 'Draft'
+  }
+
+  async function setPaid(inv, paid) {
+    await supabase.from('invoices').update({ paid_at: paid ? new Date().toISOString() : null }).eq('id', inv.id)
+    loadInvoices(selectedOrg)
   }
 
   async function toggleArchive(inv) {
@@ -200,8 +209,8 @@ export default function Invoices({ profile }) {
   }
 
   const filtered = invoices.filter((inv) => {
-    if (statusFilter === 'paid' && !inv.paid_at) return false
-    if (statusFilter === 'unpaid' && inv.paid_at) return false
+    if (statusFilter === 'paid' && !isPaid(inv)) return false
+    if (statusFilter === 'unpaid' && isPaid(inv)) return false
     if (searchText) {
       const q = searchText.toLowerCase()
       const matchesNumber = inv.invoice_number?.toLowerCase().includes(q)
@@ -238,7 +247,7 @@ export default function Invoices({ profile }) {
     return 0
   })
 
-  const totalUnpaid = filtered.filter((inv) => !inv.paid_at).reduce((sum, inv) => sum + (inv.amount_due || 0), 0)
+  const totalUnpaid = filtered.filter((inv) => !isPaid(inv)).reduce((sum, inv) => sum + (inv.amount_due || 0), 0)
 
   const visibleColumnDefs = COLUMNS.filter((c) => c.required || visibleColumns.includes(c.key))
   const gridTemplateColumns = ACTIONS_WIDTH + 'px ' + visibleColumnDefs.map((c) => c.width + 'px').join(' ')
@@ -252,7 +261,7 @@ export default function Invoices({ profile }) {
   }
 
   function isCompletedUnpaid(inv) {
-    return inv.jobs?.status === 'completed' && !inv.paid_at
+    return inv.jobs?.status === 'completed' && !isPaid(inv)
   }
 
   const actionsCellStyle = (rowBg) => ({
@@ -455,6 +464,11 @@ export default function Invoices({ profile }) {
                   <button className="logout-button" disabled={sendingId === inv.id} title={sentTitle(inv)} onClick={() => sendInvoice(inv)}>
                     {sendingId === inv.id ? 'Sending…' : inv.sent_at ? 'Resend' : 'Send'}
                   </button>
+                  {inv.paid_at ? (
+                    <button className="logout-button" onClick={() => setPaid(inv, false)}>Unmark Paid</button>
+                  ) : Number(inv.balance || 0) > 0 ? (
+                    <button className="logout-button" onClick={() => setPaid(inv, true)}>Mark Paid</button>
+                  ) : null}
                   <button className="logout-button" onClick={() => toggleArchive(inv)}>
                     {inv.is_archived ? 'Unarchive' : 'Archive'}
                   </button>
@@ -467,7 +481,7 @@ export default function Invoices({ profile }) {
                   return (
                     <div key={col.key} className="grid-cell" style={style}>
                       {col.key === 'status' ? (
-                        inv.paid_at ? (
+                        isPaid(inv) ? (
                           <span className="status-pill status-active">Paid</span>
                         ) : inv.sent_at ? (
                           <span className="status-pill status-trial">Sent</span>
