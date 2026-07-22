@@ -216,16 +216,65 @@ export function renewalStatus(r, today = todayStr()) {
 const RENEWAL_LABELS = { registration: 'Registration', insurance: 'Insurance', inspection: 'Inspection', other: 'Other' }
 export const renewalName = (r) => (r.renewal_type === 'other' ? (r.label || 'Other') : RENEWAL_LABELS[r.renewal_type] || r.renewal_type)
 
+// ---- Repairs / issues (2c) ------------------------------------------------
+export async function listIssues(orgId, vehicleId = null, { openOnly = false } = {}) {
+  let q = supabase.from('elements_vehicle_issues').select('*').eq('org_id', orgId)
+  if (vehicleId) q = q.eq('vehicle_id', vehicleId)
+  if (openOnly) q = q.neq('status', 'resolved')
+  const { data } = await q.order('reported_date', { ascending: false })
+  return data || []
+}
+export async function addIssue(orgId, row) {
+  return supabase.from('elements_vehicle_issues').insert({ org_id: orgId, ...row }).select().single()
+}
+export async function updateIssue(id, patch) {
+  return supabase.from('elements_vehicle_issues').update(patch).eq('id', id)
+}
+export async function listServiceRecords(orgId, vehicleId = null) {
+  let q = supabase.from('elements_service_records').select('*').eq('org_id', orgId)
+  if (vehicleId) q = q.eq('vehicle_id', vehicleId)
+  const { data } = await q.order('service_date', { ascending: false })
+  return data || []
+}
+// Log a repair: writes a service record (record_type 'repair') and resolves the
+// linked issue if any.
+export async function logRepair(orgId, r) {
+  const total = (Number(r.labor_cost) || 0) + (Number(r.parts_cost) || 0)
+  const { data: rec, error } = await addServiceRecord(orgId, {
+    vehicle_id: r.vehicle_id, issue_id: r.issue_id || null, record_type: 'repair',
+    service_date: r.service_date, odometer: r.odometer ?? null,
+    description: r.description || null, vendor_id: r.vendor_id || null,
+    labor_cost: r.labor_cost ?? null, parts_cost: r.parts_cost ?? null,
+    total_cost: total || null, downtime_hours: r.downtime_hours ?? null,
+  })
+  if (error) return { error }
+  if (r.issue_id) await updateIssue(r.issue_id, { status: 'resolved', resolved_service_record_id: rec.id })
+  return { rec }
+}
+export function costRollup(serviceRecords) {
+  const by = {}
+  serviceRecords.forEach((s) => {
+    const g = by[s.vehicle_id] = by[s.vehicle_id] || { totalCost: 0, downtime: 0, count: 0 }
+    g.totalCost += Number(s.total_cost) || 0
+    g.downtime += Number(s.downtime_hours) || 0
+    g.count += 1
+  })
+  return by
+}
+const SEVERITY_COLOR = { critical: 'red', high: 'red', medium: 'amber', low: 'amber' }
+
 // Roll everything up per vehicle for the Fleet Dashboard.
 export async function dashboardData(orgId) {
-  const [vehicles, fuel, meters, pms, renewals] = await Promise.all([
+  const [vehicles, fuel, meters, pms, renewals, issues] = await Promise.all([
     listVehicles(orgId), listFuel(orgId), listMeters(orgId), listPmSchedules(orgId), listRenewals(orgId),
+    listIssues(orgId, null, { openOnly: true }),
   ])
-  const fuelBy = {}, meterBy = {}, pmBy = {}, renBy = {}
+  const fuelBy = {}, meterBy = {}, pmBy = {}, renBy = {}, issueBy = {}
   fuel.forEach((f) => { (fuelBy[f.vehicle_id] = fuelBy[f.vehicle_id] || []).push(f) })
   meters.forEach((m) => { (meterBy[m.vehicle_id] = meterBy[m.vehicle_id] || []).push(m) })
   pms.forEach((p) => { (pmBy[p.vehicle_id] = pmBy[p.vehicle_id] || []).push(p) })
   renewals.forEach((r) => { (renBy[r.vehicle_id] = renBy[r.vehicle_id] || []).push(r) })
+  issues.forEach((i) => { (issueBy[i.vehicle_id] = issueBy[i.vehicle_id] || []).push(i) })
   const latestOdo = computeLatestOdometers(fuel, meters)
   const today = todayStr()
 
@@ -247,6 +296,9 @@ export async function dashboardData(orgId) {
       const st = renewalStatus(r, today)
       if (st.state === 'overdue') flags.push({ code: 'renewal_overdue', color: 'red', label: `${renewalName(r)}: overdue` })
       else if (st.state === 'due_soon') flags.push({ code: 'renewal_due', color: 'amber', label: `${renewalName(r)}: ${st.label.toLowerCase()}` })
+    })
+    ;(issueBy[v.id] || []).forEach((i) => {
+      flags.push({ code: 'open_issue', color: SEVERITY_COLOR[i.severity] || 'amber', label: `Open issue: ${(i.description || '').slice(0, 40)}` })
     })
 
     return {
