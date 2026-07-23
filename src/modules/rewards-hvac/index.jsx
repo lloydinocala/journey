@@ -10,6 +10,8 @@ import HrDiscipline from './HrDiscipline'
 import HrCertifications from './HrCertifications'
 import HrDocuments from './HrDocuments'
 import RewardsSettings from './RewardsSettings'
+import PayrollDashboard from './PayrollDashboard'
+import PreparePayroll from './PreparePayroll'
 
 // Each entry rendered in App.jsx as <Route path element={<Component profile={profile} />} />
 export const REWARDS_HR_ROUTES = [
@@ -22,6 +24,12 @@ export const REWARDS_HR_ROUTES = [
   { path: '/rewards/certifications', Component: HrCertifications },
   { path: '/rewards/documents', Component: HrDocuments },
   { path: '/rewards/settings', Component: RewardsSettings },
+]
+
+// Payroll (R2) — same self-contained pattern, same entitlement gate.
+export const REWARDS_PAYROLL_ROUTES = [
+  { path: '/rewards/payroll', Component: PayrollDashboard },
+  { path: '/rewards/payroll/prepare', Component: PreparePayroll },
 ]
 
 // Sidebar category (Layout.jsx). Office roles only (hidden from techs), gated on entitlement.
@@ -38,5 +46,14 @@ export const REWARDS_HR_NAV = {
     { label: 'Certifications & Licenses', path: '/rewards/certifications' },
     { label: 'Documents', path: '/rewards/documents' },
     { label: 'Rewards Settings', path: '/rewards/settings' },
+  ],
+}
+
+export const REWARDS_PAYROLL_NAV = {
+  key: 'rewards-payroll',
+  label: 'Rewards · Payroll',
+  items: [
+    { label: 'Payroll Dashboard', path: '/rewards/payroll' },
+    { label: 'Prepare Payroll', path: '/rewards/payroll/prepare' },
   ],
 }
