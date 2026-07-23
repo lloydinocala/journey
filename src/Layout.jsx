@@ -45,6 +45,10 @@ const PLATFORM_CATEGORY = { key: 'platform', label: 'Platform', items: [
   { label: 'Announcements', path: '/announcements' },
 ]}
 
+const PERSONAL_CATEGORY = { key: 'personal', label: 'Personal', items: [
+  { label: 'My Pay & Benefits', path: '/my' },
+]}
+
 function getCategoryForPath(pathname) {
   if (pathname === '/') return null
   if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/maintenance-agreements')) return 'operations'
@@ -58,6 +62,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/rewards')) return 'rewards'
   if (pathname.startsWith('/import')) return 'import'
   if (pathname.startsWith('/organizations') || pathname.startsWith('/announcements')) return 'platform'
+  if (pathname.startsWith('/my')) return 'personal'
   return null
 }
 
@@ -70,7 +75,8 @@ export default function Layout({ profile }) {
   const showRewards = profile?.role !== 'tech' && (isSuperAdmin || profile?.rewardsEntitled)
   const withElements = showElements ? [...CATEGORIES, ELEMENTS_NAV, ELEMENTS_FLEET_NAV] : CATEGORIES
   const baseCategories = showRewards ? [...withElements, REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV] : withElements
-  const allCategories = isSuperAdmin ? [...baseCategories, PLATFORM_CATEGORY] : baseCategories
+  const withPersonal = showRewards ? [...baseCategories, PERSONAL_CATEGORY] : baseCategories
+  const allCategories = isSuperAdmin ? [...withPersonal, PLATFORM_CATEGORY] : withPersonal
 
   const [expandedCategory, setExpandedCategory] = useState(getCategoryForPath(location.pathname))
   const [logoutShiftId, setLogoutShiftId] = useState(null)  // open shift id when logging out

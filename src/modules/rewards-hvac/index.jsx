@@ -23,6 +23,7 @@ import CertProjects from './CertProjects'
 import PrevailingWage from './PrevailingWage'
 import CertifiedPayroll from './CertifiedPayroll'
 import YearEnd from './YearEnd'
+export { default as MyPortal } from './MyPortal'
 
 // Each entry rendered in App.jsx as <Route path element={<Component profile={profile} />} />
 export const REWARDS_HR_ROUTES = [

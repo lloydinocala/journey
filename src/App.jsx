@@ -47,7 +47,7 @@ import TechNewJob from './TechNewJob'
 import TechApollo from './TechApollo'
 import TechInvoiceView from './TechInvoiceView'
 import { ELEMENTS_ROUTES, ELEMENTS_FLEET_ROUTES } from './modules/elements-hvac'
-import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES } from './modules/rewards-hvac'
+import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES, MyPortal } from './modules/rewards-hvac'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
 
 async function logSignIn(userId) {
@@ -143,6 +143,8 @@ function AuthenticatedApp() {
       <Route path="/tech/new-system-estimate" element={<TechNewJob profile={profile} mode="system-estimate" />} />
       <Route path="/tech/apollo" element={<TechApollo profile={profile} />} />
       <Route path="/tech/invoice-view/:invoiceId" element={<TechInvoiceView profile={profile} />} />
+      {/* Rewards-HVAC · employee self-service portal — any logged-in employee, own data only (RLS) */}
+      <Route path="/my" element={<MyPortal profile={profile} />} />
       <Route element={<Layout profile={profile} />}>
         {/* <Route path="/rewards-hvac" element={<PayrollDashboard />} /> */}  {/* TODO: re-enable with the import above when Payroll module is finished */}
         <Route path="/" element={profile.role === 'tech' ? <Navigate to="/tech" replace /> : <Dashboard profile={profile} />} />
