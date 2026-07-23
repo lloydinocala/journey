@@ -91,7 +91,7 @@ export async function loadTaxProfiles(orgId) {
   if (empIds.length) {
     const { data: hr } = await supabase
       .from('rewards_employee_hr')
-      .select('employee_id, filing_status, w4, worker_type').eq('org_id', orgId).in('employee_id', empIds)
+      .select('employee_id, filing_status, w4, worker_type, work_state, state_filing_status').eq('org_id', orgId).in('employee_id', empIds)
     ;(hr || []).forEach((h) => { hrByEmp[h.employee_id] = h })
   }
   ;(emps || []).forEach((e) => {
@@ -102,6 +102,8 @@ export async function loadTaxProfiles(orgId) {
       filing_status: h.filing_status || null,
       step2_checked: !!(h.w4 && h.w4.step2_checked),
       worker_type: h.worker_type || 'w2',
+      work_state: h.work_state || null,
+      state_filing_status: h.state_filing_status || null,
       hasProfile: !!h.filing_status,
     }
   })

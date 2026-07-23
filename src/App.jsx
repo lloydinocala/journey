@@ -47,7 +47,7 @@ import TechNewJob from './TechNewJob'
 import TechApollo from './TechApollo'
 import TechInvoiceView from './TechInvoiceView'
 import { ELEMENTS_ROUTES, ELEMENTS_FLEET_ROUTES } from './modules/elements-hvac'
-import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES } from './modules/rewards-hvac'
+import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES } from './modules/rewards-hvac'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
 
 async function logSignIn(userId) {
@@ -179,7 +179,7 @@ function AuthenticatedApp() {
           <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
         ))}
         {/* Rewards-HVAC · People (HR) + Payroll — gated on subscription (super admin) or entitlement */}
-        {(profile.role === 'super_admin' || profile.rewardsEntitled) && [...REWARDS_HR_ROUTES, ...REWARDS_PAYROLL_ROUTES].map((r) => (
+        {(profile.role === 'super_admin' || profile.rewardsEntitled) && [...REWARDS_HR_ROUTES, ...REWARDS_PAYROLL_ROUTES, ...REWARDS_CERT_ROUTES].map((r) => (
           <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
         ))}
         {profile.role === 'super_admin' && (

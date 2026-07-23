@@ -67,6 +67,7 @@ export default function HrEmployees({ profile }) {
       worker_type: hr.worker_type || 'w2', i9_status: hr.i9_status || 'pending',
       i9_completed_at: hr.i9_completed_at || null, i9_reverify_due: hr.i9_reverify_due || null,
       home_address: hr.home_address || null, emergency_contact: hr.emergency_contact || null,
+      work_state: hr.work_state ? hr.work_state.toUpperCase() : null,
     })
     setSaving(false); setSelected(null); load()
   }
@@ -168,6 +169,7 @@ export default function HrEmployees({ profile }) {
                 <select value={selected.hr.filing_status || ''} onChange={(e) => setHr({ filing_status: e.target.value })}>
                   <option value="">—</option><option value="single">Single</option><option value="married">Married</option><option value="hoh">Head of household</option></select></div>
               <div className="field"><label>SSN (last 4)</label><input maxLength="4" value={selected.hr.ssn_last4 || ''} onChange={(e) => setHr({ ssn_last4: e.target.value.replace(/\D/g, '') })} /></div>
+              <div className="field"><label>Work state</label><input maxLength="2" style={{ textTransform: 'uppercase' }} value={selected.hr.work_state || ''} onChange={(e) => setHr({ work_state: e.target.value.toUpperCase() })} placeholder="FL" /></div>
               <div className="field"><label>Date of birth</label><input type="date" value={selected.hr.dob || ''} onChange={(e) => setHr({ dob: e.target.value })} /></div>
               <div className="field"><label>I-9 status</label>
                 <select value={selected.hr.i9_status || 'pending'} onChange={(e) => setHr({ i9_status: e.target.value })}>

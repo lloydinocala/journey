@@ -7,6 +7,7 @@ import {
   loadWeek, computeGross, computeTaxes, getYtdGross, savePaycheckCalc,
   loadDeductions, applyDeductions, mondayOf, addDays, money,
 } from './payrollData'
+import { loadStateRules, computeStateWithholding } from './stateTax'
 import { useOrgSelector, OrgBar, FlagChip } from './shared'
 
 const DELIVERY = [
@@ -39,6 +40,8 @@ export default function PreparePayroll({ profile }) {
 
     const { weeks, users, comp, clockHours, profiles, existingCalcs } = await loadWeek(org.selectedOrg, weekStart)
     const deductionsMap = await loadDeductions(org.selectedOrg)
+    const stateRules = await loadStateRules()
+    const orgWorkState = settings?.work_state || 'FL'
     const userName = (id) => (users.find((u) => u.id === id) || {}).full_name || 'Employee'
 
     // YTD gross per user (before this week) for FICA/FUTA caps.
@@ -58,13 +61,21 @@ export default function PreparePayroll({ profile }) {
         ytdBefore: ytdMap[w.user_id] || 0, frequency: freq,
         filingStatus: filing, step2Checked: prof.step2_checked, sutaRate,
       })
+      // State income tax (config-driven; 0 + flag for progressive/engine states)
+      const workState = prof.work_state || orgWorkState
+      const pretax401k = Math.max(0, pre.pretaxFIT - pre.pretaxFICA)
+      const stateWH = computeStateWithholding({
+        state: workState, gross: g.gross, pretax401k, pretax125: pre.pretaxFICA,
+        frequency: freq, rule: stateRules[workState], filingStatus: filing,
+      })
+      const empTaxAll = Math.round((t.employeeTaxes + stateWH.amount + Number.EPSILON) * 100) / 100
       // Pass 2: apply garnishment caps on disposable = gross - taxes
-      const d = applyDeductions(ded, g.gross, t.employeeTaxes)
-      const net = Math.round((g.gross - t.employeeTaxes - d.total + Number.EPSILON) * 100) / 100
+      const d = applyDeductions(ded, g.gross, empTaxAll)
+      const net = Math.round((g.gross - empTaxAll - d.total + Number.EPSILON) * 100) / 100
       return {
         week: w, name: userName(w.user_id), user_id: w.user_id, employee_id: prof.employee_id || null,
         hasBase: !!c.base, hasProfile: !!prof.filing_status, filing, clocked: clockHours[w.user_id],
-        g, t, d, net, existing: existingCalcs[w.id] || null,
+        g, t, stateWH, workState, empTaxAll, d, net, existing: existingCalcs[w.id] || null,
         delivery: deliveryOverride[w.user_id] || existingCalcs[w.id]?.delivery_mode || 'manual',
       }
     })
@@ -87,7 +98,8 @@ export default function PreparePayroll({ profile }) {
       fed_income_wh: t.fed_income_wh, ss_employee: t.ss_employee, ss_employer: t.ss_employer,
       medicare_employee: t.medicare_employee, medicare_employer: t.medicare_employer,
       addl_medicare: t.addl_medicare, futa: t.futa, suta: t.suta,
-      employee_taxes: t.employeeTaxes, employer_taxes: t.employerTaxes,
+      state_income_wh: r.stateWH.amount,
+      employee_taxes: r.empTaxAll, employer_taxes: t.employerTaxes,
       pretax_deductions: r.d.totalPretax, posttax_deductions: r.d.totalPosttax, deductions: r.d.lines,
       net_pay: r.net,
       delivery_mode: r.delivery, status: 'draft',
@@ -104,7 +116,7 @@ export default function PreparePayroll({ profile }) {
   }
 
   const totals = rows.reduce((a, r) => ({
-    gross: a.gross + r.g.gross, empTax: a.empTax + r.t.employeeTaxes,
+    gross: a.gross + r.g.gross, empTax: a.empTax + r.empTaxAll,
     erTax: a.erTax + r.t.employerTaxes, net: a.net + r.net,
   }), { gross: 0, empTax: 0, erTax: 0, net: 0 })
   const setAside = totals.empTax + (rows.reduce((a, r) => a + r.t.ss_employer + r.t.medicare_employer, 0))
@@ -147,6 +159,7 @@ export default function PreparePayroll({ profile }) {
                     <td>
                       {r.name}
                       {!r.hasProfile && <div><FlagChip severity="amber">No tax profile — using {r.filing}</FlagChip></div>}
+                      {r.stateWH.flag && <div title={r.stateWH.flag}><FlagChip severity="amber">{r.workState}: state WH not computed</FlagChip></div>}
                     </td>
                     <td>
                       {r.hasBase ? (
@@ -191,7 +204,8 @@ export default function PreparePayroll({ profile }) {
                             ['Social Security (6.2%)', money(r.t.ss_employee)],
                             ['Medicare (1.45%)', money(r.t.medicare_employee)],
                             r.t.addl_medicare ? ['Add’l Medicare (0.9%)', money(r.t.addl_medicare)] : null,
-                            ['Total withheld', money(r.t.employeeTaxes)],
+                            r.stateWH.amount ? [`State WH (${r.workState})`, money(r.stateWH.amount)] : null,
+                            ['Total withheld', money(r.empTaxAll)],
                             r.d.total ? ['Deductions', '-' + money(r.d.total)] : null,
                             ['Net pay', money(r.net)],
                           ].filter(Boolean)} />

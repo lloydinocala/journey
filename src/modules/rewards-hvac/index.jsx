@@ -18,6 +18,10 @@ import ClassificationCheck from './ClassificationCheck'
 import Deductions from './Deductions'
 import TimeOff from './TimeOff'
 import WorkersComp from './WorkersComp'
+import StateRules from './StateRules'
+import CertProjects from './CertProjects'
+import PrevailingWage from './PrevailingWage'
+import CertifiedPayroll from './CertifiedPayroll'
 
 // Each entry rendered in App.jsx as <Route path element={<Component profile={profile} />} />
 export const REWARDS_HR_ROUTES = [
@@ -42,6 +46,7 @@ export const REWARDS_PAYROLL_ROUTES = [
   { path: '/rewards/payroll/classification', Component: ClassificationCheck },
   { path: '/rewards/payroll/deductions', Component: Deductions },
   { path: '/rewards/payroll/workers-comp', Component: WorkersComp },
+  { path: '/rewards/payroll/state-rules', Component: StateRules },
 ]
 
 // Sidebar category (Layout.jsx). Office roles only (hidden from techs), gated on entitlement.
@@ -62,6 +67,23 @@ export const REWARDS_HR_NAV = {
   ],
 }
 
+// Certified payroll (R6) — third category, same entitlement gate.
+export const REWARDS_CERT_ROUTES = [
+  { path: '/rewards/certified', Component: CertifiedPayroll },
+  { path: '/rewards/certified/projects', Component: CertProjects },
+  { path: '/rewards/certified/wage-rates', Component: PrevailingWage },
+]
+
+export const REWARDS_CERT_NAV = {
+  key: 'rewards-cert',
+  label: 'Rewards · Certified Payroll',
+  items: [
+    { label: 'Projects', path: '/rewards/certified/projects' },
+    { label: 'Prevailing Wage', path: '/rewards/certified/wage-rates' },
+    { label: 'Certified Payroll', path: '/rewards/certified' },
+  ],
+}
+
 export const REWARDS_PAYROLL_NAV = {
   key: 'rewards-payroll',
   label: 'Rewards · Payroll',
@@ -73,5 +95,6 @@ export const REWARDS_PAYROLL_NAV = {
     { label: 'Workers’ Comp', path: '/rewards/payroll/workers-comp' },
     { label: 'Tax Center', path: '/rewards/payroll/tax-center' },
     { label: 'Worker Classification', path: '/rewards/payroll/classification' },
+    { label: 'State Tax Rules', path: '/rewards/payroll/state-rules' },
   ],
 }
