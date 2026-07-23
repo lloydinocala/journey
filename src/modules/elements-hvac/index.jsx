@@ -13,6 +13,7 @@ import FleetMaintenance from './FleetMaintenance'
 import FleetRenewals from './FleetRenewals'
 import FleetRepairs from './FleetRepairs'
 import FleetRoutes from './FleetRoutes'
+import FleetInspections from './FleetInspections'
 
 // Each entry rendered in App.jsx as <Route path element={<Component profile={profile} />} />
 export const ELEMENTS_ROUTES = [
@@ -47,6 +48,7 @@ export const ELEMENTS_FLEET_ROUTES = [
   { path: '/fleet/renewals', Component: FleetRenewals },
   { path: '/fleet/repairs', Component: FleetRepairs },
   { path: '/fleet/routes', Component: FleetRoutes },
+  { path: '/fleet/inspections', Component: FleetInspections },
 ]
 
 export const ELEMENTS_FLEET_NAV = {
@@ -60,5 +62,6 @@ export const ELEMENTS_FLEET_NAV = {
     { label: 'Renewals', path: '/fleet/renewals' },
     { label: 'Repairs & Cost', path: '/fleet/repairs' },
     { label: 'Routes & GPS', path: '/fleet/routes' },
+    { label: 'Inspections', path: '/fleet/inspections' },
   ],
 }
