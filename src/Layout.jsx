@@ -5,6 +5,7 @@ import AnnouncementBanner from './AnnouncementBanner'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
 import { ELEMENTS_NAV, ELEMENTS_FLEET_NAV } from './modules/elements-hvac'
+import { REWARDS_HR_NAV } from './modules/rewards-hvac'
 
 const CATEGORIES = [
   { key: 'operations', label: 'Operations', items: [
@@ -52,6 +53,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/team') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
   if (pathname.startsWith('/elements')) return 'elements'
   if (pathname.startsWith('/fleet')) return 'fleet'
+  if (pathname.startsWith('/rewards')) return 'rewards'
   if (pathname.startsWith('/import')) return 'import'
   if (pathname.startsWith('/organizations') || pathname.startsWith('/announcements')) return 'platform'
   return null
@@ -62,7 +64,10 @@ export default function Layout({ profile }) {
   const isSuperAdmin = profile?.role === 'super_admin'
   // Elements-HVAC appears only for the platform owner or an entitled subscriber.
   const showElements = profile?.role !== 'tech' && (isSuperAdmin || profile?.elementsEntitled)
-  const baseCategories = showElements ? [...CATEGORIES, ELEMENTS_NAV, ELEMENTS_FLEET_NAV] : CATEGORIES
+  // Rewards-HVAC (HR/Payroll) — same gating: platform owner or an entitled subscriber.
+  const showRewards = profile?.role !== 'tech' && (isSuperAdmin || profile?.rewardsEntitled)
+  const withElements = showElements ? [...CATEGORIES, ELEMENTS_NAV, ELEMENTS_FLEET_NAV] : CATEGORIES
+  const baseCategories = showRewards ? [...withElements, REWARDS_HR_NAV] : withElements
   const allCategories = isSuperAdmin ? [...baseCategories, PLATFORM_CATEGORY] : baseCategories
 
   const [expandedCategory, setExpandedCategory] = useState(getCategoryForPath(location.pathname))

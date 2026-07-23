@@ -20,6 +20,7 @@ const COLUMNS = [
 export default function Organizations() {
   const [orgs, setOrgs] = useState([])
   const [entitled, setEntitled] = useState({})   // Elements-HVAC entitlement by org_id
+  const [rewardsEntitled, setRewardsEntitled] = useState({})   // Rewards-HVAC entitlement by org_id
   const [statusFilter, setStatusFilter] = useState('current')
 
   const [loading, setLoading] = useState(true)
@@ -52,6 +53,10 @@ export default function Organizations() {
     const map = {}
     ;(es || []).forEach((r) => { map[r.org_id] = !!r.entitled })
     setEntitled(map)
+    const { data: rs } = await supabase.from('rewards_settings').select('org_id, entitled')
+    const rmap = {}
+    ;(rs || []).forEach((r) => { rmap[r.org_id] = !!r.entitled })
+    setRewardsEntitled(rmap)
     setLoading(false)
   }
 
@@ -59,6 +64,14 @@ export default function Organizations() {
     const now = !!entitled[org.id]
     await supabase
       .from('elements_settings')
+      .upsert({ org_id: org.id, entitled: !now, updated_at: new Date().toISOString() }, { onConflict: 'org_id' })
+    loadOrgs()
+  }
+
+  async function toggleRewards(org) {
+    const now = !!rewardsEntitled[org.id]
+    await supabase
+      .from('rewards_settings')
       .upsert({ org_id: org.id, entitled: !now, updated_at: new Date().toISOString() }, { onConflict: 'org_id' })
     loadOrgs()
   }
@@ -364,6 +377,14 @@ export default function Organizations() {
                       style={entitled[org.id] ? { background: '#1B3A6B', color: '#fff', borderColor: '#1B3A6B' } : undefined}
                     >
                       {entitled[org.id] ? 'Elements ✓' : 'Elements'}
+                    </button>
+                    <button
+                      className="logout-button"
+                      onClick={() => toggleRewards(org)}
+                      title={rewardsEntitled[org.id] ? 'Rewards-HVAC HR/Payroll is granted to this org' : 'Grant Rewards-HVAC HR/Payroll to this org'}
+                      style={rewardsEntitled[org.id] ? { background: '#1B3A6B', color: '#fff', borderColor: '#1B3A6B' } : undefined}
+                    >
+                      {rewardsEntitled[org.id] ? 'Rewards ✓' : 'Rewards'}
                     </button>
                     {org.billing_status === 'canceled' ? (
                       <button className="logout-button" onClick={() => reinstateOrg(org)}>Reinstate</button>

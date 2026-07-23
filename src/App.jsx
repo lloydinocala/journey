@@ -47,6 +47,7 @@ import TechNewJob from './TechNewJob'
 import TechApollo from './TechApollo'
 import TechInvoiceView from './TechInvoiceView'
 import { ELEMENTS_ROUTES, ELEMENTS_FLEET_ROUTES } from './modules/elements-hvac'
+import { REWARDS_HR_ROUTES } from './modules/rewards-hvac'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
 
 async function logSignIn(userId) {
@@ -106,16 +107,20 @@ function AuthenticatedApp() {
           supabase.auth.signOut()
           return
         }
-        const [permsRes, elemRes] = await Promise.all([
+        const [permsRes, elemRes, rewardsRes] = await Promise.all([
           supabase.from('user_permissions').select('permission_key').eq('user_id', session.user.id),
           userRes.data.org_id
             ? supabase.from('elements_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
+            : Promise.resolve({ data: null }),
+          userRes.data.org_id
+            ? supabase.from('rewards_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
             : Promise.resolve({ data: null }),
         ])
         setProfile({
           ...userRes.data,
           permissions: (permsRes.data || []).map((p) => p.permission_key),
           elementsEntitled: !!elemRes?.data?.entitled,   // Elements-HVAC subscription gate
+          rewardsEntitled: !!rewardsRes?.data?.entitled,  // Rewards-HVAC subscription gate
         })
       })
   }, [session])
@@ -171,6 +176,10 @@ function AuthenticatedApp() {
         <Route path="/invoices" element={<Invoices profile={profile} />} />
         {/* Elements-HVAC · Inventory + Fleet — gated on subscription (super admin) or entitlement */}
         {(profile.role === 'super_admin' || profile.elementsEntitled) && [...ELEMENTS_ROUTES, ...ELEMENTS_FLEET_ROUTES].map((r) => (
+          <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
+        ))}
+        {/* Rewards-HVAC · People (HR) — gated on subscription (super admin) or entitlement */}
+        {(profile.role === 'super_admin' || profile.rewardsEntitled) && REWARDS_HR_ROUTES.map((r) => (
           <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
         ))}
         {profile.role === 'super_admin' && (
