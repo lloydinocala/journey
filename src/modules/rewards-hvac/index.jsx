@@ -12,6 +12,9 @@ import HrDocuments from './HrDocuments'
 import RewardsSettings from './RewardsSettings'
 import PayrollDashboard from './PayrollDashboard'
 import PreparePayroll from './PreparePayroll'
+import Paychecks from './Paychecks'
+import TaxCenter from './TaxCenter'
+import ClassificationCheck from './ClassificationCheck'
 
 // Each entry rendered in App.jsx as <Route path element={<Component profile={profile} />} />
 export const REWARDS_HR_ROUTES = [
@@ -30,6 +33,9 @@ export const REWARDS_HR_ROUTES = [
 export const REWARDS_PAYROLL_ROUTES = [
   { path: '/rewards/payroll', Component: PayrollDashboard },
   { path: '/rewards/payroll/prepare', Component: PreparePayroll },
+  { path: '/rewards/payroll/paychecks', Component: Paychecks },
+  { path: '/rewards/payroll/tax-center', Component: TaxCenter },
+  { path: '/rewards/payroll/classification', Component: ClassificationCheck },
 ]
 
 // Sidebar category (Layout.jsx). Office roles only (hidden from techs), gated on entitlement.
@@ -55,5 +61,8 @@ export const REWARDS_PAYROLL_NAV = {
   items: [
     { label: 'Payroll Dashboard', path: '/rewards/payroll' },
     { label: 'Prepare Payroll', path: '/rewards/payroll/prepare' },
+    { label: 'Paychecks', path: '/rewards/payroll/paychecks' },
+    { label: 'Tax Center', path: '/rewards/payroll/tax-center' },
+    { label: 'Worker Classification', path: '/rewards/payroll/classification' },
   ],
 }
