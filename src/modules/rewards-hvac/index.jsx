@@ -15,6 +15,9 @@ import PreparePayroll from './PreparePayroll'
 import Paychecks from './Paychecks'
 import TaxCenter from './TaxCenter'
 import ClassificationCheck from './ClassificationCheck'
+import Deductions from './Deductions'
+import TimeOff from './TimeOff'
+import WorkersComp from './WorkersComp'
 
 // Each entry rendered in App.jsx as <Route path element={<Component profile={profile} />} />
 export const REWARDS_HR_ROUTES = [
@@ -26,6 +29,7 @@ export const REWARDS_HR_ROUTES = [
   { path: '/rewards/discipline', Component: HrDiscipline },
   { path: '/rewards/certifications', Component: HrCertifications },
   { path: '/rewards/documents', Component: HrDocuments },
+  { path: '/rewards/time-off', Component: TimeOff },
   { path: '/rewards/settings', Component: RewardsSettings },
 ]
 
@@ -36,6 +40,8 @@ export const REWARDS_PAYROLL_ROUTES = [
   { path: '/rewards/payroll/paychecks', Component: Paychecks },
   { path: '/rewards/payroll/tax-center', Component: TaxCenter },
   { path: '/rewards/payroll/classification', Component: ClassificationCheck },
+  { path: '/rewards/payroll/deductions', Component: Deductions },
+  { path: '/rewards/payroll/workers-comp', Component: WorkersComp },
 ]
 
 // Sidebar category (Layout.jsx). Office roles only (hidden from techs), gated on entitlement.
@@ -51,6 +57,7 @@ export const REWARDS_HR_NAV = {
     { label: 'Discipline', path: '/rewards/discipline' },
     { label: 'Certifications & Licenses', path: '/rewards/certifications' },
     { label: 'Documents', path: '/rewards/documents' },
+    { label: 'Time Off', path: '/rewards/time-off' },
     { label: 'Rewards Settings', path: '/rewards/settings' },
   ],
 }
@@ -62,6 +69,8 @@ export const REWARDS_PAYROLL_NAV = {
     { label: 'Payroll Dashboard', path: '/rewards/payroll' },
     { label: 'Prepare Payroll', path: '/rewards/payroll/prepare' },
     { label: 'Paychecks', path: '/rewards/payroll/paychecks' },
+    { label: 'Benefits & Deductions', path: '/rewards/payroll/deductions' },
+    { label: 'Workers’ Comp', path: '/rewards/payroll/workers-comp' },
     { label: 'Tax Center', path: '/rewards/payroll/tax-center' },
     { label: 'Worker Classification', path: '/rewards/payroll/classification' },
   ],

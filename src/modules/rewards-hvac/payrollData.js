@@ -108,6 +108,52 @@ export async function loadTaxProfiles(orgId) {
   return byUser
 }
 
+// Recurring per-employee deductions, keyed by user_id (bridged via employees).
+export async function loadDeductions(orgId) {
+  const { data: emps } = await supabase.from('employees').select('id, user_id').eq('org_id', orgId)
+  const empToUser = {}; (emps || []).forEach((e) => { if (e.user_id) empToUser[e.id] = e.user_id })
+  const empIds = (emps || []).map((e) => e.id)
+  const byUser = {}
+  if (empIds.length) {
+    const { data: ded } = await supabase
+      .from('rewards_employee_deductions').select('*').eq('org_id', orgId).eq('active', true).in('employee_id', empIds)
+    ;(ded || []).forEach((d) => {
+      const u = empToUser[d.employee_id]; if (!u) return
+      ;(byUser[u] = byUser[u] || []).push(d)
+    })
+  }
+  return byUser
+}
+
+export function resolveDeductionAmount(d, gross) {
+  return d.calc_type === 'percent' ? round2((Number(gross) || 0) * (Number(d.amount) || 0) / 100) : round2(Number(d.amount) || 0)
+}
+
+// Full deduction pass: returns pre-tax bases + capped garnishments + totals + lines.
+export function applyDeductions(deductions, gross, employeeTaxes) {
+  let pretaxFIT = 0, pretaxFICA = 0, totalPretax = 0, totalPosttax = 0
+  const disposable = Math.max(0, gross - employeeTaxes)
+  const lines = (deductions || []).map((d) => {
+    let amt = resolveDeductionAmount(d, gross)
+    if (d.category === 'garnishment' && d.garnishment_cap_pct) {
+      amt = Math.min(amt, round2(disposable * (Number(d.garnishment_cap_pct) || 0) / 100))
+    }
+    if (d.pre_tax) {
+      totalPretax += amt
+      if (d.reduces_fit) pretaxFIT += amt
+      if (d.reduces_fica) pretaxFICA += amt
+    } else {
+      totalPosttax += amt
+    }
+    return { label: d.label, category: d.category, amount: amt, pre_tax: !!d.pre_tax }
+  })
+  return {
+    pretaxFIT: round2(pretaxFIT), pretaxFICA: round2(pretaxFICA),
+    totalPretax: round2(totalPretax), totalPosttax: round2(totalPosttax),
+    total: round2(totalPretax + totalPosttax), lines,
+  }
+}
+
 // YTD gross before a given week (same calendar year) — for FICA/FUTA caps.
 export async function getYtdGross(orgId, userId, weekStart) {
   const yearStart = weekStart.slice(0, 4) + '-01-01'
@@ -174,11 +220,13 @@ export function computeGross(base, clockedHours, bonuses, commissions) {
   }
 }
 
-export function computeTaxes({ gross, ytdBefore, frequency, filingStatus, step2Checked, sutaRate }) {
-  const fed = computeFederalWithholding({ gross, frequency, filingStatus, step2Checked })
-  const fica = computeFICA(gross, ytdBefore)
-  const futa = computeFUTA(gross, ytdBefore)
-  const suta = round2((Number(sutaRate) || 0) * Math.min(gross, Math.max(0, 7000 - ytdBefore)))
+export function computeTaxes({ gross, taxableFIT, taxableFICA, ytdBefore, frequency, filingStatus, step2Checked, sutaRate }) {
+  const fitBase = taxableFIT != null ? taxableFIT : gross    // pre-tax 401(k)/125 reduce this
+  const ficaBase = taxableFICA != null ? taxableFICA : gross // only Section-125-type reduce this
+  const fed = computeFederalWithholding({ gross: fitBase, frequency, filingStatus, step2Checked })
+  const fica = computeFICA(ficaBase, ytdBefore)
+  const futa = computeFUTA(ficaBase, ytdBefore)
+  const suta = round2((Number(sutaRate) || 0) * Math.min(ficaBase, Math.max(0, 7000 - ytdBefore)))
   const employeeTaxes = round2(fed.amount + fica.ssEmployee + fica.medicareEmployee + fica.addlMedicare)
   const employerTaxes = round2(fica.ssEmployer + fica.medicareEmployer + futa + suta)
   return {

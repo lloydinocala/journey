@@ -5,7 +5,7 @@ import { useState, useEffect, Fragment } from 'react'
 import { getSettings } from './hrData'
 import {
   loadWeek, computeGross, computeTaxes, getYtdGross, savePaycheckCalc,
-  mondayOf, addDays, money,
+  loadDeductions, applyDeductions, mondayOf, addDays, money,
 } from './payrollData'
 import { useOrgSelector, OrgBar, FlagChip } from './shared'
 
@@ -38,6 +38,7 @@ export default function PreparePayroll({ profile }) {
     const sutaRate = settings?.settings?.suta_rate || 0
 
     const { weeks, users, comp, clockHours, profiles, existingCalcs } = await loadWeek(org.selectedOrg, weekStart)
+    const deductionsMap = await loadDeductions(org.selectedOrg)
     const userName = (id) => (users.find((u) => u.id === id) || {}).full_name || 'Employee'
 
     // YTD gross per user (before this week) for FICA/FUTA caps.
@@ -49,15 +50,21 @@ export default function PreparePayroll({ profile }) {
       const g = computeGross(c.base, clockHours[w.user_id], c.bonuses, c.commissions)
       const prof = profiles[w.user_id] || {}
       const filing = filingOverride[w.user_id] || prof.filing_status || 'single'
+      const ded = deductionsMap[w.user_id] || []
+      // Pass 1: pre-tax reductions (independent of taxes)
+      const pre = applyDeductions(ded, g.gross, 0)
       const t = computeTaxes({
-        gross: g.gross, ytdBefore: ytdMap[w.user_id] || 0, frequency: freq,
+        gross: g.gross, taxableFIT: g.gross - pre.pretaxFIT, taxableFICA: g.gross - pre.pretaxFICA,
+        ytdBefore: ytdMap[w.user_id] || 0, frequency: freq,
         filingStatus: filing, step2Checked: prof.step2_checked, sutaRate,
       })
-      const net = Math.round((g.gross - t.employeeTaxes + Number.EPSILON) * 100) / 100
+      // Pass 2: apply garnishment caps on disposable = gross - taxes
+      const d = applyDeductions(ded, g.gross, t.employeeTaxes)
+      const net = Math.round((g.gross - t.employeeTaxes - d.total + Number.EPSILON) * 100) / 100
       return {
         week: w, name: userName(w.user_id), user_id: w.user_id, employee_id: prof.employee_id || null,
         hasBase: !!c.base, hasProfile: !!prof.filing_status, filing, clocked: clockHours[w.user_id],
-        g, t, net, existing: existingCalcs[w.id] || null,
+        g, t, d, net, existing: existingCalcs[w.id] || null,
         delivery: deliveryOverride[w.user_id] || existingCalcs[w.id]?.delivery_mode || 'manual',
       }
     })
@@ -80,7 +87,9 @@ export default function PreparePayroll({ profile }) {
       fed_income_wh: t.fed_income_wh, ss_employee: t.ss_employee, ss_employer: t.ss_employer,
       medicare_employee: t.medicare_employee, medicare_employer: t.medicare_employer,
       addl_medicare: t.addl_medicare, futa: t.futa, suta: t.suta,
-      employee_taxes: t.employeeTaxes, employer_taxes: t.employerTaxes, net_pay: r.net,
+      employee_taxes: t.employeeTaxes, employer_taxes: t.employerTaxes,
+      pretax_deductions: r.d.totalPretax, posttax_deductions: r.d.totalPosttax, deductions: r.d.lines,
+      net_pay: r.net,
       delivery_mode: r.delivery, status: 'draft',
       tax_detail: { hourlyBase: g.hourlyBase, performanceBase: g.performanceBase, pieceBase: g.pieceBase },
     })
@@ -183,8 +192,12 @@ export default function PreparePayroll({ profile }) {
                             ['Medicare (1.45%)', money(r.t.medicare_employee)],
                             r.t.addl_medicare ? ['Add’l Medicare (0.9%)', money(r.t.addl_medicare)] : null,
                             ['Total withheld', money(r.t.employeeTaxes)],
+                            r.d.total ? ['Deductions', '-' + money(r.d.total)] : null,
                             ['Net pay', money(r.net)],
                           ].filter(Boolean)} />
+                          {r.d.lines.length > 0 && (
+                            <Detail title="Deductions" rows={r.d.lines.map((l) => [`${l.label}${l.pre_tax ? ' (pre-tax)' : ''}`, '-' + money(l.amount)])} />
+                          )}
                           <Detail title="Employer taxes" rows={[
                             ['Social Security', money(r.t.ss_employer)],
                             ['Medicare', money(r.t.medicare_employer)],
