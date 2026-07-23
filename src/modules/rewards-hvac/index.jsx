@@ -22,6 +22,7 @@ import StateRules from './StateRules'
 import CertProjects from './CertProjects'
 import PrevailingWage from './PrevailingWage'
 import CertifiedPayroll from './CertifiedPayroll'
+import YearEnd from './YearEnd'
 
 // Each entry rendered in App.jsx as <Route path element={<Component profile={profile} />} />
 export const REWARDS_HR_ROUTES = [
@@ -47,6 +48,7 @@ export const REWARDS_PAYROLL_ROUTES = [
   { path: '/rewards/payroll/deductions', Component: Deductions },
   { path: '/rewards/payroll/workers-comp', Component: WorkersComp },
   { path: '/rewards/payroll/state-rules', Component: StateRules },
+  { path: '/rewards/payroll/year-end', Component: YearEnd },
 ]
 
 // Sidebar category (Layout.jsx). Office roles only (hidden from techs), gated on entitlement.
@@ -94,6 +96,7 @@ export const REWARDS_PAYROLL_NAV = {
     { label: 'Benefits & Deductions', path: '/rewards/payroll/deductions' },
     { label: 'Workers’ Comp', path: '/rewards/payroll/workers-comp' },
     { label: 'Tax Center', path: '/rewards/payroll/tax-center' },
+    { label: 'Year-End Forms', path: '/rewards/payroll/year-end' },
     { label: 'Worker Classification', path: '/rewards/payroll/classification' },
     { label: 'State Tax Rules', path: '/rewards/payroll/state-rules' },
   ],
