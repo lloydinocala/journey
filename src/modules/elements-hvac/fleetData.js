@@ -303,6 +303,44 @@ export async function routeAnalysis(orgId, days = 30) {
   })
 }
 
+// ---- Inspections (2d) -----------------------------------------------------
+export const DEFAULT_CHECKLIST = [
+  'Service brakes', 'Parking brake', 'Steering', 'Horn', 'Tires & wheels',
+  'Lights & reflectors', 'Windshield & wipers', 'Mirrors', 'Fluid levels (oil/coolant)',
+  'Belts & hoses', 'Battery & charging', 'Body / leaks underneath', 'Safety & emergency kit',
+]
+export async function listInspections(orgId, vehicleId = null) {
+  let q = supabase.from('elements_inspections').select('*').eq('org_id', orgId)
+  if (vehicleId) q = q.eq('vehicle_id', vehicleId)
+  const { data } = await q.order('inspection_date', { ascending: false })
+  return data || []
+}
+export async function getInspectionItems(inspectionId) {
+  const { data } = await supabase.from('elements_inspection_items').select('*').eq('inspection_id', inspectionId)
+  return data || []
+}
+// Submit an inspection; every failed item opens a repair issue (feeds Repairs + dashboard).
+export async function createInspection(orgId, header, items) {
+  const failed = items.filter((i) => i.result === 'fail')
+  const result = failed.length ? 'fail' : 'pass'
+  const { data: insp, error } = await supabase.from('elements_inspections')
+    .insert({ org_id: orgId, ...header, result }).select().single()
+  if (error) return { error }
+  if (items.length) {
+    await supabase.from('elements_inspection_items').insert(items.map((i) => ({
+      org_id: orgId, inspection_id: insp.id, item_label: i.label, result: i.result, note: i.note || null,
+    })))
+  }
+  if (failed.length) {
+    await supabase.from('elements_vehicle_issues').insert(failed.map((i) => ({
+      org_id: orgId, vehicle_id: header.vehicle_id,
+      description: `Inspection: ${i.label}${i.note ? ' — ' + i.note : ''}`,
+      severity: 'high', status: 'open', source: 'inspection', created_by: header.inspector_id || null,
+    })))
+  }
+  return { inspection: insp, defects: failed.length }
+}
+
 // Roll everything up per vehicle for the Fleet Dashboard.
 export async function dashboardData(orgId) {
   const [vehicles, fuel, meters, pms, renewals, issues] = await Promise.all([
