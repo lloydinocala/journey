@@ -54,6 +54,18 @@ export async function getEmployeeHr(orgId, employeeId) {
   return data || null
 }
 
+// Encrypted PII (server-side via RPC; the app never handles the key/ciphertext).
+export async function setEmployeeSsn(employeeId, ssn) {
+  return supabase.rpc('rewards_set_ssn', { p_employee_id: employeeId, p_ssn: ssn })
+}
+export async function setEmployeeBank(employeeId, routing, account) {
+  return supabase.rpc('rewards_set_bank', { p_employee_id: employeeId, p_routing: routing, p_account: account })
+}
+export async function revealEmployeeSsn(employeeId) {
+  const { data, error } = await supabase.rpc('rewards_get_ssn', { p_employee_id: employeeId })
+  return { data, error }
+}
+
 export async function upsertEmployeeHr(orgId, employeeId, patch) {
   return supabase
     .from('rewards_employee_hr')

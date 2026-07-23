@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import {
   listEmployees, addEmployee, updateEmployee, listUsers,
   getEmployeeHr, upsertEmployeeHr, seedOnboarding,
+  setEmployeeSsn, setEmployeeBank, revealEmployeeSsn,
 } from './hrData'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -18,6 +19,7 @@ export default function HrEmployees({ profile }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState(null)   // { emp, hr }
+  const [reveal, setReveal] = useState('')
 
   async function load() {
     if (!org.selectedOrg) return
@@ -69,7 +71,9 @@ export default function HrEmployees({ profile }) {
       home_address: hr.home_address || null, emergency_contact: hr.emergency_contact || null,
       work_state: hr.work_state ? hr.work_state.toUpperCase() : null,
     })
-    setSaving(false); setSelected(null); load()
+    if (hr._newSsn) await setEmployeeSsn(emp.id, hr._newSsn)
+    if (hr._newRouting && hr._newAccount) await setEmployeeBank(emp.id, hr._newRouting, hr._newAccount)
+    setSaving(false); setSelected(null); setReveal(''); load()
   }
 
   const setEmp = (patch) => setSelected((s) => ({ ...s, emp: { ...s.emp, ...patch } }))
@@ -176,8 +180,21 @@ export default function HrEmployees({ profile }) {
                   <option value="pending">Pending</option><option value="section1">Section 1 done</option><option value="verified">Verified</option><option value="reverify_due">Reverify due</option></select></div>
               <div className="field"><label>I-9 reverify due</label><input type="date" value={selected.hr.i9_reverify_due || ''} onChange={(e) => setHr({ i9_reverify_due: e.target.value })} /></div>
             </div>
-            <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 8 }}>
-              Full SSN and bank details are captured in a later (encrypted) phase — store only the last four here for now.
+            <h3 style={{ marginTop: 18 }}>Secure info (encrypted)</h3>
+            <div className="inline-form" style={{ flexWrap: 'wrap', gap: 12 }}>
+              <div className="field"><label>Full SSN{selected.hr.ssn_enc ? ' (on file)' : ''}</label>
+                <input value={selected.hr._newSsn || ''} placeholder={selected.hr.ssn_enc ? '••• stored •••' : 'XXX-XX-XXXX'} onChange={(e) => setHr({ _newSsn: e.target.value })} /></div>
+              <div className="field"><label>DD routing #</label><input value={selected.hr._newRouting || ''} onChange={(e) => setHr({ _newRouting: e.target.value })} /></div>
+              <div className="field"><label>DD account #{selected.hr.bank_enc?.account_last4 ? ` (…${selected.hr.bank_enc.account_last4})` : ''}</label>
+                <input value={selected.hr._newAccount || ''} onChange={(e) => setHr({ _newAccount: e.target.value })} /></div>
+              {selected.hr.ssn_enc && (
+                <button type="button" className="logout-button" style={{ marginTop: 18 }} onClick={async () => { const { data, error } = await revealEmployeeSsn(selected.emp.id); setReveal(error ? error.message : (data || '—')) }}>Reveal SSN</button>
+              )}
+            </div>
+            {reveal && <div style={{ marginTop: 8, fontWeight: 700 }}>SSN: {reveal}</div>}
+            <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 6 }}>
+              Stored encrypted (pgcrypto, key in Supabase Vault). Only office roles can save or reveal; employees never see it.
+              Leave blank to keep the current value.
             </p>
 
             <button className="auth-button" style={{ width: 'auto', marginTop: 16 }} disabled={saving} onClick={saveDetail}>{saving ? 'Saving…' : 'Save'}</button>
