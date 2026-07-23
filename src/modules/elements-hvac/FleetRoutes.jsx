@@ -45,16 +45,22 @@ export default function FleetRoutes({ profile }) {
       <OrgBar {...org} />
 
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0, maxWidth: 720 }}>
-        Each night, the system reconstructs every truck's day from its job addresses and computes the
-        driving miles the work explains (via your existing Google Maps key). Comparing that to the actual
+        Each night, the system reconstructs every truck's day — from its <strong>home base</strong> (the
+        tech's driveway, set on the vehicle), out to the job addresses in order, and back home — and computes
+        the driving miles the work explains (via your existing Google Maps key). Comparing that to the actual
         odometer change from fuel fills surfaces the honest-use flag: a truck that drove materially more than
         its jobs account for. GPS breadcrumbs are captured whenever a tech taps “On My Way.”
       </p>
 
+      <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>
+        The route anchor is each truck's <strong>home base</strong> — set it per vehicle on the Vehicles page.
+        Set a shop address below only if your crews actually start and end the day at the shop; otherwise leave
+        it blank and home base is used.
+      </p>
       <div className="inline-form" style={{ marginBottom: 18, alignItems: 'flex-end' }}>
         <div className="field" style={{ minWidth: 320, marginBottom: 0 }}>
-          <label>Shop address (route start/end anchor)</label>
-          <input type="text" value={shop} onChange={(e) => setShop(e.target.value)} placeholder="123 Main St, City, ST 00000" />
+          <label>Shop address (optional fallback anchor)</label>
+          <input type="text" value={shop} onChange={(e) => setShop(e.target.value)} placeholder="Only if crews start at the shop" />
         </div>
         <button className="auth-button" style={{ width: 'auto' }} disabled={shop.trim() === savedShop} onClick={saveShop}>Save</button>
         {msg && <span style={{ color: msg.includes('saved') ? '#166534' : '#B00020', marginLeft: 8 }}>{msg}</span>}

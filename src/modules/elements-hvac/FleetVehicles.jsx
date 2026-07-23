@@ -5,7 +5,7 @@ import { listTechnicians } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
 const blank = {
-  location_id: '', name: '', assigned_user_id: '', year: '', make: '', model: '',
+  location_id: '', name: '', assigned_user_id: '', home_address: '', year: '', make: '', model: '',
   vin: '', license_plate: '', color: '', tank_capacity_gal: '',
   expected_mpg_low: '', expected_mpg_high: '', status: 'active',
 }
@@ -51,6 +51,7 @@ export default function FleetVehicles({ profile }) {
     setEditingId(v.id)
     setForm({
       location_id: v.location_id || '', name: v.name || '', assigned_user_id: v.assigned_user_id || '',
+      home_address: v.home_address || '',
       year: v.year ?? '', make: v.make || '', model: v.model || '', vin: v.vin || '',
       license_plate: v.license_plate || '', color: v.color || '',
       tank_capacity_gal: v.tank_capacity_gal ?? '', expected_mpg_low: v.expected_mpg_low ?? '',
@@ -71,6 +72,7 @@ export default function FleetVehicles({ profile }) {
       location_id: form.location_id || null,
       name: form.name.trim(),
       assigned_user_id: form.assigned_user_id || null,
+      home_address: form.home_address.trim() || null,
       year: num(form.year), make: form.make.trim() || null, model: form.model.trim() || null,
       vin: form.vin.trim() || null, license_plate: form.license_plate.trim() || null, color: form.color.trim() || null,
       tank_capacity_gal: num(form.tank_capacity_gal),
@@ -115,6 +117,10 @@ export default function FleetVehicles({ profile }) {
               <option value="">— unassigned —</option>
               {techs.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
             </select>
+          </div>
+          <div className="field" style={{ minWidth: 240 }}>
+            <label>Home base (garage / driveway)</label>
+            <input type="text" value={form.home_address} onChange={(e) => setForm({ ...form, home_address: e.target.value })} placeholder="Tech's home — the daily route anchor" />
           </div>
           <div className="field" style={{ width: 80 }}><label>Year</label><input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} /></div>
           <div className="field" style={{ width: 120 }}><label>Make</label><input type="text" value={form.make} onChange={(e) => setForm({ ...form, make: e.target.value })} /></div>
