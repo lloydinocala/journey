@@ -2159,16 +2159,12 @@ body {
 .jc-address { display: flex; align-items: center; gap: 10px; margin: 14px 0; }
 .jc-address-text { flex: 1; min-width: 0; font-size: 17px; font-weight: 600; color: var(--jc-blue); }
 .jc-map-icons { display: flex; gap: 8px; flex-shrink: 0; }
-.jc-map-icons a { width: 44px; height: 44px; border-radius: 999px; background: var(--jc-blue); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: var(--jc-shadow); text-decoration: none; }
-.jc-map-icons a svg { width: 22px; height: 22px; color: #fff; }
-.jc-map-icons a.alt { background: #fff; color: var(--jc-blue); border: 2px solid var(--jc-blue); }
-.jc-map-icons a.alt svg { color: var(--jc-blue); }
+.jc-map-icons a { width: 44px; height: 44px; border-radius: 999px; background: #fff; color: var(--jc-blue); border: 2px solid var(--jc-blue); display: flex; align-items: center; justify-content: center; box-shadow: var(--jc-shadow); text-decoration: none; }
+.jc-map-icons a svg { width: 22px; height: 22px; color: var(--jc-blue); }
 .jc-phone { display: flex; align-items: center; justify-content: space-between; font-size: 19px; font-weight: 600; padding: 10px 0; border-top: 1px solid var(--jc-line); }
 .jc-phone-icons { display: flex; gap: 12px; }
-.jc-phone-icons button { width: 46px; height: 46px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: var(--jc-shadow); border: none; cursor: pointer; }
-.jc-phone-icons .call { background: var(--jc-blue); }
-.jc-phone-icons .text { background: var(--jc-green); }
-.jc-phone-icons svg { width: 24px; height: 24px; color: #fff; }
+.jc-phone-icons a, .jc-phone-icons button { width: 46px; height: 46px; border-radius: 999px; display: flex; align-items: center; justify-content: center; background: #fff; color: var(--jc-blue); border: 2px solid var(--jc-blue); box-shadow: var(--jc-shadow); cursor: pointer; text-decoration: none; }
+.jc-phone-icons svg { width: 24px; height: 24px; color: var(--jc-blue); }
 
 /* --- KV rows / misc ------------------------------------------ */
 .jc-kv { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; padding: 7px 0; }
