@@ -91,6 +91,38 @@ function haversineMeters(a, b) {
   return 2 * R * Math.asin(Math.sqrt(s))
 }
 
+// Load the Google Maps JS SDK once. The website-restricted key is authorized for
+// the JS Geocoder (unlike the REST geocode endpoint), so this works in-browser.
+let gmapsPromise = null
+function loadGoogleMaps(key) {
+  if (typeof window === 'undefined') return Promise.resolve(null)
+  if (window.google?.maps) return Promise.resolve(window.google.maps)
+  if (gmapsPromise) return gmapsPromise
+  gmapsPromise = new Promise((resolve) => {
+    const s = document.createElement('script')
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}`
+    s.async = true; s.defer = true
+    s.onload = () => resolve(window.google?.maps || null)
+    s.onerror = () => resolve(null)
+    document.head.appendChild(s)
+  })
+  return gmapsPromise
+}
+async function geocodeAddress(address, key) {
+  try {
+    const maps = await loadGoogleMaps(key)
+    if (!maps?.Geocoder) return null
+    return await new Promise((resolve) => {
+      new maps.Geocoder().geocode({ address }, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+          const loc = results[0].geometry.location
+          resolve({ lat: loc.lat(), lng: loc.lng() })
+        } else resolve(null)
+      })
+    })
+  } catch { return null }
+}
+
 function ApprovalSignatureImage({ path }) {
   const [url, setUrl] = useState(null)
   useEffect(() => {
@@ -318,13 +350,7 @@ export default function TechJobCard({ profile }) {
       setArrivalState('armed')
       const addr = addressString(job.properties); const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
       if (!addr || !key || !('geolocation' in navigator)) { setArrivalState('off'); return }
-      let dest = null
-      try {
-        const r = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${key}`)
-        const j = await r.json()
-        const loc = j?.results?.[0]?.geometry?.location
-        if (loc) dest = { lat: loc.lat, lng: loc.lng }
-      } catch { /* CORS or key restriction — silent manual fallback */ }
+      const dest = await geocodeAddress(addr, key)
       if (cancelled) return
       if (!dest) { setArrivalState('off'); return }
       geoWatchRef.current = navigator.geolocation.watchPosition((pos) => {
