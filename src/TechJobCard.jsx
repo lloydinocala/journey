@@ -160,6 +160,7 @@ export default function TechJobCard({ profile }) {
   const [uid, setUid] = useState(null)
   const [dark, setDark] = useState(false)
   const [arrivalState, setArrivalState] = useState('armed') // 'armed' | 'off'
+  const [arrivalDist, setArrivalDist] = useState(null)
 
   const [photos, setPhotos] = useState([])
   const [photoUrls, setPhotoUrls] = useState({})
@@ -360,7 +361,7 @@ export default function TechJobCard({ profile }) {
     if (!autoStartArmed || !job) return
     let cancelled = false
     async function arm() {
-      setArrivalState('armed')
+      setArrivalState('armed'); setArrivalDist(null)
       const addr = addressString(job.properties); const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
       if (!addr || !key || !('geolocation' in navigator)) { setArrivalState('off'); return }
       const dest = await geocodeAddress(addr, key)
@@ -368,11 +369,13 @@ export default function TechJobCard({ profile }) {
       if (!dest) { setArrivalState('off'); return }
       geoWatchRef.current = navigator.geolocation.watchPosition((pos) => {
         const here = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        const d = haversineMeters(here, dest)
+        setArrivalDist(Math.round(d))
         // 250 m ring: covers "at the property" while absorbing the free geocoder's
         // street-level approximation and normal phone-GPS scatter.
         const ring = 250 + Math.min(pos.coords.accuracy || 0, 120)
-        if (haversineMeters(here, dest) <= ring) { updateStatus('in_progress'); clearGeoWatch() }
-      }, () => { setArrivalState('off') }, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 })
+        if (d <= ring) { updateStatus('in_progress'); clearGeoWatch() }
+      }, () => { setArrivalState('off') }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 })
     }
     arm()
     return () => { cancelled = true; clearGeoWatch() }
@@ -665,7 +668,7 @@ export default function TechJobCard({ profile }) {
             <span className="jc-arrival-dot" />
             {arrivalState === 'off'
               ? 'On the way — tap Start My Time when you arrive'
-              : 'On the way — starts automatically on arrival'}
+              : `On the way — starts automatically on arrival${arrivalDist != null ? ` · ${arrivalDist} m away` : ' · locating…'}`}
           </div>
         )}
 
