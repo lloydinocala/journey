@@ -2257,3 +2257,16 @@ body {
 .job-card-v2 .jc-task-head { border-radius: 14px; }
 .job-card-v2 .jc-task:has(.jc-task-body) .jc-task-head { border-radius: 14px 14px 0 0; }
 .job-card-v2 .jc-task-body { border-radius: 0 0 14px 14px; }
+
+/* Service History — tappable past visits showing billed line items */
+.job-card-v2 .jc-hist { border-bottom: 1px solid var(--jc-line); }
+.job-card-v2 .jc-hist:last-child { border-bottom: none; }
+.job-card-v2 .jc-hist-row { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: none; padding: 12px 2px; cursor: pointer; font-family: inherit; text-align: left; }
+.job-card-v2 .jc-hist-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: var(--jc-ink); }
+.job-card-v2 .jc-hist-date { font-size: 13px; color: var(--jc-muted); font-weight: 600; }
+.job-card-v2 .jc-hist-body { padding: 4px 2px 12px; }
+.job-card-v2 .jc-hist-item { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 5px 0; border-top: 1px dashed var(--jc-line); }
+.job-card-v2 .jc-hist-item-desc { flex: 1; min-width: 0; color: var(--jc-ink); }
+.job-card-v2 .jc-hist-item-ext { color: var(--jc-muted); white-space: nowrap; font-weight: 600; }
+.job-card-v2 .jc-hist-total { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 2px solid var(--jc-line); font-size: 15px; }
+.job-card-v2 .jc-hist-total strong { color: var(--jc-blue); }

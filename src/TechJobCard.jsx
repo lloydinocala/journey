@@ -145,6 +145,8 @@ export default function TechJobCard({ profile }) {
   const [notesSaved, setNotesSaved] = useState(true)
 
   const [history, setHistory] = useState([])
+  const [histOpen, setHistOpen] = useState({})
+  const [histData, setHistData] = useState({})
 
   // Collapsible section state — info sections + maintenance open by default; tasks collapsed.
   const [openMap, setOpenMap] = useState({ customer: true, schedule: true, maintenance: true })
@@ -256,6 +258,20 @@ export default function TechJobCard({ profile }) {
   async function loadHistory(propertyId) {
     const { data } = await supabase.from('jobs').select('id, job_number, segment, start_time, job_type, status').eq('property_id', propertyId).neq('id', jobId).order('start_time', { ascending: false }).limit(6)
     setHistory(data || [])
+  }
+  // Tap a past visit to see what was actually billed (helps explain prior work to customers).
+  async function toggleHistory(h) {
+    const id = h.id
+    setHistOpen((o) => ({ ...o, [id]: !o[id] }))
+    if (histData[id]) return
+    setHistData((d) => ({ ...d, [id]: { loading: true } }))
+    const { data: inv } = await supabase.from('invoices').select('id, invoice_number, job_total, amount_due').eq('job_id', id).eq('kind', 'invoice').maybeSingle()
+    let items = []
+    if (inv) {
+      const { data } = await supabase.from('invoice_line_items').select('description, quantity, unit_price').eq('invoice_id', inv.id).order('sort_order')
+      items = data || []
+    }
+    setHistData((d) => ({ ...d, [id]: { loading: false, invoice: inv || null, items } }))
   }
 
   // ---- derived / completion ----
@@ -846,9 +862,36 @@ export default function TechJobCard({ profile }) {
           <TaskHead k="history" title="Service History" icon={<IconList />} done forceColor="blue" />
           {isOpen('history') && (
             <div className="jc-task-body">
-              {history.length === 0 ? <p className="jc-muted-note">No prior visits on record for this property.</p> : history.map((h) => (
-                <div key={h.id} className="jc-kv"><span>{h.job_number}{h.segment > 1 ? `-${h.segment}` : ''} · {h.job_type || 'Service'}</span><strong>{h.start_time ? new Date(h.start_time).toLocaleDateString() : ''}</strong></div>
-              ))}
+              {history.length === 0 ? <p className="jc-muted-note">No prior visits on record for this property.</p> : history.map((h) => {
+                const d = histData[h.id]
+                const open = !!histOpen[h.id]
+                return (
+                  <div key={h.id} className="jc-hist">
+                    <button className="jc-hist-row" onClick={() => toggleHistory(h)}>
+                      <span className="jc-hist-title">{h.job_number}{h.segment > 1 ? `-${h.segment}` : ''} · {h.job_type || 'Service'}</span>
+                      <span className="jc-hist-date">{h.start_time ? new Date(h.start_time).toLocaleDateString() : ''}</span>
+                      <span className={`jc-th-chevron ${open ? 'open' : ''}`} style={{ color: 'var(--jc-muted)' }}>›</span>
+                    </button>
+                    {open && (
+                      <div className="jc-hist-body">
+                        {d?.loading ? <p className="jc-muted-note">Loading…</p>
+                          : !d?.invoice ? <p className="jc-muted-note">No invoice on file for that visit.</p>
+                          : (
+                            <>
+                              {d.items.length === 0 ? <p className="jc-muted-note">Invoice {d.invoice.invoice_number} — no line items recorded.</p> : d.items.map((li, idx) => (
+                                <div key={idx} className="jc-hist-item">
+                                  <span className="jc-hist-item-desc">{li.description}</span>
+                                  <span className="jc-hist-item-ext">{li.quantity} × ${Number(li.unit_price).toFixed(2)}</span>
+                                </div>
+                              ))}
+                              <div className="jc-hist-total"><span>Total</span><strong>${Number(d.invoice.amount_due ?? d.invoice.job_total ?? 0).toFixed(2)}</strong></div>
+                            </>
+                          )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
