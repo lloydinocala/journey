@@ -165,7 +165,9 @@ export default function TechJobCard({ profile }) {
   const [showEquipForm, setShowEquipForm] = useState(false)
   const [equipEditingId, setEquipEditingId] = useState(null)
   const [savingEquip, setSavingEquip] = useState(false)
-  const [ocrNotice, setOcrNotice] = useState('')
+  const [scanMsg, setScanMsg] = useState('')
+  const [scanTarget, setScanTarget] = useState(null)
+  const [scanBusy, setScanBusy] = useState(false)
 
   // Maintenance
   const [sendingPlans, setSendingPlans] = useState(false)
@@ -445,7 +447,7 @@ export default function TechJobCard({ profile }) {
   function startEquipEdit(eq) {
     setEquipEditingId(eq.id)
     setEquipForm({ system_label: eq.system_label || '', outdoor_brand: eq.outdoor_brand || '', outdoor_model: eq.outdoor_model || '', outdoor_serial: eq.outdoor_serial || '', indoor_brand: eq.indoor_brand || '', indoor_model: eq.indoor_model || '', indoor_serial: eq.indoor_serial || '', furnace_brand: eq.furnace_brand || '', furnace_model: eq.furnace_model || '', furnace_serial: eq.furnace_serial || '', install_date: eq.install_date || '', notes: eq.notes || '' })
-    setOcrNotice(''); setShowEquipForm(true); setOpen('equipment', true)
+    setScanMsg(''); setShowEquipForm(true); setOpen('equipment', true)
   }
   async function saveEquipment() {
     if (!job?.property_id) return
@@ -459,11 +461,41 @@ export default function TechJobCard({ profile }) {
     }
     if (equipEditingId) await supabase.from('property_equipment').update(payload).eq('id', equipEditingId)
     else await supabase.from('property_equipment').insert({ ...payload, org_id: job.org_id, property_id: job.property_id, status: 'active' })
-    setSavingEquip(false); setEquipEditingId(null); setEquipForm(blankEquip); setShowEquipForm(false); setOcrNotice('')
+    setSavingEquip(false); setEquipEditingId(null); setEquipForm(blankEquip); setShowEquipForm(false); setScanMsg('')
     await loadEquipment(job.property_id)
   }
   async function deleteEquipment(id) { if (!window.confirm('Remove this equipment record?')) return; await supabase.from('property_equipment').delete().eq('id', id); loadEquipment(job.property_id) }
-  function handleOcrCapture(e) { const f = e.target.files?.[0]; e.target.value = ''; if (f) setOcrNotice('Nameplate captured. Auto-read is coming soon — enter the details below for now.') }
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader()
+      r.onload = () => resolve(String(r.result).split(',')[1])
+      r.onerror = reject
+      r.readAsDataURL(file)
+    })
+  }
+  function startUnitScan(unit) { setScanTarget(unit); setScanMsg(''); setShowEquipForm(true); setOpen('equipment', true); ocrInputRef.current?.click() }
+  async function onNameplateFile(e) {
+    const file = e.target.files?.[0]; e.target.value = ''
+    const unit = scanTarget || 'outdoor'
+    if (!file) return
+    setScanBusy(true); setScanMsg(`Reading ${unit} label…`)
+    try {
+      const imageBase64 = await fileToBase64(file)
+      const { data, error } = await supabase.functions.invoke('scan-nameplate', { body: { imageBase64, mediaType: file.type || 'image/jpeg' } })
+      if (error || data?.error) { setScanMsg(data?.error || 'Scan failed — please enter the details manually.'); setScanBusy(false); return }
+      setEquipForm((f) => ({
+        ...f,
+        [`${unit}_brand`]: data.brand || f[`${unit}_brand`],
+        [`${unit}_model`]: data.model || f[`${unit}_model`],
+        [`${unit}_serial`]: data.serial || f[`${unit}_serial`],
+      }))
+      const got = [data.brand, data.model, data.serial].filter(Boolean).length
+      setScanMsg(got ? `Filled ${unit} from the label — please verify before saving.` : 'Could not read that label — try again or enter manually.')
+    } catch {
+      setScanMsg('Scan failed — please enter the details manually.')
+    }
+    setScanBusy(false)
+  }
 
   async function handleSendPlans() {
     setSendingPlans(true); setPlansMsg('')
@@ -760,10 +792,10 @@ export default function TechJobCard({ profile }) {
         <div className="jc-task">
           <TaskHead k="equipment" title="Equipment on File" icon={<IconShield />} done={equipDone}
             actions={<>
-              <button className="jc-th-action" onClick={() => { setOpen('equipment', true); setShowEquipForm(true); setEquipEditingId(null); setEquipForm(blankEquip); ocrInputRef.current?.click() }}>+Scan</button>
-              <button className="jc-th-action" onClick={() => { setOpen('equipment', true); setShowEquipForm(true); setEquipEditingId(null); setEquipForm(blankEquip); setOcrNotice('') }}>+Manual</button>
+              <button className="jc-th-action" onClick={() => { setEquipEditingId(null); setEquipForm(blankEquip); startUnitScan('outdoor') }}>+Scan</button>
+              <button className="jc-th-action" onClick={() => { setOpen('equipment', true); setShowEquipForm(true); setEquipEditingId(null); setEquipForm(blankEquip); setScanMsg('') }}>+Manual</button>
             </>} />
-          <input ref={ocrInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleOcrCapture} />
+          <input ref={ocrInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={onNameplateFile} />
           {isOpen('equipment') && (
             <div className="jc-task-body">
               <div className="jc-field"><label>Number of systems</label><div className="jc-field-row"><input type="number" min="0" value={expectedSystems} onChange={(e) => setExpectedSystems(e.target.value)} onBlur={(e) => saveExpectedSystems(e.target.value)} placeholder={String(equipment.length || 0)} /></div></div>
@@ -789,16 +821,16 @@ export default function TechJobCard({ profile }) {
               })}
               {showEquipForm && (
                 <div style={{ marginTop: 12 }}>
-                  {ocrNotice && <p className="jc-muted-note" style={{ color: 'var(--jc-blue)', marginBottom: 10 }}>{ocrNotice}</p>}
+                  {scanMsg && <p className="jc-muted-note" style={{ color: scanBusy ? 'var(--jc-muted)' : 'var(--jc-blue)', marginBottom: 10, fontWeight: 700 }}>{scanBusy ? '📷 ' : ''}{scanMsg}</p>}
                   <div className="jc-field"><label>System label</label><input value={equipForm.system_label} onChange={(e) => setEquipForm({ ...equipForm, system_label: e.target.value })} placeholder="e.g. Upstairs" /></div>
                   <div className="jc-field"><label>Install date</label><input type="date" value={equipForm.install_date} onChange={(e) => setEquipForm({ ...equipForm, install_date: e.target.value })} /></div>
-                  <p className="jc-muted-note" style={{ fontWeight: 800, textTransform: 'uppercase', marginTop: 10 }}>Outdoor</p>
+                  <div className="jc-unit-head"><span>Outdoor</span><button className="jc-scan-btn" disabled={scanBusy} onClick={() => startUnitScan('outdoor')}><IconCamera /> Scan label</button></div>
                   <div className="jc-field-row"><div className="jc-field"><label>Brand</label><input value={equipForm.outdoor_brand} onChange={(e) => setEquipForm({ ...equipForm, outdoor_brand: e.target.value })} /></div><div className="jc-field"><label>Model</label><input value={equipForm.outdoor_model} onChange={(e) => setEquipForm({ ...equipForm, outdoor_model: e.target.value })} /></div></div>
                   <div className="jc-field"><label>Serial</label><input value={equipForm.outdoor_serial} onChange={(e) => setEquipForm({ ...equipForm, outdoor_serial: e.target.value })} /></div>
-                  <p className="jc-muted-note" style={{ fontWeight: 800, textTransform: 'uppercase', marginTop: 10 }}>Indoor</p>
+                  <div className="jc-unit-head"><span>Indoor</span><button className="jc-scan-btn" disabled={scanBusy} onClick={() => startUnitScan('indoor')}><IconCamera /> Scan label</button></div>
                   <div className="jc-field-row"><div className="jc-field"><label>Brand</label><input value={equipForm.indoor_brand} onChange={(e) => setEquipForm({ ...equipForm, indoor_brand: e.target.value })} /></div><div className="jc-field"><label>Model</label><input value={equipForm.indoor_model} onChange={(e) => setEquipForm({ ...equipForm, indoor_model: e.target.value })} /></div></div>
                   <div className="jc-field"><label>Serial</label><input value={equipForm.indoor_serial} onChange={(e) => setEquipForm({ ...equipForm, indoor_serial: e.target.value })} /></div>
-                  <p className="jc-muted-note" style={{ fontWeight: 800, textTransform: 'uppercase', marginTop: 10 }}>Furnace</p>
+                  <div className="jc-unit-head"><span>Furnace</span><button className="jc-scan-btn" disabled={scanBusy} onClick={() => startUnitScan('furnace')}><IconCamera /> Scan label</button></div>
                   <div className="jc-field-row"><div className="jc-field"><label>Brand</label><input value={equipForm.furnace_brand} onChange={(e) => setEquipForm({ ...equipForm, furnace_brand: e.target.value })} /></div><div className="jc-field"><label>Model</label><input value={equipForm.furnace_model} onChange={(e) => setEquipForm({ ...equipForm, furnace_model: e.target.value })} /></div></div>
                   <div className="jc-field"><label>Serial</label><input value={equipForm.furnace_serial} onChange={(e) => setEquipForm({ ...equipForm, furnace_serial: e.target.value })} /></div>
                   <button className="jc-btn wide" disabled={savingEquip} onClick={saveEquipment}>{savingEquip ? 'Saving…' : equipEditingId ? 'Save Changes' : 'Add System'}</button>
