@@ -169,6 +169,24 @@ export default function Invoices({ profile }) {
     loadInvoices(selectedOrg)
   }
 
+  // Void = soft-delete. This is what actually lets an associated job be deleted
+  // (archiving does not). Admin-only; requires a reason.
+  async function voidInvoice(inv) {
+    const hadPayment = inv.paid_at || Number(inv.total_paid || 0) > 0
+    const warn = hadPayment
+      ? '\n\n⚠ This invoice shows a payment. Voiding it here does NOT refund the customer — handle any refund in Stripe separately.'
+      : ''
+    const reason = window.prompt(
+      `Void invoice ${inv.invoice_number}?\n\nThis removes it (it stops counting anywhere and lets the job be deleted). This cannot be undone from the app.${warn}\n\nEnter a reason:`
+    )
+    if (reason === null) return
+    if (!reason.trim()) { alert('A reason is required to void an invoice.'); return }
+    const { data, error } = await supabase.rpc('void_invoice', { p_invoice_id: inv.id, p_reason: reason.trim() })
+    if (error) { alert('Could not void this invoice: ' + error.message); return }
+    if (data && data.ok === false) { alert(data.error); return }
+    loadInvoices(selectedOrg)
+  }
+
   async function sendInvoice(inv) {
     const verb = inv.sent_at ? 'Resend' : 'Send'
     if (!window.confirm(`${verb} invoice ${inv.invoice_number} to the customer's email on file?`)) return
@@ -471,6 +489,9 @@ export default function Invoices({ profile }) {
                   ) : null}
                   <button className="logout-button" onClick={() => toggleArchive(inv)}>
                     {inv.is_archived ? 'Unarchive' : 'Archive'}
+                  </button>
+                  <button className="logout-button" style={{ color: '#C0392B', borderColor: 'rgba(192,57,43,0.4)' }} title="Void (soft-delete) this invoice — lets the job be deleted" onClick={() => voidInvoice(inv)}>
+                    Void
                   </button>
                 </div>
                 {visibleColumnDefs.map((col) => {
