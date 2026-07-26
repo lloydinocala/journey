@@ -221,10 +221,6 @@ export default function TechJobCard({ profile }) {
   const [sendingPlans, setSendingPlans] = useState(false)
   const [plansMsg, setPlansMsg] = useState('')
 
-  // Messaging (in-app inbox scaffold)
-  const [msgTo, setMsgTo] = useState(null)
-  const [msgBody, setMsgBody] = useState('')
-  const [msgSent, setMsgSent] = useState('')
 
   // Stop / incomplete
   const [showStopModal, setShowStopModal] = useState(false)
@@ -593,13 +589,6 @@ export default function TechJobCard({ profile }) {
     if (v) setOpen('service_estimate', false)
   }
 
-  // In-app messaging (records to job; real send arrives with A2P)
-  async function sendJobText() {
-    if (!msgBody.trim()) return
-    await supabase.from('job_texts').insert({ org_id: job.org_id, job_id: jobId, to_phone: msgTo, body: msgBody.trim(), direction: 'outbound', created_by: uid })
-    setMsgSent('Message saved to this job — it will be sent from the app inbox.')
-    setMsgBody(''); setTimeout(() => { setMsgTo(null); setMsgSent('') }, 1400)
-  }
   async function sendGoogleReview() {
     const link = (job?.customers && 'https://g.page/r/your-google-review') || 'https://g.page/r/your-google-review'
     await supabase.from('job_texts').insert({ org_id: job.org_id, job_id: jobId, to_phone: phoneList[0] || null, body: `Thanks for choosing us! Please leave a review: ${link}`, direction: 'outbound', created_by: uid })
@@ -706,10 +695,13 @@ export default function TechJobCard({ profile }) {
                       <span>{formatPhone(p)}</span>
                       <div className="jc-phone-icons">
                         <a className="call" href={`tel:${p}`} title="Call" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconPhone /></a>
-                        <button className="text" title="Message (app inbox)" onClick={() => { setMsgTo(p); setMsgBody(''); setMsgSent('') }}><IconMessage /></button>
+                        <button className="text" title="Messages" onClick={() => navigate(`/tech/messages/${jobId}`)}><IconMessage /></button>
                       </div>
                     </div>
                   ))}
+                  <button className="jc-btn wide" style={{ marginTop: 12 }} onClick={() => navigate(`/tech/messages/${jobId}`)}>
+                    <IconMessage /> Open Messages
+                  </button>
                 </>
               ) : (
                 <>
@@ -1013,22 +1005,6 @@ export default function TechJobCard({ profile }) {
         </button>
         {googleMsg && <p className="jc-muted-note" style={{ textAlign: 'center', marginTop: 8 }}>{googleMsg}</p>}
       </div>
-
-      {/* In-app message composer */}
-      {msgTo && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1500 }} onClick={() => setMsgTo(null)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: '100%', maxWidth: 520, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, paddingBottom: 30 }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 17 }}>Message {formatPhone(msgTo)}</h3>
-            <p className="jc-muted-note" style={{ marginBottom: 10 }}>Goes to the in-app inbox and the office — not your personal phone.</p>
-            <textarea className="jc-notes" value={msgBody} onChange={(e) => setMsgBody(e.target.value)} placeholder="Type your message…" />
-            {msgSent && <p style={{ color: 'var(--jc-green)', fontSize: 13, fontWeight: 700, marginTop: 6 }}>{msgSent}</p>}
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <button className="jc-btn ghost" onClick={() => setMsgTo(null)}>Close</button>
-              <button className="jc-btn wide" onClick={sendJobText}>Send</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Stop My Time — incomplete reason */}
       {showStopModal && (

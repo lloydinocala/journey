@@ -46,6 +46,8 @@ import TechSchedule from './TechSchedule'
 import TechNewJob from './TechNewJob'
 import TechApollo from './TechApollo'
 import TechInvoiceView from './TechInvoiceView'
+import TechMessages from './TechMessages'
+import TextArchive from './TextArchive'
 import { ELEMENTS_ROUTES, ELEMENTS_FLEET_ROUTES } from './modules/elements-hvac'
 import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES, MyPortal } from './modules/rewards-hvac'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
@@ -143,6 +145,7 @@ function AuthenticatedApp() {
       <Route path="/tech/new-system-estimate" element={<TechNewJob profile={profile} mode="system-estimate" />} />
       <Route path="/tech/apollo" element={<TechApollo profile={profile} />} />
       <Route path="/tech/invoice-view/:invoiceId" element={<TechInvoiceView profile={profile} />} />
+      <Route path="/tech/messages/:jobId" element={<TechMessages profile={profile} />} />
       {/* Rewards-HVAC · employee self-service portal — any logged-in employee, own data only (RLS) */}
       <Route path="/my" element={<MyPortal profile={profile} />} />
       <Route element={<Layout profile={profile} />}>
@@ -150,6 +153,7 @@ function AuthenticatedApp() {
         <Route path="/" element={profile.role === 'tech' ? <Navigate to="/tech" replace /> : <Dashboard profile={profile} />} />
         <Route path="/customers" element={<Customers profile={profile} />} />
         <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
+        <Route path="/text-archive" element={<TextArchive profile={profile} />} />
         <Route path="/jobs-management" element={<JobsManagement profile={profile} />} />
         <Route path="/payroll" element={<PayrollCapture profile={profile} />} />
         <Route path="/time-clock" element={<TimeClock profile={profile} />} />
