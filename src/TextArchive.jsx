@@ -73,7 +73,7 @@ export default function TextArchive({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : filtered.length === 0 ? (
-        <p style={{ color: 'var(--mist)' }}>No archived text threads yet. Threads appear here after a technician messages on a job and the job is stopped.</p>
+        <p style={{ color: 'var(--mist)' }}>No text threads yet. A thread appears here as soon as a technician sends a message on a job (shown as “active”), and stays here as “archived” once the job is stopped.</p>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 20, alignItems: 'start' }}>
           {/* Thread list */}
