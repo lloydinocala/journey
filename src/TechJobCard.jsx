@@ -114,6 +114,7 @@ export default function TechJobCard({ profile }) {
   const [saving, setSaving] = useState(false)
   const [uid, setUid] = useState(null)
   const [dark, setDark] = useState(false)
+  const [arrivalState, setArrivalState] = useState('armed') // 'armed' | 'off'
 
   const [photos, setPhotos] = useState([])
   const [photoUrls, setPhotoUrls] = useState({})
@@ -314,8 +315,9 @@ export default function TechJobCard({ profile }) {
     if (!autoStartArmed || !job) return
     let cancelled = false
     async function arm() {
+      setArrivalState('armed')
       const addr = addressString(job.properties); const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-      if (!addr || !key || !('geolocation' in navigator)) return
+      if (!addr || !key || !('geolocation' in navigator)) { setArrivalState('off'); return }
       let dest = null
       try {
         const r = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${key}`)
@@ -323,11 +325,12 @@ export default function TechJobCard({ profile }) {
         const loc = j?.results?.[0]?.geometry?.location
         if (loc) dest = { lat: loc.lat, lng: loc.lng }
       } catch { /* CORS or key restriction — silent manual fallback */ }
-      if (cancelled || !dest) return
+      if (cancelled) return
+      if (!dest) { setArrivalState('off'); return }
       geoWatchRef.current = navigator.geolocation.watchPosition((pos) => {
         const here = { lat: pos.coords.latitude, lng: pos.coords.longitude }
         if (haversineMeters(here, dest) <= 150) { updateStatus('in_progress'); clearGeoWatch() }
-      }, () => {}, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 })
+      }, () => { setArrivalState('off') }, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 })
     }
     arm()
     return () => { cancelled = true; clearGeoWatch() }
@@ -615,6 +618,14 @@ export default function TechJobCard({ profile }) {
           <button className={`jc-flow-btn ${startClass}`} disabled={status !== 'on_my_way' || saving} onClick={() => updateStatus('in_progress')}>Start My Time</button>
           <button className={`jc-flow-btn ${stopClass}`} disabled={!started || savingStop} onClick={onStopMyTime}>Stop My Time</button>
         </div>
+        {enRoute && (
+          <div className={`jc-arrival ${arrivalState}`}>
+            <span className="jc-arrival-dot" />
+            {arrivalState === 'off'
+              ? 'On the way — tap Start My Time when you arrive'
+              : 'On the way — starts automatically on arrival'}
+          </div>
+        )}
 
         {/* Customer (optional / blue, Edit only) */}
         <div className="jc-task">
