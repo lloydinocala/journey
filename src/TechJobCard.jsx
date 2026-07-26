@@ -161,6 +161,7 @@ export default function TechJobCard({ profile }) {
   const [dark, setDark] = useState(false)
   const [arrivalState, setArrivalState] = useState('armed') // 'armed' | 'off'
   const [arrivalDist, setArrivalDist] = useState(null)
+  const [geoNote, setGeoNote] = useState('')
 
   const [photos, setPhotos] = useState([])
   const [photoUrls, setPhotoUrls] = useState({})
@@ -361,7 +362,7 @@ export default function TechJobCard({ profile }) {
     if (!autoStartArmed || !job) return
     let cancelled = false
     async function arm() {
-      setArrivalState('armed'); setArrivalDist(null)
+      setArrivalState('armed'); setArrivalDist(null); setGeoNote('')
       const addr = addressString(job.properties); const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
       if (!addr || !key || !('geolocation' in navigator)) { setArrivalState('off'); return }
       const dest = await geocodeAddress(addr, key)
@@ -376,11 +377,13 @@ export default function TechJobCard({ profile }) {
           if (cancelled) return
           const here = { lat: pos.coords.latitude, lng: pos.coords.longitude }
           const d = haversineMeters(here, dest)
-          setArrivalDist(Math.round(d))
+          setArrivalDist(Math.round(d)); setGeoNote('')
           const ring = 250 + Math.min(pos.coords.accuracy || 0, 200)
           if (d <= ring) { updateStatus('in_progress'); clearGeoWatch() }
-        }, (err) => { if (err && err.code === 1) setArrivalState('off') /* denied; else keep trying */ },
-          { enableHighAccuracy: false, maximumAge: 5000, timeout: 12000 })
+        }, (err) => {
+          if (err && err.code === 1) { setArrivalState('off'); return } // denied
+          setGeoNote(err && err.code === 2 ? 'waiting for GPS signal' : 'still locating') // 2=unavailable, 3=timeout — keep trying
+        }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 12000 })
       }
       checkPos()
       geoWatchRef.current = window.setInterval(checkPos, 6000)
@@ -676,7 +679,7 @@ export default function TechJobCard({ profile }) {
             <span className="jc-arrival-dot" />
             {arrivalState === 'off'
               ? 'On the way — tap Start My Time when you arrive'
-              : `On the way — starts automatically on arrival${arrivalDist != null ? ` · ${arrivalDist} m away` : ' · locating…'}`}
+              : `On the way — starts automatically on arrival${arrivalDist != null ? ` · ${arrivalDist} m away` : geoNote ? ` · ${geoNote}` : ' · locating…'}`}
           </div>
         )}
 
