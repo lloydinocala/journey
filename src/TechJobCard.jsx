@@ -367,20 +367,28 @@ export default function TechJobCard({ profile }) {
       const dest = await geocodeAddress(addr, key)
       if (cancelled) return
       if (!dest) { setArrivalState('off'); return }
-      geoWatchRef.current = navigator.geolocation.watchPosition((pos) => {
-        const here = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        const d = haversineMeters(here, dest)
-        setArrivalDist(Math.round(d))
-        // 250 m ring: covers "at the property" while absorbing the free geocoder's
-        // street-level approximation and normal phone-GPS scatter.
-        const ring = 250 + Math.min(pos.coords.accuracy || 0, 120)
-        if (d <= ring) { updateStatus('in_progress'); clearGeoWatch() }
-      }, () => { setArrivalState('off') }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 })
+      // Poll coarse (network) location on a timer — fast and works indoors, unlike
+      // high-accuracy GPS which can hang inside a building. 250 m ring + slack for
+      // the geocoder approximation and the coarse fix's own accuracy.
+      const checkPos = () => {
+        if (cancelled) return
+        navigator.geolocation.getCurrentPosition((pos) => {
+          if (cancelled) return
+          const here = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+          const d = haversineMeters(here, dest)
+          setArrivalDist(Math.round(d))
+          const ring = 250 + Math.min(pos.coords.accuracy || 0, 200)
+          if (d <= ring) { updateStatus('in_progress'); clearGeoWatch() }
+        }, (err) => { if (err && err.code === 1) setArrivalState('off') /* denied; else keep trying */ },
+          { enableHighAccuracy: false, maximumAge: 5000, timeout: 12000 })
+      }
+      checkPos()
+      geoWatchRef.current = window.setInterval(checkPos, 6000)
     }
     arm()
     return () => { cancelled = true; clearGeoWatch() }
   }, [autoStartArmed, job?.id])
-  function clearGeoWatch() { if (geoWatchRef.current != null) { navigator.geolocation.clearWatch(geoWatchRef.current); geoWatchRef.current = null } }
+  function clearGeoWatch() { if (geoWatchRef.current != null) { window.clearInterval(geoWatchRef.current); geoWatchRef.current = null } }
 
   // ---- nav lock: cannot leave once timing started until Stop My Time ----
   const timingLocked = status === 'in_progress'
