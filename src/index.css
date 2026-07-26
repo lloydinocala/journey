@@ -2083,9 +2083,23 @@ body {
   --jc-ink: #101418;
   --jc-muted: #5A6672;
   --jc-line: #E2E7EC;
-  --jc-shadow: 5px 7px 16px rgba(16,24,40,0.18), 2px 3px 6px rgba(16,24,40,0.12);
+  --jc-shadow: 3px 5px 14px rgba(16,24,40,0.16), 1px 2px 5px rgba(16,24,40,0.10);
 }
-.job-card-v2.mobile-shell { background: var(--jc-screen); color: var(--jc-ink); }
+.job-card-v2.mobile-shell { background: var(--jc-screen); color: var(--jc-ink); width: 100%; max-width: 100%; overflow-x: hidden; }
+/* Phones: comfortable side gutters + safe-area insets; clip stray shadow overflow so nothing gets cut off. */
+.job-card-v2 .jc-body {
+  overflow-x: hidden;
+  padding: 14px calc(16px + env(safe-area-inset-right, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px));
+}
+.job-card-v2 .jc-header {
+  padding-left: calc(14px + env(safe-area-inset-left, 0px));
+  padding-right: calc(14px + env(safe-area-inset-right, 0px));
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+}
+/* Tablets / large screens: center a phone-width column instead of stretching edge to edge. */
+@media (min-width: 640px) {
+  .job-card-v2.mobile-shell { max-width: 460px; margin: 0 auto; box-shadow: 0 0 40px rgba(16,24,40,0.12); }
+}
 
 /* --- Header + status pill ------------------------------------ */
 .jc-header {
