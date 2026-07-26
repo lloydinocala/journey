@@ -109,18 +109,31 @@ function loadGoogleMaps(key) {
   return gmapsPromise
 }
 async function geocodeAddress(address, key) {
+  // 1) Free US Census geocoder — no API key, CORS-enabled, good US coverage.
+  try {
+    const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(address)}&benchmark=Public_AR_Current&format=json`
+    const r = await fetch(url)
+    if (r.ok) {
+      const j = await r.json()
+      const c = j?.result?.addressMatches?.[0]?.coordinates
+      if (c && typeof c.y === 'number' && typeof c.x === 'number') return { lat: c.y, lng: c.x }
+    }
+  } catch { /* fall through to Google */ }
+  // 2) Fallback: Google Maps JS Geocoder (only if the website key is authorized for it).
   try {
     const maps = await loadGoogleMaps(key)
-    if (!maps?.Geocoder) return null
-    return await new Promise((resolve) => {
-      new maps.Geocoder().geocode({ address }, (results, status) => {
-        if (status === 'OK' && results && results[0]) {
-          const loc = results[0].geometry.location
-          resolve({ lat: loc.lat(), lng: loc.lng() })
-        } else resolve(null)
+    if (maps?.Geocoder) {
+      return await new Promise((resolve) => {
+        new maps.Geocoder().geocode({ address }, (results, status) => {
+          if (status === 'OK' && results && results[0]) {
+            const loc = results[0].geometry.location
+            resolve({ lat: loc.lat(), lng: loc.lng() })
+          } else resolve(null)
+        })
       })
-    })
-  } catch { return null }
+    }
+  } catch { /* ignore */ }
+  return null
 }
 
 function ApprovalSignatureImage({ path }) {
