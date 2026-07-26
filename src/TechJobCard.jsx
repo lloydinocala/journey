@@ -158,7 +158,8 @@ export default function TechJobCard({ profile }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uid, setUid] = useState(null)
-  const [dark, setDark] = useState(false)
+  const [dark, setDark] = useState(() => { try { return localStorage.getItem('jc-theme') === 'dark' } catch { return false } })
+  function toggleDark() { setDark((v) => { const nv = !v; try { localStorage.setItem('jc-theme', nv ? 'dark' : 'light') } catch { /* ignore */ } return nv }) }
   const [arrivalState, setArrivalState] = useState('armed') // 'armed' | 'off'
   const [arrivalDist, setArrivalDist] = useState(null)
   const [geoNote, setGeoNote] = useState('')
@@ -642,7 +643,7 @@ export default function TechJobCard({ profile }) {
           <div className="jc-sub">{date}, {time}{job.duration_hours ? ` · ${job.duration_hours}h` : ''}</div>
         </div>
         <span className={`jc-status ${allClear ? 'done' : ''}`}>{allClear ? 'Complete' : 'Incomplete'}</span>
-        <button className="jc-theme-toggle" title="Light / Dark" onClick={() => setDark((v) => !v)}>{dark ? '☀' : '☾'}</button>
+        <button className="jc-theme-toggle" title="Light / Dark" onClick={toggleDark}>{dark ? '☀' : '☾'}</button>
       </div>
 
       <div className="jc-body">

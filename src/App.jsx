@@ -48,6 +48,8 @@ import TechApollo from './TechApollo'
 import TechInvoiceView from './TechInvoiceView'
 import TechMessages from './TechMessages'
 import TextArchive from './TextArchive'
+import TechGate from './TechGate'
+import TechSettings from './TechSettings'
 import { ELEMENTS_ROUTES, ELEMENTS_FLEET_ROUTES } from './modules/elements-hvac'
 import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES, MyPortal } from './modules/rewards-hvac'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
@@ -134,18 +136,22 @@ function AuthenticatedApp() {
 
   return (
     <Routes>
-      <Route path="/tech" element={<TechJobs profile={profile} />} />
-      <Route path="/tech/:jobId" element={<TechJobCard profile={profile} />} />
-      <Route path="/tech/invoice/:jobId" element={<TechInvoice profile={profile} />} />
-      <Route path="/tech/estimate/:jobId" element={<TechEstimate profile={profile} />} />
-      <Route path="/tech/system-estimate/:jobId" element={<TechSystemEstimate profile={profile} />} />
-      <Route path="/tech/schedule" element={<TechSchedule profile={profile} />} />
-      <Route path="/tech/new-job" element={<TechNewJob profile={profile} mode="job" />} />
-      <Route path="/tech/new-service-estimate" element={<TechNewJob profile={profile} mode="service-estimate" />} />
-      <Route path="/tech/new-system-estimate" element={<TechNewJob profile={profile} mode="system-estimate" />} />
-      <Route path="/tech/apollo" element={<TechApollo profile={profile} />} />
-      <Route path="/tech/invoice-view/:invoiceId" element={<TechInvoiceView profile={profile} />} />
-      <Route path="/tech/messages/:jobId" element={<TechMessages profile={profile} />} />
+      {/* All mobile field views sit behind the terms consent gate. */}
+      <Route element={<TechGate profile={profile} />}>
+        <Route path="/tech" element={<TechJobs profile={profile} />} />
+        <Route path="/tech/settings" element={<TechSettings profile={profile} />} />
+        <Route path="/tech/:jobId" element={<TechJobCard profile={profile} />} />
+        <Route path="/tech/invoice/:jobId" element={<TechInvoice profile={profile} />} />
+        <Route path="/tech/estimate/:jobId" element={<TechEstimate profile={profile} />} />
+        <Route path="/tech/system-estimate/:jobId" element={<TechSystemEstimate profile={profile} />} />
+        <Route path="/tech/schedule" element={<TechSchedule profile={profile} />} />
+        <Route path="/tech/new-job" element={<TechNewJob profile={profile} mode="job" />} />
+        <Route path="/tech/new-service-estimate" element={<TechNewJob profile={profile} mode="service-estimate" />} />
+        <Route path="/tech/new-system-estimate" element={<TechNewJob profile={profile} mode="system-estimate" />} />
+        <Route path="/tech/apollo" element={<TechApollo profile={profile} />} />
+        <Route path="/tech/invoice-view/:invoiceId" element={<TechInvoiceView profile={profile} />} />
+        <Route path="/tech/messages/:jobId" element={<TechMessages profile={profile} />} />
+      </Route>
       {/* Rewards-HVAC · employee self-service portal — any logged-in employee, own data only (RLS) */}
       <Route path="/my" element={<MyPortal profile={profile} />} />
       <Route element={<Layout profile={profile} />}>
