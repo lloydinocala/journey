@@ -29,6 +29,15 @@ const SIG_STAGES = [
   { key: 'work_finished', label: 'When Work Completes' },
 ]
 
+const SIG_NO_REASONS = [
+  'Customer not present',
+  'Verbal approval — in person',
+  'Phone verbal approval',
+  'Text or email approval',
+  'Customer refused to sign',
+  'Other',
+]
+
 function formatPhone(raw) {
   if (!raw) return raw
   const d = ('' + raw).replace(/\D/g, '')
@@ -120,6 +129,10 @@ export default function TechJobCard({ profile }) {
   const [approverName, setApproverName] = useState('')
   const [sigData, setSigData] = useState(null)
   const [sigError, setSigError] = useState('')
+  const [noSig, setNoSig] = useState(false)
+  const [sigReason, setSigReason] = useState('')
+  const [scanNotice, setScanNotice] = useState('')
+  const attachScanRef = useRef(null)
 
   const [banners, setBanners] = useState([])
   const [plan, setPlan] = useState(null)
@@ -363,8 +376,8 @@ export default function TechJobCard({ profile }) {
   }
 
   // ---- section actions ----
-  async function handlePhotoSelect(e) {
-    const files = Array.from(e.target.files || []); if (!files.length || !job) return
+  async function uploadPhotoFiles(files) {
+    if (!files.length || !job) return
     setUploading(true)
     for (const file of files) {
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
@@ -372,20 +385,37 @@ export default function TechJobCard({ profile }) {
       const { error } = await supabase.storage.from('job-photos').upload(path, file, { contentType: file.type || 'image/jpeg' })
       if (!error) await supabase.from('attachments').insert({ org_id: job.org_id, job_id: jobId, uploaded_by: uid, file_path: path, file_name: file.name, mime_type: file.type || 'image/jpeg', file_size_bytes: file.size, category: 'photo' })
     }
-    setUploading(false); e.target.value = ''
-    await loadPhotos(); setOpen('attachments', false)
+    setUploading(false)
+    await loadPhotos()
+  }
+  async function handlePhotoSelect(e) {
+    const files = Array.from(e.target.files || []); e.target.value = ''
+    await uploadPhotoFiles(files)
+    if (files.length) setOpen('attachments', false)
+  }
+  // SCAN uses the AI-scan capture; the image is saved to attachments now, AI read-out follows.
+  async function handleAttachScan(e) {
+    const files = Array.from(e.target.files || []); e.target.value = ''
+    await uploadPhotoFiles(files)
+    if (files.length) { setOpen('attachments', true); setScanNotice('AI Scan is coming soon — the image was saved to Attachments for now.') }
   }
 
   async function submitSignature(stage) {
-    if (!approverName.trim()) { setSigError('Enter the name of the person signing.'); return }
-    if (!sigData) { setSigError('Capture a signature.'); return }
-    setSigError('')
-    const blob = dataUrlToBlob(sigData)
-    const path = `${job.org_id}/${jobId}/${stage}-${Date.now()}.png`
-    const { error: upErr } = await supabase.storage.from('signatures').upload(path, blob, { contentType: 'image/png' })
-    if (upErr) { setSigError(upErr.message); return }
-    await supabase.from('job_approvals').insert({ job_id: jobId, org_id: job.org_id, stage, approved_by: approverName.trim(), approved_at: new Date().toISOString(), amount: invoiceTotal, signature_url: path })
-    setSigningStage(null); setApproverName(''); setSigData(null)
+    if (noSig) {
+      if (!sigReason) { setSigError('Pick a reason a signature could not be captured.'); return }
+      setSigError('')
+      await supabase.from('job_approvals').insert({ job_id: jobId, org_id: job.org_id, stage, approved_by: approverName.trim() || sigReason, approved_at: new Date().toISOString(), amount: invoiceTotal, signature_url: null, reason: sigReason })
+    } else {
+      if (!approverName.trim()) { setSigError('Enter the name of the person signing.'); return }
+      if (!sigData) { setSigError('Capture a signature, or check “No signature available”.'); return }
+      setSigError('')
+      const blob = dataUrlToBlob(sigData)
+      const path = `${job.org_id}/${jobId}/${stage}-${Date.now()}.png`
+      const { error: upErr } = await supabase.storage.from('signatures').upload(path, blob, { contentType: 'image/png' })
+      if (upErr) { setSigError(upErr.message); return }
+      await supabase.from('job_approvals').insert({ job_id: jobId, org_id: job.org_id, stage, approved_by: approverName.trim(), approved_at: new Date().toISOString(), amount: invoiceTotal, signature_url: path })
+    }
+    setSigningStage(null); setApproverName(''); setSigData(null); setNoSig(false); setSigReason('')
     await loadApprovals()
   }
 
@@ -613,11 +643,14 @@ export default function TechJobCard({ profile }) {
             actions={<>
               <button className="jc-th-action" onClick={() => { setOpen('attachments', true); cameraInputRef.current?.click() }}>Take Photo</button>
               <button className="jc-th-action" onClick={() => { setOpen('attachments', true); fileInputRef.current?.click() }}>Upload</button>
+              <button className="jc-th-action" onClick={() => { setOpen('attachments', true); attachScanRef.current?.click() }}>Scan</button>
             </>} />
           <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" multiple style={{ display: 'none' }} onChange={handlePhotoSelect} />
           <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotoSelect} />
+          <input ref={attachScanRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleAttachScan} />
           {isOpen('attachments') && (
             <div className="jc-task-body">
+              {scanNotice && <p className="jc-muted-note" style={{ color: 'var(--jc-blue)', marginBottom: 10 }}>{scanNotice}</p>}
               <div className="jc-photo-grid">
                 {photos.map((p) => (
                   <a key={p.id} href={photoUrls[p.id] || '#'} target="_blank" rel="noreferrer" className="jc-photo">{photoUrls[p.id] ? <img src={photoUrls[p.id]} alt={p.file_name} /> : <IconCamera />}</a>
@@ -669,21 +702,36 @@ export default function TechJobCard({ profile }) {
                     <strong style={{ fontSize: 14 }}>{s.label}</strong>
                     {existing ? (
                       <div style={{ marginTop: 4 }}>
-                        <p className="jc-muted-note">Signed by {existing.approved_by} · {new Date(existing.approved_at).toLocaleDateString()}</p>
-                        <ApprovalSignatureImage path={existing.signature_url} />
+                        <p className="jc-muted-note">{existing.signature_url ? 'Signed' : 'Recorded'} by {existing.approved_by} · {new Date(existing.approved_at).toLocaleDateString()}</p>
+                        {existing.signature_url
+                          ? <ApprovalSignatureImage path={existing.signature_url} />
+                          : <p className="jc-muted-note" style={{ fontStyle: 'italic' }}>No signature — {existing.reason || 'reason on file'}</p>}
                       </div>
                     ) : signingStage === s.key ? (
                       <div style={{ marginTop: 8 }}>
                         <div className="jc-field"><label>Name of signer</label><input value={approverName} onChange={(e) => setApproverName(e.target.value)} /></div>
-                        <SignaturePad onChange={setSigData} />
+                        <label className="jc-not-needed" style={{ marginBottom: 10 }}>
+                          <input type="checkbox" checked={noSig} onChange={(e) => { setNoSig(e.target.checked); setSigData(null); setSigError('') }} />
+                          No signature available
+                        </label>
+                        {noSig ? (
+                          <div className="jc-field"><label>Reason no signature</label>
+                            <select value={sigReason} onChange={(e) => setSigReason(e.target.value)}>
+                              <option value="">Select a reason…</option>
+                              {SIG_NO_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                            </select>
+                          </div>
+                        ) : (
+                          <SignaturePad onChange={setSigData} />
+                        )}
                         {sigError && <p style={{ color: 'var(--jc-red)', fontSize: 12.5, margin: '6px 0' }}>{sigError}</p>}
                         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                          <button className="jc-btn" onClick={() => submitSignature(s.key)}>Save Signature</button>
-                          <button className="jc-btn ghost" onClick={() => { setSigningStage(null); setApproverName(''); setSigData(null); setSigError('') }}>Cancel</button>
+                          <button className="jc-btn" onClick={() => submitSignature(s.key)}>{noSig ? 'Record Reason' : 'Save Signature'}</button>
+                          <button className="jc-btn ghost" onClick={() => { setSigningStage(null); setApproverName(''); setSigData(null); setSigError(''); setNoSig(false); setSigReason('') }}>Cancel</button>
                         </div>
                       </div>
                     ) : (
-                      <div><button className="jc-btn" style={{ marginTop: 6 }} onClick={() => { setSigningStage(s.key); setApproverName('') }}>{s.label}</button></div>
+                      <div><button className="jc-btn" style={{ marginTop: 6 }} onClick={() => { setSigningStage(s.key); setApproverName(''); setNoSig(false); setSigReason('') }}>{s.label}</button></div>
                     )}
                   </div>
                 )
