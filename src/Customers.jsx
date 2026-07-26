@@ -306,7 +306,7 @@ export default function Customers({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div className="frozen-scroll" style={{ overflowX: 'auto' }}>
           <table className="data-table">
             <thead>
               <tr>

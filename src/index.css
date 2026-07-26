@@ -2317,3 +2317,11 @@ body {
 .job-card-v2 .consent-declined-badge { display: inline-block; background: var(--jc-red); color: #fff; font-weight: 800; font-size: 12px; letter-spacing: 0.4px; text-transform: uppercase; padding: 6px 14px; border-radius: 999px; margin-bottom: 14px; }
 .job-card-v2 .consent-declined h2 { font-size: 21px; color: var(--jc-black); margin: 0 0 10px; }
 .job-card-v2 .consent-declined p { font-size: 15px; color: var(--jc-muted); line-height: 1.55; margin: 0 0 18px; }
+
+/* ===== Frozen table headers (Jobs / Customers / Properties) =====
+   The wrapper becomes its own scroll pane (both axes); header cells stick to the
+   top so column headers stay visible on vertical scroll and stay aligned with
+   their columns on horizontal scroll. */
+.frozen-scroll { overflow: auto; max-height: calc(100vh - 250px); }
+.frozen-scroll .data-table thead th { position: sticky; top: 0; z-index: 3; }
+.frozen-scroll .grid-table .grid-head { position: sticky; top: 0; z-index: 3; }

@@ -468,7 +468,7 @@ export default function Properties({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div className="frozen-scroll" style={{ overflowX: 'auto' }}>
           <div className="grid-table" style={{ gridTemplateColumns: gridCols }}>
             <div className="grid-cell grid-head"></div>
             <div className="grid-cell grid-head" style={{ cursor: 'pointer' }} onClick={() => toggleSort('street_address')}>

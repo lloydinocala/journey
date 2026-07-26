@@ -755,7 +755,7 @@ export default function Jobs({ profile }) {
         </div>
       ) : (
         <>
-        <div ref={scrollTableRef} onScroll={syncFromTable} style={{ overflowX: 'auto' }}>
+        <div ref={scrollTableRef} onScroll={syncFromTable} className="frozen-scroll" style={{ overflowX: 'auto' }}>
           <div className="grid-table" style={{ gridTemplateColumns, minWidth: tableMinWidth }}>
             <div className="grid-cell grid-head" style={actionsHeaderStyle}></div>
             {visibleColumnDefs.map((col) => (
