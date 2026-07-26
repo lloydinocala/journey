@@ -2065,3 +2065,256 @@ body {
   margin-top: 1px;
 }
 
+
+/* ============================================================
+   Tech Job Card — Mockup Redesign (07/2026)
+   Scoped under .job-card-v2 so the mockup palette
+   (#FF0000 red, #215F9A blue, #FFFFFF white, #000000 black)
+   applies ONLY to the technician mobile job card.
+   ============================================================ */
+.job-card-v2 {
+  --jc-red: #FF0000;
+  --jc-blue: #215F9A;
+  --jc-white: #FFFFFF;
+  --jc-black: #000000;
+  --jc-green: #16A34A;
+  --jc-amber: #B8720A;
+  --jc-screen: #EEF1F4;      /* light gray screen background */
+  --jc-screen-dark: #10151B;
+  --jc-card: var(--jc-white);
+  --jc-ink: #101418;
+  --jc-muted: #5A6672;
+  --jc-line: #E2E7EC;
+  --jc-shadow: 0 4px 14px rgba(16, 24, 40, 0.10), 0 1px 3px rgba(16, 24, 40, 0.06);
+}
+
+.job-card-v2.mobile-shell {
+  background: var(--jc-screen);
+  color: var(--jc-ink);
+}
+
+/* --- Header --------------------------------------------------- */
+.jc-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--jc-white);
+  border-bottom: 3px solid var(--jc-red);   /* red = job not complete */
+  box-shadow: 0 2px 8px rgba(16,24,40,0.06);
+}
+.jc-header.is-complete {
+  border-bottom-color: var(--jc-green);      /* green when complete */
+}
+.jc-header .jc-back {
+  background: none; border: none; color: var(--jc-blue);
+  padding: 4px; cursor: pointer; display: inline-flex; flex-shrink: 0;
+}
+.jc-header-text { flex: 1; min-width: 0; }
+.jc-title {
+  font-size: 18px; font-weight: 800; color: var(--jc-black);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jc-sub { font-size: 13.5px; color: var(--jc-muted); margin-top: 1px; }
+.jc-status {
+  flex-shrink: 0; font-size: 11px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.4px; padding: 5px 10px; border-radius: 999px;
+  background: rgba(255,0,0,0.10); color: var(--jc-red);
+}
+.jc-status.done { background: rgba(22,163,74,0.12); color: var(--jc-green); }
+.jc-status.progress { background: rgba(33,95,154,0.12); color: var(--jc-blue); }
+.jc-theme-toggle {
+  flex-shrink: 0; background: none; border: 1px solid var(--jc-line);
+  border-radius: 999px; width: 30px; height: 30px; cursor: pointer;
+  font-size: 14px; line-height: 1; color: var(--jc-muted);
+}
+
+.jc-body { flex: 1; overflow-y: auto; padding: 12px 12px 40px; -webkit-overflow-scrolling: touch; }
+
+/* --- Required / incomplete banner ---------------------------- */
+.jc-req-banner {
+  background: var(--jc-red); color: #fff; border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 12px; box-shadow: var(--jc-shadow);
+}
+.jc-req-banner .jc-req-title { font-size: 13px; font-weight: 800; letter-spacing: 0.2px; }
+.jc-req-banner ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; font-weight: 600; }
+.jc-req-banner li { margin: 2px 0; }
+.jc-req-banner.is-clear { background: var(--jc-green); }
+
+/* --- Property image ------------------------------------------ */
+.jc-property-img-wrap {
+  display: block; border-radius: 14px; overflow: hidden; margin-bottom: 12px;
+  box-shadow: var(--jc-shadow); background: #DCE3E9;
+}
+.jc-property-img { width: 100%; aspect-ratio: 2 / 1; object-fit: cover; display: block; }
+.jc-property-img-fallback {
+  width: 100%; aspect-ratio: 2/1; display: flex; align-items: center; justify-content: center;
+  color: var(--jc-muted); font-size: 13px; font-weight: 600; gap: 8px;
+}
+
+/* --- Ephemeral banner / message composer --------------------- */
+.jc-banner {
+  border-radius: 12px; padding: 11px 14px; margin-bottom: 10px; box-shadow: var(--jc-shadow);
+  font-weight: 700; font-size: 14px; display: flex; align-items: flex-start; gap: 10px;
+}
+.jc-banner.red { background: var(--jc-red); color: #fff; }
+.jc-banner.amber { background: var(--jc-amber); color: #fff; }
+.jc-banner.custom { background: var(--jc-blue); color: #fff; }
+.jc-banner .jc-banner-x {
+  margin-left: auto; background: rgba(255,255,255,0.25); border: none; color: #fff;
+  width: 22px; height: 22px; border-radius: 999px; cursor: pointer; font-weight: 800; flex-shrink: 0;
+}
+
+/* --- Floating section card ----------------------------------- */
+.jc-section {
+  background: var(--jc-card); border-radius: 14px; margin-bottom: 12px;
+  box-shadow: var(--jc-shadow); overflow: hidden;
+}
+.jc-section-head {
+  display: flex; align-items: center; gap: 8px; padding: 13px 15px; cursor: default;
+  font-size: 15px; font-weight: 800; color: var(--jc-blue);
+}
+.jc-section-head.clickable { cursor: pointer; }
+.jc-section-head svg { color: var(--jc-blue); }
+.jc-section-head .jc-head-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.jc-section-head .jc-chevron { color: var(--jc-muted); transition: transform 0.15s; font-size: 13px; }
+.jc-section-head .jc-chevron.open { transform: rotate(90deg); }
+.jc-section-head .jc-flag {
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px;
+  padding: 3px 8px; border-radius: 999px;
+}
+.jc-flag.red { background: rgba(255,0,0,0.12); color: var(--jc-red); }
+.jc-flag.blue { background: rgba(33,95,154,0.12); color: var(--jc-blue); }
+.jc-flag.green { background: rgba(22,163,74,0.12); color: var(--jc-green); }
+.jc-section-body { padding: 0 15px 15px; }
+
+/* --- Buttons (look like buttons; pressed -> red) ------------- */
+.jc-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+.jc-btn {
+  flex: 1; padding: 15px 8px; border-radius: 11px; border: none; cursor: pointer;
+  font-family: inherit; font-size: 15px; font-weight: 800; letter-spacing: 0.2px;
+  background: var(--jc-blue); color: #fff;
+  box-shadow: 0 3px 0 rgba(16,24,40,0.18), var(--jc-shadow);
+  transition: transform 0.06s, box-shadow 0.06s, background 0.1s;
+}
+.jc-btn:active:not(:disabled) {
+  background: var(--jc-red);                 /* staged to be pushed -> red */
+  transform: translateY(2px); box-shadow: 0 1px 0 rgba(16,24,40,0.18);
+}
+.jc-btn.solid-green { background: var(--jc-green); }
+.jc-btn.ghost { background: #fff; color: var(--jc-blue); box-shadow: inset 0 0 0 2px var(--jc-blue), var(--jc-shadow); }
+.jc-btn.wide { width: 100%; flex: none; }
+.jc-btn:disabled { background: #E6EAEE; color: #9AA6B2; box-shadow: none; cursor: default; }
+.jc-btn-sm {
+  background: none; border: none; color: var(--jc-blue); font-weight: 800; font-size: 14px;
+  cursor: pointer; font-family: inherit; padding: 0;
+}
+
+/* --- Customer section (DOUBLED size per mockup) -------------- */
+.jc-customer .jc-tenant-name { font-size: 26px; font-weight: 800; color: var(--jc-black); line-height: 1.15; }
+.jc-customer .jc-tenant-status {
+  display: inline-block; margin-top: 4px; font-size: 13px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.4px; padding: 4px 12px; border-radius: 999px;
+  background: rgba(33,95,154,0.12); color: var(--jc-blue);
+}
+.jc-customer .jc-tenant-status.missing { background: rgba(255,0,0,0.12); color: var(--jc-red); }
+.jc-address {
+  display: flex; align-items: center; gap: 10px; margin: 14px 0;
+}
+.jc-address a {
+  display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 600;
+  color: var(--jc-blue); text-decoration: none; flex: 1; min-width: 0;
+}
+.jc-address a svg { width: 26px; height: 26px; flex-shrink: 0; }
+.jc-gps-btn {
+  flex-shrink: 0; width: 44px; height: 44px; border-radius: 999px; border: none;
+  background: var(--jc-blue); color: #fff; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; box-shadow: var(--jc-shadow);
+}
+.jc-gps-btn svg { width: 22px; height: 22px; }
+.jc-phone {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 20px; font-weight: 600; padding: 10px 0; border-top: 1px solid var(--jc-line);
+}
+.jc-phone-icons { display: flex; gap: 12px; }
+.jc-phone-icons a {
+  width: 46px; height: 46px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
+  color: #fff; box-shadow: var(--jc-shadow); text-decoration: none;
+}
+.jc-phone-icons a.call { background: var(--jc-blue); }
+.jc-phone-icons a.text { background: var(--jc-green); }
+.jc-phone-icons a svg { width: 24px; height: 24px; }
+.jc-gps-note {
+  display: flex; align-items: center; gap: 6px; margin-top: 10px;
+  font-size: 12px; color: var(--jc-muted); font-weight: 600;
+}
+.jc-gps-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--jc-green); box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
+
+/* --- Generic rows / kv --------------------------------------- */
+.jc-kv { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; padding: 7px 0; }
+.jc-kv span { color: var(--jc-muted); }
+.jc-kv strong { color: var(--jc-ink); text-align: right; }
+.jc-muted-note { color: var(--jc-muted); font-size: 13px; margin: 0; }
+
+/* --- Photos -------------------------------------------------- */
+.jc-photo-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+.jc-photo, .jc-photo-add {
+  width: 82px; height: 82px; border-radius: 10px; overflow: hidden; display: flex;
+  align-items: center; justify-content: center;
+}
+.jc-photo { background: #DCE3E9; color: #9AA6B2; }
+.jc-photo img { width: 100%; height: 100%; object-fit: cover; }
+.jc-photo-add {
+  border: 2px dashed var(--jc-line); color: var(--jc-blue); font-size: 26px; cursor: pointer; background: #fff;
+}
+
+/* --- Equipment ----------------------------------------------- */
+.jc-system {
+  border-radius: 12px; padding: 12px 13px; margin-bottom: 10px; border: 2px solid;
+}
+.jc-system.filled { border-color: var(--jc-blue); background: rgba(33,95,154,0.05); }
+.jc-system.missing { border-color: var(--jc-red); background: rgba(255,0,0,0.04); }
+.jc-system-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.jc-system-label { font-size: 15px; font-weight: 800; color: var(--jc-black); }
+.jc-system-badge { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px; padding: 3px 8px; border-radius: 999px; }
+.jc-system-badge.filled { background: rgba(33,95,154,0.14); color: var(--jc-blue); }
+.jc-system-badge.missing { background: rgba(255,0,0,0.14); color: var(--jc-red); }
+.jc-system-detail { font-size: 13px; color: var(--jc-muted); line-height: 1.55; }
+.jc-system-actions { display: flex; gap: 12px; margin-top: 8px; }
+.jc-ocr-btn {
+  display: inline-flex; align-items: center; gap: 6px; background: rgba(33,95,154,0.08);
+  color: var(--jc-blue); border: 1px dashed var(--jc-blue); border-radius: 9px;
+  padding: 9px 12px; font-weight: 800; font-size: 13px; cursor: pointer; font-family: inherit; width: 100%;
+  justify-content: center; margin-bottom: 10px;
+}
+
+/* --- Field inputs -------------------------------------------- */
+.jc-field { margin-bottom: 10px; }
+.jc-field label { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px; color: var(--jc-muted); margin-bottom: 4px; }
+.jc-field input, .jc-field select, .jc-field textarea {
+  width: 100%; padding: 11px 12px; border: 1px solid var(--jc-line); border-radius: 10px;
+  font-size: 15px; background: #fff; color: var(--jc-ink); box-sizing: border-box; font-family: inherit;
+}
+.jc-field-row { display: flex; gap: 8px; }
+.jc-field-row .jc-field { flex: 1; }
+.jc-toggle-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 15px; font-weight: 600; }
+.jc-toggle-row input { width: 20px; height: 20px; }
+.jc-notes { width: 100%; min-height: 64px; border: 1px solid var(--jc-line); border-radius: 10px; padding: 11px; font-size: 15px; font-family: inherit; resize: vertical; box-sizing: border-box; }
+.jc-action-link {
+  display: flex; align-items: center; gap: 10px; padding: 14px 13px; background: #F5F7F9;
+  border-radius: 11px; text-decoration: none; color: var(--jc-ink); font-size: 15px; font-weight: 700; margin-bottom: 8px;
+}
+.jc-action-link svg { color: var(--jc-blue); }
+.jc-action-link .jc-chev { margin-left: auto; color: #9AA6B2; }
+
+/* --- Dark mode (stub) ---------------------------------------- */
+.job-card-v2.mobile-shell.jc-dark { --jc-screen: #10151B; --jc-card: #1B222B; --jc-ink: #EAF0F6; --jc-muted: #93A0AD; --jc-line: #2A333D; --jc-white: #1B222B; background: var(--jc-screen-dark); color: var(--jc-ink); }
+.job-card-v2.jc-dark .jc-header { background: #1B222B; }
+.job-card-v2.jc-dark .jc-title { color: #fff; }
+.job-card-v2.jc-dark .jc-tenant-name { color: #fff; }
+.job-card-v2.jc-dark .jc-system-label { color: #fff; }
+.job-card-v2.jc-dark .jc-action-link { background: #232C36; color: #EAF0F6; }
+.job-card-v2.jc-dark .jc-field input, .job-card-v2.jc-dark .jc-field select, .job-card-v2.jc-dark .jc-field textarea, .job-card-v2.jc-dark .jc-notes { background: #232C36; color: #EAF0F6; border-color: #2A333D; }
