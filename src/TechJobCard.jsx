@@ -496,14 +496,14 @@ export default function TechJobCard({ profile }) {
   function TaskHead({ k, title, icon, done, actions, forceColor }) {
     const color = forceColor || (done ? 'blue' : 'red')
     return (
-      <button className={`jc-task-head ${color}`} onClick={() => toggle(k)}>
+      <div className={`jc-task-head ${color}`} role="button" tabIndex={0} onClick={() => toggle(k)}>
         {icon}
         <span className="jc-th-title">{title}</span>
         <span className="jc-th-actions" onClick={(e) => e.stopPropagation()}>
           {actions}
           <span className={`jc-th-chevron ${isOpen(k) ? 'open' : ''}`} onClick={() => toggle(k)}>›</span>
         </span>
-      </button>
+      </div>
     )
   }
 
