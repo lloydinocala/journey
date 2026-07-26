@@ -699,7 +699,7 @@ export default function TechJobCard({ profile }) {
                       </div>
                     </div>
                   ))}
-                  <button className="jc-btn wide" style={{ marginTop: 12 }} onClick={() => navigate(`/tech/messages/${jobId}`)}>
+                  <button className="jc-btn ghost wide" style={{ marginTop: 12 }} onClick={() => navigate(`/tech/messages/${jobId}`)}>
                     <IconMessage /> Open Messages
                   </button>
                 </>
