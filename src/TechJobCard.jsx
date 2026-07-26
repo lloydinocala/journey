@@ -368,7 +368,10 @@ export default function TechJobCard({ profile }) {
       if (!dest) { setArrivalState('off'); return }
       geoWatchRef.current = navigator.geolocation.watchPosition((pos) => {
         const here = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        if (haversineMeters(here, dest) <= 150) { updateStatus('in_progress'); clearGeoWatch() }
+        // 250 m ring: covers "at the property" while absorbing the free geocoder's
+        // street-level approximation and normal phone-GPS scatter.
+        const ring = 250 + Math.min(pos.coords.accuracy || 0, 120)
+        if (haversineMeters(here, dest) <= ring) { updateStatus('in_progress'); clearGeoWatch() }
       }, () => { setArrivalState('off') }, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 })
     }
     arm()
