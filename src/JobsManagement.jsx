@@ -44,7 +44,17 @@ export default function JobsManagement({ profile }) {
   const [savingPart, setSavingPart] = useState(false)
   const [newItemMode, setNewItemMode] = useState(null)
 
+  const [editingRecId, setEditingRecId] = useState(null)
+  const [recDraft, setRecDraft] = useState({})
+  const [savingRec, setSavingRec] = useState(false)
+
+  const [editingPartId, setEditingPartId] = useState(null)
+  const [partDraft, setPartDraft] = useState({})
+  const [savingPartRow, setSavingPartRow] = useState(false)
+
   const isSuperAdmin = profile.role === 'super_admin'
+
+  const capitalize = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '')
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -177,6 +187,54 @@ export default function JobsManagement({ profile }) {
     loadAll(selectedOrg)
   }
 
+  function startEditRec(rec) {
+    setEditingRecId(rec.id)
+    setRecDraft({
+      equipment_brand: rec.equipment_brand || '',
+      equipment_model: rec.equipment_model || '',
+      equipment_serial: rec.equipment_serial || '',
+      warranty_or_cash: rec.warranty_or_cash || '',
+      claim_status: rec.claim_status || '',
+      customer_communication: rec.customer_communication || '',
+    })
+  }
+
+  async function saveRec(id) {
+    setSavingRec(true)
+    await supabase.from('job_incomplete_records').update({
+      equipment_brand: recDraft.equipment_brand.trim() || null,
+      equipment_model: recDraft.equipment_model.trim() || null,
+      equipment_serial: recDraft.equipment_serial.trim() || null,
+      warranty_or_cash: recDraft.warranty_or_cash || null,
+      claim_status: recDraft.claim_status || null,
+      customer_communication: recDraft.customer_communication || null,
+    }).eq('id', id)
+    setSavingRec(false)
+    setEditingRecId(null)
+    loadAll(selectedOrg)
+  }
+
+  function startEditPart(p) {
+    setEditingPartId(p.id)
+    setPartDraft({
+      segment_assigned: p.segment_assigned ?? '',
+      vendor_id: p.vendor_id || '',
+      expected_delivery_date: p.expected_delivery_date || '',
+    })
+  }
+
+  async function savePart(id) {
+    setSavingPartRow(true)
+    await supabase.from('parts_orders').update({
+      segment_assigned: partDraft.segment_assigned !== '' ? parseInt(partDraft.segment_assigned, 10) : null,
+      vendor_id: partDraft.vendor_id || null,
+      expected_delivery_date: partDraft.expected_delivery_date || null,
+    }).eq('id', id)
+    setSavingPartRow(false)
+    setEditingPartId(null)
+    loadAll(selectedOrg)
+  }
+
   function startAddPart(rec) {
     setAddingPartFor(rec.id)
     setPartForm(blankPartForm)
@@ -283,33 +341,46 @@ export default function JobsManagement({ profile }) {
                             <Link to={`/estimate/${rec.job.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Attach estimate</Link>
                           )}
                         </td>
-                        <td>
-                          <input type="text" value={rec.equipment_brand || ''} onChange={(e) => updateRecordField(rec.id, 'equipment_brand', e.target.value)} style={{ width: 90 }} />
-                        </td>
-                        <td>
-                          <input type="text" value={rec.equipment_model || ''} onChange={(e) => updateRecordField(rec.id, 'equipment_model', e.target.value)} style={{ width: 90 }} />
-                        </td>
-                        <td>
-                          <input type="text" value={rec.equipment_serial || ''} onChange={(e) => updateRecordField(rec.id, 'equipment_serial', e.target.value)} style={{ width: 90 }} />
-                        </td>
-                        <td>
-                          <select value={rec.warranty_or_cash || ''} onChange={(e) => updateRecordField(rec.id, 'warranty_or_cash', e.target.value)}>
-                            <option value="">Select…</option>
-                            {WARRANTY_OPTIONS.map((o) => <option key={o} value={o.toLowerCase()}>{o}</option>)}
-                          </select>
-                        </td>
-                        <td>
-                          <select value={rec.claim_status || ''} onChange={(e) => updateRecordField(rec.id, 'claim_status', e.target.value)}>
-                            <option value="">Select…</option>
-                            {CLAIM_STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </td>
-                        <td>
-                          <select value={rec.customer_communication || ''} onChange={(e) => updateRecordField(rec.id, 'customer_communication', e.target.value)}>
-                            <option value="">Select…</option>
-                            {COMM_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </td>
+                        {editingRecId === rec.id ? (
+                          <>
+                            <td>
+                              <input type="text" value={recDraft.equipment_brand} onChange={(e) => setRecDraft({ ...recDraft, equipment_brand: e.target.value })} style={{ width: 90 }} />
+                            </td>
+                            <td>
+                              <input type="text" value={recDraft.equipment_model} onChange={(e) => setRecDraft({ ...recDraft, equipment_model: e.target.value })} style={{ width: 90 }} />
+                            </td>
+                            <td>
+                              <input type="text" value={recDraft.equipment_serial} onChange={(e) => setRecDraft({ ...recDraft, equipment_serial: e.target.value })} style={{ width: 90 }} />
+                            </td>
+                            <td>
+                              <select value={recDraft.warranty_or_cash} onChange={(e) => setRecDraft({ ...recDraft, warranty_or_cash: e.target.value })}>
+                                <option value="">Select…</option>
+                                {WARRANTY_OPTIONS.map((o) => <option key={o} value={o.toLowerCase()}>{o}</option>)}
+                              </select>
+                            </td>
+                            <td>
+                              <select value={recDraft.claim_status} onChange={(e) => setRecDraft({ ...recDraft, claim_status: e.target.value })}>
+                                <option value="">Select…</option>
+                                {CLAIM_STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                            </td>
+                            <td>
+                              <select value={recDraft.customer_communication} onChange={(e) => setRecDraft({ ...recDraft, customer_communication: e.target.value })}>
+                                <option value="">Select…</option>
+                                {COMM_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td>{rec.equipment_brand || '—'}</td>
+                            <td>{rec.equipment_model || '—'}</td>
+                            <td>{rec.equipment_serial || '—'}</td>
+                            <td>{capitalize(rec.warranty_or_cash) || '—'}</td>
+                            <td>{rec.claim_status || '—'}</td>
+                            <td>{rec.customer_communication || '—'}</td>
+                          </>
+                        )}
                         <td>
                           {rec.nextDeliveryDate ? (
                             <span style={deliveryDateStyle(rec.nextDeliveryDate)}>{new Date(rec.nextDeliveryDate + 'T00:00:00').toLocaleDateString()}</span>
@@ -317,7 +388,21 @@ export default function JobsManagement({ profile }) {
                         </td>
                         <td>{rec.scheduledDate ? new Date(rec.scheduledDate + 'T00:00:00').toLocaleDateString() : '—'}</td>
                         <td><span className={`status-pill status-${rec.currentStatus}`}>{STATUS_LABELS[rec.currentStatus] || rec.currentStatus}</span></td>
-                        <td><button className="logout-button" onClick={() => startAddPart(rec)}>+ Add Part</button></td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            {editingRecId === rec.id ? (
+                              <>
+                                <button className="auth-button" style={{ width: 'auto', padding: '4px 10px', margin: 0 }} disabled={savingRec} onClick={() => saveRec(rec.id)}>{savingRec ? 'Saving…' : 'Save'}</button>
+                                <button className="logout-button" onClick={() => setEditingRecId(null)}>Cancel</button>
+                              </>
+                            ) : (
+                              <>
+                                <button className="logout-button" onClick={() => startEditRec(rec)}>Edit</button>
+                                <button className="logout-button" onClick={() => startAddPart(rec)}>+ Add Part</button>
+                              </>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                       {addingPartFor === rec.id && (
                         <tr key={rec.id + '-form'}>
@@ -389,6 +474,7 @@ export default function JobsManagement({ profile }) {
                     <th>Expected Delivery</th>
                     <th>Delivery Verified</th>
                     <th>Schedule Confirmed</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -398,35 +484,45 @@ export default function JobsManagement({ profile }) {
                     return (
                       <tr key={p.id}>
                         <td>{originJob?.job_number || '—'}</td>
-                        <td>
-                          <input type="number" value={p.segment_assigned || ''} onChange={(e) => updatePartField(p.id, 'segment_assigned', e.target.value ? parseInt(e.target.value, 10) : null)} style={{ width: 60 }} />
-                        </td>
+                        {editingPartId === p.id ? (
+                          <td>
+                            <input type="number" value={partDraft.segment_assigned} onChange={(e) => setPartDraft({ ...partDraft, segment_assigned: e.target.value })} style={{ width: 60 }} />
+                          </td>
+                        ) : (
+                          <td>{p.segment_assigned || '—'}</td>
+                        )}
                         <td>{p.part_description}</td>
                         <td>{p.part_number || '—'}</td>
                         <td>{p.po_number || '—'}</td>
-                        <td>
-                          {p.vendor_id ? (
-                            <Link to={`/vendors/${p.vendor_id}`}>{vendorName(p.vendor_id)}</Link>
-                          ) : (
-                            <select value={p.vendor_id || ''} onChange={(e) => updatePartField(p.id, 'vendor_id', e.target.value || null)}>
+                        {editingPartId === p.id ? (
+                          <td>
+                            <select value={partDraft.vendor_id} onChange={(e) => setPartDraft({ ...partDraft, vendor_id: e.target.value })}>
                               <option value="">Select…</option>
                               {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
                             </select>
-                          )}
-                        </td>
+                          </td>
+                        ) : (
+                          <td>
+                            {p.vendor_id ? <Link to={`/vendors/${p.vendor_id}`}>{vendorName(p.vendor_id)}</Link> : '—'}
+                          </td>
+                        )}
                         <td>{vendorPhone(p.vendor_id) || '—'}</td>
-                        <td>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <input
-                              type="date"
-                              value={p.expected_delivery_date || ''}
-                              onChange={(e) => updatePartField(p.id, 'expected_delivery_date', e.target.value || null)}
-                            />
-                            {p.expected_delivery_date === todayISO() && !p.delivery_verified && (
-                              <span className="status-pill status-active">Today</span>
-                            )}
-                          </div>
-                        </td>
+                        {editingPartId === p.id ? (
+                          <td>
+                            <input type="date" value={partDraft.expected_delivery_date} onChange={(e) => setPartDraft({ ...partDraft, expected_delivery_date: e.target.value })} />
+                          </td>
+                        ) : (
+                          <td>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              {p.expected_delivery_date ? (
+                                <span style={deliveryDateStyle(p.expected_delivery_date)}>{new Date(p.expected_delivery_date + 'T00:00:00').toLocaleDateString()}</span>
+                              ) : '—'}
+                              {p.expected_delivery_date === todayISO() && !p.delivery_verified && (
+                                <span className="status-pill status-active">Today</span>
+                              )}
+                            </div>
+                          </td>
+                        )}
                         <td>
                           <button className={p.delivery_verified ? 'logout-button' : 'auth-button'} style={{ width: 'auto', padding: '4px 10px' }} onClick={() => toggleVerified(p)}>
                             {p.delivery_verified ? 'Verified ✓' : 'Mark Verified'}
@@ -436,6 +532,18 @@ export default function JobsManagement({ profile }) {
                           <span className={`status-pill ${scheduledDate ? 'status-active' : 'status-canceled'}`}>
                             {scheduledDate ? `Scheduled ${new Date(scheduledDate + 'T00:00:00').toLocaleDateString()}` : 'Not Scheduled'}
                           </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            {editingPartId === p.id ? (
+                              <>
+                                <button className="auth-button" style={{ width: 'auto', padding: '4px 10px', margin: 0 }} disabled={savingPartRow} onClick={() => savePart(p.id)}>{savingPartRow ? 'Saving…' : 'Save'}</button>
+                                <button className="logout-button" onClick={() => setEditingPartId(null)}>Cancel</button>
+                              </>
+                            ) : (
+                              <button className="logout-button" onClick={() => startEditPart(p)}>Edit</button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )
