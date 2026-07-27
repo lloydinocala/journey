@@ -38,6 +38,21 @@ function fmtTime(t) {
   if (!t) return '—'
   return new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
+// Worked minutes = Start My Time -> Stop My Time.
+function workedMinutes(t) {
+  if (!t.started_at || !t.stopped_at) return null
+  const m = Math.round((new Date(t.stopped_at) - new Date(t.started_at)) / 60000)
+  return m >= 0 ? m : null
+}
+function fmtDur(mins) {
+  if (mins == null) return '—'
+  const h = Math.floor(mins / 60), m = mins % 60
+  return h ? `${h}h ${m}m` : `${m}m`
+}
+function money(n) {
+  if (n == null || isNaN(n)) return '—'
+  return `$${Number(n).toFixed(2)}`
+}
 
 export default function Tasks({ profile }) {
   const [orgs, setOrgs] = useState([])
@@ -48,6 +63,9 @@ export default function Tasks({ profile }) {
   const [loading, setLoading] = useState(true)
   const [showDone, setShowDone] = useState(false)
   const [expandedId, setExpandedId] = useState(null)
+  const [showPay, setShowPay] = useState(false)
+  const [payFrom, setPayFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10) })
+  const [payTo, setPayTo] = useState(todayISO())
 
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(blankForm)
@@ -71,7 +89,7 @@ export default function Tasks({ profile }) {
     setLoading(true)
     const [taskData, userData, partData] = await Promise.all([
       fetchAllRows(() => supabase.from('field_tasks').select('*').eq('org_id', orgId).is('deleted_at', null).order('scheduled_at', { ascending: false })),
-      supabase.from('users').select('id, full_name, role').eq('org_id', orgId).eq('is_active', true).order('full_name'),
+      supabase.from('users').select('id, full_name, role, task_hourly_rate, standard_hourly_rate').eq('org_id', orgId).eq('is_active', true).order('full_name'),
       supabase.from('parts_orders').select('id, part_description, part_number, po_number, delivery_verified, jobs ( job_number ), vendors ( name, street_address, city, state, zip )').eq('org_id', orgId).order('created_at', { ascending: false }),
     ])
     setTasks(taskData)
@@ -83,6 +101,13 @@ export default function Tasks({ profile }) {
   useEffect(() => { loadAll(selectedOrg) }, [selectedOrg])
 
   function userName(id) { return users.find((u) => u.id === id)?.full_name || '—' }
+  function userObj(id) { return users.find((u) => u.id === id) || null }
+  function taskPay(t) {
+    const mins = workedMinutes(t)
+    const rate = userObj(t.assigned_user_id)?.task_hourly_rate
+    if (mins == null || rate == null) return null
+    return (mins / 60) * Number(rate)
+  }
   function partById(id) { return parts.find((p) => p.id === id) || null }
   function partLabel(p) { return `J-${p.jobs?.job_number || '?'} · ${p.part_description}${p.vendors?.name ? ' (' + p.vendors.name + ')' : ''}${p.delivery_verified ? ' — verified' : ''}` }
 
@@ -216,6 +241,27 @@ export default function Tasks({ profile }) {
   const openCount = tasks.filter((t) => !['completed', 'canceled'].includes(t.status)).length
   const openIssues = tasks.filter((t) => t.status === 'incomplete').length
 
+  // Per-employee task-pay summary for completed tasks in the chosen period.
+  const payRows = (() => {
+    const from = new Date(payFrom + 'T00:00:00'), to = new Date(payTo + 'T23:59:59')
+    const byUser = {}
+    for (const t of tasks) {
+      if (t.status !== 'completed' || !t.stopped_at) continue
+      const d = new Date(t.stopped_at)
+      if (d < from || d > to) continue
+      const uid = t.assigned_user_id || 'unknown'
+      const mins = workedMinutes(t) || 0
+      if (!byUser[uid]) byUser[uid] = { uid, count: 0, mins: 0 }
+      byUser[uid].count += 1
+      byUser[uid].mins += mins
+    }
+    return Object.values(byUser).map((r) => {
+      const rate = userObj(r.uid)?.task_hourly_rate
+      return { ...r, rate, pay: rate != null ? (r.mins / 60) * Number(rate) : null }
+    }).sort((a, b) => userName(a.uid).localeCompare(userName(b.uid)))
+  })()
+  const payTotal = payRows.reduce((s, r) => s + (r.pay || 0), 0)
+
   return (
     <div>
       <div className="page-header-bar">
@@ -289,10 +335,48 @@ export default function Tasks({ profile }) {
       )}
       {error && <div className="auth-error" style={{ marginBottom: 16 }}>{error}</div>}
 
-      <label className="nav-link" style={{ cursor: 'pointer', display: 'inline-block', marginBottom: 14 }}>
-        <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} style={{ marginRight: 6 }} />
-        Show completed / canceled
-      </label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+        <label className="nav-link" style={{ cursor: 'pointer' }}>
+          <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} style={{ marginRight: 6 }} />
+          Show completed / canceled
+        </label>
+        <button className="logout-button" onClick={() => setShowPay((v) => !v)}>{showPay ? 'Hide task pay' : 'Task pay summary'}</button>
+      </div>
+
+      {showPay && (
+        <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 16, margin: '0 0 22px', maxWidth: 720 }}>
+          <h3 style={{ fontSize: 15, margin: '0 0 10px' }}>Completed Task Pay</h3>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
+            <div className="field" style={{ marginBottom: 0 }}><label>From</label><input type="date" value={payFrom} onChange={(e) => setPayFrom(e.target.value)} /></div>
+            <div className="field" style={{ marginBottom: 0 }}><label>To</label><input type="date" value={payTo} onChange={(e) => setPayTo(e.target.value)} /></div>
+          </div>
+          <table className="data-table" style={{ maxWidth: 680 }}>
+            <thead>
+              <tr><th>Employee</th><th>Tasks</th><th>Worked</th><th>Task rate</th><th>Pay</th></tr>
+            </thead>
+            <tbody>
+              {payRows.length === 0 ? (
+                <tr><td colSpan="5" style={{ color: 'var(--mist)' }}>No completed tasks in this period.</td></tr>
+              ) : payRows.map((r) => (
+                <tr key={r.uid}>
+                  <td>{userName(r.uid)}</td>
+                  <td>{r.count}</td>
+                  <td>{fmtDur(r.mins)}</td>
+                  <td>{r.rate != null ? `${money(r.rate)}/hr` : <span style={{ color: '#C0392B' }}>set rate</span>}</td>
+                  <td>{r.pay != null ? <strong>{money(r.pay)}</strong> : '—'}</td>
+                </tr>
+              ))}
+              {payRows.length > 0 && (
+                <tr><td colSpan="4" style={{ textAlign: 'right' }}><strong>Total</strong></td><td><strong>{money(payTotal)}</strong></td></tr>
+              )}
+            </tbody>
+          </table>
+          <p style={{ fontSize: 12, color: 'var(--mist)', marginTop: 8 }}>
+            Worked time is Start My Time → Stop My Time on completed tasks. Set rates in Settings → Employee Pay Rates.
+            This is a task-time report — it doesn't post to payroll on its own.
+          </p>
+        </div>
+      )}
 
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
@@ -356,6 +440,10 @@ export default function Tasks({ profile }) {
                             {at && (lat == null || lng == null) && <span style={{ color: 'var(--mist)' }}> · no GPS captured</span>}
                           </div>
                         ))}
+                        <div style={{ fontSize: 13, marginTop: 8 }}>
+                          <strong>Worked:</strong> {fmtDur(workedMinutes(t))}
+                          {taskPay(t) != null && <> · <strong>Task pay:</strong> {money(taskPay(t))}</>}
+                        </div>
                       </div>
                       <div>
                         <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--mist)', marginBottom: 8 }}>Parts Link</div>
