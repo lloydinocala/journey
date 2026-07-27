@@ -209,6 +209,7 @@ export default function Tasks({ profile }) {
   }
 
   const visible = tasks.filter((t) => showDone || !['completed', 'canceled'].includes(t.status))
+  const openCount = tasks.filter((t) => !['completed', 'canceled'].includes(t.status)).length
   const openIssues = tasks.filter((t) => t.status === 'incomplete').length
 
   return (
@@ -216,7 +217,7 @@ export default function Tasks({ profile }) {
       <div className="page-header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <h2>Tasks</h2>
-          <span className="badge">{visible.length.toLocaleString()} open</span>
+          <span className="badge">{openCount.toLocaleString()} open</span>
           {openIssues > 0 && <span className="status-pill status-incomplete">{openIssues} incomplete</span>}
         </div>
         <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => (showForm ? resetForm() : setShowForm(true))}>
