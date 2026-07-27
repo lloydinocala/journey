@@ -2,6 +2,11 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 
+function vendorSiteUrl(url) {
+  if (!url) return null
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`
+}
+
 export default function VendorDetail({ profile }) {
   const { vendorId } = useParams()
   const navigate = useNavigate()
@@ -13,6 +18,19 @@ export default function VendorDetail({ profile }) {
   const [editingId, setEditingId] = useState(null)
   const [editPo, setEditPo] = useState('')
   const [editDeliveryDate, setEditDeliveryDate] = useState('')
+
+  const [editingWebsite, setEditingWebsite] = useState(false)
+  const [websiteInput, setWebsiteInput] = useState('')
+  const [savingWebsite, setSavingWebsite] = useState(false)
+
+  async function saveWebsite() {
+    setSavingWebsite(true)
+    const val = websiteInput.trim() || null
+    await supabase.from('vendors').update({ website: val }).eq('id', vendorId)
+    setVendor((v) => ({ ...v, website: val }))
+    setSavingWebsite(false)
+    setEditingWebsite(false)
+  }
 
   async function loadAll() {
     setLoading(true)
@@ -75,6 +93,30 @@ export default function VendorDetail({ profile }) {
           <h3 style={{ fontSize: 15, marginBottom: 8 }}>Contact</h3>
           {vendor.phone && <p style={{ margin: '2px 0' }}><a href={`tel:${vendor.phone}`}>{vendor.phone}</a></p>}
           {vendor.email && <p style={{ margin: '2px 0' }}><a href={`mailto:${vendor.email}`}>{vendor.email}</a></p>}
+          <p style={{ margin: '2px 0' }}>
+            {editingWebsite ? (
+              <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  value={websiteInput}
+                  onChange={(e) => setWebsiteInput(e.target.value)}
+                  placeholder="e.g. acme.com"
+                  style={{ minWidth: 180 }}
+                />
+                <button className="auth-button" style={{ width: 'auto', padding: '4px 10px', margin: 0 }} disabled={savingWebsite} onClick={saveWebsite}>
+                  {savingWebsite ? 'Saving…' : 'Save'}
+                </button>
+                <button className="logout-button" onClick={() => setEditingWebsite(false)}>Cancel</button>
+              </span>
+            ) : vendor.website ? (
+              <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                <a href={vendorSiteUrl(vendor.website)} target="_blank" rel="noreferrer">{vendor.website}</a>
+                <button className="logout-button" onClick={() => { setWebsiteInput(vendor.website || ''); setEditingWebsite(true) }}>Edit</button>
+              </span>
+            ) : (
+              <button className="logout-button" onClick={() => { setWebsiteInput(''); setEditingWebsite(true) }}>+ Add website</button>
+            )}
+          </p>
           {vendor.street_address && <p style={{ margin: '2px 0' }}>{vendor.street_address}</p>}
           {(vendor.city || vendor.state || vendor.zip) && (
             <p style={{ margin: '2px 0' }}>{[vendor.city, vendor.state, vendor.zip].filter(Boolean).join(', ')}</p>

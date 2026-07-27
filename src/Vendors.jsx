@@ -4,8 +4,13 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { fetchAllRows } from './utils/csvImport'
 
+function vendorSiteUrl(url) {
+  if (!url) return null
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`
+}
+
 const blankForm = {
-  name: '', phone: '', email: '', account_number: '', billing_type: '',
+  name: '', phone: '', email: '', website: '', account_number: '', billing_type: '',
   sales_rep_name: '', sales_rep_phone: '', street_address: '', city: '', state: '', zip: '', notes: '',
 }
 
@@ -57,6 +62,7 @@ export default function Vendors({ profile }) {
       name: form.name.trim(),
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
+      website: form.website.trim() || null,
       account_number: form.account_number.trim() || null,
       billing_type: form.billing_type.trim() || null,
       sales_rep_name: form.sales_rep_name.trim() || null,
@@ -118,6 +124,10 @@ export default function Vendors({ profile }) {
           <div className="field">
             <label>Email</label>
             <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+          <div className="field">
+            <label>Website</label>
+            <input type="text" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="e.g. acme.com" />
           </div>
           <div className="field">
             <label>Account #</label>
@@ -183,6 +193,7 @@ export default function Vendors({ profile }) {
               <th>Name</th>
               <th>Phone</th>
               <th>Email</th>
+              <th>Website</th>
               <th>Account #</th>
               <th>Sales Rep</th>
             </tr>
@@ -196,12 +207,13 @@ export default function Vendors({ profile }) {
                 <td><Link to={`/vendors/${v.id}`}>{v.name}</Link></td>
                 <td>{v.phone || '—'}</td>
                 <td>{v.email || '—'}</td>
+                <td>{v.website ? <a href={vendorSiteUrl(v.website)} target="_blank" rel="noreferrer">{v.website}</a> : '—'}</td>
                 <td>{v.account_number || '—'}</td>
                 <td>{v.sales_rep_name || '—'}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan="6" style={{ color: 'var(--mist)' }}>No vendors found.</td></tr>
+              <tr><td colSpan="7" style={{ color: 'var(--mist)' }}>No vendors found.</td></tr>
             )}
           </tbody>
         </table>
