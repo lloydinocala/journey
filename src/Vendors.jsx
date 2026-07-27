@@ -27,6 +27,23 @@ export default function Vendors({ profile }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const [editingId, setEditingId] = useState(null)
+  const [editWebsite, setEditWebsite] = useState('')
+  const [savingRow, setSavingRow] = useState(false)
+
+  function startEditRow(v) {
+    setEditingId(v.id)
+    setEditWebsite(v.website || '')
+  }
+
+  async function saveRow(id) {
+    setSavingRow(true)
+    await supabase.from('vendors').update({ website: editWebsite.trim() || null }).eq('id', id)
+    setSavingRow(false)
+    setEditingId(null)
+    loadVendors(selectedOrg)
+  }
+
   const isSuperAdmin = profile.role === 'super_admin'
 
   useEffect(() => {
@@ -202,12 +219,28 @@ export default function Vendors({ profile }) {
             {filtered.map((v) => (
               <tr key={v.id}>
                 <td style={{ display: 'flex', gap: 8 }}>
-                  <button className="logout-button" onClick={() => toggleArchive(v)}>{v.is_active ? 'Archive' : 'Reactivate'}</button>
+                  {editingId === v.id ? (
+                    <>
+                      <button className="auth-button" style={{ width: 'auto', padding: '4px 10px', margin: 0 }} disabled={savingRow} onClick={() => saveRow(v.id)}>{savingRow ? 'Saving…' : 'Save'}</button>
+                      <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="logout-button" onClick={() => startEditRow(v)}>Edit</button>
+                      <button className="logout-button" onClick={() => toggleArchive(v)}>{v.is_active ? 'Archive' : 'Reactivate'}</button>
+                    </>
+                  )}
                 </td>
                 <td><Link to={`/vendors/${v.id}`}>{v.name}</Link></td>
                 <td>{v.phone || '—'}</td>
                 <td>{v.email || '—'}</td>
-                <td>{v.website ? <a href={vendorSiteUrl(v.website)} target="_blank" rel="noreferrer">{v.website}</a> : '—'}</td>
+                <td>
+                  {editingId === v.id ? (
+                    <input type="text" value={editWebsite} onChange={(e) => setEditWebsite(e.target.value)} placeholder="e.g. acme.com" style={{ minWidth: 160 }} />
+                  ) : v.website ? (
+                    <a href={vendorSiteUrl(v.website)} target="_blank" rel="noreferrer">{v.website}</a>
+                  ) : '—'}
+                </td>
                 <td>{v.account_number || '—'}</td>
                 <td>{v.sales_rep_name || '—'}</td>
               </tr>
