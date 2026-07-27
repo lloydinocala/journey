@@ -34,6 +34,10 @@ function fmtStamp(t) {
   if (!t) return null
   return new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
+function fmtTime(t) {
+  if (!t) return '—'
+  return new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
 
 export default function Tasks({ profile }) {
   const [orgs, setOrgs] = useState([])
@@ -302,6 +306,9 @@ export default function Tasks({ profile }) {
               <th>Address</th>
               <th>Date &amp; Time</th>
               <th>Est.</th>
+              <th>On My Way</th>
+              <th>Started</th>
+              <th>Stopped</th>
               <th>Status</th>
               <th>Issue</th>
             </tr>
@@ -324,12 +331,15 @@ export default function Tasks({ profile }) {
                 <td>{t.address || '—'}</td>
                 <td>{new Date(t.scheduled_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
                 <td>{t.duration_minutes}m</td>
+                <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(t.on_my_way_at)}</td>
+                <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(t.started_at)}</td>
+                <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(t.stopped_at)}</td>
                 <td><span className={`status-pill status-${t.status}`}>{STATUS_LABEL[t.status] || t.status}</span></td>
                 <td style={{ maxWidth: 220, fontSize: 12 }}>{t.status === 'incomplete' ? (t.incomplete_reason || 'Reported incomplete') : '—'}</td>
               </tr>
               {open && (
                 <tr>
-                  <td colSpan="8" style={{ background: 'var(--ink)', padding: '14px 16px' }}>
+                  <td colSpan="11" style={{ background: 'var(--ink)', padding: '14px 16px' }}>
                     <div style={{ display: 'flex', gap: 40, flexWrap: 'wrap' }}>
                       <div>
                         <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--mist)', marginBottom: 8 }}>Button Records</div>
@@ -366,7 +376,7 @@ export default function Tasks({ profile }) {
               )
             })}
             {visible.length === 0 && (
-              <tr><td colSpan="8" style={{ color: 'var(--mist)' }}>No tasks{showDone ? '' : ' open'} right now.</td></tr>
+              <tr><td colSpan="11" style={{ color: 'var(--mist)' }}>No tasks{showDone ? '' : ' open'} right now.</td></tr>
             )}
           </tbody>
         </table>

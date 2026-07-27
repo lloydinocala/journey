@@ -30,6 +30,9 @@ function timeLabel(startTime) {
 export default function TechJobs({ profile }) {
   const navigate = useNavigate()
   const isSuperAdmin = profile?.role === 'super_admin'
+  // Field admins/supervisors see the whole team's tasks in their card list
+  // (each labeled with who it's for); regular techs see only their own.
+  const seeAllTasks = isFieldAdmin(profile) && !isSuperAdmin
 
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -99,22 +102,26 @@ export default function TechJobs({ profile }) {
     setEffUid(uid)
     setEffOrgId(orgId)
 
-    // Day window for tasks (scheduled_at is a timestamp; jobs use a job_date).
-    const nextDate = new Date(new Date(date + 'T00:00:00').getTime() + 86400000).toISOString().slice(0, 10)
+    // Day window for tasks as real UTC instants for the viewer's local day
+    // (so an evening task doesn't drift onto the next calendar day).
+    const dayStart = new Date(date + 'T00:00:00')
+    const dayEnd = new Date(dayStart.getTime() + 86400000)
 
     // job_technicians is the single source of truth for job assignment — find
     // this tech's job IDs for the day, then load those jobs' full details.
-    // field_tasks are assigned directly to the user and loaded in parallel.
+    // field_tasks are assigned directly to the user; admins see the whole team's.
+    let taskQuery = supabase
+      .from('field_tasks')
+      .select('id, destination_name, address, scheduled_at, status, assigned_user_id, assigned:users!field_tasks_assigned_user_id_fkey ( full_name )')
+      .eq('org_id', orgId)
+      .is('deleted_at', null)
+      .gte('scheduled_at', dayStart.toISOString())
+      .lt('scheduled_at', dayEnd.toISOString())
+    if (!seeAllTasks) taskQuery = taskQuery.eq('assigned_user_id', uid)
+
     const [{ data: assignedRows }, { data: taskRows }] = await Promise.all([
       supabase.from('job_technicians').select('job_id').eq('org_id', orgId).eq('user_id', uid),
-      supabase
-        .from('field_tasks')
-        .select('id, destination_name, address, scheduled_at, status')
-        .eq('org_id', orgId)
-        .eq('assigned_user_id', uid)
-        .is('deleted_at', null)
-        .gte('scheduled_at', date + 'T00:00:00')
-        .lt('scheduled_at', nextDate + 'T00:00:00'),
+      taskQuery,
     ])
 
     const jobIds = [...new Set((assignedRows || []).map((r) => r.job_id))]
@@ -216,6 +223,7 @@ export default function TechJobs({ profile }) {
               <div className="job-card-customer">{it.data.destination_name}</div>
               <div className="job-card-sub">
                 {timeLabel(it.data.scheduled_at)}{timeLabel(it.data.scheduled_at) && ' · '}Task
+                {seeAllTasks && it.data.assigned?.full_name && <> · for {it.data.assigned.full_name}</>}
               </div>
               {it.data.address && (
                 <div className="job-card-address">{it.data.address}</div>
