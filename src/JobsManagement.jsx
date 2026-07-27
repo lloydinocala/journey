@@ -310,7 +310,7 @@ export default function JobsManagement({ profile }) {
                 <thead>
                   <tr>
                     <th>Job #</th>
-                    <th>Seg #</th>
+                    <th className="col-seg">Seg</th>
                     <th>Customer</th>
                     <th>Phone</th>
                     <th>Reason</th>
@@ -324,7 +324,7 @@ export default function JobsManagement({ profile }) {
                     <th>Expected Delivery</th>
                     <th>Segment Scheduled</th>
                     <th>Job Status</th>
-                    <th></th>
+                    <th className="sticky-actions"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -332,7 +332,7 @@ export default function JobsManagement({ profile }) {
                     <>
                       <tr key={rec.id} style={{ background: rec.isRed ? 'rgba(255, 107, 107, 0.08)' : 'rgba(242, 169, 60, 0.08)' }}>
                         <td>{rec.job.job_number}</td>
-                        <td>{rec.job.segment}</td>
+                        <td className="col-seg">{rec.job.segment}</td>
                         <td>{rec.job.properties?.customers?.display_name || '—'}</td>
                         <td>{rec.job.properties?.customers?.primary_phone || '—'}</td>
                         <td style={{ maxWidth: 180, fontSize: 12 }}>{rec.reason || '—'}</td>
@@ -390,7 +390,7 @@ export default function JobsManagement({ profile }) {
                         </td>
                         <td>{rec.scheduledDate ? new Date(rec.scheduledDate + 'T00:00:00').toLocaleDateString() : '—'}</td>
                         <td><span className={`status-pill status-${rec.currentStatus}`}>{STATUS_LABELS[rec.currentStatus] || rec.currentStatus}</span></td>
-                        <td>
+                        <td className="sticky-actions">
                           <div style={{ display: 'flex', gap: 8 }}>
                             {editingRecId === rec.id ? (
                               <>
@@ -467,7 +467,7 @@ export default function JobsManagement({ profile }) {
                 <thead>
                   <tr>
                     <th>Job #</th>
-                    <th>Seg # Assigned</th>
+                    <th className="col-seg">Seg</th>
                     <th>Part Description</th>
                     <th>Part # (optional)</th>
                     <th>PO #</th>
@@ -476,7 +476,7 @@ export default function JobsManagement({ profile }) {
                     <th>Expected Delivery</th>
                     <th>Delivery Verified</th>
                     <th>Schedule Confirmed</th>
-                    <th></th>
+                    <th className="sticky-actions"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -487,11 +487,11 @@ export default function JobsManagement({ profile }) {
                       <tr key={p.id}>
                         <td>{originJob?.job_number || '—'}</td>
                         {editingPartId === p.id ? (
-                          <td>
-                            <input type="number" value={partDraft.segment_assigned} onChange={(e) => setPartDraft({ ...partDraft, segment_assigned: e.target.value })} style={{ width: 60 }} />
+                          <td className="col-seg">
+                            <input type="number" value={partDraft.segment_assigned} onChange={(e) => setPartDraft({ ...partDraft, segment_assigned: e.target.value })} />
                           </td>
                         ) : (
-                          <td>{p.segment_assigned || '—'}</td>
+                          <td className="col-seg">{p.segment_assigned || '—'}</td>
                         )}
                         <td>{p.part_description}</td>
                         {editingPartId === p.id ? (
@@ -541,7 +541,7 @@ export default function JobsManagement({ profile }) {
                             {scheduledDate ? `Scheduled ${new Date(scheduledDate + 'T00:00:00').toLocaleDateString()}` : 'Not Scheduled'}
                           </span>
                         </td>
-                        <td>
+                        <td className="sticky-actions">
                           <div style={{ display: 'flex', gap: 8 }}>
                             {editingPartId === p.id ? (
                               <>

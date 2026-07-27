@@ -2325,3 +2325,19 @@ body {
 .frozen-scroll { overflow: auto; max-height: calc(100vh - 250px); }
 .frozen-scroll .data-table thead th { position: sticky; top: 0; z-index: 3; }
 .frozen-scroll .grid-table .grid-head { position: sticky; top: 0; z-index: 3; }
+
+/* Jobs Management tables: condensed Seg column + right-pinned actions column
+   so the row action buttons stay on screen even when the wide table scrolls
+   horizontally. */
+.data-table th.col-seg,
+.data-table td.col-seg { width: 46px; text-align: center; }
+.data-table th.sticky-actions,
+.data-table td.sticky-actions {
+  position: sticky;
+  right: 0;
+  box-shadow: -7px 0 8px -7px rgba(0, 0, 0, 0.22);
+}
+.data-table th.sticky-actions { z-index: 4; }
+.data-table td.sticky-actions { z-index: 3; }
+.data-table tbody tr:nth-child(even) td.sticky-actions { background: var(--panel); }
+.data-table tbody tr:nth-child(odd) td.sticky-actions { background: var(--ink); }
