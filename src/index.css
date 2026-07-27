@@ -2335,8 +2335,12 @@ body {
 .data-table td.sticky-actions {
   position: sticky;
   right: 0;
+  width: 184px;
+  min-width: 184px;
   box-shadow: -7px 0 8px -7px rgba(0, 0, 0, 0.22);
 }
+.data-table td.sticky-actions > div { flex-wrap: nowrap; white-space: nowrap; }
+.data-table td.sticky-actions button { flex: 0 0 auto; }
 .data-table th.sticky-actions { z-index: 4; }
 .data-table td.sticky-actions { z-index: 3; }
 .data-table tbody tr:nth-child(even) td.sticky-actions { background: var(--panel); }
