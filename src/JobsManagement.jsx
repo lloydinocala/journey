@@ -218,6 +218,7 @@ export default function JobsManagement({ profile }) {
     setEditingPartId(p.id)
     setPartDraft({
       segment_assigned: p.segment_assigned ?? '',
+      part_number: p.part_number || '',
       vendor_id: p.vendor_id || '',
       expected_delivery_date: p.expected_delivery_date || '',
     })
@@ -227,6 +228,7 @@ export default function JobsManagement({ profile }) {
     setSavingPartRow(true)
     await supabase.from('parts_orders').update({
       segment_assigned: partDraft.segment_assigned !== '' ? parseInt(partDraft.segment_assigned, 10) : null,
+      part_number: partDraft.part_number.trim() || null,
       vendor_id: partDraft.vendor_id || null,
       expected_delivery_date: partDraft.expected_delivery_date || null,
     }).eq('id', id)
@@ -492,7 +494,13 @@ export default function JobsManagement({ profile }) {
                           <td>{p.segment_assigned || '—'}</td>
                         )}
                         <td>{p.part_description}</td>
-                        <td>{p.part_number || '—'}</td>
+                        {editingPartId === p.id ? (
+                          <td>
+                            <input type="text" value={partDraft.part_number} onChange={(e) => setPartDraft({ ...partDraft, part_number: e.target.value })} style={{ width: 110 }} />
+                          </td>
+                        ) : (
+                          <td>{p.part_number || '—'}</td>
+                        )}
                         <td>{p.po_number || '—'}</td>
                         {editingPartId === p.id ? (
                           <td>
