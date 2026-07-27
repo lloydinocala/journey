@@ -29,6 +29,9 @@ who can see it (office always; employee = read-only subset?), and how self-acces
 is gated (the /my portal vs. a new view). Likely a medium build; worth a design
 pass before starting.
 
+**Where it lives (Lloyd, 2026-07-27):** build this in the **HR section**
+(Rewards-HVAC · People / HR module), later — not now.
+
 ## Phone privacy — techs' personal numbers exposed on calls
 **Raised:** 2026-07-27 · **Status:** open, needs decision
 
