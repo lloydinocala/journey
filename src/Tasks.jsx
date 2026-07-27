@@ -300,7 +300,7 @@ export default function Tasks({ profile }) {
         <table className="data-table">
           <thead>
             <tr>
-              <th></th>
+              <th style={{ width: 104 }}></th>
               <th>Assigned To</th>
               <th>Destination</th>
               <th>Address</th>
@@ -320,11 +320,13 @@ export default function Tasks({ profile }) {
               return (
               <Fragment key={t.id}>
               <tr style={t.status === 'incomplete' ? { background: 'rgba(255, 107, 107, 0.08)' } : undefined}>
-                <td style={{ display: 'flex', gap: 8 }}>
-                  <button className="logout-button" onClick={() => setExpandedId(open ? null : t.id)}>{open ? 'Hide' : 'Records'}</button>
-                  <button className="logout-button" onClick={() => startEdit(t)}>Edit</button>
-                  {!['completed', 'canceled'].includes(t.status) && <button className="logout-button" onClick={() => cancelTask(t)}>Cancel</button>}
-                  <button className="logout-button" onClick={() => deleteTask(t)}>Delete</button>
+                <td>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'stretch' }}>
+                    <button className="logout-button" style={{ padding: '4px 8px', textAlign: 'center' }} onClick={() => setExpandedId(open ? null : t.id)}>{open ? 'Hide' : 'Records'}</button>
+                    <button className="logout-button" style={{ padding: '4px 8px', textAlign: 'center' }} onClick={() => startEdit(t)}>Edit</button>
+                    {!['completed', 'canceled'].includes(t.status) && <button className="logout-button" style={{ padding: '4px 8px', textAlign: 'center' }} onClick={() => cancelTask(t)}>Cancel</button>}
+                    <button className="logout-button" style={{ padding: '4px 8px', textAlign: 'center' }} onClick={() => deleteTask(t)}>Delete</button>
+                  </div>
                 </td>
                 <td>{userName(t.assigned_user_id)}</td>
                 <td>{t.destination_name}{linkedPart && <span className="status-pill status-scheduled" style={{ marginLeft: 6, fontSize: 10 }}>PARTS</span>}</td>
