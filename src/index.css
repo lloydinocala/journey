@@ -352,6 +352,8 @@ body {
 .status-on_my_way { background: rgba(242, 169, 60, 0.15); color: var(--amber); }
 .status-in_progress { background: rgba(242, 169, 60, 0.15); color: var(--amber); }
 .status-completed { background: rgba(76, 217, 123, 0.15); color: #1F7A43; }
+.status-incomplete { background: rgba(255, 107, 107, 0.15); color: #C0392B; }
+.status-canceled { background: rgba(138, 147, 166, 0.15); color: var(--mist); }
 .status-suspended { background: rgba(255, 107, 107, 0.15); color: #C0392B; }
 
 .org-picker-wrap {
@@ -1032,6 +1034,14 @@ body {
   margin-bottom: 10px;
   cursor: pointer;
   color: var(--paper);
+}
+
+.job-card-item-task {
+  border-left: 4px solid var(--route-blue);
+}
+.job-card-item-task .job-card-number {
+  color: var(--route-blue);
+  letter-spacing: 0.06em;
 }
 
 .job-card-item-top {

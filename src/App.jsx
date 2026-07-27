@@ -13,6 +13,7 @@ import PayrollCapture from './PayrollCapture'
 import TimeClock from './TimeClock'
 import EmployeePayroll from './EmployeePayroll'
 import Vendors from './Vendors'
+import Tasks from './Tasks'
 import VendorDetail from './VendorDetail'
 import Properties from './Properties'
 import Jobs from './Jobs'
@@ -39,6 +40,7 @@ import PropertyImport from './PropertyImport'
 import JobImport from './JobImport'
 import TechJobs from './TechJobs'
 import TechJobCard from './TechJobCard'
+import TechTaskCard from './TechTaskCard'
 import TechInvoice from './TechInvoice'
 import TechEstimate from './TechEstimate'
 import TechSystemEstimate from './TechSystemEstimate'
@@ -140,6 +142,7 @@ function AuthenticatedApp() {
       <Route element={<TechGate profile={profile} />}>
         <Route path="/tech" element={<TechJobs profile={profile} />} />
         <Route path="/tech/settings" element={<TechSettings profile={profile} />} />
+        <Route path="/tech/task/:taskId" element={<TechTaskCard profile={profile} />} />
         <Route path="/tech/:jobId" element={<TechJobCard profile={profile} />} />
         <Route path="/tech/invoice/:jobId" element={<TechInvoice profile={profile} />} />
         <Route path="/tech/estimate/:jobId" element={<TechEstimate profile={profile} />} />
@@ -161,6 +164,7 @@ function AuthenticatedApp() {
         <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
         <Route path="/text-archive" element={<TextArchive profile={profile} />} />
         <Route path="/jobs-management" element={<JobsManagement profile={profile} />} />
+        <Route path="/tasks" element={<Tasks profile={profile} />} />
         <Route path="/payroll" element={<PayrollCapture profile={profile} />} />
         <Route path="/time-clock" element={<TimeClock profile={profile} />} />
         <Route path="/payroll/employee/:userId" element={<EmployeePayroll profile={profile} />} />

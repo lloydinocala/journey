@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
@@ -29,6 +29,7 @@ function todayISO() {
 const blankPartForm = { part_description: '', part_number: '', po_number: '', vendor_id: '', segment_assigned: '', expected_delivery_date: '' }
 
 export default function JobsManagement({ profile }) {
+  const navigate = useNavigate()
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [loading, setLoading] = useState(true)
@@ -282,7 +283,7 @@ export default function JobsManagement({ profile }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h2 className="page-title" style={{ margin: 0 }}>Jobs Management</h2>
-        <NewItemDropdown onSelect={setNewItemMode} />
+        <NewItemDropdown onSelect={(m) => (m === 'task' ? navigate('/tasks') : setNewItemMode(m))} />
       </div>
 
       {isSuperAdmin && (

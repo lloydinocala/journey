@@ -31,7 +31,7 @@ export default function TechJobs({ profile }) {
   const navigate = useNavigate()
   const isSuperAdmin = profile?.role === 'super_admin'
 
-  const [jobs, setJobs] = useState([])
+  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [date, setDate] = useState(todayISO())
   const [effUid, setEffUid] = useState(null)
@@ -91,7 +91,7 @@ export default function TechJobs({ profile }) {
     }
 
     if (!uid || !orgId) {
-      setJobs([])
+      setItems([])
       setLoading(false)
       return
     }
@@ -99,35 +99,45 @@ export default function TechJobs({ profile }) {
     setEffUid(uid)
     setEffOrgId(orgId)
 
-    // job_technicians is the single source of truth for assignment — find
+    // Day window for tasks (scheduled_at is a timestamp; jobs use a job_date).
+    const nextDate = new Date(new Date(date + 'T00:00:00').getTime() + 86400000).toISOString().slice(0, 10)
+
+    // job_technicians is the single source of truth for job assignment — find
     // this tech's job IDs for the day, then load those jobs' full details.
-    const { data: assignedRows } = await supabase
-      .from('job_technicians')
-      .select('job_id')
-      .eq('org_id', orgId)
-      .eq('user_id', uid)
+    // field_tasks are assigned directly to the user and loaded in parallel.
+    const [{ data: assignedRows }, { data: taskRows }] = await Promise.all([
+      supabase.from('job_technicians').select('job_id').eq('org_id', orgId).eq('user_id', uid),
+      supabase
+        .from('field_tasks')
+        .select('id, destination_name, address, scheduled_at, status')
+        .eq('org_id', orgId)
+        .eq('assigned_user_id', uid)
+        .is('deleted_at', null)
+        .gte('scheduled_at', date + 'T00:00:00')
+        .lt('scheduled_at', nextDate + 'T00:00:00'),
+    ])
 
     const jobIds = [...new Set((assignedRows || []).map((r) => r.job_id))]
-    if (jobIds.length === 0) {
-      setJobs([])
-      setLoading(false)
-      return
+    let jobRows = []
+    if (jobIds.length > 0) {
+      const { data } = await supabase
+        .from('jobs')
+        .select(`
+          id, job_number, segment, status, job_date, start_time, job_type, service_complaint,
+          properties ( street_address, unit, city, state, zip ),
+          customers ( display_name )
+        `)
+        .eq('org_id', orgId)
+        .eq('job_date', date)
+        .is('deleted_at', null)
+        .in('id', jobIds)
+      jobRows = data || []
     }
 
-    const { data } = await supabase
-      .from('jobs')
-      .select(`
-        id, job_number, segment, status, job_date, start_time, job_type, service_complaint,
-        properties ( street_address, unit, city, state, zip ),
-        customers ( display_name )
-      `)
-      .eq('org_id', orgId)
-      .eq('job_date', date)
-      .is('deleted_at', null)
-      .in('id', jobIds)
-
-    const all = (data || []).sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
-    setJobs(all)
+    const jobItems = jobRows.map((j) => ({ kind: 'job', sortKey: j.start_time || '', data: j }))
+    const taskItems = (taskRows || []).map((t) => ({ kind: 'task', sortKey: t.scheduled_at || '', data: t }))
+    const all = [...jobItems, ...taskItems].sort((a, b) => (a.sortKey || '').localeCompare(b.sortKey || ''))
+    setItems(all)
     setLoading(false)
   }
 
@@ -190,26 +200,40 @@ export default function TechJobs({ profile }) {
 
         {loading ? (
           <p style={{ color: 'var(--mist)', padding: '4px 2px' }}>Loading…</p>
-        ) : jobs.length === 0 ? (
+        ) : items.length === 0 ? (
           <p style={{ color: 'var(--mist)', padding: '4px 2px' }}>
             {isFieldAdmin(profile)
-              ? "You have no jobs of your own today — use Supervisor Tools above to check the team's schedule or create a job."
-              : 'No jobs scheduled for this day.'}
+              ? "You have nothing of your own today — use Supervisor Tools above to check the team's schedule or create a job."
+              : 'Nothing scheduled for this day.'}
           </p>
         ) : (
-          jobs.map((j) => (
-            <div key={j.id} className="job-card-item" onClick={() => navigate(`/tech/${j.id}`)}>
+          items.map((it) => it.kind === 'task' ? (
+            <div key={`t-${it.data.id}`} className="job-card-item job-card-item-task" onClick={() => navigate(`/tech/task/${it.data.id}`)}>
               <div className="job-card-item-top">
-                <span className="job-card-number">{j.job_number}{j.segment > 1 ? `-${j.segment}` : ''}</span>
-                <span className={`status-pill status-${j.status}`}>{STATUS_LABEL[j.status] || j.status}</span>
+                <span className="job-card-number">TASK</span>
+                <span className={`status-pill status-${it.data.status}`}>{STATUS_LABEL[it.data.status] || it.data.status}</span>
               </div>
-              <div className="job-card-customer">{j.customers?.display_name || 'Unknown Customer'}</div>
+              <div className="job-card-customer">{it.data.destination_name}</div>
               <div className="job-card-sub">
-                {timeLabel(j.start_time)}{timeLabel(j.start_time) && ' · '}{j.job_type || 'Job'}
+                {timeLabel(it.data.scheduled_at)}{timeLabel(it.data.scheduled_at) && ' · '}Task
               </div>
-              {j.properties?.street_address && (
+              {it.data.address && (
+                <div className="job-card-address">{it.data.address}</div>
+              )}
+            </div>
+          ) : (
+            <div key={`j-${it.data.id}`} className="job-card-item" onClick={() => navigate(`/tech/${it.data.id}`)}>
+              <div className="job-card-item-top">
+                <span className="job-card-number">{it.data.job_number}{it.data.segment > 1 ? `-${it.data.segment}` : ''}</span>
+                <span className={`status-pill status-${it.data.status}`}>{STATUS_LABEL[it.data.status] || it.data.status}</span>
+              </div>
+              <div className="job-card-customer">{it.data.customers?.display_name || 'Unknown Customer'}</div>
+              <div className="job-card-sub">
+                {timeLabel(it.data.start_time)}{timeLabel(it.data.start_time) && ' · '}{it.data.job_type || 'Job'}
+              </div>
+              {it.data.properties?.street_address && (
                 <div className="job-card-address">
-                  {j.properties.street_address}{j.properties.unit ? ` #${j.properties.unit}` : ''}, {j.properties.city}
+                  {it.data.properties.street_address}{it.data.properties.unit ? ` #${it.data.properties.unit}` : ''}, {it.data.properties.city}
                 </div>
               )}
             </div>
