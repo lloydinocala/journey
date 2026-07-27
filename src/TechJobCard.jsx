@@ -365,30 +365,37 @@ export default function TechJobCard({ profile }) {
       const dest = await geocodeAddress(addr, key)
       if (cancelled) return
       if (!dest) { setArrivalState('off'); return }
-      // Poll coarse (network) location on a timer — fast and works indoors, unlike
-      // high-accuracy GPS which can hang inside a building. 250 m ring + slack for
-      // the geocoder approximation and the coarse fix's own accuracy.
-      const checkPos = () => {
+      // Continuous watchPosition is the right API for a device driving toward the
+      // site — iOS delivers fresh fixes as it moves, whereas repeated high-accuracy
+      // getCurrentPosition calls tend to hang/time out (green "armed" but no fix, so
+      // it never fires). A one-shot coarse fix runs first so a distance shows right
+      // away for feedback; only accurate fixes are allowed to auto-fire arrival.
+      const RING = 220 // meters; plus a slack for each fix's own accuracy
+      const onFix = (pos, canFire) => {
         if (cancelled) return
-        navigator.geolocation.getCurrentPosition((pos) => {
-          if (cancelled) return
-          const here = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-          const d = haversineMeters(here, dest)
-          setArrivalDist(Math.round(d)); setGeoNote('')
-          const ring = 250 + Math.min(pos.coords.accuracy || 0, 200)
-          if (d <= ring) { updateStatus('in_progress'); clearGeoWatch() }
-        }, (err) => {
-          if (err && err.code === 1) { setArrivalState('off'); return } // denied
-          setGeoNote(err && err.code === 2 ? 'waiting for GPS signal' : 'still locating') // 2=unavailable, 3=timeout — keep trying
-        }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 12000 })
+        const here = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        const d = haversineMeters(here, dest)
+        const acc = pos.coords.accuracy || 0
+        setArrivalDist(Math.round(d)); setGeoNote('')
+        // Only auto-start on a trustworthy fix (guards against a wildly coarse
+        // network fix reading as "arrived"). Manual Start My Time is always there.
+        if (canFire && acc <= 500 && d <= RING + Math.min(acc, 250)) {
+          updateStatus('in_progress'); clearGeoWatch()
+        }
       }
-      checkPos()
-      geoWatchRef.current = window.setInterval(checkPos, 6000)
+      const onErr = (err) => {
+        if (err && err.code === 1) { setArrivalState('off'); return } // denied
+        setGeoNote(err && err.code === 2 ? 'waiting for GPS signal' : 'still locating') // 2=unavailable, 3=timeout — keep trying
+      }
+      // Fast first fix for an immediate distance readout (display only).
+      navigator.geolocation.getCurrentPosition((pos) => onFix(pos, false), () => {}, { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 })
+      // Continuous high-accuracy watch drives the actual auto-start.
+      geoWatchRef.current = navigator.geolocation.watchPosition((pos) => onFix(pos, true), onErr, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 })
     }
     arm()
     return () => { cancelled = true; clearGeoWatch() }
   }, [autoStartArmed, job?.id])
-  function clearGeoWatch() { if (geoWatchRef.current != null) { window.clearInterval(geoWatchRef.current); geoWatchRef.current = null } }
+  function clearGeoWatch() { if (geoWatchRef.current != null) { navigator.geolocation.clearWatch(geoWatchRef.current); geoWatchRef.current = null } }
 
   // ---- nav lock: cannot leave once timing started until Stop My Time ----
   const timingLocked = status === 'in_progress'
