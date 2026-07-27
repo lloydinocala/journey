@@ -2,6 +2,33 @@
 
 Running list of items parked for a decision or a later build phase. Newest first.
 
+## Employee file — a per-employee record of jobs + tasks (with optional self-access)
+**Raised:** 2026-07-27 · **Status:** idea, to scope
+
+Lloyd's idea: an "employee file" that works like a customer file, but for a team
+member — one place that lists **all of that employee's jobs and tasks/errands as
+a record** (what they did, when, time worked, outcome). The employee could be
+**granted access to their own file** for peace of mind.
+
+Guiding principle (Lloyd's words): protect the business first, but do so with
+**full, just, and fair treatment of every employee as a priority — this is a
+people business.** So the record should be accurate and complete enough to
+protect the company (documentation, time, completion, GPS at button presses),
+while also being something an employee is comfortable seeing about themselves.
+
+Building blocks that already exist to feed this:
+- Tasks now capture Start/Stop times + GPS snapshots + completion/Incomplete
+  reason, and a per-employee task-pay summary.
+- Jobs carry status history, assignments (job_technicians), invoices, approvals.
+- Per-user pay rates now live on the user record (standard + task hourly).
+- There is already an EmployeePayroll view and a "My Pay & Benefits" (/my)
+  self-service portal — the employee-file self-access could extend that.
+
+**To scope:** what the file shows (jobs, tasks, time, pay, docs, discipline?),
+who can see it (office always; employee = read-only subset?), and how self-access
+is gated (the /my portal vs. a new view). Likely a medium build; worth a design
+pass before starting.
+
 ## Phone privacy — techs' personal numbers exposed on calls
 **Raised:** 2026-07-27 · **Status:** open, needs decision
 
