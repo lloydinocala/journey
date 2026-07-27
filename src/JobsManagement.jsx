@@ -77,6 +77,47 @@ export default function JobsManagement({ profile }) {
         fetchAllRows(() => supabase.from('parts_orders').select('*').eq('org_id', orgId).order('created_at', { ascending: false })),
         fetchAllRows(() => supabase.from('vendors').select('id, name, phone').eq('org_id', orgId).eq('is_active', true).order('name')),
       ])
+      // Auto-fill Brand / Model # / Serial # from the property's equipment on file
+      // (the same data shown on the Properties page) for any incomplete record that
+      // hasn't been filled in yet. Persisted so it's saved and editable.
+      const propIds = [...new Set(records.map((r) => r.jobs?.property_id).filter(Boolean))]
+      if (propIds.length) {
+        const { data: equip } = await supabase
+          .from('property_equipment')
+          .select('property_id, created_at, outdoor_brand, outdoor_model, outdoor_serial, indoor_brand, indoor_model, indoor_serial, furnace_brand, furnace_model, furnace_serial')
+          .in('property_id', propIds)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+        const byProp = {}
+        for (const e of equip || []) { if (!byProp[e.property_id]) byProp[e.property_id] = e } // most recent system per property
+        const pick = (e) => {
+          if (!e) return null
+          for (const u of ['outdoor', 'indoor', 'furnace']) {
+            const b = e[`${u}_brand`], m = e[`${u}_model`], s = e[`${u}_serial`]
+            if (b || m || s) return { equipment_brand: b || null, equipment_model: m || null, equipment_serial: s || null }
+          }
+          return null
+        }
+        const toBackfill = []
+        for (const rec of records) {
+          if (rec.equipment_brand || rec.equipment_model || rec.equipment_serial) continue // already filled
+          const sugg = pick(byProp[rec.jobs?.property_id])
+          if (sugg) {
+            rec.equipment_brand = sugg.equipment_brand
+            rec.equipment_model = sugg.equipment_model
+            rec.equipment_serial = sugg.equipment_serial
+            toBackfill.push({ id: rec.id, ...sugg })
+          }
+        }
+        if (toBackfill.length) {
+          await Promise.all(toBackfill.map((r) =>
+            supabase.from('job_incomplete_records')
+              .update({ equipment_brand: r.equipment_brand, equipment_model: r.equipment_model, equipment_serial: r.equipment_serial })
+              .eq('id', r.id)
+          ))
+        }
+      }
+
       setIncompleteRecords(records)
       setAllJobs(jobs)
       setPartsOrders(parts)
