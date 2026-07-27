@@ -31,6 +31,17 @@ function haversineMeters(a, b) {
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2
   return 2 * R * Math.asin(Math.sqrt(s))
 }
+// One-shot best-effort GPS read, used to stamp each button press.
+function getPos() {
+  return new Promise((res) => {
+    if (!('geolocation' in navigator)) return res(null)
+    navigator.geolocation.getCurrentPosition(
+      (p) => res({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => res(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+    )
+  })
+}
 // Keyless US Census geocoder (CORS-enabled) — same primary path the job card uses.
 async function geocodeAddress(address) {
   try {
@@ -51,6 +62,7 @@ export default function TechTaskCard({ profile }) {
   const geoWatchRef = useRef(null)
 
   const [task, setTask] = useState(null)
+  const [part, setPart] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [dark] = useState(() => { try { return localStorage.getItem('jc-theme') === 'dark' } catch { return false } })
@@ -69,6 +81,16 @@ export default function TechTaskCard({ profile }) {
     setLoading(true)
     const { data } = await supabase.from('field_tasks').select('*').eq('id', taskId).single()
     setTask(data)
+    if (data?.parts_order_id) {
+      const { data: po } = await supabase
+        .from('parts_orders')
+        .select('id, part_description, part_number, po_number, delivery_verified, jobs ( job_number ), vendors ( name )')
+        .eq('id', data.parts_order_id)
+        .single()
+      setPart(po || null)
+    } else {
+      setPart(null)
+    }
     setLoading(false)
   }
   useEffect(() => { loadTask() }, [taskId])
@@ -86,6 +108,15 @@ export default function TechTaskCard({ profile }) {
     const { error } = await supabase.from('field_tasks').update(patch).eq('id', taskId)
     if (!error) setTask((p) => ({ ...p, ...patch }))
     setSaving(false)
+  }
+
+  async function pressOnMyWay() {
+    const c = await getPos()
+    updateStatus('on_my_way', c ? { on_my_way_lat: c.lat, on_my_way_lng: c.lng } : {})
+  }
+  async function pressStart() {
+    const c = await getPos()
+    updateStatus('in_progress', c ? { started_lat: c.lat, started_lng: c.lng } : {})
   }
 
   // ---- GPS auto-start (best effort, same approach as the job card) ----
@@ -108,7 +139,7 @@ export default function TechTaskCard({ profile }) {
         const acc = pos.coords.accuracy || 0
         setArrivalDist(Math.round(d)); setGeoNote('')
         if (canFire && acc <= 500 && d <= RING + Math.min(acc, 250)) {
-          updateStatus('in_progress'); clearGeoWatch()
+          updateStatus('in_progress', { started_lat: here.lat, started_lng: here.lng }); clearGeoWatch()
         }
       }
       const onErr = (err) => {
@@ -131,14 +162,22 @@ export default function TechTaskCard({ profile }) {
   function onStopMyTime() { setReason(''); setReasonNote(''); setStopError(''); setShowStop(true) }
 
   async function finishComplete() {
-    await updateStatus('completed')
+    const c = await getPos()
+    await updateStatus('completed', c ? { stopped_lat: c.lat, stopped_lng: c.lng } : {})
+    // A completed parts-pickup task marks the linked part Delivery Verified —
+    // the pickup is done. The job itself is intentionally left unchanged.
+    if (task.parts_order_id) {
+      await supabase.from('parts_orders').update({ delivery_verified: true }).eq('id', task.parts_order_id)
+      setPart((p) => (p ? { ...p, delivery_verified: true } : p))
+    }
     setShowStop(false)
     clearGeoWatch()
   }
   async function finishIncomplete() {
     if (!reason) { setStopError('Please choose a reason so the office knows what happened.'); return }
     const full = reason === 'Other' ? (reasonNote.trim() || 'Other') : (reasonNote.trim() ? `${reason} — ${reasonNote.trim()}` : reason)
-    await updateStatus('incomplete', { incomplete_reason: full })
+    const c = await getPos()
+    await updateStatus('incomplete', { incomplete_reason: full, ...(c ? { stopped_lat: c.lat, stopped_lng: c.lng } : {}) })
     setShowStop(false)
     clearGeoWatch()
   }
@@ -185,8 +224,8 @@ export default function TechTaskCard({ profile }) {
 
         {/* Flow buttons */}
         <div className="jc-actions">
-          <button className={`jc-flow-btn ${omwClass}`} disabled={status !== 'scheduled' || saving} onClick={() => updateStatus('on_my_way')}>On My Way</button>
-          <button className={`jc-flow-btn ${startClass}`} disabled={status !== 'on_my_way' || saving} onClick={() => updateStatus('in_progress')}>Start My Time</button>
+          <button className={`jc-flow-btn ${omwClass}`} disabled={status !== 'scheduled' || saving} onClick={pressOnMyWay}>On My Way</button>
+          <button className={`jc-flow-btn ${startClass}`} disabled={status !== 'on_my_way' || saving} onClick={pressStart}>Start My Time</button>
           <button className={`jc-flow-btn ${stopClass}`} disabled={!started || saving} onClick={onStopMyTime}>Stop My Time</button>
         </div>
         {enRoute && (
@@ -215,6 +254,24 @@ export default function TechTaskCard({ profile }) {
             )}
           </div>
         </div>
+
+        {/* Parts pickup (if this task is linked to a parts order) */}
+        {part && (
+          <div className="jc-task">
+            <div className={`jc-task-head ${part.delivery_verified ? 'blue' : 'red'}`}>
+              <IconList /><span className="jc-th-title">Parts Pickup{part.delivery_verified ? ' — Verified' : ''}</span>
+            </div>
+            <div className="jc-task-body">
+              <div style={{ fontSize: 15, fontWeight: 600 }}>{part.part_description}{part.part_number ? ` (#${part.part_number})` : ''}</div>
+              <div style={{ fontSize: 14, color: 'var(--jc-muted, #667)', marginTop: 2 }}>
+                {[part.vendors?.name ? `From ${part.vendors.name}` : '', part.po_number ? `PO ${part.po_number}` : '', part.jobs?.job_number ? `Job ${part.jobs.job_number}` : ''].filter(Boolean).join(' · ')}
+              </div>
+              <div style={{ fontSize: 13, marginTop: 8, color: 'var(--jc-muted, #667)' }}>
+                Completing this task marks the part picked up (Delivery Verified). It does not close the job.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Description */}
         {task.description && (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { fetchAllRows } from './utils/csvImport'
@@ -20,7 +20,19 @@ function todayISO() {
 
 const blankForm = {
   assigned_user_id: '', destination_name: '', address: '', description: '',
-  date: todayISO(), time: '09:00', duration_minutes: '30',
+  date: todayISO(), time: '09:00', duration_minutes: '30', parts_order_id: '',
+}
+
+function vendorAddr(v) {
+  if (!v) return ''
+  return [v.street_address, [v.city, v.state].filter(Boolean).join(', '), v.zip].filter(Boolean).join(' ').trim()
+}
+function mapLink(lat, lng) {
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+}
+function fmtStamp(t) {
+  if (!t) return null
+  return new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
 export default function Tasks({ profile }) {
@@ -28,8 +40,10 @@ export default function Tasks({ profile }) {
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [tasks, setTasks] = useState([])
   const [users, setUsers] = useState([])
+  const [parts, setParts] = useState([])
   const [loading, setLoading] = useState(true)
   const [showDone, setShowDone] = useState(false)
+  const [expandedId, setExpandedId] = useState(null)
 
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(blankForm)
@@ -51,18 +65,22 @@ export default function Tasks({ profile }) {
   async function loadAll(orgId) {
     if (!orgId) return
     setLoading(true)
-    const [taskData, userData] = await Promise.all([
+    const [taskData, userData, partData] = await Promise.all([
       fetchAllRows(() => supabase.from('field_tasks').select('*').eq('org_id', orgId).is('deleted_at', null).order('scheduled_at', { ascending: false })),
       supabase.from('users').select('id, full_name, role').eq('org_id', orgId).eq('is_active', true).order('full_name'),
+      supabase.from('parts_orders').select('id, part_description, part_number, po_number, delivery_verified, jobs ( job_number ), vendors ( name, street_address, city, state, zip )').eq('org_id', orgId).order('created_at', { ascending: false }),
     ])
     setTasks(taskData)
     setUsers(userData.data || [])
+    setParts(partData.data || [])
     setLoading(false)
   }
 
   useEffect(() => { loadAll(selectedOrg) }, [selectedOrg])
 
   function userName(id) { return users.find((u) => u.id === id)?.full_name || '—' }
+  function partById(id) { return parts.find((p) => p.id === id) || null }
+  function partLabel(p) { return `J-${p.jobs?.job_number || '?'} · ${p.part_description}${p.vendors?.name ? ' (' + p.vendors.name + ')' : ''}${p.delivery_verified ? ' — verified' : ''}` }
 
   function resetForm() { setForm(blankForm); setEditingId(null); setError(''); setShowForm(false) }
 
@@ -77,10 +95,24 @@ export default function Tasks({ profile }) {
       date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
       time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
       duration_minutes: String(t.duration_minutes || 30),
+      parts_order_id: t.parts_order_id || '',
     })
     setEditingId(t.id)
     setError('')
     setShowForm(true)
+  }
+
+  // Selecting a parts order fills in the pickup destination from its vendor.
+  function choosePart(id) {
+    if (!id) { setForm((f) => ({ ...f, parts_order_id: '' })); return }
+    const p = partById(id)
+    setForm((f) => ({
+      ...f,
+      parts_order_id: id,
+      destination_name: p?.vendors?.name ? `${p.vendors.name} — parts pickup` : (f.destination_name || 'Parts pickup'),
+      address: vendorAddr(p?.vendors) || f.address,
+      description: p ? `Pick up: ${p.part_description}${p.po_number ? ' · PO ' + p.po_number : ''}` : f.description,
+    }))
   }
 
   // A task may not overlap the assigned user's scheduled jobs or their other tasks.
@@ -149,6 +181,7 @@ export default function Tasks({ profile }) {
       description: form.description.trim() || null,
       scheduled_at: scheduled.toISOString(),
       duration_minutes: dur,
+      parts_order_id: form.parts_order_id || null,
     }
 
     let err
@@ -237,6 +270,13 @@ export default function Tasks({ profile }) {
             <label>Est. Minutes</label>
             <input type="number" min="5" step="5" value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: e.target.value })} />
           </div>
+          <div className="field" style={{ minWidth: 260 }}>
+            <label>Link to Parts Order (optional)</label>
+            <select value={form.parts_order_id} onChange={(e) => choosePart(e.target.value)}>
+              <option value="">None — standalone task</option>
+              {parts.map((p) => <option key={p.id} value={p.id}>{partLabel(p)}</option>)}
+            </select>
+          </div>
           <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto' }}>
             {saving ? 'Saving…' : editingId ? 'Save changes' : 'Add task'}
           </button>
@@ -266,22 +306,64 @@ export default function Tasks({ profile }) {
             </tr>
           </thead>
           <tbody>
-            {visible.map((t) => (
-              <tr key={t.id} style={t.status === 'incomplete' ? { background: 'rgba(255, 107, 107, 0.08)' } : undefined}>
+            {visible.map((t) => {
+              const linkedPart = t.parts_order_id ? partById(t.parts_order_id) : null
+              const open = expandedId === t.id
+              return (
+              <Fragment key={t.id}>
+              <tr style={t.status === 'incomplete' ? { background: 'rgba(255, 107, 107, 0.08)' } : undefined}>
                 <td style={{ display: 'flex', gap: 8 }}>
+                  <button className="logout-button" onClick={() => setExpandedId(open ? null : t.id)}>{open ? 'Hide' : 'Records'}</button>
                   <button className="logout-button" onClick={() => startEdit(t)}>Edit</button>
                   {!['completed', 'canceled'].includes(t.status) && <button className="logout-button" onClick={() => cancelTask(t)}>Cancel</button>}
                   <button className="logout-button" onClick={() => deleteTask(t)}>Delete</button>
                 </td>
                 <td>{userName(t.assigned_user_id)}</td>
-                <td>{t.destination_name}</td>
+                <td>{t.destination_name}{linkedPart && <span className="status-pill status-scheduled" style={{ marginLeft: 6, fontSize: 10 }}>PARTS</span>}</td>
                 <td>{t.address || '—'}</td>
                 <td>{new Date(t.scheduled_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
                 <td>{t.duration_minutes}m</td>
                 <td><span className={`status-pill status-${t.status}`}>{STATUS_LABEL[t.status] || t.status}</span></td>
                 <td style={{ maxWidth: 220, fontSize: 12 }}>{t.status === 'incomplete' ? (t.incomplete_reason || 'Reported incomplete') : '—'}</td>
               </tr>
-            ))}
+              {open && (
+                <tr>
+                  <td colSpan="8" style={{ background: 'var(--ink)', padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', gap: 40, flexWrap: 'wrap' }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--mist)', marginBottom: 8 }}>Button Records</div>
+                        {[['On My Way', t.on_my_way_at, t.on_my_way_lat, t.on_my_way_lng],
+                          ['Start My Time', t.started_at, t.started_lat, t.started_lng],
+                          ['Stop My Time', t.stopped_at, t.stopped_lat, t.stopped_lng]].map(([label, at, lat, lng]) => (
+                          <div key={label} style={{ fontSize: 13, margin: '3px 0' }}>
+                            <strong>{label}:</strong> {fmtStamp(at) || <span style={{ color: 'var(--mist)' }}>— not yet</span>}
+                            {at && lat != null && lng != null && (
+                              <> · <a href={mapLink(lat, lng)} target="_blank" rel="noreferrer">location ↗</a></>
+                            )}
+                            {at && (lat == null || lng == null) && <span style={{ color: 'var(--mist)' }}> · no GPS captured</span>}
+                          </div>
+                        ))}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--mist)', marginBottom: 8 }}>Parts Link</div>
+                        {linkedPart ? (
+                          <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                            <div>Job {linkedPart.jobs?.job_number || '—'} · {linkedPart.part_description}</div>
+                            <div>{linkedPart.vendors?.name || '—'}{linkedPart.po_number ? ` · PO ${linkedPart.po_number}` : ''}</div>
+                            <div><span className={`status-pill ${linkedPart.delivery_verified ? 'status-completed' : 'status-scheduled'}`}>{linkedPart.delivery_verified ? 'Delivery Verified' : 'Pickup Pending'}</span></div>
+                          </div>
+                        ) : <div style={{ fontSize: 13, color: 'var(--mist)' }}>Standalone task — not tied to a job or parts order.</div>}
+                        {t.status === 'incomplete' && (
+                          <div style={{ marginTop: 10, fontSize: 13 }}><strong style={{ color: '#C0392B' }}>Incomplete:</strong> {t.incomplete_reason || 'Reported incomplete'}</div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </Fragment>
+              )
+            })}
             {visible.length === 0 && (
               <tr><td colSpan="8" style={{ color: 'var(--mist)' }}>No tasks{showDone ? '' : ' open'} right now.</td></tr>
             )}
