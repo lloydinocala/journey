@@ -2083,16 +2083,16 @@ body {
    ============================================================ */
 .job-card-v2 {
   --jc-red: #FF0000;
-  --jc-blue: #215F9A;
+  --jc-blue: #002060;
   --jc-white: #FFFFFF;
-  --jc-black: #000000;
+  --jc-black: #002060;
   --jc-green: #1AA260;
   --jc-yellow: #FFE100;
-  --jc-screen: #EEF1F4;
+  --jc-screen: #D9D9D9;
   --jc-card: #FFFFFF;
-  --jc-ink: #101418;
+  --jc-ink: #002060;
   --jc-muted: #5A6672;
-  --jc-line: #E2E7EC;
+  --jc-line: #C7CDDA;
   --jc-shadow: 3px 5px 14px rgba(16,24,40,0.16), 1px 2px 5px rgba(16,24,40,0.10);
 }
 .job-card-v2.mobile-shell { background: var(--jc-screen); color: var(--jc-ink); width: 100%; max-width: 100%; overflow-x: hidden; }
@@ -2122,10 +2122,10 @@ body {
 .jc-sub { font-size: 13px; color: rgba(255,255,255,0.82); margin-top: 1px; }
 .jc-status {
   flex-shrink: 0; font-size: 12px; font-weight: 900; letter-spacing: 0.5px; padding: 6px 12px;
-  border-radius: 8px; background: var(--jc-red); color: var(--jc-yellow); border: 2px solid var(--jc-yellow);
+  border-radius: 8px; background: var(--jc-red); color: #fff; border: 2px solid rgba(255,255,255,0.45);
   text-transform: uppercase;
 }
-.jc-status.done { background: var(--jc-green); }
+.jc-status.done { background: var(--jc-green); color: #fff; }
 .jc-theme-toggle { flex-shrink: 0; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.5); border-radius: 999px; width: 30px; height: 30px; cursor: pointer; font-size: 14px; color: #fff; }
 
 .jc-body { flex: 1; overflow-y: auto; padding: 12px 12px 48px; -webkit-overflow-scrolling: touch; }
@@ -2160,18 +2160,21 @@ body {
 .jc-flow-btn:disabled { cursor: default; }
 
 /* --- Task / info section (collapsible, colored header bar) ---- */
-.jc-task { background: var(--jc-card); border-radius: 14px; margin-bottom: 12px; box-shadow: var(--jc-shadow); overflow: hidden; }
+/* White card; the colored BORDER (red incomplete -> blue complete) carries state. */
+.jc-task { background: var(--jc-card); border: 2px solid var(--jc-blue); border-radius: 14px; margin-bottom: 12px; box-shadow: var(--jc-shadow); overflow: hidden; }
+.jc-task:has(.jc-task-head.red) { border-color: var(--jc-red); }
+.jc-task:has(.jc-task-head.blue) { border-color: var(--jc-blue); }
 .jc-task-head {
   display: flex; align-items: center; gap: 9px; padding: 13px 15px; cursor: pointer;
-  font-size: 15px; font-weight: 800; color: #fff; background: var(--jc-blue); border: none; width: 100%; text-align: left; font-family: inherit;
+  font-size: 15px; font-weight: 800; color: var(--jc-blue); background: var(--jc-card); border: none; width: 100%; text-align: left; font-family: inherit;
 }
-.jc-task-head.red { background: var(--jc-red); }
-.jc-task-head.blue { background: var(--jc-blue); }
-.jc-task-head svg { color: #fff; width: 18px; height: 18px; flex-shrink: 0; }
+.jc-task-head.red { background: var(--jc-card); color: var(--jc-blue); }
+.jc-task-head.blue { background: var(--jc-card); color: var(--jc-blue); }
+.jc-task-head svg { color: var(--jc-blue); width: 18px; height: 18px; flex-shrink: 0; }
 .jc-task-head .jc-th-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jc-task-head .jc-th-actions { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
-.jc-th-action { background: none; border: none; color: #fff; font-weight: 800; font-size: 13.5px; cursor: pointer; font-family: inherit; padding: 0; opacity: 0.95; }
-.jc-th-chevron { color: rgba(255,255,255,0.9); font-size: 13px; transition: transform 0.15s; flex-shrink: 0; }
+.jc-th-action { background: none; border: none; color: var(--jc-blue); font-weight: 800; font-size: 13.5px; cursor: pointer; font-family: inherit; padding: 0; opacity: 0.95; }
+.jc-th-chevron { color: var(--jc-blue); font-size: 13px; transition: transform 0.15s; flex-shrink: 0; }
 .jc-th-chevron.open { transform: rotate(90deg); }
 .jc-task-body { padding: 14px 15px 16px; }
 
@@ -2262,10 +2265,16 @@ body {
 .job-card-v2.jc-dark .jc-title, .job-card-v2.jc-dark .jc-tenant-name, .job-card-v2.jc-dark .jc-system-label { color: #fff; }
 .job-card-v2.jc-dark .jc-action-link { background: #232C36; color: #EAF0F6; }
 .job-card-v2.jc-dark .jc-field input, .job-card-v2.jc-dark .jc-field select, .job-card-v2.jc-dark .jc-field textarea, .job-card-v2.jc-dark .jc-notes { background: #232C36; color: #EAF0F6; border-color: #2A333D; }
+/* Dark mode: white-on-navy headers/borders don't work on a dark card — lift them. */
+.job-card-v2.jc-dark .jc-task-head, .job-card-v2.jc-dark .jc-task-head svg, .job-card-v2.jc-dark .jc-th-action, .job-card-v2.jc-dark .jc-th-chevron { color: #EAF0F6; }
+.job-card-v2.jc-dark .jc-task { border-color: #4E7BB5; }
+.job-card-v2.jc-dark .jc-task:has(.jc-task-head.blue) { border-color: #4E7BB5; }
+.job-card-v2.jc-dark .jc-task:has(.jc-task-head.red) { border-color: var(--jc-red); }
+.job-card-v2.jc-dark .jc-flow-btn:not(.red):not(.blue) { color: #EAF0F6; border-color: #4E7BB5; }
 
 /* Collapsed task headers read as a single solid rounded pill; open headers square off where the body meets. */
 .job-card-v2 .jc-task-head { border-radius: 14px; }
-.job-card-v2 .jc-task:has(.jc-task-body) .jc-task-head { border-radius: 14px 14px 0 0; }
+.job-card-v2 .jc-task:has(.jc-task-body) .jc-task-head { border-radius: 14px 14px 0 0; border-bottom: 1px solid var(--jc-line); }
 .job-card-v2 .jc-task-body { border-radius: 0 0 14px 14px; }
 
 /* Service History — tappable past visits showing billed line items */
