@@ -1,3 +1,4 @@
+import QuincyBadge from './QuincyBadge'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './utils/supabase'
 import { IconSparkles, IconPhone } from './MobileIcons'
@@ -96,7 +97,7 @@ export default function ApolloWidget({ profile }) {
       {open && (
         <div className="apollo-widget-panel">
           <div className="apollo-widget-header">
-            <span><IconSparkles style={{ verticalAlign: 'middle', marginRight: 6 }} />Quincy · Operations</span>
+            <span><span style={{ marginRight: 7, display: 'inline-flex', verticalAlign: 'middle' }}><QuincyBadge size={22} /></span>Quincy · Operations</span>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button className="apollo-widget-icon-btn" title="Contact Support" onClick={() => setSupportOpen(true)}>
                 <IconPhone />

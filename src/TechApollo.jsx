@@ -1,3 +1,4 @@
+import QuincyBadge from './QuincyBadge'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
@@ -110,7 +111,7 @@ export default function TechApollo({ profile }) {
       <div className="mobile-header job-detail-header">
         <button className="mobile-back" onClick={() => navigate(-1)}><IconChevronLeft /></button>
         <div className="job-detail-header-text">
-          <div className="job-detail-title"><IconSparkles style={{ verticalAlign: 'middle', marginRight: 6 }} />Quincy · Operations</div>
+          <div className="job-detail-title"><span style={{ marginRight: 7, display: 'inline-flex', verticalAlign: 'middle' }}><QuincyBadge size={22} /></span>Quincy · Operations</div>
           <div className="job-detail-sub">In-app help &amp; support</div>
         </div>
         <button className="mobile-header-action-btn" style={{ marginRight: 6 }} onClick={() => setClearConfirmOpen(true)}>
