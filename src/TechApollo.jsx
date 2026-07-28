@@ -9,7 +9,7 @@ import MobileNav from './MobileNav'
 const SUPPORT_PHONE_DISPLAY = '(352) 484-6341'
 const SUPPORT_PHONE_TEL = '3524846341'
 
-const GREETING = { role: 'assistant', content: "Hi, I'm Apollo. Ask me anything about using Journey, or a general question — I'm here to help." }
+const GREETING = { role: 'assistant', content: "Hi, I'm Quincy. Ask me anything about using Journey, or a general question — I'm here to help." }
 
 export default function TechApollo({ profile }) {
   const navigate = useNavigate()
@@ -86,7 +86,7 @@ export default function TechApollo({ profile }) {
     setSending(false)
 
     if (fnError || data?.error) {
-      setError(data?.error || fnError?.message || 'Apollo is having trouble responding right now.')
+      setError(data?.error || fnError?.message || 'Quincy is having trouble responding right now.')
       return
     }
 
@@ -110,7 +110,7 @@ export default function TechApollo({ profile }) {
       <div className="mobile-header job-detail-header">
         <button className="mobile-back" onClick={() => navigate(-1)}><IconChevronLeft /></button>
         <div className="job-detail-header-text">
-          <div className="job-detail-title"><IconSparkles style={{ verticalAlign: 'middle', marginRight: 6 }} />Apollo</div>
+          <div className="job-detail-title"><IconSparkles style={{ verticalAlign: 'middle', marginRight: 6 }} />Quincy · Operations</div>
           <div className="job-detail-sub">In-app help &amp; support</div>
         </div>
         <button className="mobile-header-action-btn" style={{ marginRight: 6 }} onClick={() => setClearConfirmOpen(true)}>
@@ -140,7 +140,7 @@ export default function TechApollo({ profile }) {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask Apollo…"
+          placeholder="Ask Quincy…"
           disabled={sending || loadingHistory}
         />
         <button type="submit" disabled={sending || loadingHistory || !input.trim()}>Send</button>
@@ -154,7 +154,7 @@ export default function TechApollo({ profile }) {
           <div className="support-modal">
             <div className="support-modal-title">Contact Support</div>
             <p className="support-modal-text">
-              There may be a wait to reach a Support Agent by phone. It may be faster to chat with Apollo first.
+              There may be a wait to reach a Support Agent by phone. It may be faster to chat with Quincy first.
             </p>
             <p className="support-modal-question">Do you wish to continue this call to a live Support Agent?</p>
             <div className="support-modal-actions">
@@ -179,7 +179,7 @@ export default function TechApollo({ profile }) {
           <div className="support-modal-backdrop" onClick={() => setClearConfirmOpen(false)} />
           <div className="support-modal">
             <div className="support-modal-title">Clear Conversation</div>
-            <p className="support-modal-text">This deletes your Apollo chat history. This can't be undone.</p>
+            <p className="support-modal-text">This deletes your Quincy chat history. This can't be undone.</p>
             <div className="support-modal-actions">
               <button className="action-btn" style={{ background: '#F0F1F3', color: 'var(--paper)' }} onClick={() => setClearConfirmOpen(false)}>
                 Cancel

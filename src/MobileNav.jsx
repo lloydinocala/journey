@@ -14,7 +14,7 @@ export default function MobileNav({ profile }) {
     { key: 'calendar', label: admin ? 'Schedule' : 'Calendar', icon: IconCalendar, path: admin ? '/tech/schedule' : null },
     { key: 'jobcards', label: 'Job Cards', icon: IconList, path: '/tech' },
     { key: 'misc', label: admin ? 'New Job' : 'Misc', icon: IconMore, path: admin ? '/tech/new-job' : null },
-    { key: 'apollo', label: 'Apollo', icon: IconSparkles, path: '/tech/apollo' },
+    { key: 'apollo', label: 'Quincy', icon: IconSparkles, path: '/tech/apollo' },
   ]
 
   const active = TABS.find((t) => t.path && location.pathname === t.path)?.key
