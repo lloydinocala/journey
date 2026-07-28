@@ -3,6 +3,25 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { IconChevronLeft, IconFile } from './MobileIcons'
 
+function unitLine(label, brand, model, serial) {
+  if (!brand && !model && !serial) return null
+  return `${label} ${[brand, model].filter(Boolean).join(' ')}${serial ? ' SN ' + serial : ''}`.trim()
+}
+function buildEquipSummary(list) {
+  const parts = list.map((e, i) => {
+    const label = e.system_label || `System ${i + 1}`
+    if (e.info_unavailable_reason) return `${label}: information not available — ${e.info_unavailable_reason}`
+    const units = [
+      unitLine('Outdoor', e.outdoor_brand, e.outdoor_model, e.outdoor_serial),
+      unitLine('Indoor', e.indoor_brand, e.indoor_model, e.indoor_serial),
+      unitLine('Furnace', e.furnace_brand, e.furnace_model, e.furnace_serial),
+    ].filter(Boolean)
+    return `${label}: ${units.join('; ') || '—'}`
+  })
+  if (!parts.length) return null
+  return 'Equipment on file — ' + parts.join('  |  ')
+}
+
 export default function TechEstimate({ profile }) {
   const { jobId } = useParams()
   const navigate = useNavigate()
@@ -35,7 +54,7 @@ export default function TechEstimate({ profile }) {
     setLoading(true)
     const { data: jobData } = await supabase
       .from('jobs')
-      .select('id, job_number, job_date, org_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
+      .select('id, job_number, job_date, org_id, customer_id, property_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
       .eq('id', jobId)
       .single()
     setJob(jobData)
@@ -81,9 +100,14 @@ export default function TechEstimate({ profile }) {
           taxable: !tc.services?.is_tax_exempt,
           is_custom: false,
           sort_order: 1,
+          category: 'TRIP CHARGES',
         })
       }
     }
+
+    // Item 9: pull the property's equipment (or the reason it's unavailable) onto
+    // the estimate as a non-billable "Equipment on File" note line, kept in sync.
+    await syncEquipmentLine(existingEstimate.id, jobData)
 
     setEstimate(existingEstimate)
     setDiscountType(existingEstimate.discount_type || 'dollar')
@@ -106,6 +130,18 @@ export default function TechEstimate({ profile }) {
   async function loadLineItems(estimateId) {
     const { data } = await supabase.from('invoice_line_items').select('*').eq('invoice_id', estimateId).order('sort_order')
     setLineItems(data || [])
+  }
+
+  async function syncEquipmentLine(estimateId, jobData) {
+    if (!jobData?.property_id) return
+    const { data: eqp } = await supabase.from('property_equipment')
+      .select('system_label, outdoor_brand, outdoor_model, outdoor_serial, indoor_brand, indoor_model, indoor_serial, furnace_brand, furnace_model, furnace_serial, info_unavailable_reason')
+      .eq('property_id', jobData.property_id).eq('status', 'active').order('created_at')
+    const summary = buildEquipSummary(eqp || [])
+    const { data: existing } = await supabase.from('invoice_line_items').select('id').eq('invoice_id', estimateId).eq('category', 'EQUIPMENT ON FILE').maybeSingle()
+    if (!summary) { if (existing) await supabase.from('invoice_line_items').delete().eq('id', existing.id); return }
+    if (existing) await supabase.from('invoice_line_items').update({ description: summary }).eq('id', existing.id)
+    else await supabase.from('invoice_line_items').insert({ invoice_id: estimateId, org_id: jobData.org_id, description: summary, unit_price: 0, quantity: 1, taxable: false, is_custom: false, sort_order: 0, category: 'EQUIPMENT ON FILE' })
   }
 
   useEffect(() => { loadJobAndEstimate() }, [jobId])

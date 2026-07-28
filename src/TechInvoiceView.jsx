@@ -22,6 +22,7 @@ const NOT_PRESENT_REASONS = [
   'Approved by spouse or household member',
   'Approved by property manager or landlord',
   'Tenant present, owner approved remotely',
+  'Customer declined the estimate',
   'Other',
 ]
 
@@ -38,6 +39,8 @@ export default function TechInvoiceView({ profile }) {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sendError, setSendError] = useState('')
   const [copyLabel, setCopyLabel] = useState('Copy Link')
+  const [realItems, setRealItems] = useState(0)          // billable items (excl. trip charge / equipment note)
+  const [hasWorkFinished, setHasWorkFinished] = useState(false)  // after-work signature/reason on file
 
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
@@ -95,6 +98,15 @@ export default function TechInvoiceView({ profile }) {
     setInvoiceRow(rowRes.data)
     setPayments(paymentsRes.data || [])
 
+    // Send gates: a real billable item must exist, and (for invoices) the
+    // after-work signature/reason must be on file.
+    const { data: liRows } = await supabase.from('invoice_line_items').select('category').eq('invoice_id', invoiceId)
+    setRealItems((liRows || []).filter((r) => r.category !== 'TRIP CHARGES' && r.category !== 'EQUIPMENT ON FILE').length)
+    if (rowRes.data?.job_id) {
+      const { data: wf } = await supabase.from('job_approvals').select('id').eq('job_id', rowRes.data.job_id).eq('stage', 'work_finished').limit(1)
+      setHasWorkFinished(!!(wf && wf.length))
+    }
+
     // Pull any existing "work approved to begin" authorization for this job.
     if (rowRes.data?.job_id) {
       const { data: authRows } = await supabase
@@ -118,8 +130,19 @@ export default function TechInvoiceView({ profile }) {
   }, [invoiceId])
 
   async function handleSendEmail() {
-    setSendingEmail(true)
     setSendError('')
+    const isEst = invoiceRow?.kind === 'estimate'
+    if (realItems < 1) {
+      setSendError(`Add at least one service or custom item before sending this ${isEst ? 'estimate' : 'invoice'}. (The trip charge alone doesn't count.)`)
+      return
+    }
+    if (isEst) {
+      if (!invoiceRow?.approved_at) { setSendError('Record the customer’s signature — or a note such as “declined” — in Customer Approval below before sending the estimate.'); return }
+    } else if (!hasWorkFinished) {
+      setSendError('Capture the after-work signature (or a reason for no signature) in the job’s Signatures section before sending the invoice.')
+      return
+    }
+    setSendingEmail(true)
     const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId } })
     setSendingEmail(false)
     if (error) {
@@ -283,13 +306,17 @@ export default function TechInvoiceView({ profile }) {
       return
     }
 
-    await supabase.from('jobs').update({ status: 'incomplete' }).eq('id', invoiceRow.job_id)
-
-    await supabase.from('job_incomplete_records').insert({
-      org_id: invoiceRow.org_id,
-      job_id: invoiceRow.job_id,
-      estimate_id: invoiceId,
-    })
+    // A declined estimate is recorded (so it can be sent/noted) but does NOT start
+    // the follow-up "Incomplete Jobs" workflow — no approved work to schedule.
+    const declined = useTypedFallback && /declin/i.test(notPresentReason)
+    if (!declined) {
+      await supabase.from('jobs').update({ status: 'incomplete' }).eq('id', invoiceRow.job_id)
+      await supabase.from('job_incomplete_records').insert({
+        org_id: invoiceRow.org_id,
+        job_id: invoiceRow.job_id,
+        estimate_id: invoiceId,
+      })
+    }
 
     setSavingApproval(false)
     setApproving(false)

@@ -80,6 +80,7 @@ export default function TechInvoice({ profile }) {
           taxable: !tc.services?.is_tax_exempt,
           is_custom: false,
           sort_order: 1,
+          category: 'TRIP CHARGES',
         })
       }
     }

@@ -78,8 +78,13 @@ function dataUrlToBlob(dataUrl) {
   for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
   return new Blob([arr], { type: mime })
 }
+// Trip charge and the auto-added Equipment-on-File note are not "real" billable
+// line items — a service or custom item must be added before viewing/sending.
+const NON_ITEM_CATEGORIES = ['TRIP CHARGES', 'EQUIPMENT ON FILE']
+function isRealLineItem(li) { return !NON_ITEM_CATEGORIES.includes(li.category) }
 function isSystemFilled(eq) {
   if (!eq) return false
+  if (eq.info_unavailable_reason) return true  // a recorded reason counts as documented
   const hasSerial = !!(eq.outdoor_serial || eq.indoor_serial || eq.furnace_serial)
   const hasModel = !!(eq.outdoor_model || eq.indoor_model || eq.furnace_model)
   return hasSerial && hasModel
@@ -205,11 +210,11 @@ export default function TechJobCard({ profile }) {
 
   // Customer edit
   const [showCustEdit, setShowCustEdit] = useState(false)
-  const [custForm, setCustForm] = useState({ name: '', relationship: '', street: '', unit: '', city: '', state: '', zip: '' })
+  const [custForm, setCustForm] = useState({ name: '', relationship: '', street: '', unit: '', city: '', state: '', zip: '', email: '', phone: '' })
   const [savingCust, setSavingCust] = useState(false)
 
   // Equipment form
-  const blankEquip = { system_label: '', outdoor_brand: '', outdoor_model: '', outdoor_serial: '', indoor_brand: '', indoor_model: '', indoor_serial: '', furnace_brand: '', furnace_model: '', furnace_serial: '', install_date: '', notes: '' }
+  const blankEquip = { system_label: '', outdoor_brand: '', outdoor_model: '', outdoor_serial: '', indoor_brand: '', indoor_model: '', indoor_serial: '', furnace_brand: '', furnace_model: '', furnace_serial: '', install_date: '', notes: '', info_unavailable_reason: '' }
   const [equipForm, setEquipForm] = useState(blankEquip)
   const [showEquipForm, setShowEquipForm] = useState(false)
   const [equipEditingId, setEquipEditingId] = useState(null)
@@ -249,6 +254,7 @@ export default function TechJobCard({ profile }) {
     const { data } = await supabase.from('jobs').select(`
       id, org_id, property_id, customer_id, job_number, segment, status, start_time, duration_hours, job_type,
       service_complaint, internal_notes, auth_diagnose_only, auth_limit_amount, service_estimate_not_needed, plan_options_sent_at,
+      tech_email_edited_at, tech_phone_edited_at,
       properties ( street_address, unit, city, state, zip, expected_system_count ),
       customers ( display_name, spouse_name, primary_phone, secondary_phone, email_1 ),
       trip_charge:trip_charge_price_id ( location, access, hours, price, services ( name ) )
@@ -268,16 +274,17 @@ export default function TechJobCard({ profile }) {
     const { data } = await supabase.from('invoices').select('id, invoice_number, job_total, amount_due, paid_at, sent_at, org_id').eq('job_id', jobId).eq('kind', 'invoice').maybeSingle()
     setInvoice(data || null)
     if (data) {
-      const { count } = await supabase.from('invoice_line_items').select('id', { count: 'exact', head: true }).eq('invoice_id', data.id)
-      setInvoiceItems(count || 0)
+      // Trip charge / equipment note don't count — a real service or custom item must be added.
+      const { data: li } = await supabase.from('invoice_line_items').select('category').eq('invoice_id', data.id)
+      setInvoiceItems((li || []).filter(isRealLineItem).length)
     } else setInvoiceItems(0)
   }
   async function loadServiceEstimate() {
     const { data } = await supabase.from('invoices').select('id, sent_at').eq('job_id', jobId).eq('kind', 'estimate').eq('estimate_type', 'service').maybeSingle()
     setServiceEstimate(data || null)
     if (data) {
-      const { count } = await supabase.from('invoice_line_items').select('id', { count: 'exact', head: true }).eq('invoice_id', data.id)
-      setServiceEstItems(count || 0)
+      const { data: li } = await supabase.from('invoice_line_items').select('category').eq('invoice_id', data.id)
+      setServiceEstItems((li || []).filter(isRealLineItem).length)
     } else setServiceEstItems(0)
   }
   async function loadApprovals() {
@@ -338,7 +345,9 @@ export default function TechJobCard({ profile }) {
   const photosDone = photos.length > 0
   const invoiceDone = !!invoice && invoiceItems > 0
   const viewSendDone = !!invoice?.sent_at
-  const sigDone = SIG_STAGES.every((s) => approvals.some((a) => a.stage === s.key))
+  // Before-work signature is optional; the after-work (work_finished) signature
+  // or reason is what's required.
+  const sigDone = approvals.some((a) => a.stage === 'work_finished')
   const planExists = !!plan
   const planSent = !!job?.plan_options_sent_at
   const maintDone = planExists || planSent
@@ -370,7 +379,7 @@ export default function TechJobCard({ profile }) {
       // getCurrentPosition calls tend to hang/time out (green "armed" but no fix, so
       // it never fires). A one-shot coarse fix runs first so a distance shows right
       // away for feedback; only accurate fixes are allowed to auto-fire arrival.
-      const RING = 220 // meters; plus a slack for each fix's own accuracy
+      const RING = 150 // meters; plus a slack for each fix's own accuracy
       const onFix = (pos, canFire) => {
         if (cancelled) return
         const here = { lat: pos.coords.latitude, lng: pos.coords.longitude }
@@ -509,7 +518,7 @@ export default function TechJobCard({ profile }) {
   }
   function startEquipEdit(eq) {
     setEquipEditingId(eq.id)
-    setEquipForm({ system_label: eq.system_label || '', outdoor_brand: eq.outdoor_brand || '', outdoor_model: eq.outdoor_model || '', outdoor_serial: eq.outdoor_serial || '', indoor_brand: eq.indoor_brand || '', indoor_model: eq.indoor_model || '', indoor_serial: eq.indoor_serial || '', furnace_brand: eq.furnace_brand || '', furnace_model: eq.furnace_model || '', furnace_serial: eq.furnace_serial || '', install_date: eq.install_date || '', notes: eq.notes || '' })
+    setEquipForm({ system_label: eq.system_label || '', outdoor_brand: eq.outdoor_brand || '', outdoor_model: eq.outdoor_model || '', outdoor_serial: eq.outdoor_serial || '', indoor_brand: eq.indoor_brand || '', indoor_model: eq.indoor_model || '', indoor_serial: eq.indoor_serial || '', furnace_brand: eq.furnace_brand || '', furnace_model: eq.furnace_model || '', furnace_serial: eq.furnace_serial || '', install_date: eq.install_date || '', notes: eq.notes || '', info_unavailable_reason: eq.info_unavailable_reason || '' })
     setScanMsg(''); setShowEquipForm(true); setOpen('equipment', true)
   }
   async function saveEquipment() {
@@ -521,6 +530,7 @@ export default function TechJobCard({ profile }) {
       indoor_brand: equipForm.indoor_brand.trim() || null, indoor_model: equipForm.indoor_model.trim() || null, indoor_serial: equipForm.indoor_serial.trim() || null,
       furnace_brand: equipForm.furnace_brand.trim() || null, furnace_model: equipForm.furnace_model.trim() || null, furnace_serial: equipForm.furnace_serial.trim() || null,
       install_date: equipForm.install_date || null, notes: equipForm.notes.trim() || null,
+      info_unavailable_reason: equipForm.info_unavailable_reason || null,
     }
     if (equipEditingId) await supabase.from('property_equipment').update(payload).eq('id', equipEditingId)
     else await supabase.from('property_equipment').insert({ ...payload, org_id: job.org_id, property_id: job.property_id, status: 'active' })
@@ -573,18 +583,36 @@ export default function TechJobCard({ profile }) {
 
   function openCustEdit() {
     const a = job.properties || {}
-    setCustForm({ name: occupant?.name || '', relationship: occupant?.relationship || '', street: a.street_address || '', unit: a.unit || '', city: a.city || '', state: a.state || '', zip: a.zip || '' })
+    setCustForm({ name: occupant?.name || '', relationship: occupant?.relationship || '', street: a.street_address || '', unit: a.unit || '', city: a.city || '', state: a.state || '', zip: a.zip || '', email: job.customers?.email_1 || '', phone: occupant?.phone || '' })
     setShowCustEdit(true); setOpen('customer', true)
   }
   async function saveCustEdit() {
     setSavingCust(true)
-    // occupant name + status (first tenant)
+    // occupant name + status (first tenant) + primary tenant phone
+    const emailLocked = !!job.tech_email_edited_at
+    const phoneLocked = !!job.tech_phone_edited_at
+    const newPhone = custForm.phone.trim() || null
     const tp = { name: custForm.name.trim() || null, relationship: custForm.relationship || null }
-    if (occupant) { if (tp.name || tp.relationship) await supabase.from('property_tenants').update(tp).eq('id', occupant.id) }
-    else if (tp.name || tp.relationship) await supabase.from('property_tenants').insert({ ...tp, org_id: job.org_id, property_id: job.property_id })
+    if (!phoneLocked) tp.phone = newPhone
+    if (occupant) { await supabase.from('property_tenants').update(tp).eq('id', occupant.id) }
+    else if (tp.name || tp.relationship || tp.phone) await supabase.from('property_tenants').insert({ ...tp, org_id: job.org_id, property_id: job.property_id })
+    // email (customer) — one-time tech correction
+    const jobPatch = {}
+    if (!emailLocked) {
+      const newEmail = custForm.email.trim() || null
+      if (newEmail !== (job.customers?.email_1 || null)) {
+        await supabase.from('customers').update({ email_1: newEmail }).eq('id', job.customer_id)
+        jobPatch.tech_email_edited_at = new Date().toISOString()
+        setJob((p) => ({ ...p, customers: { ...p.customers, email_1: newEmail } }))
+      }
+    }
+    if (!phoneLocked && newPhone !== (occupant?.phone || null)) {
+      jobPatch.tech_phone_edited_at = new Date().toISOString()
+    }
     // address (properties)
     await supabase.from('properties').update({ street_address: custForm.street.trim() || null, unit: custForm.unit.trim() || null, city: custForm.city.trim() || null, state: custForm.state.trim() || null, zip: custForm.zip.trim() || null }).eq('id', job.property_id)
-    setJob((p) => ({ ...p, properties: { ...p.properties, street_address: custForm.street.trim() || null, unit: custForm.unit.trim() || null, city: custForm.city.trim() || null, state: custForm.state.trim() || null, zip: custForm.zip.trim() || null } }))
+    setJob((p) => ({ ...p, ...jobPatch, properties: { ...p.properties, street_address: custForm.street.trim() || null, unit: custForm.unit.trim() || null, city: custForm.city.trim() || null, state: custForm.state.trim() || null, zip: custForm.zip.trim() || null } }))
+    if (Object.keys(jobPatch).length) await supabase.from('jobs').update(jobPatch).eq('id', jobId)
     setSavingCust(false); setShowCustEdit(false)
     await loadTenants(job.property_id)
   }
@@ -700,7 +728,7 @@ export default function TechJobCard({ profile }) {
                   )}
                   {phoneList.map((p) => (
                     <div key={p} className="jc-phone">
-                      <span>{formatPhone(p)}</span>
+                      <span>Phone</span>
                       <div className="jc-phone-icons">
                         <a className="call" href={`tel:${p}`} title="Call" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconPhone /></a>
                         <button className="text" title="Messages" onClick={() => navigate(`/tech/messages/${jobId}`)}><IconMessage /></button>
@@ -729,7 +757,19 @@ export default function TechJobCard({ profile }) {
                     <div className="jc-field"><label>State</label><input value={custForm.state} onChange={(e) => setCustForm({ ...custForm, state: e.target.value })} /></div>
                     <div className="jc-field"><label>ZIP</label><input value={custForm.zip} onChange={(e) => setCustForm({ ...custForm, zip: e.target.value })} /></div>
                   </div>
-                  <p className="jc-muted-note" style={{ marginBottom: 10 }}>Phone &amp; email are managed by the office.</p>
+                  <div className="jc-field"><label>Email address</label>
+                    {job.tech_email_edited_at
+                      ? <input value={job.customers?.email_1 || ''} readOnly disabled style={{ opacity: 0.7 }} />
+                      : <input type="email" value={custForm.email} onChange={(e) => setCustForm({ ...custForm, email: e.target.value })} placeholder="name@example.com" />}
+                    {job.tech_email_edited_at && <p className="jc-muted-note" style={{ margin: '4px 0 0' }}>Corrected — locked.</p>}
+                  </div>
+                  <div className="jc-field"><label>Primary phone</label>
+                    {job.tech_phone_edited_at
+                      ? <input value={formatPhone(occupant?.phone) || ''} readOnly disabled style={{ opacity: 0.7 }} />
+                      : <input type="tel" value={custForm.phone} onChange={(e) => setCustForm({ ...custForm, phone: e.target.value })} placeholder="555-123-4567" />}
+                    {job.tech_phone_edited_at && <p className="jc-muted-note" style={{ margin: '4px 0 0' }}>Corrected — locked.</p>}
+                  </div>
+                  <p className="jc-muted-note" style={{ marginBottom: 10 }}>Email &amp; phone can be corrected once here; the fix syncs to the office and then locks.</p>
                   <button className="jc-btn wide" disabled={savingCust} onClick={saveCustEdit}>{savingCust ? 'Saving…' : 'Save'}</button>
                 </>
               )}
@@ -758,11 +798,9 @@ export default function TechJobCard({ profile }) {
             actions={<>
               <button className="jc-th-action" onClick={() => { setOpen('attachments', true); cameraInputRef.current?.click() }}>Take Photo</button>
               <button className="jc-th-action" onClick={() => { setOpen('attachments', true); fileInputRef.current?.click() }}>Upload</button>
-              <button className="jc-th-action" onClick={() => { setOpen('attachments', true); attachScanRef.current?.click() }}>Scan</button>
             </>} />
           <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" multiple style={{ display: 'none' }} onChange={handlePhotoSelect} />
           <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotoSelect} />
-          <input ref={attachScanRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleAttachScan} />
           {isOpen('attachments') && (
             <div className="jc-task-body">
               {scanNotice && <p className="jc-muted-note" style={{ color: 'var(--jc-blue)', marginBottom: 10 }}>{scanNotice}</p>}
@@ -798,7 +836,11 @@ export default function TechJobCard({ profile }) {
                   <div className="jc-kv"><span>Total Due</span><strong>${invoiceTotal.toFixed(2)}</strong></div>
                   <div className="jc-kv"><span>Status</span><strong>{invoice.paid_at ? 'Paid' : 'Unpaid'}{invoice.sent_at ? ' · Sent' : ''}</strong></div>
                   {exceedsLimit && <div className="jc-exceeds">⚠ Exceeds Repair Limit (${repairLimit.toFixed(2)}) — re-authorize or adjust the invoice to complete.</div>}
-                  <button className="jc-btn wide" style={{ marginTop: 10 }} onClick={() => navigate(`/tech/invoice-view/${invoice.id}`)}>View &amp; Send Invoice</button>
+                  {invoiceItems > 0 ? (
+                    <button className="jc-btn wide" style={{ marginTop: 10 }} onClick={() => navigate(`/tech/invoice-view/${invoice.id}`)}>View &amp; Send Invoice</button>
+                  ) : (
+                    <p className="jc-plan-none" style={{ padding: '10px 0 2px' }}>Add at least one service or custom item in Invoice Builder before viewing or sending. (The trip charge alone doesn't count.)</p>
+                  )}
                 </>
               )}
             </div>
@@ -881,6 +923,7 @@ export default function TechJobCard({ profile }) {
                       <div><strong>Outdoor:</strong> {[eq.outdoor_brand, eq.outdoor_model].filter(Boolean).join(' ') || '—'}{eq.outdoor_serial ? ` (SN: ${eq.outdoor_serial})` : ''}</div>
                       <div><strong>Indoor:</strong> {[eq.indoor_brand, eq.indoor_model].filter(Boolean).join(' ') || '—'}{eq.indoor_serial ? ` (SN: ${eq.indoor_serial})` : ''}</div>
                       <div><strong>Furnace:</strong> {[eq.furnace_brand, eq.furnace_model].filter(Boolean).join(' ') || '—'}{eq.furnace_serial ? ` (SN: ${eq.furnace_serial})` : ''}</div>
+                      {eq.info_unavailable_reason && <div style={{ color: 'var(--jc-red)', fontWeight: 700, marginTop: 4 }}>Data not available: {eq.info_unavailable_reason}</div>}
                     </div>
                     <div className="jc-system-actions"><button className="jc-btn-sm" onClick={() => startEquipEdit(eq)}>Edit</button><button className="jc-btn-sm" style={{ color: 'var(--jc-red)' }} onClick={() => deleteEquipment(eq.id)}>Remove</button></div>
                   </div>
@@ -900,6 +943,13 @@ export default function TechJobCard({ profile }) {
                   <div className="jc-unit-head"><span>Furnace</span><button className="jc-scan-btn" disabled={scanBusy} onClick={() => startUnitScan('furnace')}><IconCamera /> Scan label</button></div>
                   <div className="jc-field-row"><div className="jc-field"><label>Brand</label><input value={equipForm.furnace_brand} onChange={(e) => setEquipForm({ ...equipForm, furnace_brand: e.target.value })} /></div><div className="jc-field"><label>Model</label><input value={equipForm.furnace_model} onChange={(e) => setEquipForm({ ...equipForm, furnace_model: e.target.value })} /></div></div>
                   <div className="jc-field"><label>Serial</label><input value={equipForm.furnace_serial} onChange={(e) => setEquipForm({ ...equipForm, furnace_serial: e.target.value })} /></div>
+                  <div className="jc-field"><label>If details are unavailable, why?</label>
+                    <select value={equipForm.info_unavailable_reason} onChange={(e) => setEquipForm({ ...equipForm, info_unavailable_reason: e.target.value })}>
+                      <option value="">— Details captured above —</option>
+                      <option value="Unable to read label">Unable to read label</option>
+                      <option value="Data plate missing">Data plate missing</option>
+                    </select>
+                  </div>
                   <button className="jc-btn wide" disabled={savingEquip} onClick={saveEquipment}>{savingEquip ? 'Saving…' : equipEditingId ? 'Save Changes' : 'Add System'}</button>
                 </div>
               )}
@@ -931,16 +981,24 @@ export default function TechJobCard({ profile }) {
         {/* Service Estimate (required) */}
         <div className="jc-task">
           <TaskHead k="service_estimate" title="Service Estimate" icon={<IconFile />} done={serviceEstDone}
-            actions={<button className="jc-th-action" onClick={() => { setOpen('service_estimate', true); navigate(`/tech/estimate/${jobId}`) }}>+Add</button>} />
+            actions={<button className="jc-th-action" onClick={() => { setOpen('service_estimate', true); if (equipDone || job.service_estimate_not_needed) navigate(`/tech/estimate/${jobId}`) }}>+Add</button>} />
           {isOpen('service_estimate') && (
             <div className="jc-task-body">
               <label className="jc-not-needed">
                 <input type="checkbox" checked={!!job.service_estimate_not_needed} onChange={(e) => markServiceEstimateNotNeeded(e.target.checked)} />
                 Not Needed for this job
               </label>
-              <Link to={`/tech/estimate/${jobId}`} className="jc-action-link"><IconFile /><span>Build Service Estimate</span><span className="jc-chev">›</span></Link>
+              {!job.service_estimate_not_needed && !equipDone ? (
+                <p className="jc-plan-none" style={{ padding: '10px 0 2px' }}>Record the Equipment on File first — the Service Estimate pulls each system's brand, model and serial (or the reason it's unavailable) from it.</p>
+              ) : !job.service_estimate_not_needed && (
+                <Link to={`/tech/estimate/${jobId}`} className="jc-action-link"><IconFile /><span>Build Service Estimate</span><span className="jc-chev">›</span></Link>
+              )}
               {serviceEstimate && (
-                <button className="jc-btn red wide" style={{ marginTop: 4 }} onClick={() => navigate(`/tech/invoice-view/${serviceEstimate.id}`)}>View, Sign &amp; Send Service Estimate</button>
+                serviceEstItems > 0 ? (
+                  <button className="jc-btn red wide" style={{ marginTop: 4 }} onClick={() => navigate(`/tech/invoice-view/${serviceEstimate.id}`)}>View, Sign &amp; Send Service Estimate</button>
+                ) : (
+                  <p className="jc-plan-none" style={{ padding: '10px 0 2px' }}>Add at least one line item to the estimate before viewing or sending.</p>
+                )
               )}
             </div>
           )}
