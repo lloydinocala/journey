@@ -6,6 +6,7 @@ import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
 import { ELEMENTS_NAV, ELEMENTS_FLEET_NAV } from './modules/elements-hvac'
 import { REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV } from './modules/rewards-hvac'
+import { MARKETING_NAV } from './modules/marketing-hvac'
 
 const CATEGORIES = [
   { key: 'operations', label: 'Operations', items: [
@@ -62,6 +63,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/rewards/payroll')) return 'rewards-payroll'
   if (pathname.startsWith('/rewards/certified')) return 'rewards-cert'
   if (pathname.startsWith('/rewards')) return 'rewards'
+  if (pathname.startsWith('/marketing')) return 'marketing'
   if (pathname.startsWith('/import')) return 'import'
   if (pathname.startsWith('/organizations') || pathname.startsWith('/announcements')) return 'platform'
   if (pathname.startsWith('/my')) return 'personal'
@@ -77,7 +79,10 @@ export default function Layout({ profile }) {
   const showRewards = profile?.role !== 'tech' && (isSuperAdmin || profile?.rewardsEntitled)
   const withElements = showElements ? [...CATEGORIES, ELEMENTS_NAV, ELEMENTS_FLEET_NAV] : CATEGORIES
   const baseCategories = showRewards ? [...withElements, REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV] : withElements
-  const withPersonal = showRewards ? [...baseCategories, PERSONAL_CATEGORY] : baseCategories
+  // Marketing-HVAC — platform owner or an entitled subscriber.
+  const showMarketing = profile?.role !== 'tech' && (isSuperAdmin || profile?.marketingEntitled)
+  const withMarketing = showMarketing ? [...baseCategories, MARKETING_NAV] : baseCategories
+  const withPersonal = showRewards ? [...withMarketing, PERSONAL_CATEGORY] : withMarketing
   const allCategories = isSuperAdmin ? [...withPersonal, PLATFORM_CATEGORY] : withPersonal
 
   const [expandedCategory, setExpandedCategory] = useState(getCategoryForPath(location.pathname))
