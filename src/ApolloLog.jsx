@@ -96,7 +96,7 @@ export default function ApolloLog({ profile }) {
   if (!isSuperAdmin && !isOrgAdmin) {
     return (
       <div>
-        <h2 className="page-title">Apollo Conversation Log</h2>
+        <h2 className="page-title">Quincy Conversation Log</h2>
         <p style={{ color: 'var(--mist)' }}>Only Admins can view this log.</p>
       </div>
     )
@@ -115,7 +115,7 @@ export default function ApolloLog({ profile }) {
         .print-only { display: none; }
       `}</style>
 
-      <h2 className="page-title">Apollo Conversation Log</h2>
+      <h2 className="page-title">Quincy Conversation Log</h2>
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: -8, marginBottom: 20 }}>
         Conversations are not private — this log is visible to Admins. Conversations older than 14 days are deleted automatically.
       </p>
@@ -181,7 +181,7 @@ export default function ApolloLog({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : filteredGroups.length === 0 ? (
-        <p style={{ color: 'var(--mist)' }}>No Apollo conversations match.</p>
+        <p style={{ color: 'var(--mist)' }}>No Quincy conversations match.</p>
       ) : (
         filteredGroups.map((g, i) => (
           <div key={i} className="apollo-log-group" style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 14 }}>
@@ -200,7 +200,7 @@ export default function ApolloLog({ profile }) {
                       <span className="screen-only">{g.name.split(' ')[0] || 'User'}</span>
                       <span className="print-only">Employee</span>
                     </>
-                  ) : 'Apollo'}:
+                  ) : 'Quincy'}:
                 </span>
                 <span>{m.content}</span>
                 {m.role === 'user' && m.topic && (

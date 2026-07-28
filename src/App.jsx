@@ -54,6 +54,7 @@ import TechGate from './TechGate'
 import TechSettings from './TechSettings'
 import { ELEMENTS_ROUTES, ELEMENTS_FLEET_ROUTES } from './modules/elements-hvac'
 import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES, MyPortal } from './modules/rewards-hvac'
+import { MARKETING_ROUTES } from './modules/marketing-hvac'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
 
 async function logSignIn(userId) {
@@ -113,7 +114,7 @@ function AuthenticatedApp() {
           supabase.auth.signOut()
           return
         }
-        const [permsRes, elemRes, rewardsRes] = await Promise.all([
+        const [permsRes, elemRes, rewardsRes, mktRes] = await Promise.all([
           supabase.from('user_permissions').select('permission_key').eq('user_id', session.user.id),
           userRes.data.org_id
             ? supabase.from('elements_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
@@ -121,12 +122,16 @@ function AuthenticatedApp() {
           userRes.data.org_id
             ? supabase.from('rewards_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
             : Promise.resolve({ data: null }),
+          userRes.data.org_id
+            ? supabase.from('marketing_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
+            : Promise.resolve({ data: null }),
         ])
         setProfile({
           ...userRes.data,
           permissions: (permsRes.data || []).map((p) => p.permission_key),
           elementsEntitled: !!elemRes?.data?.entitled,   // Elements-HVAC subscription gate
           rewardsEntitled: !!rewardsRes?.data?.entitled,  // Rewards-HVAC subscription gate
+          marketingEntitled: !!mktRes?.data?.entitled,   // Marketing-HVAC subscription gate
         })
       })
   }, [session])
@@ -196,6 +201,10 @@ function AuthenticatedApp() {
         ))}
         {/* Rewards-HVAC · People (HR) + Payroll — gated on subscription (super admin) or entitlement */}
         {(profile.role === 'super_admin' || profile.rewardsEntitled) && [...REWARDS_HR_ROUTES, ...REWARDS_PAYROLL_ROUTES, ...REWARDS_CERT_ROUTES].map((r) => (
+          <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
+        ))}
+        {/* Marketing-HVAC · AI marketing — gated on subscription (super admin) or entitlement */}
+        {(profile.role === 'super_admin' || profile.marketingEntitled) && MARKETING_ROUTES.map((r) => (
           <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
         ))}
         {profile.role === 'super_admin' && (

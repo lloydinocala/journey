@@ -1,10 +1,11 @@
+import QuincyBadge from './QuincyBadge'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './utils/supabase'
 import { IconSparkles, IconPhone } from './MobileIcons'
 
 const SUPPORT_PHONE_DISPLAY = '(352) 484-6341'
 
-const GREETING = { role: 'assistant', content: "Hi, I'm Apollo. Ask me anything about using Journey, or a general question — I'm here to help." }
+const GREETING = { role: 'assistant', content: "Hi, I'm Quincy. Ask me anything about using Journey, or a general question — I'm here to help." }
 
 export default function ApolloWidget({ profile }) {
   const [open, setOpen] = useState(false)
@@ -76,7 +77,7 @@ export default function ApolloWidget({ profile }) {
     setSending(false)
 
     if (fnError || data?.error) {
-      setError(data?.error || fnError?.message || 'Apollo is having trouble responding right now.')
+      setError(data?.error || fnError?.message || 'Quincy is having trouble responding right now.')
       return
     }
 
@@ -89,14 +90,14 @@ export default function ApolloWidget({ profile }) {
 
   return (
     <>
-      <button className="apollo-widget-fab" onClick={() => setOpen((v) => !v)} title="Apollo">
+      <button className="apollo-widget-fab" onClick={() => setOpen((v) => !v)} title="Quincy">
         <IconSparkles />
       </button>
 
       {open && (
         <div className="apollo-widget-panel">
           <div className="apollo-widget-header">
-            <span><IconSparkles style={{ verticalAlign: 'middle', marginRight: 6 }} />Apollo</span>
+            <span><span style={{ marginRight: 7, display: 'inline-flex', verticalAlign: 'middle' }}><QuincyBadge size={22} /></span>Quincy · Operations</span>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button className="apollo-widget-icon-btn" title="Contact Support" onClick={() => setSupportOpen(true)}>
                 <IconPhone />
@@ -124,7 +125,7 @@ export default function ApolloWidget({ profile }) {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask Apollo…"
+              placeholder="Ask Quincy…"
               disabled={sending || loadingHistory}
             />
             <button type="submit" disabled={sending || loadingHistory || !input.trim()}>Send</button>
@@ -138,7 +139,7 @@ export default function ApolloWidget({ profile }) {
           <div className="support-modal" style={{ left: 'auto', right: 24, bottom: 24, width: 320 }}>
             <div className="support-modal-title">Contact Support</div>
             <p className="support-modal-text">
-              There may be a wait to reach a Support Agent by phone. It may be faster to chat with Apollo first.
+              There may be a wait to reach a Support Agent by phone. It may be faster to chat with Quincy first.
             </p>
             <p className="support-modal-question">Call Support directly:</p>
             <div style={{ textAlign: 'center', fontSize: 20, fontWeight: 800, color: 'var(--route-blue)', marginBottom: 14, letterSpacing: 0.3 }}>
