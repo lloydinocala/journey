@@ -579,6 +579,50 @@ export default function TechJobCard({ profile }) {
       r.readAsDataURL(file)
     })
   }
+  // Phone label photos are large (often 3-8 MB) and sometimes HEIC — both of which
+  // fail the vision API. Draw to a canvas to cap the long edge and re-encode as a
+  // clean, small JPEG. This is what makes the serial/model legible to the reader and
+  // keeps the payload well under the API's per-image size limit.
+  function downscaleForScan(file, maxEdge = 1600, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file)
+      const img = new Image()
+      img.onload = () => {
+        try {
+          const scale = Math.min(1, maxEdge / Math.max(img.width, img.height))
+          const w = Math.max(1, Math.round(img.width * scale))
+          const h = Math.max(1, Math.round(img.height * scale))
+          const canvas = document.createElement('canvas')
+          canvas.width = w; canvas.height = h
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+          canvas.toBlob((blob) => {
+            URL.revokeObjectURL(url)
+            if (!blob) { reject(new Error('encode failed')); return }
+            const r = new FileReader()
+            r.onload = () => resolve({ blob, base64: String(r.result).split(',')[1] })
+            r.onerror = reject
+            r.readAsDataURL(blob)
+          }, 'image/jpeg', quality)
+        } catch (err) { URL.revokeObjectURL(url); reject(err) }
+      }
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode failed')) }
+      img.src = url
+    })
+  }
+  // Keep the scanned label image on file (best-effort) so the data plate is documented,
+  // not just the values read from it. Failure here never blocks the scan result.
+  async function saveNameplatePhoto(blob, unit) {
+    try {
+      if (!job || !blob) return
+      const label = unit.charAt(0).toUpperCase() + unit.slice(1)
+      const path = `${job.org_id}/${jobId}/${crypto.randomUUID()}.jpg`
+      const { error } = await supabase.storage.from('job-photos').upload(path, blob, { contentType: 'image/jpeg' })
+      if (!error) {
+        await supabase.from('attachments').insert({ org_id: job.org_id, job_id: jobId, uploaded_by: uid, file_path: path, file_name: `${label} nameplate.jpg`, mime_type: 'image/jpeg', file_size_bytes: blob.size, category: 'photo' })
+        loadPhotos()
+      }
+    } catch { /* documentation is best-effort */ }
+  }
   function startUnitScan(unit) { setScanTarget(unit); setScanMsg(''); setShowEquipForm(true); setOpen('equipment', true); ocrInputRef.current?.click() }
   async function onNameplateFile(e) {
     const file = e.target.files?.[0]; e.target.value = ''
@@ -586,8 +630,17 @@ export default function TechJobCard({ profile }) {
     if (!file) return
     setScanBusy(true); setScanMsg(`Reading ${unit} label…`)
     try {
-      const imageBase64 = await fileToBase64(file)
-      const { data, error } = await supabase.functions.invoke('scan-nameplate', { body: { imageBase64, mediaType: file.type || 'image/jpeg' } })
+      let imageBase64, mediaType = 'image/jpeg', photoBlob = null
+      try {
+        const shrunk = await downscaleForScan(file)
+        imageBase64 = shrunk.base64; photoBlob = shrunk.blob
+      } catch {
+        // Fall back to the raw file if the canvas path is unavailable.
+        imageBase64 = await fileToBase64(file); mediaType = file.type || 'image/jpeg'
+      }
+      const { data, error } = await supabase.functions.invoke('scan-nameplate', { body: { imageBase64, mediaType } })
+      // Record the label photo regardless of how the read turned out.
+      if (photoBlob) saveNameplatePhoto(photoBlob, unit)
       if (error || data?.error) { setScanMsg(data?.error || 'Scan failed — please enter the details manually.'); setScanBusy(false); return }
       setEquipForm((f) => ({
         ...f,
@@ -596,7 +649,7 @@ export default function TechJobCard({ profile }) {
         [`${unit}_serial`]: data.serial || f[`${unit}_serial`],
       }))
       const got = [data.brand, data.model, data.serial].filter(Boolean).length
-      setScanMsg(got ? `Filled ${unit} from the label — please verify before saving.` : 'Could not read that label — try again or enter manually.')
+      setScanMsg(got ? `Filled ${unit} from the label — please verify before saving.` : 'Could not read that label clearly — try a straight, well-lit close-up, or enter it manually.')
     } catch {
       setScanMsg('Scan failed — please enter the details manually.')
     }
