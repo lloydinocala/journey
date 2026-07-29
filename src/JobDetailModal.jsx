@@ -1,3 +1,5 @@
+import { formatTimeInZone } from './utils/tz'
+
 export default function JobDetailModal({ job, onClose }) {
   if (!job) return null
 
@@ -5,11 +7,8 @@ export default function JobDetailModal({ job, onClose }) {
 
   function formatTime(startTime) {
     if (!startTime) return 'No time set'
-    // Show the stored UTC instant in the viewer's local time so this matches the
-    // Jobs list and calendar (raw-slicing the string would show UTC and disagree).
-    const d = new Date(startTime)
-    if (isNaN(d)) return 'No time set'
-    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    // Render in the organization's timezone so it matches the Jobs list and calendar.
+    return formatTimeInZone(startTime) || 'No time set'
   }
 
   return (

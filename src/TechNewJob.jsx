@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import TripChargePicker from './TripChargePicker'
 import CustomerSearchSelect from './CustomerSearchSelect'
 import { IconChevronLeft } from './MobileIcons'
+import { zonedToUtcIso } from './utils/tz'
 
 function todayISO() {
   const d = new Date()
@@ -214,7 +215,7 @@ export default function TechNewJob({ profile, mode = 'job' }) {
 
     const { count } = await supabase.from('jobs').select('id', { count: 'exact', head: true }).eq('org_id', profile.org_id)
     const jobNumber = `J-${String((count || 0) + 1).padStart(4, '0')}`
-    const startTimestamp = startTime ? new Date(`${jobDate}T${startTime}:00`).toISOString() : null
+    const startTimestamp = startTime ? zonedToUtcIso(jobDate, startTime) : null
 
     const { data: newJob, error: insertError } = await supabase
       .from('jobs')

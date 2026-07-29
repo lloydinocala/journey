@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { formatDayLabel, isSameDay, timeToPixelY, pixelYToTimeString, getTotalGridHeight, getHourMarkers } from './utils/dateHelpers'
+import { utcToZonedInputs } from './utils/tz'
 
 // Convert a stored UTC timestamp to an "HH:MM" string in the browser's LOCAL
 // time. Using new Date(...).getHours()/getMinutes() here (rather than
@@ -8,8 +9,8 @@ import { formatDayLabel, isSameDay, timeToPixelY, pixelYToTimeString, getTotalGr
 // awareness at all.
 function localTimeString(isoString, fallback) {
   if (!isoString) return fallback
-  const d = new Date(isoString)
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  // Position events by the organization's local wall-clock, not the viewer's device.
+  return utcToZonedInputs(isoString).time || fallback
 }
 
 export default function CalendarGrid({ days, jobs, businessStart, businessEnd, onJobClick, onJobDrop }) {

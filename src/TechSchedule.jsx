@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { signOutMobile } from './utils/mobileSessionLog'
 import MobileNav, { isFieldAdmin } from './MobileNav'
+import { formatTimeInZone } from './utils/tz'
 
 const STATUS_LABEL = {
   scheduled: 'Scheduled',
@@ -22,10 +23,7 @@ function todayISO() {
 }
 
 function timeLabel(startTime) {
-  if (!startTime) return ''
-  const d = new Date(startTime)
-  if (isNaN(d)) return ''
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return formatTimeInZone(startTime)
 }
 
 // Local-date-safe helpers — avoid UTC drift from new Date('YYYY-MM-DD') parsing.

@@ -2,6 +2,19 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import EmployeePayRates from './EmployeePayRates'
+import { browserTz, setActiveOrgTz, tzShortLabel } from './utils/tz'
+
+// The zones an HVAC contractor in the US is realistically in. IANA names carry
+// their own DST rules, so picking the region is all the office ever has to do.
+const US_TIMEZONES = [
+  { value: 'America/New_York', label: 'Eastern Time (New York)' },
+  { value: 'America/Chicago', label: 'Central Time (Chicago)' },
+  { value: 'America/Denver', label: 'Mountain Time (Denver)' },
+  { value: 'America/Phoenix', label: 'Arizona (no daylight saving)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (Los Angeles)' },
+  { value: 'America/Anchorage', label: 'Alaska Time' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time' },
+]
 
 export default function Settings({ profile }) {
   const [orgs, setOrgs] = useState([])
@@ -19,6 +32,10 @@ export default function Settings({ profile }) {
   const [businessEnd, setBusinessEnd] = useState('19:00')
   const [savingHours, setSavingHours] = useState(false)
   const [hoursSaved, setHoursSaved] = useState(false)
+
+  const [timezone, setTimezone] = useState('America/New_York')
+  const [savingTz, setSavingTz] = useState(false)
+  const [tzSaved, setTzSaved] = useState(false)
 
   const [taxableByDefault, setTaxableByDefault] = useState(false)
   const [salesTaxRate, setSalesTaxRate] = useState('0')
@@ -78,12 +95,13 @@ export default function Settings({ profile }) {
     if (!orgId) return
     const { data } = await supabase
       .from('organizations')
-    .select('business_hours_start, business_hours_end, services_taxable_by_default, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, license_number, payment_terms_days, logo_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
+    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, license_number, payment_terms_days, logo_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
       .eq('id', orgId)
       .single()
     if (data) {
       setBusinessStart(data.business_hours_start.slice(0, 5))
       setBusinessEnd(data.business_hours_end.slice(0, 5))
+      setTimezone(data.timezone || browserTz())
       setTaxableByDefault(data.services_taxable_by_default)
       setSalesTaxRate(String(data.sales_tax_rate))
       setBizStreet(data.business_street || '')
@@ -223,6 +241,17 @@ export default function Settings({ profile }) {
       .eq('id', selectedOrg)
     setSavingHours(false)
     setHoursSaved(true)
+  }
+
+  async function saveTimezone(e) {
+    e.preventDefault()
+    setSavingTz(true)
+    setTzSaved(false)
+    await supabase.from('organizations').update({ timezone }).eq('id', selectedOrg)
+    // Apply immediately so times across the app reflect the new zone without a reload.
+    if (selectedOrg === profile.org_id || isSuperAdmin) setActiveOrgTz(timezone)
+    setSavingTz(false)
+    setTzSaved(true)
   }
   async function handleAdd(e) {
     e.preventDefault()
@@ -402,6 +431,29 @@ export default function Settings({ profile }) {
         </button>
         {bizSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
       </form>
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Time zone</h3>
+      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
+        Your company's operating time zone. All job and task times are shown and entered
+        in this zone for everyone — including office staff viewing from elsewhere — so the
+        schedule always reads in local business time. Daylight saving is handled automatically.
+      </p>
+      <form className="inline-form" onSubmit={saveTimezone} style={{ marginBottom: 28 }}>
+        <div className="field">
+          <label htmlFor="timezone">Time zone</label>
+          <select id="timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+            {US_TIMEZONES.map((z) => <option key={z.value} value={z.value}>{z.label}</option>)}
+            {!US_TIMEZONES.some((z) => z.value === timezone) && (
+              <option value={timezone}>{timezone}</option>
+            )}
+          </select>
+          <span style={{ fontSize: 12, color: 'var(--mist)' }}>This device is in {tzShortLabel(browserTz())}</span>
+        </div>
+        <button className="auth-button" type="submit" disabled={savingTz}>
+          {savingTz ? 'Saving…' : 'Save'}
+        </button>
+        {tzSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
+      </form>
+
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Business hours</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
         Controls how the Calendar displays your day — 15-minute slots during these hours,

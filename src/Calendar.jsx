@@ -6,6 +6,7 @@ import QuickAddModal from './QuickAddModal'
 import CalendarGrid from './CalendarGrid'
 import CalendarMonth from './CalendarMonth'
 import JobDetailModal from './JobDetailModal'
+import { loadOrgTz, zonedToUtcIso } from './utils/tz'
 import {
   startOfWeek,
   addDays,
@@ -51,6 +52,7 @@ export default function Calendar({ profile }) {
 
   useEffect(() => {
     if (!selectedOrg) return
+    loadOrgTz(selectedOrg)
     supabase
       .from('organizations')
       .select('business_hours_start, business_hours_end')
@@ -146,7 +148,7 @@ export default function Calendar({ profile }) {
     // time. Building it into a real Date and using toISOString() (rather than
     // sending the bare "YYYY-MM-DDTHH:MM:00" string straight to Supabase) makes
     // sure it's stored as a true UTC instant, not silently mislabeled as UTC.
-    const newStartTime = new Date(`${newDateStr}T${newTimeStr}:00`).toISOString()
+    const newStartTime = zonedToUtcIso(newDateStr, newTimeStr)
     await supabase
       .from('jobs')
       .update({ job_date: newDateStr, start_time: newStartTime })

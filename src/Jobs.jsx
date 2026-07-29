@@ -7,6 +7,7 @@ import QuickAddModal from './QuickAddModal'
 import TripChargePicker from './TripChargePicker'
 import { exportToCSV } from './utils/csvExport'
 import { fetchAllRows } from './utils/csvImport'
+import { loadOrgTz, formatTimeInZone, zonedToUtcIso, utcToZonedInputs } from './utils/tz'
 
 function formatPhone(raw) {
   if (!raw) return raw
@@ -167,6 +168,7 @@ export default function Jobs({ profile }) {
   }
 
   useEffect(() => {
+    loadOrgTz(selectedOrg)
     loadData(selectedOrg)
   }, [selectedOrg])
 
@@ -300,7 +302,7 @@ export default function Jobs({ profile }) {
   }
   function startTimeDisplay(job) {
     if (!job.start_time) return '—'
-    const t = new Date(job.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    const t = formatTimeInZone(job.start_time)
     const d = durationLabel(job.duration_hours)
     return d ? `${t} · ${d}` : t
   }
@@ -312,20 +314,16 @@ export default function Jobs({ profile }) {
   // instant with the right offset baked in — a bare string with no timezone
   // marker gets interpreted as UTC by Postgres, which silently shifts the
   // displayed time by however many hours off UTC the local zone is.
+  // Build a UTC instant from a typed-in date+time, interpreting them in the
+  // organization's timezone (not the viewer's device zone).
   function toTimestamp(dateStr, timeStr) {
-    if (!timeStr) return null
-    return new Date(`${dateStr}T${timeStr}:00`).toISOString()
+    return zonedToUtcIso(dateStr, timeStr)
   }
 
-  // Inverse of toTimestamp for the edit box: render a stored UTC instant as the
-  // browser-local HH:mm so the field matches what the list shows (also local) and
-  // round-trips back through toTimestamp without shifting the time. Slicing the raw
-  // timestamp string instead would show the UTC wall-clock and shift on save.
+  // Inverse: pre-fill the edit time box with the stored instant rendered in the
+  // org zone, so it matches the list and round-trips without shifting.
   function localTimeInput(ts) {
-    if (!ts) return ''
-    const d = new Date(ts)
-    if (isNaN(d)) return ''
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+    return utcToZonedInputs(ts).time
   }
 
   async function loadTechniciansForJob(jobId) {

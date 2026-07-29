@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import { loadOrgTz } from './utils/tz'
 import Login from './Login'
 import SetPassword from './SetPassword'
 import Layout from './Layout'
@@ -126,6 +127,10 @@ function AuthenticatedApp() {
             ? supabase.from('marketing_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
             : Promise.resolve({ data: null }),
         ])
+        // Prime the active org timezone so all times render/parse in the
+        // organization's zone, not the viewer's device zone. Super-admins have
+        // no org of their own; their per-page org pickers set it instead.
+        if (userRes.data.org_id) loadOrgTz(userRes.data.org_id)
         setProfile({
           ...userRes.data,
           permissions: (permsRes.data || []).map((p) => p.permission_key),

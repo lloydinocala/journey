@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import TripChargePicker from './TripChargePicker'
 import CustomerSearchSelect from './CustomerSearchSelect'
+import { zonedToUtcIso } from './utils/tz'
 
 export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated }) {
   const navigate = useNavigate()
@@ -200,7 +201,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
       .filter((j) => j.job_number === selectedContinueJob.job_number)
       .reduce((max, j) => Math.max(max, j.segment || 1), 1)
 
-    const startTimestamp = contStartTime ? new Date(`${contJobDate}T${contStartTime}:00`).toISOString() : null
+    const startTimestamp = contStartTime ? zonedToUtcIso(contJobDate, contStartTime) : null
 
     const { data: newSegmentJob, error: jobErr } = await supabase
       .from('jobs')
@@ -367,7 +368,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
 
       const { count } = await supabase.from('jobs').select('id', { count: 'exact', head: true }).eq('org_id', orgId)
       const jobNumber = `J-${String((count || 0) + 1).padStart(4, '0')}`
-      const startTimestamp = startTime ? new Date(`${jobDate}T${startTime}:00`).toISOString() : null
+      const startTimestamp = startTime ? zonedToUtcIso(jobDate, startTime) : null
 
       const { data: newJob, error: jobErr } = await supabase
         .from('jobs')

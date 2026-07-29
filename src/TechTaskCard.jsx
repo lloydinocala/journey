@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { IconChevronLeft, IconPin, IconNavigation, IconList } from './MobileIcons'
+import { formatTimeInZone, formatDateTimeInZone } from './utils/tz'
 
 const INCOMPLETE_REASONS = [
   'Destination closed or unavailable',
@@ -19,10 +20,9 @@ function taskGoogleUrl(addr) { if (!addr) return null; return `https://www.googl
 function taskStreetView(addr) { const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY; if (!addr || !key) return null; return `https://maps.googleapis.com/maps/api/streetview?size=640x300&location=${encodeURIComponent(addr)}&fov=80&pitch=0&key=${key}` }
 function fmtDateTime(t) {
   if (!t) return { date: '', time: '' }
-  const d = new Date(t); if (isNaN(d)) return { date: '', time: '' }
   return {
-    date: d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }),
-    time: d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+    date: formatDateTimeInZone(t, undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+    time: formatTimeInZone(t),
   }
 }
 function haversineMeters(a, b) {

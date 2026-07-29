@@ -2,6 +2,7 @@ import { useState, useEffect, Fragment } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { fetchAllRows } from './utils/csvImport'
+import { loadOrgTz, formatTimeInZone, formatDateTimeInZone, zonedToUtcIso, utcToZonedInputs } from './utils/tz'
 
 const STATUS_LABEL = {
   scheduled: 'Scheduled',
@@ -32,11 +33,11 @@ function mapLink(lat, lng) {
 }
 function fmtStamp(t) {
   if (!t) return null
-  return new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  return formatDateTimeInZone(t, undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 function fmtTime(t) {
   if (!t) return '—'
-  return new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return formatTimeInZone(t) || '—'
 }
 // Worked minutes = Start My Time -> Stop My Time.
 function workedMinutes(t) {
@@ -98,7 +99,7 @@ export default function Tasks({ profile }) {
     setLoading(false)
   }
 
-  useEffect(() => { loadAll(selectedOrg) }, [selectedOrg])
+  useEffect(() => { loadOrgTz(selectedOrg); loadAll(selectedOrg) }, [selectedOrg])
 
   function userName(id) { return users.find((u) => u.id === id)?.full_name || '—' }
   function userObj(id) { return users.find((u) => u.id === id) || null }
@@ -114,15 +115,14 @@ export default function Tasks({ profile }) {
   function resetForm() { setForm(blankForm); setEditingId(null); setError(''); setShowForm(false) }
 
   function startEdit(t) {
-    const d = new Date(t.scheduled_at)
-    const pad = (n) => String(n).padStart(2, '0')
+    const zoned = utcToZonedInputs(t.scheduled_at)
     setForm({
       assigned_user_id: t.assigned_user_id || '',
       destination_name: t.destination_name || '',
       address: t.address || '',
       description: t.description || '',
-      date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
-      time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+      date: zoned.date,
+      time: zoned.time,
       duration_minutes: String(t.duration_minutes || 30),
       parts_order_id: t.parts_order_id || '',
     })
@@ -188,7 +188,8 @@ export default function Tasks({ profile }) {
     if (!form.destination_name.trim()) { setError('Destination name is required.'); return }
     if (!form.date || !form.time) { setError('Date and time are required.'); return }
 
-    const scheduled = new Date(`${form.date}T${form.time}:00`)
+    const scheduledIso = zonedToUtcIso(form.date, form.time)
+    const scheduled = scheduledIso ? new Date(scheduledIso) : new Date(NaN)
     if (isNaN(scheduled)) { setError('That date/time is not valid.'); return }
     const dur = parseInt(form.duration_minutes, 10) || 30
     const startMs = scheduled.getTime()
@@ -208,7 +209,7 @@ export default function Tasks({ profile }) {
       destination_name: form.destination_name.trim(),
       address: form.address.trim() || null,
       description: form.description.trim() || null,
-      scheduled_at: scheduled.toISOString(),
+      scheduled_at: scheduledIso,
       duration_minutes: dur,
       parts_order_id: form.parts_order_id || null,
     }
@@ -415,7 +416,7 @@ export default function Tasks({ profile }) {
                 <td>{userName(t.assigned_user_id)}</td>
                 <td>{t.destination_name}{linkedPart && <span className="status-pill status-scheduled" style={{ marginLeft: 6, fontSize: 10 }}>PARTS</span>}</td>
                 <td>{t.address || '—'}</td>
-                <td>{new Date(t.scheduled_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
+                <td>{fmtStamp(t.scheduled_at)}</td>
                 <td>{t.duration_minutes}m</td>
                 <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(t.on_my_way_at)}</td>
                 <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(t.started_at)}</td>

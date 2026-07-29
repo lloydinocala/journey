@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import { exportToCSV } from './utils/csvExport'
+import { browserTz } from './utils/tz'
+
+const US_TIMEZONES = [
+  { value: 'America/New_York', label: 'Eastern Time (New York)' },
+  { value: 'America/Chicago', label: 'Central Time (Chicago)' },
+  { value: 'America/Denver', label: 'Mountain Time (Denver)' },
+  { value: 'America/Phoenix', label: 'Arizona (no daylight saving)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (Los Angeles)' },
+  { value: 'America/Anchorage', label: 'Alaska Time' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time' },
+]
 
 function slugify(name) {
   return name
@@ -25,6 +36,10 @@ export default function Organizations() {
 
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
+  const [newTz, setNewTz] = useState(() => {
+    const b = browserTz()
+    return US_TIMEZONES.some((z) => z.value === b) ? b : 'America/New_York'
+  })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -112,6 +127,7 @@ export default function Organizations() {
       name: name.trim(),
       slug: slugify(name),
       billing_status: 'trial',
+      timezone: newTz,
     })
     setSaving(false)
 
@@ -258,6 +274,13 @@ export default function Organizations() {
             placeholder="e.g. Comfort Zone HVAC"
             required
           />
+        </div>
+        <div className="field">
+          <label htmlFor="orgTz">Time zone</label>
+          <select id="orgTz" value={newTz} onChange={(e) => setNewTz(e.target.value)}>
+            {US_TIMEZONES.map((z) => <option key={z.value} value={z.value}>{z.label}</option>)}
+          </select>
+          <span style={{ fontSize: 12, color: 'var(--mist)' }}>The subscriber's operating zone (they can change it later)</span>
         </div>
         <button className="auth-button" type="submit" disabled={saving}>
           {saving ? 'Adding…' : 'Add organization'}

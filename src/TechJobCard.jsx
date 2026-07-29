@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import SignaturePad from './SignaturePad'
+import { formatTimeInZone, formatDateTimeInZone } from './utils/tz'
 import {
   IconChevronLeft, IconPhone, IconMessage, IconPin, IconNavigation, IconCamera,
   IconReceipt, IconShield, IconFile, IconCalculator, IconLock, IconList,
@@ -66,10 +67,9 @@ function streetViewUrl(p) {
 }
 function fmtDateTime(t) {
   if (!t) return { date: '', time: '' }
-  const d = new Date(t); if (isNaN(d)) return { date: '', time: '' }
   return {
-    date: d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }),
-    time: d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+    date: formatDateTimeInZone(t, undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+    time: formatTimeInZone(t),
   }
 }
 function dataUrlToBlob(dataUrl) {

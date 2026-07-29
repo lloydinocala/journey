@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import { signOutMobile } from './utils/mobileSessionLog'
 import MobileNav, { isFieldAdmin } from './MobileNav'
 import ClockWidget from './ClockWidget'
+import { formatTimeInZone, loadOrgTz } from './utils/tz'
 
 const STATUS_LABEL = {
   scheduled: 'Scheduled',
@@ -21,10 +22,7 @@ function todayISO() {
 }
 
 function timeLabel(startTime) {
-  if (!startTime) return ''
-  const d = new Date(startTime)
-  if (isNaN(d)) return ''
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return formatTimeInZone(startTime)
 }
 
 export default function TechJobs({ profile }) {
@@ -101,6 +99,7 @@ export default function TechJobs({ profile }) {
 
     setEffUid(uid)
     setEffOrgId(orgId)
+    loadOrgTz(orgId)
 
     // Day window for tasks as real UTC instants for the viewer's local day
     // (so an evening task doesn't drift onto the next calendar day).
