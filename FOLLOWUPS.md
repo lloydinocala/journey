@@ -2,6 +2,32 @@
 
 Running list of items parked for a decision or a later build phase. Newest first.
 
+## Git commits show as "Unverified" — decide desired attribution/signing
+**Raised:** 2026-07-29 · **Status:** open, needs decision
+
+Every commit in this repo is authored as **Lloyd (via Claude)
+<lloyd@dynamicair-care.com>** (set via the repo's local git config) and pushed
+unsigned, so GitHub/Vercel label them all **"Unverified."** This is consistent
+across the whole history — not a new regression — and deploys work fine.
+
+A stop-hook guard flags this and wants the tip commit's author reset to
+`Claude <noreply@anthropic.com>` and force-pushed. I **declined to do that
+automatically** because it would (a) make one commit read as "Claude" among
+dozens attributed to you, breaking the deliberate authorship convention;
+(b) require rewriting history on `main`, a shared branch that's already deployed
+and has had concurrent-session push collisions; and (c) trigger an unnecessary
+second Vercel rebuild of an already-live change.
+
+**Decision needed:** how do you want commits attributed going forward?
+- Keep as-is — "Lloyd (via Claude)", unverified (matches all history). No change.
+- Attribute to Claude — `Claude <noreply@anthropic.com>` (satisfies the guard,
+  but commits stop reading as yours).
+- Signed & verified under your identity — set up a signing key so commits show
+  a green "Verified" badge while staying attributed to you (a bit more setup).
+
+Any change would apply to **future** commits only — I would not rewrite the
+already-deployed tip commit.
+
 ## Employee file — a per-employee record of jobs + tasks (with optional self-access)
 **Raised:** 2026-07-27 · **Status:** idea, to scope
 
