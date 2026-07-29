@@ -65,6 +65,9 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
   const [contJobType, setContJobType] = useState('')
   const [contComplaint, setContComplaint] = useState('')
   const [contTechnicianId, setContTechnicianId] = useState('')
+  const [contTechnician2Id, setContTechnician2Id] = useState('')
+  const [contTechnician3Id, setContTechnician3Id] = useState('')
+  const [contTechnician4Id, setContTechnician4Id] = useState('')
   const [contTripChargeId, setContTripChargeId] = useState(null)
 
   const [saving, setSaving] = useState(false)
@@ -178,6 +181,9 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
     setContDuration('1')
     setContComplaint('')
     setContTechnicianId('')
+    setContTechnician2Id('')
+    setContTechnician3Id('')
+    setContTechnician4Id('')
     setContTripChargeId(job.trip_charge_price_id || null)
   }
 
@@ -221,13 +227,11 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
       return
     }
 
-    if (contTechnicianId) {
-      await supabase.from('job_technicians').insert({
-        org_id: orgId,
-        job_id: newSegmentJob.id,
-        user_id: contTechnicianId,
-        sort_order: 1,
-      })
+    const contTechIds = [...new Set([contTechnicianId, contTechnician2Id, contTechnician3Id, contTechnician4Id].filter(Boolean))]
+    if (contTechIds.length) {
+      await supabase.from('job_technicians').insert(
+        contTechIds.map((uid, idx) => ({ org_id: orgId, job_id: newSegmentJob.id, user_id: uid, sort_order: idx + 1 }))
+      )
     }
 
     setSaving(false)
@@ -513,15 +517,26 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                 <label htmlFor="contComplaint">What's happening this visit</label>
                 <input id="contComplaint" type="text" value={contComplaint} onChange={(e) => setContComplaint(e.target.value)} placeholder="e.g. Install ordered part" />
               </div>
-              <div className="field">
-                <label htmlFor="contTech">Technician</label>
-                <select id="contTech" value={contTechnicianId} onChange={(e) => setContTechnicianId(e.target.value)}>
-                  <option value="">Unassigned</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>{u.full_name}</option>
-                  ))}
-                </select>
-              </div>
+              {[
+                { label: 'Technician 1', value: contTechnicianId, set: setContTechnicianId },
+                { label: 'Technician 2', value: contTechnician2Id, set: setContTechnician2Id },
+                { label: 'Technician 3', value: contTechnician3Id, set: setContTechnician3Id },
+                { label: 'Technician 4', value: contTechnician4Id, set: setContTechnician4Id },
+              ].map((slot, idx) => {
+                const chosen = [contTechnicianId, contTechnician2Id, contTechnician3Id, contTechnician4Id].filter(Boolean)
+                const availableUsers = users.filter((u) => u.id === slot.value || !chosen.includes(u.id))
+                return (
+                  <div className="field" key={slot.label}>
+                    <label htmlFor={`contTech${idx + 1}`}>{slot.label}</label>
+                    <select id={`contTech${idx + 1}`} value={slot.value} onChange={(e) => slot.set(e.target.value)}>
+                      <option value="">Unassigned</option>
+                      {availableUsers.map((u) => (
+                        <option key={u.id} value={u.id}>{u.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )
+              })}
               <div className="field">
                 <label>Trip charge for this visit</label>
                 <TripChargePicker orgId={orgId} value={contTripChargeId} onChange={setContTripChargeId} />

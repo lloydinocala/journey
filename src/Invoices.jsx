@@ -18,10 +18,13 @@ const COLUMNS = [
   { key: 'customer', label: 'Customer', required: true, width: 150 },
   { key: 'segment', label: 'Segment', width: 70 },
   { key: 'customer_mobile', label: 'Customer Mobile', width: 120 },
+  // The first line item is always the Trip Charge (sort_order 1); the rest are
+  // the real line items, numbered from 1.
   ...Array.from({ length: LINE_ITEM_COUNT }, (_, i) => ({
     key: 'line_item_' + (i + 1),
-    label: 'Line Item ' + (i + 1),
+    label: i === 0 ? 'Trip Charge' : 'Line Item ' + i,
     width: 160,
+    ...(i === 0 ? { required: true } : {}),
   })),
   { key: 'subtotal', label: 'Subtotal', width: 90 },
   { key: 'sales_tax', label: 'Sales Tax', width: 85 },
