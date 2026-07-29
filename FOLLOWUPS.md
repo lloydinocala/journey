@@ -2,6 +2,34 @@
 
 Running list of items parked for a decision or a later build phase. Newest first.
 
+## Photos should anchor to the Property (referenced by the Job), not the Customer
+**Raised:** 2026-07-29 · **Status:** small build, mostly stubbed already
+
+Lloyd: job photos currently archive under the **customer's** history. They should
+attach to the **property** where they were taken, referenced to the **job** they
+were taken during.
+
+**Current state (verified):** the `attachments` table ALREADY has `property_id`
+and `customer_id` columns next to `job_id` — they're just not populated. Photo
+upload (`uploadPhotoFiles` in TechJobCard.jsx, plus the new nameplate-photo saver)
+stamps only `job_id`. All 46 existing photos have a job but null property/customer.
+They surface under the customer because the history view joins photo → job →
+property → customer.
+
+**The change (small, low-risk):**
+1. On upload, also set `property_id` from `job.property_id` (one line in each
+   insert: uploadPhotoFiles, saveNameplatePhoto, handleAttachScan/photo paths).
+2. Backfill existing photos: `UPDATE attachments SET property_id = jobs.property_id
+   (and customer_id via property) FROM jobs WHERE attachments.job_id = jobs.id` —
+   every photo has a job, every job has a property, so none orphan.
+3. Add a **photo gallery on the Property record**, each photo labeled with the job
+   it was taken during (date / job #).
+
+**Design choice to confirm:** should the customer's history still show all their
+photos rolled up (grouped by property, since one customer can own several
+properties), or should photos live only under each property and drop off the
+customer view? Either is easy — just a display decision.
+
 ## Inventory module — auto-read emailed vendor invoices → Inventory + pricebook
 **Raised:** 2026-07-29 · **Status:** idea, feasible, to scope
 
