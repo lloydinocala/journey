@@ -781,6 +781,7 @@ export default function Jobs({ profile }) {
                 <>
                   <div className="grid-cell grid-actions" style={{ ...actionsCellStyle(rowBg), flexDirection: 'column', alignItems: 'stretch' }}>
                     <div style={{ marginBottom: 6 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--mist)', marginBottom: 2 }}>Technicians</div>
                       {editTechnicians.map((t, idx) => (
                         <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
                           <span>{idx === 0 ? '★ ' : ''}{t.users?.full_name}</span>
