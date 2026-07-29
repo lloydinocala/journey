@@ -317,6 +317,17 @@ export default function Jobs({ profile }) {
     return new Date(`${dateStr}T${timeStr}:00`).toISOString()
   }
 
+  // Inverse of toTimestamp for the edit box: render a stored UTC instant as the
+  // browser-local HH:mm so the field matches what the list shows (also local) and
+  // round-trips back through toTimestamp without shifting the time. Slicing the raw
+  // timestamp string instead would show the UTC wall-clock and shift on save.
+  function localTimeInput(ts) {
+    if (!ts) return ''
+    const d = new Date(ts)
+    if (isNaN(d)) return ''
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
+
   async function loadTechniciansForJob(jobId) {
     const { data } = await supabase
       .from('job_technicians')
@@ -330,7 +341,7 @@ export default function Jobs({ profile }) {
     setEditingId(j.id)
     setEditPropertyId(j.property_id)
     setEditJobDate(j.job_date || '')
-    setEditStartTime(j.start_time ? j.start_time.slice(11, 16) : '')
+    setEditStartTime(localTimeInput(j.start_time))
     setEditDuration(j.duration_hours != null ? String(j.duration_hours) : '')
     setEditJobType(j.job_type || '')
     setEditComplaint(j.service_complaint || '')

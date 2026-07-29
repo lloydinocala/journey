@@ -5,10 +5,11 @@ export default function JobDetailModal({ job, onClose }) {
 
   function formatTime(startTime) {
     if (!startTime) return 'No time set'
-    const [h, m] = startTime.slice(11, 16).split(':').map(Number)
-    const ampm = h >= 12 ? 'PM' : 'AM'
-    const h12 = h % 12 === 0 ? 12 : h % 12
-    return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
+    // Show the stored UTC instant in the viewer's local time so this matches the
+    // Jobs list and calendar (raw-slicing the string would show UTC and disagree).
+    const d = new Date(startTime)
+    if (isNaN(d)) return 'No time set'
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   }
 
   return (
