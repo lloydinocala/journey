@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { loadOrgTz } from './utils/tz'
 import PartsCatalog from './PartsCatalog'
+import PartsCatalogImport from './PartsCatalogImport'
 import Login from './Login'
 import SetPassword from './SetPassword'
 import Layout from './Layout'
@@ -193,6 +194,7 @@ function AuthenticatedApp() {
         <Route path="/import/properties" element={<PropertyImport profile={profile} />} />
         <Route path="/import/jobs" element={<JobImport profile={profile} />} />
         <Route path="/import/services-pricebook" element={<PricebookImport profile={profile} />} />
+        <Route path="/import/parts-catalog" element={<PartsCatalogImport profile={profile} />} />
         <Route path="/import/systems-pricebook" element={<EquipmentImport profile={profile} />} />
         <Route path="/calendar" element={<Calendar profile={profile} />} />
         <Route path="/pricebook" element={<Pricebook profile={profile} />} />

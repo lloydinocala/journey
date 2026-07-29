@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { exportToCSV } from './utils/csvExport'
@@ -306,17 +307,22 @@ export default function PartsCatalog({ profile }) {
   }
 
   function exportCsv() {
+    // Column headers match the importer so an exported file can be edited and
+    // re-imported (round-trip). Cost/on-hand columns are informational only.
     const cols = [
-      { label: 'Updated', value: (i) => dateFmt(i.last_cost_update_at || i.updated_at) },
       { label: 'Name', key: 'generic_name' },
       { label: 'Category', value: (i) => i.category || '' },
       { label: 'Base Unit', key: 'base_unit' },
-      { label: 'Sell Unit', value: (i) => `${i.sell_unit} (${i.sell_unit_factor} ${i.base_unit})` },
+      { label: 'Sell Unit', key: 'sell_unit' },
+      { label: 'Sell Unit Factor', value: (i) => i.sell_unit_factor },
+      { label: 'Reorder Level', value: (i) => (i.reorder_level != null ? i.reorder_level : '') },
+      { label: 'Markup %', value: (i) => (i.markup_percent != null ? i.markup_percent : '') },
+      { label: 'Description', value: (i) => i.description || '' },
       { label: 'On Hand (Shop)', value: (i) => qtyFmt(stockByItem[i.id] || 0) },
       { label: 'Last Cost / Unit', value: (i) => (i.last_cost != null ? Number(i.last_cost).toFixed(4) : '') },
       { label: 'Avg Cost / Unit', value: (i) => (i.avg_cost != null ? Number(i.avg_cost).toFixed(4) : '') },
       { label: 'Vendors', value: (i) => (offersByItem[i.id] || []).length },
-      { label: 'Reorder Level', value: (i) => (i.reorder_level != null ? i.reorder_level : '') },
+      { label: 'Updated', value: (i) => dateFmt(i.last_cost_update_at || i.updated_at) },
     ]
     exportToCSV(filtered, cols, 'parts-catalog.csv')
   }
@@ -347,6 +353,7 @@ export default function PartsCatalog({ profile }) {
         <button className="auth-button" style={{ width: 'auto', padding: '9px 18px', background: '#215F9A' }} onClick={openReceive}>Receive Stock</button>
         <button className="logout-button" onClick={openReceipts}>Receipts</button>
         <button className="logout-button" onClick={exportCsv}>Export CSV</button>
+        <Link className="logout-button" to="/import/parts-catalog" style={{ textDecoration: 'none' }}>Import CSV</Link>
         <span style={{ color: 'var(--mist)', fontSize: 13 }}>{filtered.length} item{filtered.length === 1 ? '' : 's'}</span>
       </div>
 
