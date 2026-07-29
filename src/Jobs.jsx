@@ -38,6 +38,8 @@ const COLUMNS = [
   { key: 'tenant_2_phone', label: 'Phone 2' },
   { key: 'technician_1', label: 'Technician 1' },
   { key: 'technician_2', label: 'Technician 2' },
+  { key: 'technician_3', label: 'Technician 3' },
+  { key: 'technician_4', label: 'Technician 4' },
   { key: 'on_my_way_at', label: 'On My Way' },
   { key: 'arrival_at', label: 'Arrival' },
   { key: 'completed_at', label: 'Completed Time' },
@@ -81,7 +83,11 @@ export default function Jobs({ profile }) {
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('jobs_visible_columns_v2')
-    return saved ? JSON.parse(saved) : DEFAULT_VISIBLE
+    let cols = saved ? JSON.parse(saved) : DEFAULT_VISIBLE
+    // Ensure the newly-added Technician 3/4 columns appear for existing users
+    // whose saved preferences predate them.
+    for (const k of ['technician_3', 'technician_4']) if (!cols.includes(k)) cols = [...cols, k]
+    return cols
   })
 
   const [editingId, setEditingId] = useState(null)
@@ -516,7 +522,7 @@ export default function Jobs({ profile }) {
     job_number: 100, segment: 80, job_date: 95, trip_charge: 170, start_time: 100,
     job_type: 110, service_complaint: 160, street_address: 180, unit: 70, city: 120,
     state: 60, zip: 80, gate_code: 90, tenant_1: 120, tenant_1_phone: 110,
-    tenant_2: 120, tenant_2_phone: 110, technician_1: 130, technician_2: 130,
+    tenant_2: 120, tenant_2_phone: 110, technician_1: 130, technician_2: 130, technician_3: 130, technician_4: 130,
     on_my_way_at: 150, arrival_at: 150, completed_at: 150, status: 100, job_notes: 200,
   }
   const ACTIONS_WIDTH = 240
@@ -602,6 +608,8 @@ export default function Jobs({ profile }) {
     if (key === 'tenant_2_phone') return tenantAt(j, 1, 'phone') || '—'
     if (key === 'technician_1') return techAt(j, 0) || 'Unassigned'
     if (key === 'technician_2') return techAt(j, 1) || '—'
+    if (key === 'technician_3') return techAt(j, 2) || '—'
+    if (key === 'technician_4') return techAt(j, 3) || '—'
     if (key === 'on_my_way_at') return timeDisplay(j.on_my_way_at)
     if (key === 'arrival_at') return timeDisplay(j.arrival_at)
     if (key === 'completed_at') return timeDisplay(j.completed_at)
@@ -866,7 +874,7 @@ export default function Jobs({ profile }) {
                         <input type="text" value={editComplaint} onChange={(e) => setEditComplaint(e.target.value)} />
                       </div>
                     )
-                    if (col.key === 'technician_1' || col.key === 'technician_2') return (
+                    if (col.key === 'technician_1' || col.key === 'technician_2' || col.key === 'technician_3' || col.key === 'technician_4') return (
                       <div key={col.key} className="grid-cell" style={{ ...cellStyle(col.key, rowBg), fontSize: 12 }}>
                         {cellValue(j, col.key)}
                       </div>
