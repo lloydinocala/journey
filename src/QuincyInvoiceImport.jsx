@@ -91,8 +91,14 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
           const it = bestItemByDesc(ln.description)
           if (it) itemId = it.id
         }
-        const unitCost = ln.unit_cost != null ? Number(ln.unit_cost)
-          : (ln.extended_cost != null && ln.quantity ? Number(ln.extended_cost) / Number(ln.quantity) : null)
+        // Anchor cost to the line's EXTENDED total when shown (that's the real
+        // money paid) so inventory value reconciles to the invoice; fall back to
+        // the printed unit price only when no extended is given. Full precision
+        // kept here — rounding happens only at display.
+        const qNum = Number(ln.quantity) || 0
+        const unitCost = (ln.extended_cost != null && qNum > 0)
+          ? Number(ln.extended_cost) / qNum
+          : (ln.unit_cost != null ? Number(ln.unit_cost) : null)
         return {
           include: true,
           sku: ln.sku || '',
