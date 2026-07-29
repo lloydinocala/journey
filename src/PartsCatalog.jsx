@@ -62,6 +62,21 @@ export default function PartsCatalog({ profile }) {
   const [offerForm, setOfferForm] = useState(blankOffering)
   const [savingOffer, setSavingOffer] = useState(false)
 
+  // Receiving
+  const emptyLine = () => ({ item_id: '', offering_id: '', packs: '1', pack_base_qty: '1', cost_per_pack: '' })
+  const [showReceive, setShowReceive] = useState(false)
+  const [rcvVendor, setRcvVendor] = useState('')
+  const [rcvRef, setRcvRef] = useState('')
+  const [rcvDate, setRcvDate] = useState('')
+  const [rcvNote, setRcvNote] = useState('')
+  const [rcvLines, setRcvLines] = useState([emptyLine()])
+  const [savingRcv, setSavingRcv] = useState(false)
+
+  // Receipts / reverse
+  const [showReceipts, setShowReceipts] = useState(false)
+  const [receipts, setReceipts] = useState([])
+  const [loadingReceipts, setLoadingReceipts] = useState(false)
+
   useEffect(() => {
     if (isSuperAdmin) {
       supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
@@ -216,6 +231,80 @@ export default function PartsCatalog({ profile }) {
     loadAll()
   }
 
+  // ---- Receiving ----------------------------------------------------------
+  function openReceive() {
+    setRcvVendor(''); setRcvRef(''); setRcvDate(''); setRcvNote(''); setRcvLines([emptyLine()]); setError(''); setShowReceive(true)
+  }
+  function setLine(idx, patch) {
+    setRcvLines((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)))
+  }
+  function chooseOffering(idx, offeringId) {
+    const line = rcvLines[idx]
+    const o = (offersByItem[line.item_id] || []).find((x) => x.id === offeringId)
+    if (o) setLine(idx, {
+      offering_id: offeringId,
+      pack_base_qty: String(o.pack_base_qty ?? 1),
+      cost_per_pack: o.last_cost_per_pack != null ? String(o.last_cost_per_pack) : line.cost_per_pack,
+    })
+    else setLine(idx, { offering_id: '' })
+  }
+  async function submitReceive(e) {
+    e.preventDefault()
+    const lines = rcvLines
+      .filter((l) => l.item_id)
+      .map((l) => {
+        const packs = parseFloat(l.packs) || 0
+        const packBase = parseFloat(l.pack_base_qty) || 1
+        const costPack = l.cost_per_pack === '' ? null : parseFloat(l.cost_per_pack)
+        return {
+          item_id: l.item_id,
+          qty_base: packs * packBase,
+          cost_per_base: costPack != null && packBase > 0 ? costPack / packBase : null,
+        }
+      })
+      .filter((l) => l.qty_base > 0)
+    if (!lines.length) { setError('Add at least one line with a quantity received.'); return }
+    setSavingRcv(true)
+    const { error: rpcErr } = await supabase.rpc('part_receive', {
+      p_org: selectedOrg,
+      p_vendor: rcvVendor || null,
+      p_reference: rcvRef.trim() || null,
+      p_received_at: rcvDate ? new Date(rcvDate + 'T12:00:00').toISOString() : null,
+      p_note: rcvNote.trim() || null,
+      p_lines: lines,
+    })
+    setSavingRcv(false)
+    if (rpcErr) { setError(rpcErr.message); return }
+    setShowReceive(false)
+    loadAll()
+  }
+
+  async function loadReceipts() {
+    setLoadingReceipts(true)
+    const { data } = await supabase
+      .from('part_receipts').select('*, vendors(name)')
+      .eq('org_id', selectedOrg).order('received_at', { ascending: false }).limit(50)
+    const ids = (data || []).map((r) => r.id)
+    const lm = {}
+    if (ids.length) {
+      const { data: led } = await supabase.from('part_ledger').select('batch_id, flagged, kind').in('batch_id', ids)
+      for (const l of led || []) {
+        if (l.kind !== 'receive') continue
+        lm[l.batch_id] = lm[l.batch_id] || { lines: 0, flags: 0 }
+        lm[l.batch_id].lines++; if (l.flagged) lm[l.batch_id].flags++
+      }
+    }
+    setReceipts((data || []).map((r) => ({ ...r, _lines: lm[r.id]?.lines || 0, _flags: lm[r.id]?.flags || 0 })))
+    setLoadingReceipts(false)
+  }
+  function openReceipts() { setShowReceipts(true); loadReceipts() }
+  async function reverseReceipt(id) {
+    if (!window.confirm('Reverse this receipt? It backs out the stock it added and recalculates cost.')) return
+    const { error: rpcErr } = await supabase.rpc('part_reverse_receipt', { p_batch: id })
+    if (rpcErr) { alert(rpcErr.message); return }
+    await loadReceipts(); await loadAll()
+  }
+
   function exportCsv() {
     const cols = [
       { label: 'Updated', value: (i) => dateFmt(i.last_cost_update_at || i.updated_at) },
@@ -255,6 +344,8 @@ export default function PartsCatalog({ profile }) {
           style={{ flex: '1 1 320px', minWidth: 240, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border, #ccc)' }}
         />
         <button className="auth-button" style={{ width: 'auto', padding: '9px 18px' }} onClick={openAdd}>+ Add Item</button>
+        <button className="auth-button" style={{ width: 'auto', padding: '9px 18px', background: '#215F9A' }} onClick={openReceive}>Receive Stock</button>
+        <button className="logout-button" onClick={openReceipts}>Receipts</button>
         <button className="logout-button" onClick={exportCsv}>Export CSV</button>
         <span style={{ color: 'var(--mist)', fontSize: 13 }}>{filtered.length} item{filtered.length === 1 ? '' : 's'}</span>
       </div>
@@ -473,6 +564,146 @@ export default function PartsCatalog({ profile }) {
                 <button type="button" className="logout-button" onClick={() => setOfferItem(null)}>Close</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Receive stock */}
+      {showReceive && (
+        <div className="modal-backdrop" onClick={() => setShowReceive(false)} style={backdrop}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ ...modalCard, maxWidth: 900 }}>
+            <h3 style={{ marginTop: 0 }}>Receive Stock</h3>
+            <p style={{ fontSize: 13, color: 'var(--mist,#777)', marginTop: -6 }}>
+              Received into the Shop. Raises on-hand, updates weighted-average cost, flags cost jumps, and nudges the Pricebook. Fully reversible.
+            </p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div className="field" style={{ flex: 1, minWidth: 180 }}>
+                <label>Vendor</label>
+                <select value={rcvVendor} onChange={(e) => setRcvVendor(e.target.value)}>
+                  <option value="">— optional —</option>
+                  {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </div>
+              <div className="field" style={{ width: 170 }}>
+                <label>PO / Invoice #</label>
+                <input value={rcvRef} onChange={(e) => setRcvRef(e.target.value)} />
+              </div>
+              <div className="field" style={{ width: 160 }}>
+                <label>Received date</label>
+                <input type="date" value={rcvDate} onChange={(e) => setRcvDate(e.target.value)} />
+              </div>
+            </div>
+
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, margin: '8px 0 12px' }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: '#002060' }}>
+                  <th style={thStyle}>Item</th><th style={thStyle}>Vendor offering</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Packs</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Pack size</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Cost/pack</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Adds</th>
+                  <th style={thStyle}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rcvLines.map((l, idx) => {
+                  const it = items.find((i) => i.id === l.item_id)
+                  const offers = offersByItem[l.item_id] || []
+                  const packs = parseFloat(l.packs) || 0
+                  const packBase = parseFloat(l.pack_base_qty) || 0
+                  const costPack = l.cost_per_pack === '' ? null : parseFloat(l.cost_per_pack)
+                  const addQty = packs * packBase
+                  const costBase = costPack != null && packBase > 0 ? costPack / packBase : null
+                  return (
+                    <tr key={idx} style={{ borderTop: '1px solid var(--border,#e2e4e8)' }}>
+                      <td style={tdStyle}>
+                        <select value={l.item_id} onChange={(e) => setLine(idx, { item_id: e.target.value, offering_id: '' })} style={{ minWidth: 170 }}>
+                          <option value="">— pick item —</option>
+                          {items.map((i) => <option key={i.id} value={i.id}>{i.generic_name}</option>)}
+                        </select>
+                      </td>
+                      <td style={tdStyle}>
+                        <select value={l.offering_id} onChange={(e) => chooseOffering(idx, e.target.value)} disabled={!offers.length} style={{ minWidth: 150 }}>
+                          <option value="">{offers.length ? '— optional —' : '(none)'}</option>
+                          {offers.map((o) => <option key={o.id} value={o.id}>{o.vendors?.name} · {o.pack_label || o.vendor_sku || 'pack'}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'right' }}>
+                        <input type="number" step="any" min="0" value={l.packs} onChange={(e) => setLine(idx, { packs: e.target.value })} style={{ width: 64, textAlign: 'right' }} />
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'right' }}>
+                        <input type="number" step="any" min="0" value={l.pack_base_qty} onChange={(e) => setLine(idx, { pack_base_qty: e.target.value })} style={{ width: 72, textAlign: 'right' }} />
+                        <div style={{ fontSize: 11, color: 'var(--mist,#777)' }}>{it?.base_unit || 'units'}</div>
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'right' }}>
+                        <input type="number" step="any" min="0" value={l.cost_per_pack} onChange={(e) => setLine(idx, { cost_per_pack: e.target.value })} style={{ width: 84, textAlign: 'right' }} placeholder="$" />
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        {addQty > 0 ? `${qtyFmt(addQty)} ${it?.base_unit || ''}` : '—'}
+                        {costBase != null && <div style={{ fontSize: 11, color: 'var(--mist,#777)' }}>{money(costBase)}/{it?.base_unit}</div>}
+                      </td>
+                      <td style={tdStyle}>
+                        {rcvLines.length > 1 && <button type="button" className="logout-button" onClick={() => setRcvLines((ls) => ls.filter((_, i) => i !== idx))}>×</button>}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            <button type="button" className="logout-button" onClick={() => setRcvLines((ls) => [...ls, emptyLine()])}>+ Add line</button>
+
+            <div className="field" style={{ marginTop: 12 }}>
+              <label>Note (optional)</label>
+              <input value={rcvNote} onChange={(e) => setRcvNote(e.target.value)} />
+            </div>
+            {error && <div className="auth-error" style={{ marginBottom: 10 }}>{error}</div>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="auth-button" onClick={submitReceive} disabled={savingRcv} style={{ width: 'auto', padding: '10px 22px' }}>
+                {savingRcv ? 'Receiving…' : 'Receive into Shop'}
+              </button>
+              <button type="button" className="logout-button" onClick={() => setShowReceive(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipts / reverse */}
+      {showReceipts && (
+        <div className="modal-backdrop" onClick={() => setShowReceipts(false)} style={backdrop}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ ...modalCard, maxWidth: 760 }}>
+            <h3 style={{ marginTop: 0 }}>Recent Receipts</h3>
+            <p style={{ fontSize: 13, color: 'var(--mist,#777)', marginTop: -6 }}>
+              Each received batch. Reverse backs out its stock and recalculates cost. (Later these also appear in the vendor's history by PO.)
+            </p>
+            {loadingReceipts ? (
+              <p style={{ color: 'var(--mist)' }}>Loading…</p>
+            ) : receipts.length === 0 ? (
+              <p style={{ color: 'var(--mist)' }}>No receipts yet.</p>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', color: '#002060' }}>
+                    <th style={thStyle}>Date</th><th style={thStyle}>Vendor</th><th style={thStyle}>PO / Inv</th>
+                    <th style={{ ...thStyle, textAlign: 'right' }}>Lines</th><th style={thStyle}>Status</th><th style={thStyle}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {receipts.map((r) => (
+                    <tr key={r.id} style={{ borderTop: '1px solid var(--border,#e2e4e8)' }}>
+                      <td style={tdStyle}>{dateFmt(r.received_at)}</td>
+                      <td style={tdStyle}>{r.vendors?.name || '—'}</td>
+                      <td style={tdStyle}>{r.reference || '—'}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right' }}>{r._lines}{r._flags > 0 && <span style={{ color: '#FF0000' }} title="cost-jump flag"> ⚑{r._flags}</span>}</td>
+                      <td style={tdStyle}>{r.reversed_at ? <span style={{ color: 'var(--mist,#777)' }}>Reversed</span> : <span style={{ color: '#1a7f37' }}>Active</span>}</td>
+                      <td style={tdStyle}>{!r.reversed_at && <button className="logout-button" onClick={() => reverseReceipt(r.id)}>Reverse</button>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <div style={{ marginTop: 14 }}>
+              <button type="button" className="logout-button" onClick={() => setShowReceipts(false)}>Close</button>
+            </div>
           </div>
         </div>
       )}

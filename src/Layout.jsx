@@ -4,7 +4,7 @@ import { supabase } from './utils/supabase'
 import AnnouncementBanner from './AnnouncementBanner'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
-import { ELEMENTS_NAV, ELEMENTS_FLEET_NAV } from './modules/elements-hvac'
+import { ELEMENTS_FLEET_NAV } from './modules/elements-hvac'
 import { REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV } from './modules/rewards-hvac'
 import { MARKETING_NAV } from './modules/marketing-hvac'
 
@@ -78,7 +78,8 @@ export default function Layout({ profile }) {
   const showElements = profile?.role !== 'tech' && (isSuperAdmin || profile?.elementsEntitled)
   // Rewards-HVAC (HR/Payroll) — same gating: platform owner or an entitled subscriber.
   const showRewards = profile?.role !== 'tech' && (isSuperAdmin || profile?.rewardsEntitled)
-  const withElements = showElements ? [...CATEGORIES, ELEMENTS_NAV, ELEMENTS_FLEET_NAV] : CATEGORIES
+  // Elements · Inventory retired (replaced by the native Parts Catalog); keep Fleet.
+  const withElements = showElements ? [...CATEGORIES, ELEMENTS_FLEET_NAV] : CATEGORIES
   const baseCategories = showRewards ? [...withElements, REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV] : withElements
   // Marketing-HVAC — platform owner or an entitled subscriber.
   const showMarketing = profile?.role !== 'tech' && (isSuperAdmin || profile?.marketingEntitled)
