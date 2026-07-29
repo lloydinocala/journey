@@ -167,7 +167,9 @@ export default function TechJobCard({ profile }) {
   function toggleDark() { setDark((v) => { const nv = !v; try { localStorage.setItem('jc-theme', nv ? 'dark' : 'light') } catch { /* ignore */ } return nv }) }
   const [arrivalState, setArrivalState] = useState('armed') // 'armed' | 'off'
   const [arrivalDist, setArrivalDist] = useState(null)
+  const [geoAcc, setGeoAcc] = useState(null)
   const [geoNote, setGeoNote] = useState('')
+  const geoCleanupRef = useRef(null)
 
   const [photos, setPhotos] = useState([])
   const [photoUrls, setPhotoUrls] = useState({})
@@ -362,47 +364,78 @@ export default function TechJobCard({ profile }) {
   const allClear = requiredDone && !exceedsLimit
   const status = job?.status
 
-  // ---- GPS auto-start (best effort) ----
+  // ---- GPS auto-start (best effort) + arrival diagnostics ----
   const autoStartArmed = status === 'on_my_way'
   useEffect(() => {
     if (!autoStartArmed || !job) return
     let cancelled = false
+    const dbg = { armed_at: new Date().toISOString(), addr: null, geocoded: false, dest: null, fixes: 0, closest_m: null, best_acc_m: null, last_d: null, last_acc: null, last_fix_at: null, foregrounds: 0, fired: false, fired_at: null, note: '' }
+    let lastWrite = 0
+    const writeDbg = (force) => {
+      const now = Date.now()
+      if (!force && now - lastWrite < 8000) return
+      lastWrite = now
+      supabase.from('jobs').update({ geo_debug: dbg }).eq('id', jobId).then(() => {}, () => {})
+    }
     async function arm() {
-      setArrivalState('armed'); setArrivalDist(null); setGeoNote('')
+      setArrivalState('armed'); setArrivalDist(null); setGeoAcc(null); setGeoNote('')
       const addr = addressString(job.properties); const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-      if (!addr || !key || !('geolocation' in navigator)) { setArrivalState('off'); return }
+      dbg.addr = addr
+      if (!addr || !('geolocation' in navigator)) { setArrivalState('off'); dbg.note = !addr ? 'no address on file' : 'no geolocation API'; writeDbg(true); return }
       const dest = await geocodeAddress(addr, key)
       if (cancelled) return
-      if (!dest) { setArrivalState('off'); return }
-      // Continuous watchPosition is the right API for a device driving toward the
-      // site — iOS delivers fresh fixes as it moves, whereas repeated high-accuracy
-      // getCurrentPosition calls tend to hang/time out (green "armed" but no fix, so
-      // it never fires). A one-shot coarse fix runs first so a distance shows right
-      // away for feedback; only accurate fixes are allowed to auto-fire arrival.
+      if (!dest) { setArrivalState('off'); dbg.note = 'address could not be geocoded'; writeDbg(true); return }
+      dbg.geocoded = true; dbg.dest = dest; writeDbg(true)
       const RING = 150 // meters; plus a slack for each fix's own accuracy
-      const onFix = (pos, canFire) => {
+      const onFix = (pos, canFire, source) => {
         if (cancelled) return
         const here = { lat: pos.coords.latitude, lng: pos.coords.longitude }
         const d = haversineMeters(here, dest)
         const acc = pos.coords.accuracy || 0
-        setArrivalDist(Math.round(d)); setGeoNote('')
-        // Only auto-start on a trustworthy fix (guards against a wildly coarse
-        // network fix reading as "arrived"). Manual Start My Time is always there.
+        setArrivalDist(Math.round(d)); setGeoAcc(Math.round(acc)); setGeoNote('')
+        dbg.fixes += 1; dbg.last_d = Math.round(d); dbg.last_acc = Math.round(acc); dbg.last_fix_at = new Date().toISOString()
+        if (dbg.closest_m == null || d < dbg.closest_m) dbg.closest_m = Math.round(d)
+        if (dbg.best_acc_m == null || acc < dbg.best_acc_m) dbg.best_acc_m = Math.round(acc)
+        // Only auto-start on a trustworthy fix within the ring (guards against a
+        // wildly coarse network fix reading as "arrived"). Manual Start is always there.
         if (canFire && acc <= 500 && d <= RING + Math.min(acc, 250)) {
-          updateStatus('in_progress'); clearGeoWatch()
-        }
+          dbg.fired = true; dbg.fired_at = new Date().toISOString(); dbg.note = `fired from ${source} at ${Math.round(d)}m (±${Math.round(acc)}m)`
+          writeDbg(true); updateStatus('in_progress'); clearGeoWatch()
+        } else { writeDbg(false) }
       }
       const onErr = (err) => {
-        if (err && err.code === 1) { setArrivalState('off'); return } // denied
+        if (err && err.code === 1) { setArrivalState('off'); dbg.note = 'location permission denied'; writeDbg(true); return } // denied
         setGeoNote(err && err.code === 2 ? 'waiting for GPS signal' : 'still locating') // 2=unavailable, 3=timeout — keep trying
+        dbg.note = err && err.code === 2 ? 'position unavailable' : 'gps timeout'; writeDbg(false)
       }
-      // Fast first fix for an immediate distance readout (display only).
-      navigator.geolocation.getCurrentPosition((pos) => onFix(pos, false), () => {}, { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 })
-      // Continuous high-accuracy watch drives the actual auto-start.
-      geoWatchRef.current = navigator.geolocation.watchPosition((pos) => onFix(pos, true), onErr, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 })
+      const opts = { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+      const checkNow = (source) => navigator.geolocation.getCurrentPosition((pos) => onFix(pos, true, source), onErr, opts)
+      const startWatch = () => { clearGeoWatch(); geoWatchRef.current = navigator.geolocation.watchPosition((pos) => onFix(pos, true, 'watch'), onErr, opts) }
+      // Quick coarse fix for an instant distance readout, then a high-accuracy
+      // check that can fire, plus the continuous watch.
+      navigator.geolocation.getCurrentPosition((pos) => onFix(pos, false, 'coarse'), () => {}, { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 })
+      checkNow('initial')
+      startWatch()
+      // iOS suspends the page (and stops the GPS watch) while the app is
+      // backgrounded during the drive, and does NOT resume it on its own. Re-check
+      // and restart the watch the instant the tech returns to the app — which is
+      // exactly when they pull up at the destination.
+      const onVisible = () => {
+        if (cancelled || document.visibilityState !== 'visible') return
+        dbg.foregrounds += 1; writeDbg(true)
+        checkNow('foreground'); startWatch()
+      }
+      document.addEventListener('visibilitychange', onVisible)
+      window.addEventListener('focus', onVisible)
+      window.addEventListener('pageshow', onVisible)
+      geoCleanupRef.current = () => {
+        document.removeEventListener('visibilitychange', onVisible)
+        window.removeEventListener('focus', onVisible)
+        window.removeEventListener('pageshow', onVisible)
+      }
     }
     arm()
-    return () => { cancelled = true; clearGeoWatch() }
+    return () => { cancelled = true; clearGeoWatch(); if (geoCleanupRef.current) { geoCleanupRef.current(); geoCleanupRef.current = null } }
   }, [autoStartArmed, job?.id])
   function clearGeoWatch() { if (geoWatchRef.current != null) { navigator.geolocation.clearWatch(geoWatchRef.current); geoWatchRef.current = null } }
 
@@ -703,8 +736,8 @@ export default function TechJobCard({ profile }) {
           <div className={`jc-arrival ${arrivalState}`}>
             <span className="jc-arrival-dot" />
             {arrivalState === 'off'
-              ? 'On the way — tap Start My Time when you arrive'
-              : `On the way — starts automatically on arrival${arrivalDist != null ? ` · ${arrivalDist} m away` : geoNote ? ` · ${geoNote}` : ' · locating…'}`}
+              ? 'On the way — tap Start My Time when you arrive (auto-start unavailable for this address)'
+              : `On the way — auto-starts within 150 m${arrivalDist != null ? ` · ${arrivalDist} m away${geoAcc != null ? ` (±${geoAcc} m)` : ''}` : geoNote ? ` · ${geoNote}` : ' · locating…'}`}
           </div>
         )}
 
@@ -728,7 +761,7 @@ export default function TechJobCard({ profile }) {
                   )}
                   {phoneList.map((p) => (
                     <div key={p} className="jc-phone">
-                      <span>Phone</span>
+                      <span>Phone/Text</span>
                       <div className="jc-phone-icons">
                         <a className="call" href={`tel:${p}`} title="Call" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconPhone /></a>
                         <button className="text" title="Messages" onClick={() => navigate(`/tech/messages/${jobId}`)}><IconMessage /></button>

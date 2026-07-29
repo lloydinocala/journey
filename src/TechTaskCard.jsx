@@ -60,6 +60,7 @@ export default function TechTaskCard({ profile }) {
   const { taskId } = useParams()
   const navigate = useNavigate()
   const geoWatchRef = useRef(null)
+  const geoCleanupRef = useRef(null)
 
   const [task, setTask] = useState(null)
   const [part, setPart] = useState(null)
@@ -131,7 +132,7 @@ export default function TechTaskCard({ profile }) {
       const dest = await geocodeAddress(addr)
       if (cancelled) return
       if (!dest) { setArrivalState('off'); return }
-      const RING = 220
+      const RING = 150
       const onFix = (pos, canFire) => {
         if (cancelled) return
         const here = { lat: pos.coords.latitude, lng: pos.coords.longitude }
@@ -146,11 +147,26 @@ export default function TechTaskCard({ profile }) {
         if (err && err.code === 1) { setArrivalState('off'); return }
         setGeoNote(err && err.code === 2 ? 'waiting for GPS signal' : 'still locating')
       }
+      const opts = { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+      const checkNow = () => navigator.geolocation.getCurrentPosition((pos) => onFix(pos, true), onErr, opts)
+      const startWatch = () => { clearGeoWatch(); geoWatchRef.current = navigator.geolocation.watchPosition((pos) => onFix(pos, true), onErr, opts) }
       navigator.geolocation.getCurrentPosition((pos) => onFix(pos, false), () => {}, { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 })
-      geoWatchRef.current = navigator.geolocation.watchPosition((pos) => onFix(pos, true), onErr, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 })
+      checkNow()
+      startWatch()
+      // Re-check + restart the watch when the app returns to the foreground (iOS
+      // suspends it while backgrounded during the drive).
+      const onVisible = () => { if (!cancelled && document.visibilityState === 'visible') { checkNow(); startWatch() } }
+      document.addEventListener('visibilitychange', onVisible)
+      window.addEventListener('focus', onVisible)
+      window.addEventListener('pageshow', onVisible)
+      geoCleanupRef.current = () => {
+        document.removeEventListener('visibilitychange', onVisible)
+        window.removeEventListener('focus', onVisible)
+        window.removeEventListener('pageshow', onVisible)
+      }
     }
     arm()
-    return () => { cancelled = true; clearGeoWatch() }
+    return () => { cancelled = true; clearGeoWatch(); if (geoCleanupRef.current) { geoCleanupRef.current(); geoCleanupRef.current = null } }
   }, [autoStartArmed, task?.id])
   function clearGeoWatch() { if (geoWatchRef.current != null) { navigator.geolocation.clearWatch(geoWatchRef.current); geoWatchRef.current = null } }
 
