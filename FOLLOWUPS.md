@@ -57,8 +57,40 @@ photos rolled up (grouped by property, since one customer can own several
 properties), or should photos live only under each property and drop off the
 customer view? Either is easy — just a display decision.
 
-## Inventory module — auto-read emailed vendor invoices → Inventory + pricebook
-**Raised:** 2026-07-29 · **Status:** idea, feasible, to scope
+## Inventory module — Parts Catalog + Quincy invoice ingestion
+**Raised:** 2026-07-29 · **Status:** PHASE 1 BUILT & DEPLOYED (2026-07-29); phases 2-4 pending
+
+Locked design decisions (Lloyd, 2026-07-29): catalog holds COST only (Pricebook
+keeps sell price, nudged by a markup rule); moving weighted-average valuation +
+full cost history + "last cost" shown; quotes update name/cost + create items but
+NEVER touch on-hand (only invoices/packing slips receive stock); cost-jump flag
+default 10% (org-configurable) + surface cross-vendor cost gaps; all stock
+receives into a Shop/Warehouse location first, truck distribution is a later
+feature; approvals = office-admin-or-equivalent permission; auto-reorder must pick
+the cheapest vendor across vendor lines; EPA 608 deferred (truck/tech-centered).
+
+Model (built): part_items (canonical master), part_vendor_offerings (vendor
+SKU->item dedup + cross-ref), part_stock (on-hand per location), part_ledger
+(reversible movement history), part_locations (Shop seeded). Everything stored in
+each item's BASE unit; packs and sell units convert to it (refrigerant: base
+ounce, sell pound, factor 16; 12-pack: base each, factor 12).
+
+Roadmap:
+- Phase 1 (DONE): schema + Parts Catalog page (/parts-catalog) — grid, +Add/Edit,
+  base/sell UoM + factor, on-hand, last/avg cost, vendor-offering editor with
+  cost-per-base-unit, cheapest-vendor, low-stock highlight, CSV export.
+- Phase 2 (NEXT): CSV bulk import (new/update). Then Quincy email ingestion —
+  dedicated address -> edge fn -> extract lines -> match vendor SKU to existing
+  offering (auto after first time) or propose new item (fuzzy match) -> review
+  batch with per-line approve + one-tap reverse via ledger. Invoices/packing
+  slips receive stock; quotes update cost only. New cost nudges Pricebook via
+  markup; flag jumps > threshold.
+- Phase 3: receiving ledger surfaced in Vendor history by PO; on-hand + moving
+  avg cost driven by receipts.
+- Phase 4: usage from Job/Task invoices; par levels; auto-generated reorder lists
+  -> vendor orders with cheapest-vendor selector; truck stock + distribution.
+
+Original idea notes below (kept for reference):
 
 Lloyd's idea (features not yet built): inside a future **Inventory Management
 Module**, when a vendor invoice arrives by email, have **Quincy** auto-convert the
