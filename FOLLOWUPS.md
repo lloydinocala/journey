@@ -2,6 +2,33 @@
 
 Running list of items parked for a decision or a later build phase. Newest first.
 
+## Job start-time: edit field shows a different time than the list (timezone)
+**Raised:** 2026-07-29 · **Status:** real bug, fix scoped — do carefully
+
+On the desktop Jobs page, a job's **read-only** Scheduled Start and the **edit**
+time box disagree by the local UTC offset. Example seen on J-0017-2 (stored
+`14:30:00+00`): the list shows **10:30 AM** (correct — converted UTC→local EDT),
+but clicking Edit shows **2:30 PM** in the time box.
+
+Root cause (Jobs.jsx):
+- Read-only `startTimeDisplay` uses `new Date(start_time).toLocaleTimeString()`
+  → converts the stored UTC instant to the browser's local zone. Correct.
+- Edit populates the box with `j.start_time.slice(11,16)` → the raw UTC
+  wall-clock ("14:30"), NOT converted to local. This is the mismatch.
+- Save's `toTimestamp` does `new Date(\`${date}T${time}:00\`).toISOString()`, which
+  interprets the box value as **local** time.
+
+**Why it matters (the real risk):** because save treats the box as local but the
+box was filled with the UTC time, editing a job and saving — even with no time
+change — re-interprets 14:30 as *local* and shifts the stored instant by the
+offset (here +4h). So any edit silently moves the job's time.
+
+**Fix:** populate the edit time box from the LOCAL time (derive HH:mm from
+`new Date(start_time)` the same way the read-only display does), so it matches the
+list and round-trips correctly through `toTimestamp`. Check the create paths
+(QuickAddModal, TechNewJob) and the Tasks page for the same pattern while at it,
+and verify with a job in a non-UTC zone before/after.
+
 ## Photos should anchor to the Property (referenced by the Job), not the Customer
 **Raised:** 2026-07-29 · **Status:** small build, mostly stubbed already
 
