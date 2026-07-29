@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import QuincyInvoiceImport from './QuincyInvoiceImport'
 import { exportToCSV } from './utils/csvExport'
 
 // The smallest unit an item is sold/consumed in. Everything (stock, cost) is
@@ -77,6 +78,9 @@ export default function PartsCatalog({ profile }) {
   const [showReceipts, setShowReceipts] = useState(false)
   const [receipts, setReceipts] = useState([])
   const [loadingReceipts, setLoadingReceipts] = useState(false)
+
+  // Quincy invoice import
+  const [showQuincy, setShowQuincy] = useState(false)
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -351,6 +355,7 @@ export default function PartsCatalog({ profile }) {
         />
         <button className="auth-button" style={{ width: 'auto', padding: '9px 18px' }} onClick={openAdd}>+ Add Item</button>
         <button className="auth-button" style={{ width: 'auto', padding: '9px 18px', background: '#215F9A' }} onClick={openReceive}>Receive Stock</button>
+        <button className="auth-button" style={{ width: 'auto', padding: '9px 18px', background: '#FF0000' }} onClick={() => setShowQuincy(true)}>Import from Invoice · Quincy</button>
         <button className="logout-button" onClick={openReceipts}>Receipts</button>
         <button className="logout-button" onClick={exportCsv}>Export CSV</button>
         <Link className="logout-button" to="/import/parts-catalog" style={{ textDecoration: 'none' }}>Import CSV</Link>
@@ -672,6 +677,18 @@ export default function PartsCatalog({ profile }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Quincy invoice import */}
+      {showQuincy && (
+        <QuincyInvoiceImport
+          orgId={selectedOrg}
+          items={items}
+          vendors={vendors}
+          offersByItem={offersByItem}
+          onClose={() => setShowQuincy(false)}
+          onApplied={loadAll}
+        />
       )}
 
       {/* Receipts / reverse */}
