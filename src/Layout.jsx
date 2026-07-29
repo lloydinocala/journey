@@ -15,6 +15,7 @@ const CATEGORIES = [
     { label: 'Jobs Management', path: '/jobs-management' },
     { label: 'Tasks', path: '/tasks' },
     { label: 'Vendors', path: '/vendors' },
+    { label: 'Parts Catalog', path: '/parts-catalog' },
     { label: 'Properties', path: '/properties' },
     { label: 'Customers', path: '/customers' },
     { label: 'Text Archive', path: '/text-archive' },

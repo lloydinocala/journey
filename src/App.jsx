@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { loadOrgTz } from './utils/tz'
+import PartsCatalog from './PartsCatalog'
 import Login from './Login'
 import SetPassword from './SetPassword'
 import Layout from './Layout'
@@ -182,6 +183,7 @@ function AuthenticatedApp() {
         <Route path="/vendors/:vendorId" element={<VendorDetail profile={profile} />} />
         <Route path="/properties" element={<Properties profile={profile} />} />
         <Route path="/jobs" element={<Jobs profile={profile} />} />
+        <Route path="/parts-catalog" element={<PartsCatalog profile={profile} />} />
         <Route path="/settings" element={<Settings profile={profile} />} />
         <Route path="/team" element={<Team profile={profile} />} />
         <Route path="/session-log" element={<SessionLog profile={profile} />} />
