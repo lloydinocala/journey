@@ -741,6 +741,7 @@ export default function TechJobCard({ profile }) {
           </div>
         )}
 
+        <div className="jc-sections">
         {/* Customer (optional / blue, Edit only) */}
         <div className="jc-task">
           <TaskHead k="customer" title="Customer" icon={<IconPin />} done forceColor="blue"
@@ -1096,6 +1097,7 @@ export default function TechJobCard({ profile }) {
             </div>
           )}
         </div>
+        </div>{/* /jc-sections */}
 
         {/* Google Reviews (optional, colorful link) */}
         <button className="jc-google" onClick={sendGoogleReview}>

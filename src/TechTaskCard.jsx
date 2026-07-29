@@ -254,6 +254,7 @@ export default function TechTaskCard({ profile }) {
         )}
         {lockFlash && <div className="jc-arrival off"><span className="jc-arrival-dot" />Press Stop My Time before leaving this task.</div>}
 
+        <div className="jc-sections">
         {/* Destination */}
         <div className="jc-task">
           <div className="jc-task-head blue"><IconPin /><span className="jc-th-title">Destination</span></div>
@@ -305,6 +306,7 @@ export default function TechTaskCard({ profile }) {
             <div className="jc-task-body"><div style={{ fontSize: 15 }}>{task.incomplete_reason}</div></div>
           </div>
         )}
+        </div>{/* /jc-sections */}
       </div>
 
       {showStop && (

@@ -2364,3 +2364,47 @@ body {
 .data-table td.sticky-actions { z-index: 3; }
 .data-table tbody tr:nth-child(even) td.sticky-actions { background: var(--panel); }
 .data-table tbody tr:nth-child(odd) td.sticky-actions { background: var(--ink); }
+
+/* ============================================================
+   Tablet responsive (>= 768px). Phones (< 768px) are unaffected —
+   every rule below lives inside a min-width media query. The goal
+   is to use the tablet's width (multi-column lists and card
+   sections, wider centered shells) instead of a phone-width column
+   floating in the middle. No behavior changes; layout only.
+   ============================================================ */
+@media (min-width: 768px) {
+  /* Wider centered shells, overriding the phone 480/460 caps */
+  .mobile-shell { max-width: 900px; }
+  .job-card-v2.mobile-shell { max-width: 880px; }
+
+  /* My Job Cards / task list: a grid of cards instead of one stack */
+  .mobile-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+  .mobile-card-grid .job-card-item { margin-bottom: 0; }
+
+  /* Job & task card: collapsible sections flow into 2 balanced columns */
+  .job-card-v2 .jc-sections { column-count: 2; column-gap: 16px; }
+  .job-card-v2 .jc-sections .jc-task {
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+  }
+  /* A 2:1 photo would be huge at tablet width — make it a banner crop */
+  .job-card-v2 .jc-property-img { height: 260px; aspect-ratio: auto; }
+  .job-card-v2 .jc-property-fallback { aspect-ratio: auto; height: 200px; }
+
+  /* Messages / chat: comfortable centered width, bubbles capped */
+  .job-card-v2.msg-shell { max-width: 760px; }
+  .msg-bubble { max-width: 520px; }
+}
+
+/* Landscape tablet / larger screens: use the extra width */
+@media (min-width: 1024px) {
+  .mobile-shell { max-width: 1100px; }
+  .job-card-v2.mobile-shell { max-width: 1080px; }
+  .mobile-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .job-card-v2 .jc-sections { column-count: 3; }
+}

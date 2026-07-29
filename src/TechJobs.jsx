@@ -214,7 +214,7 @@ export default function TechJobs({ profile }) {
               : 'Nothing scheduled for this day.'}
           </p>
         ) : (
-          items.map((it) => it.kind === 'task' ? (
+          <div className="mobile-card-grid">{items.map((it) => it.kind === 'task' ? (
             <div key={`t-${it.data.id}`} className="job-card-item job-card-item-task" onClick={() => navigate(`/tech/task/${it.data.id}`)}>
               <div className="job-card-item-top">
                 <span className="job-card-number">TASK</span>
@@ -245,7 +245,7 @@ export default function TechJobs({ profile }) {
                 </div>
               )}
             </div>
-          ))
+          ))}</div>
         )}
       </div>
 
