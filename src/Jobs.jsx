@@ -291,9 +291,18 @@ export default function Jobs({ profile }) {
     return new Date(value).toLocaleString()
   }
 
+  function durationLabel(hrs) {
+    if (hrs == null || hrs === '') return ''
+    const n = parseFloat(hrs)
+    if (isNaN(n)) return ''
+    const txt = Number.isInteger(n) ? String(n) : String(n)
+    return `${txt} hr${n === 1 ? '' : 's'}`
+  }
   function startTimeDisplay(job) {
     if (!job.start_time) return '—'
-    return new Date(job.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    const t = new Date(job.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    const d = durationLabel(job.duration_hours)
+    return d ? `${t} · ${d}` : t
   }
 
   // Build a proper timestamp from a date+time pair entered in the browser's
@@ -830,6 +839,10 @@ export default function Jobs({ profile }) {
                     if (col.key === 'start_time') return (
                       <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <input type="time" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 12, color: '#555' }}>
+                          <span style={{ whiteSpace: 'nowrap' }}>Duration (hrs)</span>
+                          <input type="number" step="0.5" min="0" value={editDuration} onChange={(e) => setEditDuration(e.target.value)} placeholder="1" style={{ width: 64 }} />
+                        </label>
                       </div>
                     )
                     if (col.key === 'street_address') return (
