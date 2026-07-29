@@ -2,6 +2,44 @@
 
 Running list of items parked for a decision or a later build phase. Newest first.
 
+## Inventory module — auto-read emailed vendor invoices → Inventory + pricebook
+**Raised:** 2026-07-29 · **Status:** idea, feasible, to scope
+
+Lloyd's idea (features not yet built): inside a future **Inventory Management
+Module**, when a vendor invoice arrives by email, have **Quincy** auto-convert the
+invoice into structured data, post it into **Inventory Records**, and update the
+**latest per-unit price into the pricebook**.
+
+**Verdict: very feasible** — it's the same pattern as the nameplate scan
+(document → Claude with a forced structured-output tool → validated data), and a
+born-digital invoice PDF is an *easier*, cleaner input than a photographed data
+plate. Every building block already exists in the app.
+
+Proposed pipeline:
+1. **Ingest:** a dedicated inbound email address (via SendGrid Inbound Parse,
+   already in use) hands the email + PDF to a Supabase edge function. Manual
+   forward/upload into the module can feed the same step.
+2. **Parse:** the edge function sends the PDF to Claude with a `report_invoice`
+   tool (same technique as `scan-nameplate` / `marketing-generate`) → vendor,
+   invoice #, date, line items (SKU/description, qty, unit price, extended), plus
+   subtotal, tax, shipping.
+3. **Review gate (recommended, not auto-post):** Quincy drops a fully pre-filled
+   draft into an **Approval Queue** (reuse the Marketing module's queue shape). A
+   person taps once to confirm; *that tap* posts to Inventory + pricebook. Keeps
+   a misread decimal from silently corrupting cost basis / sell prices —
+   consistent with the "protect the business" principle.
+
+Two real work items in any such build:
+- **Item matching:** vendor item names won't match pricebook items (e.g. "CAP
+  45/5 440V RND" vs "Dual Run Capacitor 45/5"). Needs a fuzzy-match + first-time
+  mapping step; mappings are remembered per vendor after that.
+- **Pricebook update rule (decision needed):** does the new cost update *cost
+  basis only*, or also recompute *sell price* via markup? Keep price history?
+  Flag cost jumps over a threshold (e.g. >15%) to catch vendor increases?
+
+Cost per invoice is trivial. This is a real module (not a quick job) but every
+piece is a pattern already proven in the app.
+
 ## Git commits show as "Unverified" — decide desired attribution/signing
 **Raised:** 2026-07-29 · **Status:** open, needs decision
 
