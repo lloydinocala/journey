@@ -2,6 +2,96 @@
 
 Running list of items parked for a decision or a later build phase. Newest first.
 
+## Purchase classification: Shop / Tools / Job-Specific + pack-size auto-detect
+**Raised:** 2026-07-30 · **Status:** FULLY SPEC'D — BUILD SCHEDULED for 2026-07-30 06:15 EDT
+
+Lloyd wants this built the morning of 2026-07-30. He is up 06:45 EDT and only has
+until **10:15 EDT** (medical procedure w/ anesthesia; out until ~5 PM EDT). Build
+must run as unattended as possible in the 06:15–10:15 window. **All decisions are
+made — do not wait on him.**
+
+### The problem
+The same emailed-invoice inbox receives two very different kinds of purchase:
+(1) **stock replenishment** and (2) **direct expense for one job** (equipment,
+install supplies, warranty/special-order parts) that must be expensed immediately,
+never held as inventory. Real invoices are often **mixed** (owner buys a job part,
+a hand tool, and truck-stock capacitors on one ticket stamped with a single PO).
+
+### The model (LOCKED)
+Every invoice line is classified into one of three buckets — **Shop**, **Hand
+Tools**, **Shop Supplies**, or **Job-Specific** (four values; "Tools" split per
+Lloyd into Hand Tools vs Shop Supplies). Only **Shop** ever touches inventory:
+
+- **Shop / Truck Stock** → receive into the Shop location (on-hand up, moving-avg
+  cost, Pricebook nudge by markup). Truck stock = Shop stock later *issued* to
+  trucks; truck distribution is a later internal-transfer feature. Only the office
+  orders/receives — techs never trigger a receipt.
+- **Hand Tools** and **Shop Supplies** → excluded from tracked inventory entirely;
+  expensed to two separate overhead/write-off expense categories. No on-hand, no
+  asset list, expendable by natural loss. (Tax treatment is the accountant's; app
+  just categorizes + totals.)
+- **Job-Specific** → cost books to the actual **Job record** as job material cost
+  (drives job profitability). Bypasses on-hand. Does NOT nudge Pricebook. For
+  equipment we don't stock (heat pumps, air handlers), STILL create a catalog item
+  flagged **non-inventory** (no on-hand) so we build cost/price history for
+  estimating.
+
+### Auto-classification — the PO field is the classifier
+Quincy reads the PO/reference off the priced invoice and pre-classifies the whole
+invoice:
+- PO matches a Journey **job number** (regex `J-\d+`, e.g. `J-0017`) → Job-Specific,
+  attach to that exact job. **This is the deterministic path Lloyd will adopt.**
+- PO ~ "truck stock" / "stock" / "shop" / "truck" → Shop.
+- PO ~ "tools" → Hand Tools (or Shop Supplies; let reviewer pick which tool bucket).
+- PO looks like a **customer last name** → resolve to that customer → their open
+  job → Job-Specific (fallback for the old convention; if >1 open job, office picks).
+- Anything Quincy can't confidently classify → **hold for review** (Lloyd's choice).
+
+Then a whole-invoice classifier control at the top of the review screen (Shop /
+Hand Tools / Shop Supplies / Job #) with **per-line overrides** for mixed tickets.
+Pre-flag likely exceptions: a hand tool is never job material; a bare stock part on
+a job invoice is probably Shop — surface these so the office confirms, not hunts.
+
+### Safeguards (free from Lloyd's process)
+- **Cost is only ever set from a priced invoice.** Employees get unpriced packing
+  slips; a packing slip may confirm receipt/qty but must NEVER set price.
+- **Dedup** invoice-vs-slip by (vendor + invoice/PO reference) so one receipt can't
+  be counted twice.
+
+### Pack-size auto-detect (bundled into this build — "both, together")
+Generalize the R-410A fix so new items get the right pack size automatically:
+- Infer `pack_base_qty` from the vendor description ("25 LBS" → 400 oz given
+  base=ounce; "1 GAL"; "12/CS" → 12). 
+- Let the reviewer set base unit + pack size for NEW items in the review screen
+  (today forced to base `each`, factor 1 — the root cause of the R-410A bug).
+- Show **live cost-per-base-unit** in each review row so a bad pack size is obvious
+  before approval.
+- Smarter first-time fuzzy match on key tokens (R410A, "45/5 capacitor") so generic
+  items match across vendors; after first approval the vendor SKU→item mapping is
+  remembered in `part_vendor_offerings`.
+
+### Reporting payoff
+Once purchases sort into buckets: per-job material cost (job profitability),
+inventory value (Shop only), and hand-tool / shop-supply overhead spend — the last
+directly answers Lloyd's pain about tools getting mis-charged to jobs.
+
+### Build notes / likely shape (finalize at build time)
+- Inventory-affecting receipts (Shop) keep using `part_receive`. Tools & Job-Specific
+  must NOT go through `part_ledger` (that's inventory movement) — record them as
+  expense/job-cost rows. Likely a new table (e.g. `part_purchase_allocations` or a
+  `job_material_costs` / `expense_entries` table) linking invoice line → bucket →
+  job_id (nullable) → amount → expense_category. Consider a per-org expense-category
+  seed: "Hand Tools", "Shop Supplies".
+- Item flag: `part_items.is_inventory boolean default true` (false = non-inventory /
+  equipment / expense — never gets on-hand).
+- Main files: `QuincyInvoiceImport.jsx` (review UI + classification + pack-size),
+  `inbound-invoice` edge fn (parse PO → pre-classify), `PartsCatalog.jsx` (surface
+  non-inventory items sensibly), plus job detail (show job material cost rollup).
+- **Deploy incrementally**, self-testing each coherent piece (Lloyd's choice), via
+  `git push "https://x-access-token:${PAT}@github.com/lloydinocala/journey.git" HEAD:main`.
+- Verify each push builds (`npx vite build`) before deploying.
+
+
 ## Job start-time: edit field shows a different time than the list (timezone)
 **Raised:** 2026-07-29 · **Status:** real bug, fix scoped — do carefully
 
