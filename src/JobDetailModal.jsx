@@ -1,9 +1,29 @@
+import { useState, useEffect } from 'react'
+import { supabase } from './utils/supabase'
 import { formatTimeInZone } from './utils/tz'
 
+function money(n) {
+  if (n == null || isNaN(n)) return '—'
+  return '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 export default function JobDetailModal({ job, onClose }) {
+  const [materials, setMaterials] = useState(null)   // job-specific purchases
+
+  useEffect(() => {
+    if (!job?.id) return
+    let cancel = false
+    supabase.from('part_expense_lines')
+      .select('id, description, quantity, unit_cost, extended_cost, purchased_at, reference, vendors(name)')
+      .eq('job_id', job.id).order('purchased_at', { ascending: true })
+      .then(({ data }) => { if (!cancel) setMaterials(data || []) })
+    return () => { cancel = true }
+  }, [job?.id])
+
   if (!job) return null
 
   const isEstimate = job.job_type === 'System Estimate'
+  const materialTotal = (materials || []).reduce((s, m) => s + (Number(m.extended_cost) || 0), 0)
 
   function formatTime(startTime) {
     if (!startTime) return 'No time set'
@@ -62,6 +82,33 @@ export default function JobDetailModal({ job, onClose }) {
           <span className="label">Status</span>
           <span className={`status-pill status-${job.status}`}>{job.status}</span>
         </div>
+
+        {materials && materials.length > 0 && (
+          <div style={{ marginTop: 14, borderTop: '1px solid #e2e4e8', paddingTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+              <span className="label" style={{ fontWeight: 700, color: '#002060' }}>Materials &amp; Purchases</span>
+              <span style={{ fontWeight: 800, color: '#002060' }}>{money(materialTotal)}</span>
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <tbody>
+                {materials.map((m) => (
+                  <tr key={m.id} style={{ borderTop: '1px solid #f0f1f4' }}>
+                    <td style={{ padding: '5px 6px' }}>
+                      {m.description || 'Item'}
+                      <div style={{ fontSize: 11, color: 'var(--mist,#777)' }}>
+                        {m.vendors?.name || 'Vendor'}{m.reference ? ` · ${m.reference}` : ''}{m.quantity ? ` · qty ${m.quantity}` : ''}
+                      </div>
+                    </td>
+                    <td style={{ padding: '5px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>{money(m.extended_cost)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ fontSize: 11, color: 'var(--mist,#777)', marginTop: 4 }}>
+              Job-specific parts &amp; equipment purchased for this job (from vendor invoices).
+            </div>
+          </div>
+        )}
 
         <button className="logout-button" onClick={onClose} style={{ marginTop: 16 }}>Close</button>
       </div>
