@@ -59,6 +59,10 @@ export default function PartsCatalog({ profile }) {
   const [editingItemId, setEditingItemId] = useState(null)
   const [savingItem, setSavingItem] = useState(false)
 
+  // Delete / deactivate item
+  const [deleteTarget, setDeleteTarget] = useState(null)   // the item pending removal
+  const [deleting, setDeleting] = useState(false)
+
   // Vendor offerings drawer
   const [offerItem, setOfferItem] = useState(null)         // the item whose offerings we're editing
   const [offerForm, setOfferForm] = useState(blankOffering)
@@ -105,7 +109,7 @@ export default function PartsCatalog({ profile }) {
     setError('')
     const [loc, itemsRes, vendorsRes] = await Promise.all([
       supabase.from('part_locations').select('id').eq('org_id', selectedOrg).eq('kind', 'shop').limit(1).maybeSingle(),
-      supabase.from('part_items').select('*').eq('org_id', selectedOrg).order('generic_name'),
+      supabase.from('part_items').select('*').eq('org_id', selectedOrg).neq('is_active', false).order('generic_name'),
       supabase.from('vendors').select('id, name').eq('org_id', selectedOrg).eq('is_active', true).order('name'),
     ])
     const locId = loc.data?.id || null
@@ -257,6 +261,36 @@ export default function PartsCatalog({ profile }) {
 
   async function deleteOffering(id) {
     await supabase.from('part_vendor_offerings').delete().eq('id', id)
+    loadAll()
+  }
+
+  // ---- Delete / deactivate item ------------------------------------------
+  // "Deactivate" hides the item but preserves its receiving history (the safe
+  // default for a real item you no longer stock). "Delete permanently" is for
+  // accidental duplicates — it cascades the item's offerings, stock, and ledger.
+  function confirmDelete(it) { setDeleteTarget(it); setError('') }
+
+  async function deactivateItem() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const { error: err } = await supabase.from('part_items')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', deleteTarget.id)
+    setDeleting(false)
+    if (err) { setError(err.message); return }
+    setDeleteTarget(null)
+    loadAll()
+  }
+
+  async function hardDeleteItem() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    // Offerings, stock and ledger rows FK to part_items with ON DELETE CASCADE,
+    // so a single delete removes the item and everything hanging off it.
+    const { error: err } = await supabase.from('part_items').delete().eq('id', deleteTarget.id)
+    setDeleting(false)
+    if (err) { setError(err.message); return }
+    setDeleteTarget(null)
     loadAll()
   }
 
@@ -440,7 +474,14 @@ export default function PartsCatalog({ profile }) {
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>{it.reorder_level != null ? qtyFmt(it.reorder_level) : '—'}</td>
                     <td style={tdStyle}>
-                      <button className="logout-button" onClick={() => openEdit(it)}>Edit</button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="logout-button" onClick={() => openEdit(it)}>Edit</button>
+                        <button
+                          onClick={() => confirmDelete(it)}
+                          title="Delete or deactivate this item"
+                          style={{ background: 'none', border: '1px solid #FF0000', color: '#FF0000', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                        >Delete</button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -449,6 +490,52 @@ export default function PartsCatalog({ profile }) {
           </table>
         </div>
       )}
+
+      {/* Delete / deactivate confirmation */}
+      {deleteTarget && (() => {
+        const onHand = Number(stockByItem[deleteTarget.id] || 0)
+        const offerCount = (offersByItem[deleteTarget.id] || []).length
+        const hasHistory = onHand !== 0 || offerCount > 0 || deleteTarget.last_cost != null
+        return (
+          <div className="modal-backdrop" onClick={() => !deleting && setDeleteTarget(null)} style={backdrop}>
+            <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ ...modalCard, maxWidth: 520 }}>
+              <h3 style={{ marginTop: 0, color: '#002060' }}>Remove “{deleteTarget.generic_name}”?</h3>
+              {hasHistory ? (
+                <div style={{ background: '#FFF4F4', border: '1px solid #FFD1D1', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
+                  <div style={{ fontWeight: 700, color: '#B00020', marginBottom: 6 }}>This item has activity</div>
+                  <div style={{ fontSize: 14, color: '#334155' }}>
+                    On-hand: <b>{qtyFmt(onHand)} {deleteTarget.base_unit}</b> · Vendor offerings: <b>{offerCount}</b>
+                    {deleteTarget.last_cost != null && <> · Last cost: <b>{money(deleteTarget.last_cost)}</b></>}.
+                    Deleting permanently also erases its vendor pricing and all receiving history. If this is a real item
+                    you simply no longer stock, deactivate it instead — it disappears from the catalog but its history is kept.
+                  </div>
+                </div>
+              ) : (
+                <p style={{ fontSize: 14, color: '#334155', marginBottom: 16 }}>
+                  This item has no stock or receiving history, so it can be safely removed.
+                </p>
+              )}
+              {error && <div className="auth-error" style={{ marginBottom: 12 }}>{error}</div>}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {hasHistory && (
+                  <button onClick={deactivateItem} disabled={deleting}
+                    style={{ flex: 1, minWidth: 150, padding: '11px', borderRadius: 8, border: '1px solid #002060', background: '#002060', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                    {deleting ? 'Working…' : 'Deactivate (hide)'}
+                  </button>
+                )}
+                <button onClick={hardDeleteItem} disabled={deleting}
+                  style={{ flex: 1, minWidth: 150, padding: '11px', borderRadius: 8, border: '1px solid #FF0000', background: hasHistory ? '#fff' : '#FF0000', color: hasHistory ? '#FF0000' : '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                  {deleting ? 'Working…' : 'Delete permanently'}
+                </button>
+                <button onClick={() => setDeleteTarget(null)} disabled={deleting}
+                  style={{ flex: '0 0 auto', padding: '11px 16px', borderRadius: 8, border: '1px solid #CBD5E1', background: '#fff', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Add / Edit item modal */}
       {showItemModal && (
