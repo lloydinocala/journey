@@ -3,7 +3,31 @@
 Running list of items parked for a decision or a later build phase. Newest first.
 
 ## Purchase classification: Shop / Tools / Job-Specific + pack-size auto-detect
-**Raised:** 2026-07-30 · **Status:** FULLY SPEC'D — BUILD SCHEDULED for 2026-07-30 06:15 EDT
+**Raised:** 2026-07-30 · **Status:** BUILT & DEPLOYED 2026-07-30 (all decisions locked). Live self-test by Lloyd pending.
+
+### What shipped (2026-07-30 morning)
+- Schema: `part_items.is_inventory`; `part_expense_lines` (bucket hand_tools/
+  shop_supplies/job, job_id, item_id, qty, unit/extended cost) + RLS.
+- Parts Catalog: Track-in-inventory toggle, NON-INV badge, on-hand hidden for
+  non-inventory items; Delete/Deactivate (prior day).
+- Quincy review: whole-invoice classifier + per-line bucket + job picker;
+  auto-classify from the buyer PO (job # / stock / tool / customer last name);
+  hold-for-review (Approve blocked until every line classified). Shop→part_receive,
+  Job/Tools→part_expense_lines. Packing slips receive qty w/ no cost; duplicate-
+  reference warning. Pack-size inferred from description (25 LB jug→400 oz);
+  base-unit picker + live cost-per-base for new items.
+- Edge fns invoice-extract v2 + inbound-invoice v2 now extract `customer_po`.
+- Job detail modal: Materials & Purchases rollup (job-specific expense lines + total).
+- Verified at the DB layer (insert→rollup→cleanup). Build passes each deploy.
+
+### Not yet done / next
+- Live click-through by Lloyd (needs his login — couldn't sign in on his behalf).
+- Expense reporting page (tool/supply spend, job material cost across jobs) — only
+  the per-job rollup exists so far.
+- Stock pulled FROM shelf onto a job (usage→job cost, on-hand down) — Phase 4.
+- Truck sub-locations / internal transfer.
+
+### Original spec (retained)
 
 Lloyd wants this built the morning of 2026-07-30. He is up 06:45 EDT and only has
 until **10:15 EDT** (medical procedure w/ anesthesia; out until ~5 PM EDT). Build
