@@ -94,6 +94,7 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
   const [vendorId, setVendorId] = useState('')
   const [newVendorName, setNewVendorName] = useState('')
   const [reference, setReference] = useState('')
+  const [poRef, setPoRef] = useState('')          // buyer's PO / job ref (classifier)
   const [receivedDate, setReceivedDate] = useState('')
   const [lines, setLines] = useState([])          // resolutions
   const [summary, setSummary] = useState(null)
@@ -112,6 +113,30 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
   const allOffers = []
   for (const [itemId, offs] of Object.entries(offersByItem || {})) {
     for (const o of offs) allOffers.push({ ...o, item_id: itemId })
+  }
+
+  // Classify from a PO / job reference string: deterministic Job # first, then
+  // stock/tool keywords, then a customer last-name match. Blank = hold for review.
+  function detectClass(raw) {
+    const s = (raw || '').trim()
+    if (!s) return { bucket: '', jobId: '' }
+    const up = s.toUpperCase()
+    const core = jobCore(s)
+    if (core) {
+      const j = jobs.find((x) => jobCore(x.job_number) === core)
+      if (j) return { bucket: 'job', jobId: j.id }
+    }
+    if (/TRUCK|STOCK|SHOP|WAREHOUSE/.test(up)) return { bucket: 'shop', jobId: '' }
+    if (/TOOL/.test(up)) return { bucket: 'hand_tools', jobId: '' }
+    const toks = norm(s).split(' ').filter((w) => w.length > 2)
+    for (const c of customers) {
+      const ln = norm(c.last_name)
+      if (ln && toks.includes(ln)) {
+        const cj = jobs.filter((x) => x.customer_id === c.id)
+        return { bucket: 'job', jobId: cj.length === 1 ? cj[0].id : '' }
+      }
+    }
+    return { bucket: '', jobId: '' }
   }
 
   function bestItemByDesc(desc) {
@@ -153,28 +178,7 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
   useEffect(() => {
     if (!extracted || !dataReady || classifiedRef.current) return
     classifiedRef.current = true
-    const raw = (reference || extracted.invoice_number || '').trim()
-    let bucket = '', jobId = ''
-    const up = raw.toUpperCase()
-    const core = jobCore(raw)
-    if (core) {
-      const j = jobs.find((x) => jobCore(x.job_number) === core)
-      if (j) { bucket = 'job'; jobId = j.id }
-    }
-    if (!bucket && /TRUCK|STOCK|SHOP|WAREHOUSE/.test(up)) bucket = 'shop'
-    if (!bucket && /TOOL/.test(up)) bucket = 'hand_tools'
-    if (!bucket) {
-      const toks = norm(raw).split(' ').filter((w) => w.length > 2)
-      for (const c of customers) {
-        const ln = norm(c.last_name)
-        if (ln && toks.includes(ln)) {
-          bucket = 'job'
-          const cj = jobs.filter((x) => x.customer_id === c.id)
-          if (cj.length === 1) jobId = cj[0].id
-          break
-        }
-      }
-    }
+    const { bucket, jobId } = detectClass(poRef || extracted.customer_po || reference || extracted.invoice_number || '')
     if (bucket) {
       setInvoiceBucket(bucket); setInvoiceJobId(jobId)
       setLines((ls) => ls.map((l) => ({ ...l, bucket: l.bucket || bucket, job_id: l.job_id || jobId })))
@@ -222,6 +226,7 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
       setExtracted(data)
       setDocType(data.doc_type === 'quote' ? 'quote' : (data.doc_type === 'packing_slip' ? 'packing_slip' : 'invoice'))
       setReference(data.invoice_number || '')
+      setPoRef(data.customer_po || '')
       setReceivedDate(data.invoice_date && /^\d{4}-\d{2}-\d{2}$/.test(data.invoice_date) ? data.invoice_date : '')
 
       // Resolve vendor by fuzzy name.
@@ -447,11 +452,16 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
                   <input style={{ marginTop: 6 }} value={newVendorName} onChange={(e) => setNewVendorName(e.target.value)} placeholder="New vendor name" />
                 )}
               </div>
-              <div className="field" style={{ width: 160 }}>
-                <label>PO / Invoice #</label>
+              <div className="field" style={{ width: 140 }}>
+                <label>Invoice #</label>
                 <input value={reference} onChange={(e) => setReference(e.target.value)} />
               </div>
-              <div className="field" style={{ width: 150 }}>
+              <div className="field" style={{ width: 170 }}>
+                <label title="The buyer's PO / job / name — drives classification">Ordered under (PO/Job)</label>
+                <input value={poRef} placeholder="e.g. J-0017, Hollman, Truck Stock"
+                  onChange={(e) => { const v = e.target.value; setPoRef(v); const d = detectClass(v); if (d.bucket) classifyAll(d.bucket, d.bucket === 'job' ? d.jobId : undefined) }} />
+              </div>
+              <div className="field" style={{ width: 140 }}>
                 <label>Date</label>
                 <input type="date" value={receivedDate} onChange={(e) => setReceivedDate(e.target.value)} />
               </div>
