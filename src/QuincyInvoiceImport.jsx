@@ -26,8 +26,8 @@ function fileToBase64(file) {
   })
 }
 
-const backdrop = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '32px 16px', overflowY: 'auto', zIndex: 1100 }
-const card = { background: '#fff', borderRadius: 12, padding: 24, maxWidth: 1000, width: '100%', boxShadow: '0 12px 40px rgba(0,0,0,0.25)' }
+const backdrop = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 2vw', overflowY: 'auto', zIndex: 1100 }
+const card = { background: '#fff', borderRadius: 12, padding: 24, maxWidth: 1400, width: '96vw', boxShadow: '0 12px 40px rgba(0,0,0,0.25)' }
 const th = { padding: '8px 10px', fontSize: 12, fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap' }
 const td = { padding: '7px 10px', verticalAlign: 'top', fontSize: 13 }
 
