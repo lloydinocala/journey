@@ -33,6 +33,7 @@ function dateFmt(d) {
 const blankItem = {
   generic_name: '', category: '', base_unit: 'each', sell_unit: 'each',
   sell_unit_factor: '1', reorder_level: '', markup_percent: '', description: '',
+  is_inventory: true,
 }
 const blankOffering = {
   vendor_id: '', vendor_sku: '', vendor_description: '', pack_label: '',
@@ -186,6 +187,7 @@ export default function PartsCatalog({ profile }) {
       reorder_level: it.reorder_level != null ? String(it.reorder_level) : '',
       markup_percent: it.markup_percent != null ? String(it.markup_percent) : '',
       description: it.description || '',
+      is_inventory: it.is_inventory !== false,
     })
     setError(''); setShowItemModal(true)
   }
@@ -203,6 +205,7 @@ export default function PartsCatalog({ profile }) {
       reorder_level: itemForm.reorder_level === '' ? null : parseFloat(itemForm.reorder_level),
       markup_percent: itemForm.markup_percent === '' ? null : parseFloat(itemForm.markup_percent),
       description: itemForm.description.trim() || null,
+      is_inventory: itemForm.is_inventory !== false,
       updated_at: new Date().toISOString(),
     }
     let err
@@ -447,21 +450,25 @@ export default function PartsCatalog({ profile }) {
             </thead>
             <tbody>
               {filtered.map((it) => {
+                const isInv = it.is_inventory !== false
                 const onHand = stockByItem[it.id] || 0
-                const low = it.reorder_level != null && onHand <= Number(it.reorder_level)
+                const low = isInv && it.reorder_level != null && onHand <= Number(it.reorder_level)
                 const ch = cheapest(it.id)
                 const offers = offersByItem[it.id] || []
                 return (
                   <tr key={it.id} style={{ borderTop: '1px solid var(--border, #e2e4e8)' }}>
                     <td style={tdStyle}>{dateFmt(it.last_cost_update_at || it.updated_at)}</td>
                     <td style={{ ...tdStyle, fontWeight: 600, color: '#002060' }}>{it.generic_name}
+                      {!isInv && <span title="Non-inventory — expensed, no on-hand" style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#7A5C00', background: '#FFF3CD', border: '1px solid #FFE39A', borderRadius: 4, padding: '1px 5px', verticalAlign: 'middle' }}>NON-INV</span>}
                       {it.description && <div style={{ fontWeight: 400, color: 'var(--mist,#777)', fontSize: 12 }}>{it.description}</div>}
                     </td>
                     <td style={tdStyle}>{it.category || '—'}</td>
                     <td style={tdStyle}>{it.base_unit}</td>
                     <td style={tdStyle}>{it.sell_unit}{Number(it.sell_unit_factor) !== 1 ? ` (${it.sell_unit_factor} ${it.base_unit})` : ''}</td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>
-                      <span style={low ? { color: '#FF0000', fontWeight: 700 } : undefined}>{qtyFmt(onHand)}</span>
+                      {isInv
+                        ? <span style={low ? { color: '#FF0000', fontWeight: 700 } : undefined}>{qtyFmt(onHand)}</span>
+                        : <span style={{ color: 'var(--mist,#bbb)' }}>—</span>}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>{money(it.last_cost)}</td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>{money(it.avg_cost)}</td>
@@ -550,6 +557,16 @@ export default function PartsCatalog({ profile }) {
               <div className="field">
                 <label>Category</label>
                 <input value={itemForm.category} onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })} placeholder="e.g. Capacitors" />
+              </div>
+              <div className="field">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={itemForm.is_inventory !== false}
+                    onChange={(e) => setItemForm({ ...itemForm, is_inventory: e.target.checked })} />
+                  <span>Track in inventory (on-hand &amp; stock)</span>
+                </label>
+                <div style={{ fontSize: 12, color: 'var(--mist,#777)', marginTop: 2 }}>
+                  Uncheck for equipment or job-specific items you don’t stock (heat pumps, air handlers). They keep cost/price history but never carry an on-hand count.
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <div className="field" style={{ flex: 1, minWidth: 140 }}>
