@@ -81,6 +81,13 @@ export default function PartsCatalog({ profile }) {
 
   // Quincy invoice import
   const [showQuincy, setShowQuincy] = useState(false)
+  const [seedInbound, setSeedInbound] = useState(null)
+
+  // Quincy Inbox (emailed invoices awaiting review)
+  const [showInbox, setShowInbox] = useState(false)
+  const [inbound, setInbound] = useState([])
+  const [loadingInbound, setLoadingInbound] = useState(false)
+  const [pendingInbound, setPendingInbound] = useState(0)
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -124,8 +131,25 @@ export default function PartsCatalog({ profile }) {
     } else {
       setStockByItem({}); setOffersByItem({})
     }
+    const { count } = await supabase.from('part_inbound_invoices')
+      .select('id', { count: 'exact', head: true }).eq('org_id', selectedOrg).eq('status', 'pending')
+    setPendingInbound(count || 0)
     setLoading(false)
   }
+
+  async function loadInbound() {
+    setLoadingInbound(true)
+    const { data } = await supabase.from('part_inbound_invoices')
+      .select('*').eq('org_id', selectedOrg).eq('status', 'pending').order('received_at', { ascending: false })
+    setInbound(data || [])
+    setLoadingInbound(false)
+  }
+  function openInbox() { setShowInbox(true); loadInbound() }
+  async function dismissInbound(id) {
+    await supabase.from('part_inbound_invoices').update({ status: 'dismissed' }).eq('id', id)
+    loadInbound(); loadAll()
+  }
+  function reviewInbound(row) { setSeedInbound({ id: row.id, extracted: row.extracted }); setShowInbox(false); setShowQuincy(true) }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -355,7 +379,8 @@ export default function PartsCatalog({ profile }) {
         />
         <button className="auth-button" style={{ width: 'auto', padding: '9px 18px' }} onClick={openAdd}>+ Add Item</button>
         <button className="auth-button" style={{ width: 'auto', padding: '9px 18px', background: '#215F9A' }} onClick={openReceive}>Receive Stock</button>
-        <button className="auth-button" style={{ width: 'auto', padding: '9px 18px', background: '#FF0000' }} onClick={() => setShowQuincy(true)}>Import from Invoice · Quincy</button>
+        <button className="auth-button" style={{ width: 'auto', padding: '9px 18px', background: '#FF0000' }} onClick={() => { setSeedInbound(null); setShowQuincy(true) }}>Import from Invoice · Quincy</button>
+        <button className="logout-button" onClick={openInbox}>Quincy Inbox{pendingInbound > 0 ? ` (${pendingInbound})` : ''}</button>
         <button className="logout-button" onClick={openReceipts}>Receipts</button>
         <button className="logout-button" onClick={exportCsv}>Export CSV</button>
         <Link className="logout-button" to="/import/parts-catalog" style={{ textDecoration: 'none' }}>Import CSV</Link>
@@ -679,16 +704,59 @@ export default function PartsCatalog({ profile }) {
         </div>
       )}
 
-      {/* Quincy invoice import */}
+      {/* Quincy invoice import (manual upload or seeded from the inbox) */}
       {showQuincy && (
         <QuincyInvoiceImport
           orgId={selectedOrg}
           items={items}
           vendors={vendors}
           offersByItem={offersByItem}
-          onClose={() => setShowQuincy(false)}
-          onApplied={loadAll}
+          seedInbound={seedInbound}
+          onClose={() => { setShowQuincy(false); setSeedInbound(null) }}
+          onApplied={() => { loadAll(); loadInbound() }}
         />
+      )}
+
+      {/* Quincy Inbox — emailed invoices awaiting review */}
+      {showInbox && (
+        <div className="modal-backdrop" onClick={() => setShowInbox(false)} style={backdrop}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ ...modalCard, maxWidth: 780 }}>
+            <h3 style={{ marginTop: 0 }}>Quincy Inbox</h3>
+            <p style={{ fontSize: 13, color: 'var(--mist,#777)', marginTop: -6 }}>
+              Invoices emailed to your intake address land here. Review applies them the same as an upload; dismiss ignores one.
+            </p>
+            {loadingInbound ? (
+              <p style={{ color: 'var(--mist)' }}>Loading…</p>
+            ) : inbound.length === 0 ? (
+              <p style={{ color: 'var(--mist)' }}>Nothing waiting. Forwarded invoices will appear here.</p>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead><tr style={{ textAlign: 'left', color: '#002060' }}>
+                  <th style={thStyle}>Received</th><th style={thStyle}>From</th><th style={thStyle}>Subject</th>
+                  <th style={thStyle}>Read</th><th style={thStyle}></th>
+                </tr></thead>
+                <tbody>
+                  {inbound.map((r) => {
+                    const nLines = r.extracted?.lines?.length || 0
+                    return (
+                      <tr key={r.id} style={{ borderTop: '1px solid var(--border,#e2e4e8)' }}>
+                        <td style={tdStyle}>{dateFmt(r.received_at)}</td>
+                        <td style={tdStyle}>{r.from_email || '—'}</td>
+                        <td style={tdStyle}>{r.subject || '—'}</td>
+                        <td style={tdStyle}>{r.error ? <span style={{ color: '#FF0000' }} title={r.error}>needs manual</span> : `${nLines} line${nLines === 1 ? '' : 's'}`}</td>
+                        <td style={tdStyle}>
+                          {r.extracted ? <button className="auth-button" style={{ width: 'auto', padding: '6px 14px' }} onClick={() => reviewInbound(r)}>Review</button> : null}
+                          <button className="logout-button" style={{ marginLeft: 6 }} onClick={() => dismissInbound(r.id)}>Dismiss</button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+            <div style={{ marginTop: 14 }}><button className="logout-button" onClick={() => setShowInbox(false)}>Close</button></div>
+          </div>
+        </div>
       )}
 
       {/* Receipts / reverse */}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 
 // Lightweight normalization + token overlap for matching a vendor's line
@@ -33,8 +33,8 @@ const td = { padding: '7px 10px', verticalAlign: 'top', fontSize: 13 }
 
 // Quincy invoice import — upload -> extract -> review/match -> apply.
 // Invoices/packing slips receive stock (reversible); quotes update pricing only.
-export default function QuincyInvoiceImport({ orgId, items, vendors, offersByItem, onClose, onApplied }) {
-  const [step, setStep] = useState('upload')     // 'upload' | 'review' | 'done'
+export default function QuincyInvoiceImport({ orgId, items, vendors, offersByItem, onClose, onApplied, seedInbound }) {
+  const [step, setStep] = useState(seedInbound ? 'loading' : 'upload')   // 'upload'|'loading'|'review'|'done'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [extracted, setExtracted] = useState(null)
@@ -61,6 +61,12 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
     return score >= 0.45 ? best : null
   }
 
+  // Seeded from a queued (emailed) invoice that was already extracted server-side.
+  useEffect(() => {
+    if (seedInbound?.extracted) loadExtracted(seedInbound.extracted)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   async function handleFile(e) {
     const file = e.target.files?.[0]; e.target.value = ''
     if (!file) return
@@ -71,6 +77,16 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
         body: { fileBase64, mediaType: file.type || 'application/pdf' },
       })
       if (fnErr || data?.error) { setError(data?.error || fnErr.message || 'Could not read that file.'); setBusy(false); return }
+      loadExtracted(data)
+    } catch (err) {
+      setError(err.message || String(err))
+    }
+    setBusy(false)
+  }
+
+  function loadExtracted(data) {
+    if (!data) { setError('Nothing could be read from this document.'); setStep('upload'); return }
+    try {
       setExtracted(data)
       setDocType(data.doc_type === 'quote' ? 'quote' : 'invoice')
       setReference(data.invoice_number || '')
@@ -190,6 +206,12 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
         receiptId = batch
       }
 
+      // If this came from the email queue, mark it resolved.
+      if (seedInbound?.id) {
+        await supabase.from('part_inbound_invoices')
+          .update({ status: 'applied', applied_batch: receiptId }).eq('id', seedInbound.id)
+      }
+
       setSummary({ docType, itemsCreated: created, offerings: updated, received: receiveLines.length, receiptId })
       setStep('done')
       onApplied?.()
@@ -203,6 +225,8 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
     <div className="modal-backdrop" onClick={onClose} style={backdrop}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()} style={card}>
         <h3 style={{ marginTop: 0 }}>Import from Invoice · Quincy</h3>
+
+        {step === 'loading' && <p style={{ color: 'var(--mist,#777)' }}>Loading the emailed invoice…</p>}
 
         {step === 'upload' && (
           <div>
