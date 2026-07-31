@@ -13,8 +13,12 @@ import OrgPicker from './OrgPicker'
 
 function norm(s) { return (s || '').toString().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() }
 function modelKey(s) { return (s || '').toString().toUpperCase().replace(/[^A-Z0-9]/g, '') }
+// Drop generic location / entity words so a shared city ("Ocala") or suffix
+// ("Group", "Inc") can't create a false vendor match.
+const VENDOR_STOP = new Set(['ocala', 'of', 'the', 'inc', 'llc', 'corp', 'co', 'group', 'ware', 'usa'])
+function vendorTokens(s) { return new Set(norm(s).split(' ').filter((t) => t && !VENDOR_STOP.has(t))) }
 function overlap(a, b) {
-  const ta = new Set(norm(a).split(' ').filter(Boolean)), tb = new Set(norm(b).split(' ').filter(Boolean))
+  const ta = vendorTokens(a), tb = vendorTokens(b)
   if (!ta.size || !tb.size) return 0
   let h = 0; for (const t of ta) if (tb.has(t)) h++
   return h / Math.max(ta.size, tb.size)
