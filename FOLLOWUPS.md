@@ -2,6 +2,37 @@
 
 Running list of items parked for a decision or a later build phase. Newest first.
 
+## Mobile: field Part Lookup with live "discussion price"
+**Raised:** 2026-07-30 (evening) · **Status:** idea captured — build after pricing data is loaded
+
+Lloyd wants the mobile tech, standing with the customer, to look up any catalog
+part and instantly see an approximate price to talk through — explicitly a
+"close, not final" figure, subject to a formal quote.
+
+**Pricing formula (Lloyd's):**
+`(Part Cost + Sales Tax) × multiplier + (Task Assigned Hours × $175)`
+- Part Cost = catalog cost (last or avg — DECIDE). Works even at zero on-hand
+  because cost lives in the catalog. This is WHY loading his supplier pricing data
+  matters — lookups need a cost, not stock.
+- Sales Tax = org tax rate (need an org tax-rate setting if not present).
+- multiplier = maps to the existing `part_items.markup_percent` / org default
+  markup (multiplier = 1 + markup/100). Reconcile "multiplier" vs stored percent.
+- Labor = task hours × $175 (hourly rate should be an org setting, not hardcoded).
+  For a quick part chat, labor is optional / an "add est. hours" field.
+
+**Where:** a mobile "Part Lookup" — either a standalone reference page or a button
+inside the Service Estimate. Best: two-in-one — show the discussion price, with an
+"add to this estimate" option so it can become a real line when wanted.
+
+**Must:** clearly label it Estimated / subject to final quote (Lloyd's intent), so
+neither tech nor customer treats it as firm.
+
+**Decisions to pin:** last vs avg cost; where tax rate + labor rate live (org
+settings); fallback when an item has no cost yet (use cheapest vendor offering /
+list price); discuss-only vs also-drops-into-estimate.
+
+**Reuses:** Parts Catalog, item markup, cheapest-vendor — minimal new surface.
+
 ## Purchase classification: Shop / Tools / Job-Specific + pack-size auto-detect
 **Raised:** 2026-07-30 · **Status:** BUILT & DEPLOYED 2026-07-30 (all decisions locked). Live self-test by Lloyd pending.
 
