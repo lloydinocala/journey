@@ -54,6 +54,13 @@ export default function PartsCatalog({ profile }) {
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
 
+  // Server-side catalog grid (scales to tens of thousands of parts)
+  const CAT_PAGE = 100
+  const [rows, setRows] = useState([])
+  const [catFilter, setCatFilter] = useState('active')   // active | all | depleted | archived | deleted
+  const [loadingRows, setLoadingRows] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+
   // Item add/edit modal
   const [showItemModal, setShowItemModal] = useState(false)
   const [itemForm, setItemForm] = useState(blankItem)
@@ -110,7 +117,7 @@ export default function PartsCatalog({ profile }) {
     setError('')
     const [loc, itemsRes, vendorsRes] = await Promise.all([
       supabase.from('part_locations').select('id').eq('org_id', selectedOrg).eq('kind', 'shop').limit(1).maybeSingle(),
-      supabase.from('part_items').select('*').eq('org_id', selectedOrg).neq('is_active', false).order('generic_name'),
+      supabase.from('part_items').select('*').eq('org_id', selectedOrg).neq('is_active', false).is('deleted_at', null).order('generic_name'),
       supabase.from('vendors').select('id, name').eq('org_id', selectedOrg).eq('is_active', true).order('name'),
     ])
     const locId = loc.data?.id || null
@@ -140,7 +147,31 @@ export default function PartsCatalog({ profile }) {
       .select('id', { count: 'exact', head: true }).eq('org_id', selectedOrg).eq('status', 'pending')
     setPendingInbound(count || 0)
     setLoading(false)
+    loadCatalog(0)   // refresh the server-side grid after any reload
   }
+
+  // Server-side catalog fetch (search + Show filter + pagination).
+  async function loadCatalog(offset = 0, append = false) {
+    if (!selectedOrg) return
+    setLoadingRows(true)
+    const { data, error: err } = await supabase.rpc('search_parts', {
+      p_org: selectedOrg, p_q: search.trim(), p_filter: catFilter, p_limit: CAT_PAGE, p_offset: offset,
+    })
+    if (err) { setError(err.message); setLoadingRows(false); return }
+    const d = data || []
+    setHasMore(d.length === CAT_PAGE)
+    setRows((prev) => (append ? [...prev, ...d] : d))
+    setLoadingRows(false)
+  }
+
+  // Reload the grid when org or filter changes.
+  useEffect(() => { if (selectedOrg) loadCatalog(0) }, [selectedOrg, catFilter])  // eslint-disable-line react-hooks/exhaustive-deps
+  // Debounced search.
+  useEffect(() => {
+    if (!selectedOrg) return
+    const t = setTimeout(() => loadCatalog(0), 250)
+    return () => clearTimeout(t)
+  }, [search])  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadInbound() {
     setLoadingInbound(true)
@@ -285,15 +316,24 @@ export default function PartsCatalog({ profile }) {
     loadAll()
   }
 
-  async function hardDeleteItem() {
+  async function softDeleteItem() {
     if (!deleteTarget) return
     setDeleting(true)
-    // Offerings, stock and ledger rows FK to part_items with ON DELETE CASCADE,
-    // so a single delete removes the item and everything hanging off it.
-    const { error: err } = await supabase.from('part_items').delete().eq('id', deleteTarget.id)
+    // Soft delete: recoverable from the "Recently deleted" view. Nothing is
+    // destroyed, so a confused click is never a disaster.
+    const { error: err } = await supabase.from('part_items')
+      .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', deleteTarget.id)
     setDeleting(false)
     if (err) { setError(err.message); return }
     setDeleteTarget(null)
+    loadAll()
+  }
+
+  async function restoreItem(it) {
+    await supabase.from('part_items')
+      .update({ deleted_at: null, is_active: true, updated_at: new Date().toISOString() })
+      .eq('id', it.id)
     loadAll()
   }
 
@@ -411,9 +451,17 @@ export default function PartsCatalog({ profile }) {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search name, category, vendor SKU or description…"
+          placeholder="Search name, vendor SKU, model # or description…"
           style={{ flex: '1 1 320px', minWidth: 240, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border, #ccc)' }}
         />
+        <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} title="Which items to show"
+          style={{ padding: '9px 10px', borderRadius: 8, border: '1px solid var(--border, #ccc)' }}>
+          <option value="active">Active (stocked / kept / bought ≤30d)</option>
+          <option value="all">All parts (full library)</option>
+          <option value="depleted">Depleted (now empty)</option>
+          <option value="archived">Archived</option>
+          <option value="deleted">Recently deleted</option>
+        </select>
         <button className="auth-button" style={{ width: 'auto', padding: '9px 18px' }} onClick={openAdd}>+ Add Item</button>
         <button className="auth-button" style={{ width: 'auto', padding: '9px 18px', background: '#215F9A' }} onClick={openReceive}>Receive Stock</button>
         <button className="auth-button" style={{ width: 'auto', padding: '9px 18px', background: '#FF0000' }} onClick={() => { setSeedInbound(null); setShowQuincy(true) }}>Import from Invoice · Quincy</button>
@@ -421,15 +469,21 @@ export default function PartsCatalog({ profile }) {
         <button className="logout-button" onClick={openReceipts}>Receipts</button>
         <button className="logout-button" onClick={exportCsv}>Export CSV</button>
         <Link className="logout-button" to="/import/parts-catalog" style={{ textDecoration: 'none' }}>Import CSV</Link>
-        <span style={{ color: 'var(--mist)', fontSize: 13 }}>{filtered.length} item{filtered.length === 1 ? '' : 's'}</span>
+        <span style={{ color: 'var(--mist)', fontSize: 13 }}>{rows.length}{hasMore ? '+' : ''} item{rows.length === 1 ? '' : 's'}</span>
       </div>
 
       {error && !showItemModal && !offerItem && <div className="auth-error" style={{ marginBottom: 12 }}>{error}</div>}
 
-      {loading ? (
+      {loading && rows.length === 0 ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : filtered.length === 0 ? (
-        <p style={{ color: 'var(--mist)' }}>No items yet. Use “+ Add Item”, or (soon) let Quincy add them from a vendor invoice.</p>
+      ) : rows.length === 0 ? (
+        <p style={{ color: 'var(--mist)' }}>
+          {search.trim()
+            ? 'No parts match your search.'
+            : catFilter === 'active'
+              ? 'Nothing active yet. Add an item, receive stock, or switch “Show” to All parts / let Quincy add them from a vendor invoice.'
+              : 'No items in this view.'}
+        </p>
       ) : (
         <div style={{ overflowX: 'auto', border: '1px solid var(--border, #e2e4e8)', borderRadius: 10 }}>
           <table className="parts-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
@@ -449,12 +503,10 @@ export default function PartsCatalog({ profile }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((it) => {
+              {rows.map((it) => {
                 const isInv = it.is_inventory !== false
-                const onHand = stockByItem[it.id] || 0
+                const onHand = Number(it.on_hand) || 0
                 const low = isInv && it.reorder_level != null && onHand <= Number(it.reorder_level)
-                const ch = cheapest(it.id)
-                const offers = offersByItem[it.id] || []
                 return (
                   <tr key={it.id} style={{ borderTop: '1px solid var(--border, #e2e4e8)' }}>
                     <td style={tdStyle}>{dateFmt(it.last_cost_update_at || it.updated_at)}</td>
@@ -475,19 +527,25 @@ export default function PartsCatalog({ profile }) {
                     <td style={tdStyle}>
                       <button className="link-btn" onClick={() => openOfferings(it)}
                         style={{ background: 'none', border: 'none', color: '#215F9A', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
-                        {offers.length} vendor{offers.length === 1 ? '' : 's'}
+                        {it.vendor_count || 0} vendor{it.vendor_count === 1 ? '' : 's'}
                       </button>
-                      {ch && <div style={{ fontSize: 12, color: 'var(--mist,#777)' }}>best {money(ch.last_cost_per_base_unit)} · {ch.vendors?.name}</div>}
+                      {it.cheapest_cost != null && <div style={{ fontSize: 12, color: 'var(--mist,#777)' }}>best {money(it.cheapest_cost)}{it.cheapest_vendor ? ` · ${it.cheapest_vendor}` : ''}</div>}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>{it.reorder_level != null ? qtyFmt(it.reorder_level) : '—'}</td>
                     <td style={tdStyle}>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button className="logout-button" onClick={() => openEdit(it)}>Edit</button>
-                        <button
-                          onClick={() => confirmDelete(it)}
-                          title="Delete or deactivate this item"
-                          style={{ background: 'none', border: '1px solid #FF0000', color: '#FF0000', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
-                        >Delete</button>
+                        {catFilter === 'deleted' ? (
+                          <button className="logout-button" onClick={() => restoreItem(it)}>Restore</button>
+                        ) : (
+                          <>
+                            <button className="logout-button" onClick={() => openEdit(it)}>Edit</button>
+                            <button
+                              onClick={() => confirmDelete(it)}
+                              title="Delete or deactivate this item"
+                              style={{ background: 'none', border: '1px solid #FF0000', color: '#FF0000', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                            >Delete</button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -495,13 +553,20 @@ export default function PartsCatalog({ profile }) {
               })}
             </tbody>
           </table>
+          {hasMore && (
+            <div style={{ textAlign: 'center', padding: 12 }}>
+              <button className="logout-button" disabled={loadingRows} onClick={() => loadCatalog(rows.length, true)}>
+                {loadingRows ? 'Loading…' : 'Load more'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {/* Delete / deactivate confirmation */}
       {deleteTarget && (() => {
-        const onHand = Number(stockByItem[deleteTarget.id] || 0)
-        const offerCount = (offersByItem[deleteTarget.id] || []).length
+        const onHand = Number(deleteTarget.on_hand ?? stockByItem[deleteTarget.id] ?? 0)
+        const offerCount = Number(deleteTarget.vendor_count ?? (offersByItem[deleteTarget.id] || []).length)
         const hasHistory = onHand !== 0 || offerCount > 0 || deleteTarget.last_cost != null
         return (
           <div className="modal-backdrop" onClick={() => !deleting && setDeleteTarget(null)} style={backdrop}>
@@ -513,13 +578,13 @@ export default function PartsCatalog({ profile }) {
                   <div style={{ fontSize: 14, color: '#334155' }}>
                     On-hand: <b>{qtyFmt(onHand)} {deleteTarget.base_unit}</b> · Vendor offerings: <b>{offerCount}</b>
                     {deleteTarget.last_cost != null && <> · Last cost: <b>{money(deleteTarget.last_cost)}</b></>}.
-                    Deleting permanently also erases its vendor pricing and all receiving history. If this is a real item
-                    you simply no longer stock, deactivate it instead — it disappears from the catalog but its history is kept.
+                    Deleting moves it to <b>Recently deleted</b> (recoverable). If you simply no longer stock it,
+                    <b> Archive</b> keeps it fully in place, just out of the active view.
                   </div>
                 </div>
               ) : (
                 <p style={{ fontSize: 14, color: '#334155', marginBottom: 16 }}>
-                  This item has no stock or receiving history, so it can be safely removed.
+                  This item has no stock or history. Deleting moves it to <b>Recently deleted</b>, where you can restore it.
                 </p>
               )}
               {error && <div className="auth-error" style={{ marginBottom: 12 }}>{error}</div>}
@@ -527,12 +592,12 @@ export default function PartsCatalog({ profile }) {
                 {hasHistory && (
                   <button onClick={deactivateItem} disabled={deleting}
                     style={{ flex: 1, minWidth: 150, padding: '11px', borderRadius: 8, border: '1px solid #002060', background: '#002060', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                    {deleting ? 'Working…' : 'Deactivate (hide)'}
+                    {deleting ? 'Working…' : 'Archive (hide)'}
                   </button>
                 )}
-                <button onClick={hardDeleteItem} disabled={deleting}
+                <button onClick={softDeleteItem} disabled={deleting}
                   style={{ flex: 1, minWidth: 150, padding: '11px', borderRadius: 8, border: '1px solid #FF0000', background: hasHistory ? '#fff' : '#FF0000', color: hasHistory ? '#FF0000' : '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                  {deleting ? 'Working…' : 'Delete permanently'}
+                  {deleting ? 'Working…' : 'Delete'}
                 </button>
                 <button onClick={() => setDeleteTarget(null)} disabled={deleting}
                   style={{ flex: '0 0 auto', padding: '11px 16px', borderRadius: 8, border: '1px solid #CBD5E1', background: '#fff', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
