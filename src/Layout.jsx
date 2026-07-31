@@ -42,6 +42,7 @@ const CATEGORIES = [
     { label: 'Import Services Pricebook', path: '/import/services-pricebook' },
     { label: 'Import Systems Pricebook', path: '/import/systems-pricebook' },
     { label: 'Import Parts Catalog', path: '/import/parts-catalog' },
+    { label: 'Import Vendor Price File', path: '/import/vendor-prices' },
   ]},
 ]
 

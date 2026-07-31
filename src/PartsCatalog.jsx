@@ -447,6 +447,7 @@ export default function PartsCatalog({ profile }) {
         <button className="logout-button" onClick={openReceipts}>Receipts</button>
         <button className="logout-button" onClick={exportCsv}>Export CSV</button>
         <Link className="logout-button" to="/import/parts-catalog" style={{ textDecoration: 'none' }}>Import CSV</Link>
+        <Link className="logout-button" to="/import/vendor-prices" style={{ textDecoration: 'none' }}>Import Vendor File</Link>
         <span style={{ color: 'var(--mist)', fontSize: 13 }}>{rows.length}{hasMore ? '+' : ''} item{rows.length === 1 ? '' : 's'}</span>
       </div>
 
