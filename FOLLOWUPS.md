@@ -2,6 +2,55 @@
 
 Running list of items parked for a decision or a later build phase. Newest first.
 
+## Parts reference library + 48K vendor-file import (IN PROGRESS)
+**Raised:** 2026-07-31 · **Status:** backbone LIVE; import pending front-end scale-conversion
+
+Lloyd's ChatGPT-built file: `JourneyPartsCatalog.csv` (~48K rows, 3 vendors —
+Johnstone 29,706 / LennoxPros 16,105 / WinSupply 2,152). His PRIVATE data → loads
+to his org only. Model # is 99% filled and is the cross-vendor identity key.
+Overlap is tiny (only 450 parts carried by 2+ vendors), so it's a **reference
+library**, not a dedupe job. Consolidates to **44,755 items + 47,963 offerings**
+(33,296 priced). This is too big for the old all-in-memory catalog page.
+
+Architecture (agreed): ONE part_items pool + a "reference vs stocked" distinction
+via the ACTIVE filter (no separate table). Default Catalog view = **on_hand>0 OR
+reorder_level>0 OR last_purchased_at within 30d**. Everything else is searchable
+but hidden. Master library is opt-in per subscriber; placeholder/list prices are
+public-only (never Lloyd's costs). Build for the lowest-common-denominator user:
+short default list, forgiving search, self-cleaning, undoable actions.
+
+DONE & DEPLOYED:
+- Migrations: `last_purchased_at`, `deleted_at`, `model_number` on part_items;
+  trigram indexes; part_receive stamps last_purchased_at; backfilled.
+- `search_parts(org,q,filter,limit,offset)` RPC — active/all/depleted/archived/
+  deleted + text search (name/desc/model/SKU) + pagination. Enriched rows
+  (on_hand, costs, vendor_count, cheapest). TESTED.
+- `match_parts(org,vendor,sku,desc,limit)` RPC — sku_exact → model → desc, returns
+  pack size. TESTED.
+- PartsCatalog.jsx: grid now server-side (search_parts), Show filter dropdown,
+  Load-more pagination, soft-delete + Restore (Recently deleted view).
+
+REMAINING before the 44K load (must convert so the page doesn't break at scale):
+1. Offerings drawer → fetch offerings on open (currently reads parent offersByItem map).
+2. Receive Stock modal → replace all-items <select> with a search typeahead
+   (use search_parts); chooseOffering fetches the item's offerings on demand.
+3. QuincyInvoiceImport.jsx → drop reliance on parent items/offersByItem; use
+   match_parts per line for auto-match, and a typeahead for the manual "Maps to
+   item" picker; apply() offering-upsert should query the item's offering rather
+   than scan allOffers. (Review-gated, so matching regressions are low-risk.)
+4. Export CSV → server-side (search_parts all) instead of the client `filtered`.
+5. Remove the full items/stock/offers map load from loadAll (keep vendors/shop/
+   inbound). Delete unused `filtered`/`cheapest`.
+6. THEN import: transform CSV (dedupe by Model#; identity = M:<model> else
+   I:<vendor>-<item#>), create 3 vendors, insert part_items (reference: no stock,
+   is_inventory by category later), insert part_vendor_offerings (vendor_sku=Item#,
+   model#, price→last_cost_per_pack, pack_base_qty default 1). Scrub prices <=0 or
+   >50000 to null. Batch inserts (~1-2k/statement). Transform verified 2026-07-31.
+
+Paced deliberately: steps 1-5 touch the live invoice/receive flow, so they want a
+build where the invoice path can be sanity-checked rather than a blind unattended
+rewrite. Load-ready transform confirmed working against the real file.
+
 ## Mobile: field Part Lookup with live "discussion price"
 **Raised:** 2026-07-30 (evening) · **Status:** idea captured — build after pricing data is loaded
 
