@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './utils/supabase'
+import ItemSearchSelect from './ItemSearchSelect'
 
 // Lightweight normalization + token overlap for matching a vendor's line
 // description to one of our existing items when there's no known SKU.
@@ -81,11 +82,12 @@ const backdrop = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', d
 const card = { background: '#fff', borderRadius: 12, padding: 24, maxWidth: 1500, width: '97vw', boxShadow: '0 12px 40px rgba(0,0,0,0.25)' }
 const th = { padding: '8px 10px', fontSize: 12, fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap' }
 const td = { padding: '7px 10px', verticalAlign: 'top', fontSize: 13 }
+const linkBtn = { background: 'none', border: 'none', color: '#215F9A', cursor: 'pointer', fontSize: 11, textDecoration: 'underline', padding: 0 }
 
 // Quincy invoice import — upload -> extract -> classify/match -> apply.
 // Every line is classified into Shop (receives stock), Hand Tools / Shop Supplies
 // (overhead expense) or Job-Specific (books to a job). Only Shop touches on-hand.
-export default function QuincyInvoiceImport({ orgId, items, vendors, offersByItem, onClose, onApplied, seedInbound }) {
+export default function QuincyInvoiceImport({ orgId, vendors, onClose, onApplied, seedInbound }) {
   const [step, setStep] = useState(seedInbound ? 'loading' : 'upload')   // 'upload'|'loading'|'review'|'done'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -109,12 +111,6 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
   const [dupAck, setDupAck] = useState(false)
   const classifiedRef = useRef(false)
 
-  // Flatten all offerings with their item for SKU matching.
-  const allOffers = []
-  for (const [itemId, offs] of Object.entries(offersByItem || {})) {
-    for (const o of offs) allOffers.push({ ...o, item_id: itemId })
-  }
-
   // Classify from a PO / job reference string: deterministic Job # first, then
   // stock/tool keywords, then a customer last-name match. Blank = hold for review.
   function detectClass(raw) {
@@ -137,15 +133,6 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
       }
     }
     return { bucket: '', jobId: '' }
-  }
-
-  function bestItemByDesc(desc) {
-    let best = null, score = 0
-    for (const it of items) {
-      const s = overlapScore(desc, `${it.generic_name} ${it.description || ''}`)
-      if (s > score) { score = s; best = it }
-    }
-    return score >= 0.45 ? best : null
   }
 
   // Load open jobs + customers for PO-based classification.
@@ -219,7 +206,7 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
     setBusy(false)
   }
 
-  function loadExtracted(data) {
+  async function loadExtracted(data) {
     if (!data) { setError('Nothing could be read from this document.'); setStep('upload'); return }
     try {
       classifiedRef.current = false
@@ -232,24 +219,28 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
       // Resolve vendor by fuzzy name.
       let vMatch = null, vScore = 0
       for (const v of vendors) { const s = overlapScore(data.vendor_name, v.name); if (s > vScore) { vScore = s; vMatch = v } }
-      if (vMatch && vScore >= 0.5) { setVendorId(vMatch.id); setNewVendorName('') }
+      const resolvedVendorId = (vMatch && vScore >= 0.5) ? vMatch.id : null
+      if (resolvedVendorId) { setVendorId(resolvedVendorId); setNewVendorName('') }
       else { setVendorId('__new__'); setNewVendorName(data.vendor_name || '') }
 
-      // Resolve each line: SKU match first, else description match, else new.
-      const resolved = (data.lines || []).map((ln) => {
-        let itemId = '', packBase = null, baseUnit = ''
-        const skuHit = ln.sku ? allOffers.find((o) => norm(o.vendor_sku) && norm(o.vendor_sku) === norm(ln.sku)) : null
-        if (skuHit) { itemId = skuHit.item_id; packBase = Number(skuHit.pack_base_qty) || 1; baseUnit = items.find((x) => x.id === skuHit.item_id)?.base_unit || 'each' }
-        else {
-          const it = bestItemByDesc(ln.description)
-          if (it) { itemId = it.id; baseUnit = it.base_unit || 'each'; packBase = 1 }
+      // Resolve each line server-side (scales to the full catalog): exact vendor+SKU,
+      // then manufacturer model #, then description similarity; else propose a new item.
+      const resolved = await Promise.all((data.lines || []).map(async (ln) => {
+        let itemId = '', item = null, packBase = null, baseUnit = ''
+        const { data: matches } = await supabase.rpc('match_parts', {
+          p_org: orgId, p_vendor: resolvedVendorId, p_sku: ln.sku || '', p_desc: ln.description || '', p_limit: 1,
+        })
+        const m = (matches || [])[0]
+        if (m && (m.match_kind === 'sku_exact' || m.match_kind === 'model' || m.score >= 0.45)) {
+          itemId = m.id
+          item = { id: m.id, generic_name: m.generic_name, base_unit: m.base_unit, sell_unit_factor: m.sell_unit_factor, is_inventory: m.is_inventory }
+          baseUnit = m.base_unit || 'each'
+          packBase = m.pack_base_qty != null ? Number(m.pack_base_qty)
+            : (m.match_kind === 'sku_exact' ? 1 : inferPackBase(ln.description, ln.unit_of_measure, baseUnit))
         }
-        // New item: guess base unit + infer pack size from the printed text so a
-        // 25 lb refrigerant jug lands as 400 oz, not 1 "each" (the old default).
+        // New item: guess base unit + infer pack size from the printed text.
         if (!itemId) { baseUnit = guessBaseUnit(ln.description); packBase = inferPackBase(ln.description, ln.unit_of_measure, baseUnit) }
 
-        // Anchor cost to the line's EXTENDED total when shown (that's the real money
-        // paid); fall back to printed unit price. Full precision until display.
         const qNum = Number(ln.quantity) || 0
         const unitCost = (ln.extended_cost != null && qNum > 0)
           ? Number(ln.extended_cost) / qNum
@@ -262,6 +253,7 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
           unit_label: ln.unit_of_measure || '',
           unit_cost: unitCost != null ? String(unitCost) : '',
           item_id: itemId || '__new__',
+          item,
           new_name: itemId ? '' : (ln.description || ''),
           base_unit: baseUnit || 'each',
           pack_base_qty: String(packBase != null ? packBase : 1),
@@ -269,7 +261,7 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
           job_id: '',
           hint: lineHint(ln.description),
         }
-      })
+      }))
       setLines(resolved)
       setStep('review')
     } catch (err) {
@@ -340,7 +332,9 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
 
         // Vendor offering (cross-reference + price history) — priced docs only.
         if (itemId && pricedDoc) {
-          const existing = allOffers.find((o) => o.vendor_id === vId && norm(o.vendor_sku) && norm(o.vendor_sku) === norm(l.sku))
+          const { data: exlist } = await supabase.from('part_vendor_offerings')
+            .select('id, vendor_sku').eq('org_id', orgId).eq('vendor_id', vId).eq('item_id', itemId)
+          const existing = (exlist || []).find((o) => (norm(o.vendor_sku) || '') === (norm(l.sku) || '')) || (exlist || [])[0]
           const offPayload = {
             vendor_description: l.description || null,
             pack_label: l.unit_label || null,
@@ -514,9 +508,8 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
                 </tr></thead>
                 <tbody>
                   {lines.map((l, i) => {
-                    const it = items.find((x) => x.id === l.item_id)
                     const isNew = l.item_id === '__new__'
-                    const base = isNew ? (l.base_unit || 'each') : (it?.base_unit || 'each')
+                    const base = isNew ? (l.base_unit || 'each') : (l.item?.base_unit || l.base_unit || 'each')
                     const packBase = parseFloat(l.pack_base_qty) || 0
                     const qty = parseFloat(l.quantity) || 0
                     const unitCost = l.unit_cost === '' ? null : parseFloat(l.unit_cost)
@@ -548,18 +541,36 @@ export default function QuincyInvoiceImport({ orgId, items, vendors, offersByIte
                             </select>
                           )}
                         </td>
-                        <td style={td}>
-                          <select value={l.item_id} onChange={(e) => setLine(i, { item_id: e.target.value })} style={{ minWidth: 150 }}>
-                            <option value="__new__">+ New item…</option>
-                            {l.bucket !== 'shop' && <option value="__none__">— none (expense only) —</option>}
-                            {items.map((x) => <option key={x.id} value={x.id}>{x.generic_name}</option>)}
-                          </select>
-                          {isNew && (
+                        <td style={{ ...td, minWidth: 200 }}>
+                          {l.item_id === '__new__' ? (
                             <>
-                              <input style={{ marginTop: 4 }} value={l.new_name} onChange={(e) => setLine(i, { new_name: e.target.value })} placeholder="New item name" />
+                              <div style={{ fontSize: 11, color: '#7A5C00', fontWeight: 700 }}>New item</div>
+                              <input style={{ marginTop: 2, width: '100%' }} value={l.new_name} onChange={(e) => setLine(i, { new_name: e.target.value })} placeholder="New item name" />
                               <select value={l.base_unit} onChange={(e) => setLine(i, { base_unit: e.target.value, pack_base_qty: String(inferPackBase(l.description, l.unit_label, e.target.value)) })} style={{ marginTop: 4 }}>
                                 {BASE_UNITS.map((u) => <option key={u} value={u}>base: {u}</option>)}
                               </select>
+                              <div style={{ marginTop: 3 }}>
+                                <button type="button" onClick={() => setLine(i, { item_id: '', item: null })} style={linkBtn}>map to existing instead</button>
+                              </div>
+                            </>
+                          ) : l.item_id === '__none__' ? (
+                            <>
+                              <span style={{ fontSize: 12, color: 'var(--mist,#777)' }}>Expense only (no catalog item)</span>
+                              <div style={{ marginTop: 3 }}>
+                                <button type="button" onClick={() => setLine(i, { item_id: '__new__', item: null, new_name: l.description || '' })} style={linkBtn}>+ new item</button>
+                                {' · '}
+                                <button type="button" onClick={() => setLine(i, { item_id: '', item: null })} style={linkBtn}>map existing</button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <ItemSearchSelect orgId={orgId} valueLabel={l.item?.generic_name}
+                                placeholder="Search catalog…"
+                                onSelect={(sel) => setLine(i, sel ? { item_id: sel.id, item: sel, base_unit: sel.base_unit || 'each' } : { item_id: '', item: null })} />
+                              <div style={{ marginTop: 3 }}>
+                                <button type="button" onClick={() => setLine(i, { item_id: '__new__', item: null, new_name: l.description || '' })} style={linkBtn}>+ new item</button>
+                                {l.bucket !== 'shop' && <>{' · '}<button type="button" onClick={() => setLine(i, { item_id: '__none__', item: null })} style={linkBtn}>expense only</button></>}
+                              </div>
                             </>
                           )}
                         </td>

@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import ItemSearchSelect from './ItemSearchSelect'
 import QuincyInvoiceImport from './QuincyInvoiceImport'
 import { exportToCSV } from './utils/csvExport'
 
@@ -45,9 +46,6 @@ export default function PartsCatalog({ profile }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
 
-  const [items, setItems] = useState([])
-  const [stockByItem, setStockByItem] = useState({})       // item_id -> shop qty
-  const [offersByItem, setOffersByItem] = useState({})     // item_id -> [offerings]
   const [vendors, setVendors] = useState([])
   const [shopLocationId, setShopLocationId] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -73,11 +71,12 @@ export default function PartsCatalog({ profile }) {
 
   // Vendor offerings drawer
   const [offerItem, setOfferItem] = useState(null)         // the item whose offerings we're editing
+  const [offerList, setOfferList] = useState([])           // that item's offerings (fetched on open)
   const [offerForm, setOfferForm] = useState(blankOffering)
   const [savingOffer, setSavingOffer] = useState(false)
 
   // Receiving
-  const emptyLine = () => ({ item_id: '', offering_id: '', packs: '1', pack_base_qty: '1', cost_per_pack: '' })
+  const emptyLine = () => ({ item_id: '', item: null, offerings: [], offering_id: '', packs: '1', pack_base_qty: '1', cost_per_pack: '' })
   const [showReceive, setShowReceive] = useState(false)
   const [rcvVendor, setRcvVendor] = useState('')
   const [rcvRef, setRcvRef] = useState('')
@@ -115,39 +114,19 @@ export default function PartsCatalog({ profile }) {
   async function loadAll() {
     setLoading(true)
     setError('')
-    const [loc, itemsRes, vendorsRes] = await Promise.all([
+    // Aux data only (small): shop location, vendors, pending-inbound count. The
+    // catalog itself is fetched server-side by loadCatalog (scales to 44k+).
+    const [loc, vendorsRes] = await Promise.all([
       supabase.from('part_locations').select('id').eq('org_id', selectedOrg).eq('kind', 'shop').limit(1).maybeSingle(),
-      supabase.from('part_items').select('*').eq('org_id', selectedOrg).neq('is_active', false).is('deleted_at', null).order('generic_name'),
       supabase.from('vendors').select('id, name').eq('org_id', selectedOrg).eq('is_active', true).order('name'),
     ])
-    const locId = loc.data?.id || null
-    setShopLocationId(locId)
-    const its = itemsRes.data || []
-    setItems(its)
+    setShopLocationId(loc.data?.id || null)
     setVendors(vendorsRes.data || [])
-
-    const ids = its.map((i) => i.id)
-    if (ids.length) {
-      const [stockRes, offerRes] = await Promise.all([
-        supabase.from('part_stock').select('item_id, qty, location_id').eq('org_id', selectedOrg).in('item_id', ids),
-        supabase.from('part_vendor_offerings').select('*, vendors(name)').eq('org_id', selectedOrg).in('item_id', ids),
-      ])
-      const sMap = {}
-      for (const s of stockRes.data || []) {
-        if (s.location_id === locId) sMap[s.item_id] = (sMap[s.item_id] || 0) + Number(s.qty)
-      }
-      setStockByItem(sMap)
-      const oMap = {}
-      for (const o of offerRes.data || []) (oMap[o.item_id] = oMap[o.item_id] || []).push(o)
-      setOffersByItem(oMap)
-    } else {
-      setStockByItem({}); setOffersByItem({})
-    }
     const { count } = await supabase.from('part_inbound_invoices')
       .select('id', { count: 'exact', head: true }).eq('org_id', selectedOrg).eq('status', 'pending')
     setPendingInbound(count || 0)
     setLoading(false)
-    loadCatalog(0)   // refresh the server-side grid after any reload
+    loadCatalog(0)   // refresh the server-side grid
   }
 
   // Server-side catalog fetch (search + Show filter + pagination).
@@ -186,25 +165,6 @@ export default function PartsCatalog({ profile }) {
     loadInbound(); loadAll()
   }
   function reviewInbound(row) { setSeedInbound({ id: row.id, extracted: row.extracted }); setShowInbox(false); setShowQuincy(true) }
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return items
-    return items.filter((i) => {
-      const offers = offersByItem[i.id] || []
-      const hay = [i.generic_name, i.category, i.description,
-        ...offers.map((o) => `${o.vendor_sku} ${o.vendor_description} ${o.vendors?.name}`)].join(' ').toLowerCase()
-      return hay.includes(q)
-    })
-  }, [items, offersByItem, search])
-
-  // Cheapest current cost per base unit across an item's vendor offerings.
-  function cheapest(itemId) {
-    const offers = (offersByItem[itemId] || []).filter((o) => o.last_cost_per_base_unit != null)
-    if (!offers.length) return null
-    return offers.reduce((best, o) =>
-      (best == null || Number(o.last_cost_per_base_unit) < Number(best.last_cost_per_base_unit)) ? o : best, null)
-  }
 
   function openAdd() {
     setEditingItemId(null); setItemForm(blankItem); setError(''); setShowItemModal(true)
@@ -251,8 +211,13 @@ export default function PartsCatalog({ profile }) {
     loadAll()
   }
 
+  async function loadOfferings(itemId) {
+    const { data } = await supabase.from('part_vendor_offerings')
+      .select('*, vendors(name)').eq('org_id', selectedOrg).eq('item_id', itemId).order('last_cost_per_base_unit', { nullsFirst: false })
+    setOfferList(data || [])
+  }
   function openOfferings(it) {
-    setOfferItem(it); setOfferForm(blankOffering); setError('')
+    setOfferItem(it); setOfferForm(blankOffering); setError(''); setOfferList([]); loadOfferings(it.id)
   }
 
   async function saveOffering(e) {
@@ -279,23 +244,22 @@ export default function PartsCatalog({ profile }) {
     // catalog reflects the newest known price. (Moving average with on-hand
     // arrives with the receiving ledger in a later phase.)
     if (costBase != null) {
-      const cur = items.find((i) => i.id === offerItem.id)
       await supabase.from('part_items').update({
         last_cost: costBase,
-        avg_cost: cur?.avg_cost != null ? cur.avg_cost : costBase,
+        avg_cost: offerItem?.avg_cost != null ? offerItem.avg_cost : costBase,
         last_cost_update_at: new Date().toISOString(),
       }).eq('id', offerItem.id)
     }
     setSavingOffer(false)
     setOfferForm(blankOffering)
-    await loadAll()
-    // Keep the drawer open on the same item with refreshed data
-    setOfferItem((prev) => prev ? { ...prev } : prev)
+    await loadOfferings(offerItem.id)   // refresh the drawer
+    loadCatalog(0)                       // refresh the grid's vendor/cost columns
   }
 
   async function deleteOffering(id) {
     await supabase.from('part_vendor_offerings').delete().eq('id', id)
-    loadAll()
+    await loadOfferings(offerItem.id)
+    loadCatalog(0)
   }
 
   // ---- Delete / deactivate item ------------------------------------------
@@ -344,9 +308,17 @@ export default function PartsCatalog({ profile }) {
   function setLine(idx, patch) {
     setRcvLines((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)))
   }
+  // Pick a catalog item for a receive line; fetch that item's vendor offerings on demand.
+  async function pickReceiveItem(idx, it) {
+    if (!it) { setLine(idx, { item_id: '', item: null, offerings: [], offering_id: '' }); return }
+    setLine(idx, { item_id: it.id, item: it, offerings: [], offering_id: '' })
+    const { data } = await supabase.from('part_vendor_offerings')
+      .select('*, vendors(name)').eq('org_id', selectedOrg).eq('item_id', it.id)
+    setRcvLines((ls) => ls.map((l, i) => (i === idx ? { ...l, offerings: data || [] } : l)))
+  }
   function chooseOffering(idx, offeringId) {
     const line = rcvLines[idx]
-    const o = (offersByItem[line.item_id] || []).find((x) => x.id === offeringId)
+    const o = (line.offerings || []).find((x) => x.id === offeringId)
     if (o) setLine(idx, {
       offering_id: offeringId,
       pack_base_qty: String(o.pack_base_qty ?? 1),
@@ -411,9 +383,9 @@ export default function PartsCatalog({ profile }) {
     await loadReceipts(); await loadAll()
   }
 
-  function exportCsv() {
-    // Column headers match the importer so an exported file can be edited and
-    // re-imported (round-trip). Cost/on-hand columns are informational only.
+  async function exportCsv() {
+    // Export the current view (Show filter + search), paged from the server so it
+    // scales. Column headers match the importer for round-trip edits.
     const cols = [
       { label: 'Name', key: 'generic_name' },
       { label: 'Category', value: (i) => i.category || '' },
@@ -423,17 +395,23 @@ export default function PartsCatalog({ profile }) {
       { label: 'Reorder Level', value: (i) => (i.reorder_level != null ? i.reorder_level : '') },
       { label: 'Markup %', value: (i) => (i.markup_percent != null ? i.markup_percent : '') },
       { label: 'Description', value: (i) => i.description || '' },
-      { label: 'On Hand (Shop)', value: (i) => qtyFmt(stockByItem[i.id] || 0) },
+      { label: 'On Hand (Shop)', value: (i) => qtyFmt(i.on_hand || 0) },
       { label: 'Last Cost / Unit', value: (i) => (i.last_cost != null ? Number(i.last_cost).toFixed(4) : '') },
       { label: 'Avg Cost / Unit', value: (i) => (i.avg_cost != null ? Number(i.avg_cost).toFixed(4) : '') },
-      { label: 'Vendors', value: (i) => (offersByItem[i.id] || []).length },
+      { label: 'Vendors', value: (i) => i.vendor_count || 0 },
       { label: 'Updated', value: (i) => dateFmt(i.last_cost_update_at || i.updated_at) },
     ]
-    exportToCSV(filtered, cols, 'parts-catalog.csv')
+    const all = []
+    for (let off = 0; off < 60000; off += 1000) {
+      const { data } = await supabase.rpc('search_parts', { p_org: selectedOrg, p_q: search.trim(), p_filter: catFilter, p_limit: 1000, p_offset: off })
+      const d = data || []
+      all.push(...d)
+      if (d.length < 1000) break
+    }
+    exportToCSV(all, cols, 'parts-catalog.csv')
   }
 
-  const offerItemLive = offerItem ? items.find((i) => i.id === offerItem.id) || offerItem : null
-  const offerList = offerItem ? (offersByItem[offerItem.id] || []) : []
+  const offerItemLive = offerItem
 
   return (
     <div>
@@ -565,8 +543,8 @@ export default function PartsCatalog({ profile }) {
 
       {/* Delete / deactivate confirmation */}
       {deleteTarget && (() => {
-        const onHand = Number(deleteTarget.on_hand ?? stockByItem[deleteTarget.id] ?? 0)
-        const offerCount = Number(deleteTarget.vendor_count ?? (offersByItem[deleteTarget.id] || []).length)
+        const onHand = Number(deleteTarget.on_hand ?? 0)
+        const offerCount = Number(deleteTarget.vendor_count ?? 0)
         const hasHistory = onHand !== 0 || offerCount > 0 || deleteTarget.last_cost != null
         return (
           <div className="modal-backdrop" onClick={() => !deleting && setDeleteTarget(null)} style={backdrop}>
@@ -813,8 +791,8 @@ export default function PartsCatalog({ profile }) {
               </thead>
               <tbody>
                 {rcvLines.map((l, idx) => {
-                  const it = items.find((i) => i.id === l.item_id)
-                  const offers = offersByItem[l.item_id] || []
+                  const it = l.item
+                  const offers = l.offerings || []
                   const packs = parseFloat(l.packs) || 0
                   const packBase = parseFloat(l.pack_base_qty) || 0
                   const costPack = l.cost_per_pack === '' ? null : parseFloat(l.cost_per_pack)
@@ -823,10 +801,8 @@ export default function PartsCatalog({ profile }) {
                   return (
                     <tr key={idx} style={{ borderTop: '1px solid var(--border,#e2e4e8)' }}>
                       <td style={tdStyle}>
-                        <select value={l.item_id} onChange={(e) => setLine(idx, { item_id: e.target.value, offering_id: '' })} style={{ minWidth: 170 }}>
-                          <option value="">— pick item —</option>
-                          {items.map((i) => <option key={i.id} value={i.id}>{i.generic_name}</option>)}
-                        </select>
+                        <ItemSearchSelect orgId={selectedOrg} valueLabel={l.item?.generic_name}
+                          placeholder="Search item…" onSelect={(sel) => pickReceiveItem(idx, sel)} />
                       </td>
                       <td style={tdStyle}>
                         <select value={l.offering_id} onChange={(e) => chooseOffering(idx, e.target.value)} disabled={!offers.length} style={{ minWidth: 150 }}>
@@ -877,9 +853,7 @@ export default function PartsCatalog({ profile }) {
       {showQuincy && (
         <QuincyInvoiceImport
           orgId={selectedOrg}
-          items={items}
           vendors={vendors}
-          offersByItem={offersByItem}
           seedInbound={seedInbound}
           onClose={() => { setShowQuincy(false); setSeedInbound(null) }}
           onApplied={() => { loadAll(); loadInbound() }}
