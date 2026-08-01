@@ -58,6 +58,9 @@ export default function PartsCatalog({ profile }) {
   const [catFilter, setCatFilter] = useState('active')   // active | all | depleted | archived | deleted
   const [loadingRows, setLoadingRows] = useState(false)
   const [hasMore, setHasMore] = useState(false)
+  // Autocomplete suggestions under the search bar
+  const [suggest, setSuggest] = useState([])
+  const [showSuggest, setShowSuggest] = useState(false)
 
   // Item add/edit modal
   const [showItemModal, setShowItemModal] = useState(false)
@@ -145,12 +148,23 @@ export default function PartsCatalog({ profile }) {
 
   // Reload the grid when org or filter changes.
   useEffect(() => { if (selectedOrg) loadCatalog(0) }, [selectedOrg, catFilter])  // eslint-disable-line react-hooks/exhaustive-deps
-  // Debounced search.
+  // Debounced search (drives the grid).
   useEffect(() => {
     if (!selectedOrg) return
     const t = setTimeout(() => loadCatalog(0), 250)
     return () => clearTimeout(t)
   }, [search])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Autocomplete suggestions dropdown (searches the whole library as you type).
+  useEffect(() => {
+    if (!selectedOrg || !showSuggest || search.trim().length < 2) { setSuggest([]); return }
+    let cancel = false
+    const t = setTimeout(async () => {
+      const { data } = await supabase.rpc('search_parts', { p_org: selectedOrg, p_q: search.trim(), p_filter: 'all', p_limit: 8, p_offset: 0 })
+      if (!cancel) setSuggest(data || [])
+    }, 180)
+    return () => { cancel = true; clearTimeout(t) }
+  }, [search, showSuggest, selectedOrg])
 
   async function loadInbound() {
     setLoadingInbound(true)
@@ -425,13 +439,35 @@ export default function PartsCatalog({ profile }) {
       )}
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search name, vendor SKU, model # or description…"
-          style={{ flex: '1 1 320px', minWidth: 240, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border, #ccc)' }}
-        />
+        <div style={{ position: 'relative', flex: '1 1 320px', minWidth: 240 }}>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setShowSuggest(true) }}
+            onFocus={() => setShowSuggest(true)}
+            onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
+            placeholder="Search name, vendor SKU, model # or description…"
+            style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border, #ccc)' }}
+          />
+          {showSuggest && suggest.length > 0 && (
+            <div style={{ position: 'absolute', zIndex: 60, top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #d7dbe2', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', maxHeight: 340, overflowY: 'auto', marginTop: 3 }}>
+              {suggest.map((s) => (
+                <div key={s.id}
+                  onMouseDown={(e) => { e.preventDefault(); setSearch(s.generic_name); setShowSuggest(false); if (catFilter !== 'all' && Number(s.on_hand) <= 0 && !(s.reorder_level > 0)) setCatFilter('all') }}
+                  style={{ padding: '8px 12px', cursor: 'pointer', borderTop: '1px solid #f0f1f4' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#EEF3FB')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#002060' }}>{s.generic_name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--mist,#777)' }}>
+                    {s.category || 'Uncategorized'}{s.model_number ? ` · ${s.model_number}` : ''}
+                    {s.cheapest_cost != null ? ` · ${money(s.cheapest_cost)}${s.cheapest_vendor ? ' · ' + s.cheapest_vendor : ''}` : ''}
+                    {Number(s.on_hand) > 0 ? ` · ${qtyFmt(s.on_hand)} on hand` : ''}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} title="Which items to show"
           style={{ padding: '9px 10px', borderRadius: 8, border: '1px solid var(--border, #ccc)' }}>
           <option value="active">Active (stocked / kept / bought ≤30d)</option>
