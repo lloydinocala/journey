@@ -459,7 +459,8 @@ export default function PartsCatalog({ profile }) {
                   onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#002060' }}>{s.generic_name}</div>
                   <div style={{ fontSize: 11, color: 'var(--mist,#777)' }}>
-                    {s.category || 'Uncategorized'}{s.model_number ? ` · ${s.model_number}` : ''}
+                    {s.model_number ? <span style={{ color: '#215F9A', fontWeight: 700, fontFamily: 'ui-monospace, Menlo, monospace' }}>Model# {s.model_number}</span> : (s.category || 'Uncategorized')}
+                    {s.cheapest_sku ? ` · Part# ${s.cheapest_sku}` : ''}
                     {s.cheapest_cost != null ? ` · ${money(s.cheapest_cost)}${s.cheapest_vendor ? ' · ' + s.cheapest_vendor : ''}` : ''}
                     {Number(s.on_hand) > 0 ? ` · ${qtyFmt(s.on_hand)} on hand` : ''}
                   </div>
@@ -527,6 +528,7 @@ export default function PartsCatalog({ profile }) {
                     <td style={tdStyle}>{dateFmt(it.last_cost_update_at || it.updated_at)}</td>
                     <td style={{ ...tdStyle, fontWeight: 600, color: '#002060' }}>{it.generic_name}
                       {!isInv && <span title="Non-inventory — expensed, no on-hand" style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#7A5C00', background: '#FFF3CD', border: '1px solid #FFE39A', borderRadius: 4, padding: '1px 5px', verticalAlign: 'middle' }}>NON-INV</span>}
+                      {it.model_number && <div style={{ fontWeight: 700, color: '#215F9A', fontSize: 12, fontFamily: 'ui-monospace, Menlo, monospace' }}>Model# {it.model_number}</div>}
                       {it.description && <div style={{ fontWeight: 400, color: 'var(--mist,#777)', fontSize: 12 }}>{it.description}</div>}
                     </td>
                     <td style={tdStyle}>{it.category || '—'}</td>
@@ -545,6 +547,7 @@ export default function PartsCatalog({ profile }) {
                         {it.vendor_count || 0} vendor{it.vendor_count === 1 ? '' : 's'}
                       </button>
                       {it.cheapest_cost != null && <div style={{ fontSize: 12, color: 'var(--mist,#777)' }}>best {money(it.cheapest_cost)}{it.cheapest_vendor ? ` · ${it.cheapest_vendor}` : ''}</div>}
+                      {it.cheapest_sku && <div style={{ fontSize: 12, color: '#215F9A', fontFamily: 'ui-monospace, Menlo, monospace' }}>Part# {it.cheapest_sku}</div>}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>{it.reorder_level != null ? qtyFmt(it.reorder_level) : '—'}</td>
                     <td style={tdStyle}>
