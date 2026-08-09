@@ -50,6 +50,12 @@ export default function Settings({ profile }) {
   const [savingBrand, setSavingBrand] = useState(false)
   const [brandSaved, setBrandSaved] = useState(false)
 
+  const [dbaName, setDbaName] = useState('')
+  const [taxId, setTaxId] = useState('')
+  const [loginImageUrl, setLoginImageUrl] = useState('')
+  const [uploadingLoginImage, setUploadingLoginImage] = useState(false)
+  const [loginImageError, setLoginImageError] = useState('')
+
   const [stripeAccountId, setStripeAccountId] = useState(null)
   const [stripeChargesEnabled, setStripeChargesEnabled] = useState(false)
   const [connectingStripe, setConnectingStripe] = useState(false)
@@ -95,7 +101,7 @@ export default function Settings({ profile }) {
     if (!orgId) return
     const { data } = await supabase
       .from('organizations')
-    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, license_number, payment_terms_days, logo_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
+    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, license_number, dba_name, tax_id, payment_terms_days, logo_url, login_image_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
       .eq('id', orgId)
       .single()
     if (data) {
@@ -112,8 +118,11 @@ export default function Settings({ profile }) {
       setBizEmail(data.business_email || '')
       setBizWebsite(data.business_website || '')
       setLicenseNumber(data.license_number || '')
+      setDbaName(data.dba_name || '')
+      setTaxId(data.tax_id || '')
       setPaymentTermsDays(String(data.payment_terms_days))
      setLogoUrl(data.logo_url || '')
+      setLoginImageUrl(data.login_image_url || '')
     setBrandPrimary(data.brand_primary_color || '#2F5DE3')
       setBrandAccent(data.brand_accent_color || '#B8720A')
       setStripeAccountId(data.stripe_account_id)
@@ -180,6 +189,31 @@ export default function Settings({ profile }) {
     e.target.value = ''
   }
 
+  async function handleLoginImageUpload(e) {
+    const file = e.target.files[0]
+    if (!file || !selectedOrg) return
+    setLoginImageError('')
+    setUploadingLoginImage(true)
+
+    const ext = file.name.split('.').pop()
+    const path = selectedOrg + '/login.' + ext
+
+    const uploadResult = await supabase.storage.from('org-logos').upload(path, file, { upsert: true })
+    if (uploadResult.error) {
+      setLoginImageError(uploadResult.error.message)
+      setUploadingLoginImage(false)
+      return
+    }
+
+    const publicUrlResult = supabase.storage.from('org-logos').getPublicUrl(path)
+    const newUrl = publicUrlResult.data.publicUrl + '?t=' + Date.now()
+
+    await supabase.from('organizations').update({ login_image_url: newUrl }).eq('id', selectedOrg)
+    setLoginImageUrl(newUrl)
+    setUploadingLoginImage(false)
+    e.target.value = ''
+  }
+
   async function saveBusinessInfo(e) {
     e.preventDefault()
     setSavingBiz(true)
@@ -195,6 +229,8 @@ export default function Settings({ profile }) {
         business_email: bizEmail.trim() || null,
         business_website: bizWebsite.trim() || null,
         license_number: licenseNumber.trim() || null,
+        dba_name: dbaName.trim() || null,
+        tax_id: taxId.trim() || null,
         payment_terms_days: parseInt(paymentTermsDays) || 0,
       })
       .eq('id', selectedOrg)
@@ -320,6 +356,21 @@ export default function Settings({ profile }) {
         </div>
       </div>
 
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Login screen image</h3>
+      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 16 }}>
+        The photo shown on your team&apos;s branded sign-in screen. A tall (portrait) team or truck photo works best.
+      </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
+        {loginImageUrl && (
+          <img src={loginImageUrl} alt="Login" style={{ height: 90, borderRadius: 8, border: '1px solid var(--border)' }} />
+        )}
+        <div>
+          <input type="file" accept="image/*" onChange={handleLoginImageUpload} disabled={uploadingLoginImage || !selectedOrg} />
+          {uploadingLoginImage && <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 4 }}>Uploading…</p>}
+          {loginImageError && <p style={{ color: '#C0392B', fontSize: 13, marginTop: 4 }}>{loginImageError}</p>}
+        </div>
+      </div>
+
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Brand colors</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 16 }}>
         Used on your invoices.
@@ -420,6 +471,14 @@ export default function Settings({ profile }) {
         <div className="field">
           <label htmlFor="licenseNumber">License #</label>
           <input id="licenseNumber" type="text" value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="dbaName">DBA / brand name</label>
+          <input id="dbaName" type="text" value={dbaName} onChange={(e) => setDbaName(e.target.value)} placeholder="If different from legal name" />
+        </div>
+        <div className="field">
+          <label htmlFor="taxId">Tax ID / EIN</label>
+          <input id="taxId" type="text" value={taxId} onChange={(e) => setTaxId(e.target.value)} placeholder="Admin only" />
         </div>
         <div className="field">
           <label htmlFor="paymentTerms">Payment terms (days)</label>
