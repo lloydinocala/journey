@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import SignaturePad from './SignaturePad'
+import JobWrapModal from './JobWrapModal'
 import { formatTimeInZone, formatDateTimeInZone } from './utils/tz'
 import {
   IconChevronLeft, IconPhone, IconMessage, IconPin, IconNavigation, IconCamera,
@@ -235,6 +236,10 @@ export default function TechJobCard({ profile }) {
   const [incompleteReason, setIncompleteReason] = useState('')
   const [savingStop, setSavingStop] = useState(false)
   const [stopError, setStopError] = useState('')
+
+  // After a job closes, route the tech: Clock Out / Get Next Job / Standby.
+  const [showWrap, setShowWrap] = useState(false)
+  const [wrapStatus, setWrapStatus] = useState(null)
 
   const [lockHint, setLockHint] = useState(false)
   const [googleMsg, setGoogleMsg] = useState('')
@@ -496,6 +501,7 @@ export default function TechJobCard({ profile }) {
     }
     setJob((p) => ({ ...p, status: finalStatus }))
     setSavingStop(false); setShowStopModal(false)
+    setWrapStatus(finalStatus); setShowWrap(true)
   }
 
   // ---- section actions ----
@@ -1177,6 +1183,17 @@ export default function TechJobCard({ profile }) {
             </div>
           </div>
         </div>
+      )}
+
+      {showWrap && (
+        <JobWrapModal
+          uid={uid}
+          orgId={job.org_id}
+          jobId={jobId}
+          finalStatus={wrapStatus}
+          navigate={navigate}
+          onClose={() => setShowWrap(false)}
+        />
       )}
 
       {lockHint && <div className="jc-lock-hint">Tap STOP MY TIME before leaving this job.</div>}

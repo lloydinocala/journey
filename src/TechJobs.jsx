@@ -34,6 +34,8 @@ export default function TechJobs({ profile }) {
 
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [standbyNote, setStandbyNote] = useState(() => { try { return localStorage.getItem('tech_standby_note') || '' } catch { return '' } })
+  function dismissStandby() { try { localStorage.removeItem('tech_standby_note') } catch { /* ignore */ } setStandbyNote('') }
   const [date, setDate] = useState(todayISO())
   const [effUid, setEffUid] = useState(null)
   const [effOrgId, setEffOrgId] = useState(null)
@@ -172,6 +174,12 @@ export default function TechJobs({ profile }) {
       <div className="mobile-body">
         {effUid && effOrgId && (
           <ClockWidget userId={effUid} orgId={effOrgId} variant="mobile" />
+        )}
+        {standbyNote && (
+          <div style={{ margin: '0 14px 12px', padding: '12px 14px', borderRadius: 12, background: '#EAF2FB', border: '1px solid #BBD5F0', color: '#0F2A47', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span>{standbyNote}</span>
+            <button onClick={dismissStandby} style={{ background: 'none', border: 'none', color: '#0F2A47', fontSize: 20, lineHeight: 1, cursor: 'pointer', padding: 0 }} aria-label="Dismiss">×</button>
+          </div>
         )}
         {isSuperAdmin && (
           <div className="preview-banner">
