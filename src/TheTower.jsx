@@ -110,33 +110,28 @@ export default function TheTower({ profile }) {
   async function load() {
     setLoading(true)
     if (!orgId) { setRows([]); setLoading(false); return }
-    const { data: jobs } = await supabase
-      .from('jobs')
-      .select('id, job_number, segment, status, start_time, duration_hours, job_type, on_my_way_at, arrival_at, completed_at, customers ( display_name ), properties ( street_address, unit, city )')
-      .eq('org_id', orgId)
-      .eq('job_date', activeDate)
-      .is('deleted_at', null)
-    const jobIds = (jobs || []).map((j) => j.id)
-    let assigns = []
-    if (jobIds.length) {
-      const { data } = await supabase.from('job_technicians')
-        .select('job_id, user_id, sort_order').eq('org_id', orgId).in('job_id', jobIds)
-      assigns = data || []
-    }
-    const uids = [...new Set(assigns.map((a) => a.user_id))]
-    const usersById = {}
-    if (uids.length) {
-      const { data } = await supabase.from('users').select('id, full_name').in('id', uids)
-      ;(data || []).forEach((u) => { usersById[u.id] = u })
-    }
-    const byJob = {}
-    assigns.forEach((a) => { (byJob[a.job_id] = byJob[a.job_id] || []).push(a) })
-    const assembled = (jobs || []).map((j) => {
-      const list = (byJob[j.id] || []).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      const primary = list[0]
-      const u = primary ? usersById[primary.user_id] : null
-      return { ...j, techUserId: primary?.user_id || null, techName: u?.full_name || null }
-    })
+    // The Tower reads through the tower_board() RPC, which enforces the access
+    // rule server-side: field supervisors/admins only, own org only (a platform
+    // super_admin may pass a preview org), and a bounded near-time window.
+    // A plain tech who reaches this code is rejected by the database, not just the UI.
+    const { data, error } = await supabase.rpc('tower_board', { p_org_id: orgId, p_date: activeDate })
+    if (error) { setRows([]); setLoading(false); return }
+    const assembled = (data || []).map((r) => ({
+      id: r.id,
+      job_number: r.job_number,
+      segment: r.segment,
+      status: r.status,
+      start_time: r.start_time,
+      duration_hours: r.duration_hours,
+      job_type: r.job_type,
+      on_my_way_at: r.on_my_way_at,
+      arrival_at: r.arrival_at,
+      completed_at: r.completed_at,
+      customers: { display_name: r.customer_name },
+      properties: { street_address: r.street_address, unit: r.unit, city: r.city },
+      techUserId: r.tech_user_id,
+      techName: r.tech_name,
+    }))
     setRows(assembled)
     setLoading(false)
   }
