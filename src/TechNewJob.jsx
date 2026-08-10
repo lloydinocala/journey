@@ -28,8 +28,6 @@ export default function TechNewJob({ profile, mode = 'job' }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  // 'existing' = pick a property already on file. 'new' = create a customer + property
-  // on the spot (a supervisor out estimating a lead who isn't in the system yet).
   const [customerMode, setCustomerMode] = useState('existing')
 
   const [existingCustomerId, setExistingCustomerId] = useState('')
@@ -76,7 +74,6 @@ export default function TechNewJob({ profile, mode = 'job' }) {
     })
   }, [profile?.org_id])
 
-  // Once a customer is picked, load just their properties — never the whole org's.
   useEffect(() => {
     if (existingCustomerId) {
       supabase
@@ -95,9 +92,6 @@ export default function TechNewJob({ profile, mode = 'job' }) {
     }
   }, [existingCustomerId])
 
-  // Once a specific property is picked, pull its tenants so the tech sees who's
-  // there and can confirm/update a phone number on the spot rather than re-asking
-  // the office for info that's already on file.
   useEffect(() => {
     if (propertyId) {
       supabase
@@ -156,7 +150,6 @@ export default function TechNewJob({ profile, mode = 'job' }) {
       return { propertyId, customerId: existingCustomerId }
     }
 
-    // customerMode === 'new'
     if (!newCustomerName.trim() || !newStreet.trim()) {
       setError('Customer name and street address are required.')
       return null
@@ -213,27 +206,23 @@ export default function TechNewJob({ profile, mode = 'job' }) {
       return
     }
 
-    const { count } = await supabase.from('jobs').select('id', { count: 'exact', head: true }).eq('org_id', profile.org_id)
-    const jobNumber = `J-${String((count || 0) + 1).padStart(4, '0')}`
     const startTimestamp = startTime ? zonedToUtcIso(jobDate, startTime) : null
+    const techIds = [technicianId, technician2Id, technician3Id, technician4Id].filter(Boolean)
 
-    const { data: newJob, error: insertError } = await supabase
-      .from('jobs')
-      .insert({
-        org_id: profile.org_id,
-        job_number: jobNumber,
-        segment: 1,
-        property_id: resolved.propertyId,
-        customer_id: resolved.customerId,
-        job_date: jobDate,
-        start_time: startTimestamp,
-        duration_hours: durationHours ? parseFloat(durationHours) : null,
-        job_type: jobType,
-        service_complaint: serviceComplaint.trim() || null,
-        trip_charge_price_id: tripChargeId || null,
-      })
-      .select()
-      .single()
+    // Create the job + assignments in one server-side call. Job numbering and
+    // assignment happen inside create_tech_job (SECURITY DEFINER), so it stays
+    // correct even when the caller can only see their own jobs under RLS.
+    const { data: newJobId, error: insertError } = await supabase.rpc('create_tech_job', {
+      p_property_id: resolved.propertyId,
+      p_customer_id: resolved.customerId,
+      p_job_date: jobDate,
+      p_start_time: startTimestamp,
+      p_duration_hours: durationHours ? parseFloat(durationHours) : null,
+      p_job_type: jobType,
+      p_service_complaint: serviceComplaint.trim() || null,
+      p_trip_charge_price_id: tripChargeId || null,
+      p_tech_ids: techIds,
+    })
 
     if (insertError) {
       setError(insertError.message)
@@ -241,20 +230,8 @@ export default function TechNewJob({ profile, mode = 'job' }) {
       return
     }
 
-    const techIds = [technicianId, technician2Id, technician3Id, technician4Id].filter(Boolean)
-    if (techIds.length > 0) {
-      await supabase.from('job_technicians').insert(
-        techIds.map((userId, idx) => ({
-          org_id: profile.org_id,
-          job_id: newJob.id,
-          user_id: userId,
-          sort_order: idx + 1,
-        }))
-      )
-    }
-
     setSaving(false)
-    navigate(modeConfig.destination(newJob.id))
+    navigate(modeConfig.destination(newJobId))
   }
 
   return (
