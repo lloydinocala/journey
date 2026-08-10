@@ -43,6 +43,7 @@ import EquipmentImport from './EquipmentImport'
 import PropertyImport from './PropertyImport'
 import JobImport from './JobImport'
 import TechJobs from './TechJobs'
+import TheTower from './TheTower'
 import TechJobCard from './TechJobCard'
 import TechTaskCard from './TechTaskCard'
 import TechInvoice from './TechInvoice'
@@ -156,6 +157,7 @@ function AuthenticatedApp() {
       {/* All mobile field views sit behind the terms consent gate. */}
       <Route element={<TechGate profile={profile} />}>
         <Route path="/tech" element={<TechJobs profile={profile} />} />
+        <Route path="/tech/tower" element={<TheTower profile={profile} />} />
         <Route path="/tech/settings" element={<TechSettings profile={profile} />} />
         <Route path="/tech/task/:taskId" element={<TechTaskCard profile={profile} />} />
         <Route path="/tech/:jobId" element={<TechJobCard profile={profile} />} />
