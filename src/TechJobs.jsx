@@ -28,8 +28,6 @@ function timeLabel(startTime) {
 export default function TechJobs({ profile }) {
   const navigate = useNavigate()
   const isSuperAdmin = profile?.role === 'super_admin'
-  // Field admins/supervisors see the whole team's tasks in their card list
-  // (each labeled with who it's for); regular techs see only their own.
   const seeAllTasks = isFieldAdmin(profile) && !isSuperAdmin
 
   const [items, setItems] = useState([])
@@ -38,8 +36,6 @@ export default function TechJobs({ profile }) {
   const [effUid, setEffUid] = useState(null)
   const [effOrgId, setEffOrgId] = useState(null)
 
-  // Super-admin preview mode: pick an org + a "viewing as" user, since a super_admin
-  // account has no org_id / assigned jobs of its own.
   const [orgs, setOrgs] = useState([])
   const [previewOrgId, setPreviewOrgId] = useState(localStorage.getItem('tech_preview_org_id') || '')
   const [orgUsers, setOrgUsers] = useState([])
@@ -101,14 +97,9 @@ export default function TechJobs({ profile }) {
     setEffOrgId(orgId)
     loadOrgTz(orgId)
 
-    // Day window for tasks as real UTC instants for the viewer's local day
-    // (so an evening task doesn't drift onto the next calendar day).
     const dayStart = new Date(date + 'T00:00:00')
     const dayEnd = new Date(dayStart.getTime() + 86400000)
 
-    // job_technicians is the single source of truth for job assignment — find
-    // this tech's job IDs for the day, then load those jobs' full details.
-    // field_tasks are assigned directly to the user; admins see the whole team's.
     let taskQuery = supabase
       .from('field_tasks')
       .select('id, destination_name, address, scheduled_at, status, assigned_user_id, assigned:users!field_tasks_assigned_user_id_fkey ( full_name )')
@@ -195,6 +186,7 @@ export default function TechJobs({ profile }) {
           <div className="supervisor-tools">
             <div className="supervisor-tools-label">Supervisor Tools</div>
             <div className="supervisor-tools-row">
+              <button onClick={() => navigate('/tech/tower')}>The Tower</button>
               <button onClick={() => navigate('/tech/schedule')}>Everyone's Schedule</button>
               <button onClick={() => navigate('/tech/new-job')}>+ New Job</button>
               <button onClick={() => navigate('/tech/new-service-estimate')}>+ Service Estimate</button>
