@@ -89,6 +89,16 @@ function isSystemFilled(eq) {
   const hasModel = !!(eq.outdoor_model || eq.indoor_model || eq.furnace_model)
   return hasSerial && hasModel
 }
+// Per-job-type matrix: what the spine's middle gate is, and which spine tasks show.
+// Keyed on the job_type NAME (the repair-style default covers Repair / Labor Warranty /
+// Punchlist / Retrofit / Duct Repair / Other). Filter deliveries ride as tasks/segments,
+// so they need no variant here.
+function jobTypeConfig(jobType) {
+  const t = (jobType || '').trim().toLowerCase()
+  if (t === 'maintenance') return { middle: 'checklist', showServiceEstimate: true }
+  if (t === 'system estimate') return { middle: 'none', showServiceEstimate: false }
+  return { middle: 'diagnosis', showServiceEstimate: true }
+}
 function haversineMeters(a, b) {
   const R = 6371000, toRad = (x) => (x * Math.PI) / 180
   const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng)
@@ -374,13 +384,27 @@ export default function TechJobCard({ profile }) {
   const maintDone = planExists || planSent
   const serviceEstDone = !!job?.service_estimate_not_needed || serviceEstItems > 0
 
-  // FORCED CHAIN (Repair): Equipment on File → Diagnosis → Service Estimate, hard-gated in order.
-  // A downstream task is locked (greyed, shows why) until its prerequisite goes blue.
+  // ---- per-job-type matrix: which spine tasks show + what the middle gate is ----
+  const jtCfg = jobTypeConfig(job?.job_type)
+  const showDiagnosis = jtCfg.middle === 'diagnosis'   // repair-style
+  const showChecklist = jtCfg.middle === 'checklist'   // maintenance
+  const showServiceEstimate = jtCfg.showServiceEstimate
+  // Maintenance uses the customer's plan-tier checklist, or Basic when no plan is on record.
+  const maintChecklistName = plan?.maintenance_agreement_tiers?.name || 'Basic'
+  // The middle gate that must be blue before the Service Estimate unlocks. Checklist
+  // completion isn't wired until the checklist engine ships, so on Maintenance the estimate
+  // unlocks after Equipment for now (flagged); it becomes the checklist gate later.
+  const middleGateDone = showDiagnosis ? diagnosisDone : true
+
+  // FORCED CHAIN: Equipment on File → [Diagnosis | Checklist] → Service Estimate, hard-gated
+  // in order. A downstream task is locked (greyed, shows why) until its prerequisite goes blue.
   const diagnosisLocked = !equipDone
-  const serviceEstimateLocked = !diagnosisDone
+  const checklistLocked = !equipDone
+  const serviceEstimateLocked = showDiagnosis ? !diagnosisDone : !equipDone
   const lockReason = {
     diagnosis: 'Account for the equipment first — the diagnosis needs the model and serial.',
-    service_estimate: 'Record the diagnosis first — no quote without a diagnosis.',
+    checklist: 'Account for the equipment first, then run the maintenance checklist.',
+    service_estimate: showDiagnosis ? 'Record the diagnosis first — no quote without a diagnosis.' : 'Account for the equipment first.',
   }
 
   const invoiceTotal = invoice ? (invoice.amount_due ?? invoice.job_total ?? 0) : 0
@@ -388,7 +412,7 @@ export default function TechJobCard({ profile }) {
   const exceedsLimit = repairLimit != null && invoiceTotal > repairLimit
 
   // Required tasks that drive the status pill. Warning banners do NOT count.
-  const requiredDone = equipDone && diagnosisDone && serviceEstDone && invoiceDone && viewSendDone && sigDone && maintDone
+  const requiredDone = equipDone && middleGateDone && (showServiceEstimate ? serviceEstDone : true) && invoiceDone && viewSendDone && sigDone && maintDone
   const allClear = requiredDone && !exceedsLimit
   const status = job?.status
 
@@ -1054,7 +1078,8 @@ export default function TechJobCard({ profile }) {
           )}
         </div>
 
-        {/* Diagnosis (NEW) — locked until Equipment is done; recording it unlocks the Service Estimate */}
+        {/* Diagnosis (Repair-style) — locked until Equipment is done; unlocks the Service Estimate */}
+        {showDiagnosis && <>
         {diagnosisLocked && <LockNote text={lockReason.diagnosis} />}
         <div className="jc-task">
           <TaskHead k="diagnosis" title="Diagnosis" icon={<IconFile />} done={diagnosisDone} locked={diagnosisLocked} />
@@ -1074,7 +1099,23 @@ export default function TechJobCard({ profile }) {
           )}
         </div>
 
-        {/* Service Estimate — locked until the Diagnosis is recorded */}
+        </>}
+
+        {/* Checklist (Maintenance) — replaces Diagnosis; uses the plan-tier checklist, or Basic */}
+        {showChecklist && <>
+        {checklistLocked && <LockNote text={lockReason.checklist} />}
+        <div className="jc-task">
+          <TaskHead k="checklist" title={`Checklist — ${maintChecklistName}`} icon={<IconList />} done={false} locked={checklistLocked} />
+          {!checklistLocked && isOpen('checklist') && (
+            <div className="jc-task-body">
+              <p className="jc-muted-note">This visit uses the <strong>{maintChecklistName}</strong> maintenance checklist{plan ? ' (from the plan on record)' : ' — no plan on record, so the Basic default'}. The full checklist — its line items, required photos, and the completed copy emailed to the customer with the invoice — arrives with the checklist build. For now this is a placeholder and does not block completion.</p>
+            </div>
+          )}
+        </div>
+        </>}
+
+        {/* Service Estimate — locked until the middle gate (diagnosis/checklist) is done */}
+        {showServiceEstimate && <>
         {serviceEstimateLocked && <LockNote text={lockReason.service_estimate} />}
         <div className="jc-task">
           <TaskHead k="service_estimate" title="Service Estimate" icon={<IconFile />} done={serviceEstDone} locked={serviceEstimateLocked}
@@ -1098,6 +1139,8 @@ export default function TechJobCard({ profile }) {
             </div>
           )}
         </div>
+
+        </>}
 
         {/* ========== FREE ORDER — work these with the customer in any order ========== */}
 
