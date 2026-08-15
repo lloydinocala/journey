@@ -253,6 +253,18 @@ export default function SystemEstimate({ profile }) {
     loadLineItems(estimate.id)
   }
 
+  const isFieldAdmin = !!(profile && (['org_admin', 'super_admin'].includes(profile.role) || profile.is_field_supervisor))
+
+  async function approveCustom(li) {
+    if (!(Number(li.unit_price) > 0)) return
+    await supabase.from('invoice_line_items').update({
+      custom_status: 'approved',
+      custom_approved_by: profile?.id || null,
+      custom_approved_at: new Date().toISOString(),
+    }).eq('id', li.id)
+    loadLineItems(estimate.id)
+  }
+
   async function updateEstimatingTechnician(userId) {
     await supabase.from('invoices').update({ estimating_technician_id: userId || null }).eq('id', estimate.id)
     setEstimate((prev) => ({ ...prev, estimating_technician_id: userId || null }))
@@ -291,8 +303,10 @@ export default function SystemEstimate({ profile }) {
     }
   }
 
-  const subtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
-  const taxableSubtotal = lineItems.filter((li) => li.taxable).reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
+  const isPendingCustom = (li) => li.is_custom && li.custom_status === 'pending'
+  const billable = lineItems.filter((li) => !isPendingCustom(li))
+  const subtotal = billable.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
+  const taxableSubtotal = billable.filter((li) => li.taxable).reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const salesTax = taxableSubtotal * (taxRate / 100)
   const discountValue =
     discountType === 'percent' ? subtotal * ((parseFloat(discountAmount) || 0) / 100) : parseFloat(discountAmount) || 0
@@ -363,7 +377,10 @@ export default function SystemEstimate({ profile }) {
 
             {lineItems.map((li) => (
               <>
-                <div className="grid-cell">{li.description}</div>
+                <div className="grid-cell">
+                  {li.description}
+                  {isPendingCustom(li) && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#B8860B', background: 'rgba(184,134,11,0.12)', padding: '2px 7px', borderRadius: 6 }}>PENDING · tech request</span>}
+                </div>
                 <div className="grid-cell">
                   <input
                     type="number"
@@ -383,6 +400,9 @@ export default function SystemEstimate({ profile }) {
                 <div className="grid-cell">${(li.quantity * li.unit_price).toFixed(2)}</div>
                 <div className="grid-cell">{li.taxable ? 'Yes' : 'No'}</div>
                 <div className="grid-cell grid-actions">
+                  {isPendingCustom(li) && isFieldAdmin && (
+                    <button className="logout-button" style={{ borderColor: '#1F7A43', color: '#1F7A43' }} disabled={!(Number(li.unit_price) > 0)} title={Number(li.unit_price) > 0 ? 'Approve this custom item' : 'Set a price first'} onClick={() => approveCustom(li)}>Approve</button>
+                  )}
                   <button className="logout-button" onClick={() => removeLineItem(li.id)}>Remove</button>
                 </div>
               </>
