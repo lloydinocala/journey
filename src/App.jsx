@@ -26,6 +26,7 @@ import Team from './Team'
 import Calendar from './Calendar'
 import Pricebook from './Pricebook'
 import SystemsPricebook from './SystemsPricebook'
+import DiscountCatalog from './DiscountCatalog'
 import MaintenanceAgreementTiers from './MaintenanceAgreementTiers'
 import MaintenanceAgreements from './MaintenanceAgreements'
 import Invoice from './Invoice'
@@ -203,6 +204,7 @@ function AuthenticatedApp() {
         <Route path="/calendar" element={<Calendar profile={profile} />} />
         <Route path="/pricebook" element={<Pricebook profile={profile} />} />
         <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />
+        <Route path="/discount-catalog" element={<DiscountCatalog profile={profile} />} />
         <Route path="/maintenance-tiers" element={<MaintenanceAgreementTiers profile={profile} />} />
         <Route path="/maintenance-agreements" element={<MaintenanceAgreements profile={profile} />} />
         <Route path="/invoice/:jobId" element={<Invoice profile={profile} />} />
