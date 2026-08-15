@@ -17,6 +17,18 @@ export default function CustomerHistory({ profile }) {
   const [error, setError] = useState('')
   const [lightbox, setLightbox] = useState(null)
 
+  const [contacts, setContacts] = useState([])
+  const [editContactId, setEditContactId] = useState(null)
+  const [cName, setCName] = useState('')
+  const [cTitle, setCTitle] = useState('')
+  const [cEmail, setCEmail] = useState('')
+  const [cPhone, setCPhone] = useState('')
+  const [cPropertyId, setCPropertyId] = useState('')
+  const [cApprover, setCApprover] = useState(false)
+  const [cBilling, setCBilling] = useState(false)
+  const [cOnsite, setCOnsite] = useState(false)
+  const [savingContact, setSavingContact] = useState(false)
+
   useEffect(() => {
     loadAll()
   }, [customerId])
@@ -74,6 +86,13 @@ export default function CustomerHistory({ profile }) {
     setJobs(jobsRes.data || [])
     setInvoices(invoicesRes.data || [])
     setAgreements(agreementsRes.data || [])
+
+    const { data: contactsData } = await supabase
+      .from('contacts')
+      .select('id, name, title, email, phone, property_id, is_approver, is_billing, is_onsite, is_active, properties(street_address, unit, city, state, zip)')
+      .eq('customer_id', customerId)
+      .order('sort_order')
+    setContacts(contactsData || [])
 
     const agreementIds = (agreementsRes.data || []).map((a) => a.id)
     if (agreementIds.length > 0) {
@@ -146,6 +165,60 @@ export default function CustomerHistory({ profile }) {
   function propertyLine(p) {
     if (!p) return '—'
     return [p.street_address, p.unit, p.city, p.state, p.zip].filter(Boolean).join(', ')
+  }
+
+  function roleBadges(c) {
+    const r = []
+    if (c.is_approver) r.push('Approver')
+    if (c.is_billing) r.push('Billing / AP')
+    if (c.is_onsite) r.push('On-site')
+    return r
+  }
+
+  function resetContactForm() {
+    setEditContactId(null)
+    setCName(''); setCTitle(''); setCEmail(''); setCPhone(''); setCPropertyId('')
+    setCApprover(false); setCBilling(false); setCOnsite(false)
+  }
+
+  function editContact(c) {
+    setEditContactId(c.id)
+    setCName(c.name || ''); setCTitle(c.title || ''); setCEmail(c.email || ''); setCPhone(c.phone || '')
+    setCPropertyId(c.property_id || '')
+    setCApprover(!!c.is_approver); setCBilling(!!c.is_billing); setCOnsite(!!c.is_onsite)
+  }
+
+  async function saveContact(e) {
+    e.preventDefault()
+    if (!cName.trim()) return
+    setSavingContact(true)
+    const row = {
+      org_id: customer.org_id,
+      customer_id: customerId,
+      property_id: cPropertyId || null,
+      name: cName.trim(),
+      title: cTitle.trim() || null,
+      email: cEmail.trim() || null,
+      phone: cPhone.trim() || null,
+      is_approver: cApprover,
+      is_billing: cBilling,
+      is_onsite: cOnsite,
+    }
+    if (editContactId) {
+      await supabase.from('contacts').update(row).eq('id', editContactId)
+    } else {
+      await supabase.from('contacts').insert(row)
+    }
+    setSavingContact(false)
+    resetContactForm()
+    loadAll()
+  }
+
+  async function deleteContact(id) {
+    if (!window.confirm('Remove this contact?')) return
+    await supabase.from('contacts').delete().eq('id', id)
+    if (editContactId === id) resetContactForm()
+    loadAll()
   }
 
   if (loading) return <p style={{ color: 'var(--mist)' }}>Loading…</p>
@@ -246,6 +319,83 @@ export default function CustomerHistory({ profile }) {
               </div>
             ))}
           </div>
+        </div>
+
+        <div style={{ marginBottom: 28 }}>
+          <h3 style={{ marginBottom: 6 }}>Contacts &amp; Invoice Routing</h3>
+          <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>
+            Who approves and who gets billed. Pin a contact to a department, or leave it at the account
+            level to cover the whole customer.
+          </p>
+          {contacts.length === 0 && <p style={{ color: 'var(--mist)' }}>No contacts yet.</p>}
+          {contacts.length > 0 && (
+            <table className="data-table" style={{ marginBottom: 16 }}>
+              <thead>
+                <tr><th>Name</th><th>Roles</th><th>Department</th><th>Email</th><th>Phone</th><th className="no-print"></th></tr>
+              </thead>
+              <tbody>
+                {contacts.map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.name}{c.title ? <span style={{ color: 'var(--mist)' }}> — {c.title}</span> : ''}</td>
+                    <td>
+                      {roleBadges(c).map((r) => <span key={r} className="badge" style={{ marginRight: 4 }}>{r}</span>)}
+                      {roleBadges(c).length === 0 && <span style={{ color: 'var(--mist)' }}>—</span>}
+                    </td>
+                    <td>{c.property_id ? propertyLine(c.properties) : <span style={{ color: 'var(--mist)' }}>Whole account</span>}</td>
+                    <td>{c.email || '—'}</td>
+                    <td>{c.phone || '—'}</td>
+                    <td className="no-print" style={{ whiteSpace: 'nowrap' }}>
+                      <button className="logout-button" type="button" onClick={() => editContact(c)}>Edit</button>
+                      <button className="logout-button" type="button" onClick={() => deleteContact(c.id)} style={{ marginLeft: 6 }}>Remove</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <form onSubmit={saveContact} className="no-print" style={{ border: '0.5px solid var(--border, #d0d0d0)', borderRadius: 10, padding: 14, maxWidth: 720 }}>
+            <h4 style={{ margin: '0 0 10px' }}>{editContactId ? 'Edit contact' : 'Add a contact'}</h4>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <div className="field" style={{ flex: '1 1 200px' }}>
+                <label>Name</label>
+                <input type="text" value={cName} onChange={(e) => setCName(e.target.value)} placeholder="e.g. Bob Smith" required />
+              </div>
+              <div className="field" style={{ flex: '1 1 200px' }}>
+                <label>Title</label>
+                <input type="text" value={cTitle} onChange={(e) => setCTitle(e.target.value)} placeholder="optional, e.g. Blue Division Manager" />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <div className="field" style={{ flex: '1 1 200px' }}>
+                <label>Email</label>
+                <input type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} placeholder="optional" />
+              </div>
+              <div className="field" style={{ flex: '1 1 200px' }}>
+                <label>Phone</label>
+                <input type="tel" value={cPhone} onChange={(e) => setCPhone(e.target.value)} placeholder="optional" />
+              </div>
+            </div>
+            <div className="field">
+              <label>Department</label>
+              <select value={cPropertyId} onChange={(e) => setCPropertyId(e.target.value)}>
+                <option value="">Whole account (customer level)</option>
+                {properties.map((p) => (
+                  <option key={p.id} value={p.id}>{propertyLine(p)}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 16, margin: '6px 0 12px', flexWrap: 'wrap' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={cApprover} onChange={(e) => setCApprover(e.target.checked)} /> Approver</label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={cBilling} onChange={(e) => setCBilling(e.target.checked)} /> Billing / AP</label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={cOnsite} onChange={(e) => setCOnsite(e.target.checked)} /> On-site</label>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="auth-button" type="submit" style={{ width: 'auto', margin: 0, padding: '8px 20px' }} disabled={savingContact || !cName.trim()}>
+                {savingContact ? 'Saving\u2026' : editContactId ? 'Save contact' : 'Add contact'}
+              </button>
+              {editContactId && <button className="logout-button" type="button" onClick={resetContactForm}>Cancel</button>}
+            </div>
+          </form>
         </div>
 
         {customer.notes && (
