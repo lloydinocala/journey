@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { IconChevronLeft, IconReceipt } from './MobileIcons'
+import RoutingSummary from './RoutingSummary'
 
 export default function TechInvoice({ profile }) {
   const { jobId } = useParams()
@@ -35,7 +36,7 @@ export default function TechInvoice({ profile }) {
     setLoading(true)
     const { data: jobData } = await supabase
       .from('jobs')
-      .select('id, job_number, job_date, org_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
+      .select('id, job_number, job_date, org_id, customer_id, property_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
       .eq('id', jobId)
       .single()
     setJob(jobData)
@@ -292,6 +293,7 @@ export default function TechInvoice({ profile }) {
       </div>
 
       <div className="mobile-body">
+        <RoutingSummary customerId={job.customer_id} propertyId={job.property_id} label="Invoice" />
         <div className="section-card">
           <div className="section-card-header"><span><IconReceipt /> Line Items</span></div>
           <div className="section-card-body">
