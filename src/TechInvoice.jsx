@@ -22,7 +22,6 @@ export default function TechInvoice({ profile }) {
 
   const [customDesc, setCustomDesc] = useState('')
   const [customQty, setCustomQty] = useState('1')
-  const [customPrice, setCustomPrice] = useState('')
   const [customTaxable, setCustomTaxable] = useState(true)
   const [addingCustom, setAddingCustom] = useState(false)
 
@@ -175,23 +174,24 @@ export default function TechInvoice({ profile }) {
 
   async function handleAddCustom(e) {
     e.preventDefault()
-    if (!customDesc.trim() || !customPrice) return
+    if (!customDesc.trim()) return
+    if (lineItems.filter((li) => li.is_custom).length >= 2) return
     setAddingCustom(true)
     const nextSort = lineItems.length > 0 ? Math.max(...lineItems.map((li) => li.sort_order)) + 1 : 1
     await supabase.from('invoice_line_items').insert({
       invoice_id: invoice.id,
       org_id: job.org_id,
       description: customDesc.trim(),
-      unit_price: parseFloat(customPrice) || 0,
+      unit_price: 0,
       quantity: parseFloat(customQty) || 1,
       taxable: customTaxable,
       is_custom: true,
+      custom_status: 'pending',
       sort_order: nextSort,
     })
     setAddingCustom(false)
     setCustomDesc('')
     setCustomQty('1')
-    setCustomPrice('')
     loadLineItems(invoice.id)
   }
 
@@ -209,8 +209,12 @@ export default function TechInvoice({ profile }) {
     await supabase.from('invoices').update({ discount_type: discountType, discount_amount: parseFloat(discountAmount) || 0 }).eq('id', invoice.id)
   }
 
-  const subtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
-  const taxableSubtotal = lineItems.filter((li) => li.taxable).reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
+  const isPendingCustom = (li) => li.is_custom && li.custom_status === 'pending'
+  const customCount = lineItems.filter((li) => li.is_custom).length
+  const canAddCustom = customCount < 2
+  const billable = lineItems.filter((li) => !isPendingCustom(li))
+  const subtotal = billable.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
+  const taxableSubtotal = billable.filter((li) => li.taxable).reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const salesTax = taxableSubtotal * (taxRate / 100)
   const discountValue = discountType === 'percent' ? subtotal * ((parseFloat(discountAmount) || 0) / 100) : parseFloat(discountAmount) || 0
   const totalDue = Math.max(subtotal + salesTax - discountValue, 0)
@@ -247,7 +251,10 @@ export default function TechInvoice({ profile }) {
             {lineItems.length === 0 && <p style={{ color: 'var(--mist)', fontSize: 13, margin: 0 }}>No line items yet — add one below.</p>}
             {lineItems.map((li) => (
               <div key={li.id} className="line-item-card">
-                <div className="line-item-desc">{li.description}</div>
+                <div className="line-item-desc">
+                  {li.description}
+                  {isPendingCustom(li) && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#B8860B', background: 'rgba(184,134,11,0.12)', padding: '2px 7px', borderRadius: 6 }}>PENDING APPROVAL</span>}
+                </div>
                 <div className="line-item-fields">
                   <div className="mobile-field">
                     <label>Qty</label>
@@ -255,12 +262,14 @@ export default function TechInvoice({ profile }) {
                   </div>
                   <div className="mobile-field">
                     <label>Unit Price</label>
-                    <input type="number" step="0.01" value={li.unit_price} onChange={(e) => updateLineItem(li.id, 'unit_price', parseFloat(e.target.value) || 0)} />
+                    {isPendingCustom(li)
+                      ? <div style={{ padding: '8px 0', color: 'var(--mist)', fontStyle: 'italic', fontSize: 13 }}>set by office</div>
+                      : <div style={{ padding: '8px 0', fontWeight: 700 }}>${Number(li.unit_price).toFixed(2)}</div>}
                   </div>
-                  <div className="line-item-ext">${(li.quantity * li.unit_price).toFixed(2)}</div>
+                  <div className="line-item-ext">{isPendingCustom(li) ? '—' : `$${(li.quantity * li.unit_price).toFixed(2)}`}</div>
                 </div>
                 <div className="line-item-meta-row">
-                  <span>{li.taxable ? 'Taxable' : 'Non-taxable'}</span>
+                  <span>{isPendingCustom(li) ? 'Awaiting office pricing — not on customer invoice yet' : (li.taxable ? 'Taxable' : 'Non-taxable')}</span>
                   <button className="remove-item-btn" onClick={() => removeLineItem(li.id)}>Remove</button>
                 </div>
               </div>
@@ -310,25 +319,31 @@ export default function TechInvoice({ profile }) {
         </div>
 
         <div className="section-card">
-          <div className="section-card-header"><span>Add Custom Item</span></div>
+          <div className="section-card-header"><span>Add Custom Item <span style={{ color: 'var(--mist)', fontWeight: 400, fontSize: 12 }}>({customCount}/2)</span></span></div>
           <div className="section-card-body">
-            <form onSubmit={handleAddCustom}>
-              <div className="mobile-field">
-                <label>Description</label>
-                <input type="text" value={customDesc} onChange={(e) => setCustomDesc(e.target.value)} required />
-              </div>
-              <div className="mobile-field-row">
-                <div className="mobile-field"><label>Qty</label><input type="number" step="1" value={customQty} onChange={(e) => setCustomQty(e.target.value)} /></div>
-                <div className="mobile-field"><label>Unit Price</label><input type="number" step="0.01" value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} required /></div>
-              </div>
-              <label className="mobile-checkbox-row">
-                <input type="checkbox" checked={customTaxable} onChange={(e) => setCustomTaxable(e.target.checked)} />
-                Taxable
-              </label>
-              <button className="action-btn primary" style={{ flex: 'none', padding: '9px 20px' }} type="submit" disabled={addingCustom}>
-                {addingCustom ? 'Adding…' : 'Add to Invoice'}
-              </button>
-            </form>
+            <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 0 }}>
+              For something the price book doesn't cover. Your office prices and approves it before it shows on the customer's invoice — you don't set the price here. Up to 2 per invoice.
+            </p>
+            {canAddCustom ? (
+              <form onSubmit={handleAddCustom}>
+                <div className="mobile-field">
+                  <label>What is it?</label>
+                  <input type="text" value={customDesc} onChange={(e) => setCustomDesc(e.target.value)} placeholder="e.g. Extra duct run to back bedroom" required />
+                </div>
+                <div className="mobile-field-row">
+                  <div className="mobile-field"><label>Qty</label><input type="number" step="1" value={customQty} onChange={(e) => setCustomQty(e.target.value)} /></div>
+                </div>
+                <label className="mobile-checkbox-row">
+                  <input type="checkbox" checked={customTaxable} onChange={(e) => setCustomTaxable(e.target.checked)} />
+                  Taxable
+                </label>
+                <button className="action-btn primary" style={{ flex: 'none', padding: '9px 20px' }} type="submit" disabled={addingCustom || !customDesc.trim()}>
+                  {addingCustom ? 'Submitting…' : 'Submit for Approval'}
+                </button>
+              </form>
+            ) : (
+              <p style={{ color: '#B8860B', fontSize: 13, margin: 0, fontWeight: 600 }}>Custom‑item limit reached (2). Remove one to add another.</p>
+            )}
           </div>
         </div>
 
