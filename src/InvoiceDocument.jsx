@@ -129,7 +129,7 @@ export default function InvoiceDocument({ data, footer }) {
           <div style={{ flex: 1, textAlign: 'right' }}>Unit Price</div>
           <div style={{ flex: 1, textAlign: 'right' }}>Amount</div>
         </div>
-        {lineItems.map((li, idx) => (
+        {lineItems.filter((li) => !(li.is_custom && li.custom_status === 'pending')).map((li, idx) => (
           <div
             key={idx}
             style={{
