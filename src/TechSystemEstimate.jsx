@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { IconChevronLeft, IconCalculator } from './MobileIcons'
+import RoutingSummary from './RoutingSummary'
 
 export default function TechSystemEstimate({ profile }) {
   const { jobId } = useParams()
@@ -17,7 +18,7 @@ export default function TechSystemEstimate({ profile }) {
   const [pickSystemType, setPickSystemType] = useState('')
   const [sizeOptions, setSizeOptions] = useState([])
   const [pickSize, setPickSize] = useState('')
-  const [brandFamilies, setBrandFamilies] = useState([])
+  const [branadFamilies, setBrandFamilies] = useState([])
   const [pickBrandFamily, setPickBrandFamily] = useState('')
   const [matchingEquipment, setMatchingEquipment] = useState([])
   const [equipmentSearch, setEquipmentSearch] = useState('')
@@ -38,7 +39,7 @@ export default function TechSystemEstimate({ profile }) {
     setLoading(true)
     const { data: jobData } = await supabase
       .from('jobs')
-      .select('id, job_number, job_date, org_id, customer_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1))')
+      .select('id, job_number, job_date, org_id, customer_id, property_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1))')
       .eq('id', jobId)
       .single()
     setJob(jobData)
@@ -253,6 +254,7 @@ export default function TechSystemEstimate({ profile }) {
       </div>
 
       <div className="mobile-body">
+        <RoutingSummary customerId={job.customer_id} propertyId={job.property_id} label="Estimate" />
         <div className="section-card">
           <div className="section-card-header"><span>Estimate Details</span></div>
           <div className="section-card-body">
