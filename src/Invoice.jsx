@@ -57,9 +57,10 @@ export default function Invoice({ profile }) {
   const [customTaxable, setCustomTaxable] = useState(true)
   const [addingCustom, setAddingCustom] = useState(false)
 
-  const [discountType, setDiscountType] = useState('dollar')
-  const [discountAmount, setDiscountAmount] = useState('0')
   const [taxRate, setTaxRate] = useState(0)
+  const [catalog, setCatalog] = useState([])
+  const [standing, setStanding] = useState([])
+  const [pickedDiscountId, setPickedDiscountId] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sendError, setSendError] = useState('')
 
@@ -129,9 +130,9 @@ export default function Invoice({ profile }) {
     }
 
     setInvoice(existingInvoice)
-    setDiscountType(existingInvoice.discount_type || 'dollar')
-    setDiscountAmount(String(existingInvoice.discount_amount || 0))
+    setPickedDiscountId(existingInvoice.discount_id || '')
 
+    await loadDiscounts(jobData.org_id, jobData.customer_id)
     await loadLineItems(existingInvoice.id)
     await loadApprovals(jobId)
 
@@ -339,11 +340,32 @@ async function loadLineItems(invoiceId) {
     loadApprovals(jobId)
   }
 
-  async function saveDiscount() {
-    await supabase
-      .from('invoices')
-      .update({ discount_type: discountType, discount_amount: parseFloat(discountAmount) || 0 })
-      .eq('id', invoice.id)
+  async function loadDiscounts(orgId, customerId) {
+    const { data: cat } = await supabase
+      .from('discount_catalog')
+      .select('id, label, discount_type, value')
+      .eq('org_id', orgId)
+      .eq('is_active', true)
+      .order('sort_order')
+    setCatalog(cat || [])
+
+    if (!customerId) { setStanding([]); return }
+    const candidates = []
+    const { data: elig } = await supabase
+      .from('customer_discounts')
+      .select('discount:discount_id(id, label, discount_type, value, is_active)')
+      .eq('customer_id', customerId)
+    ;(elig || []).forEach((row) => { if (row.discount && row.discount.is_active) candidates.push(row.discount) })
+    const { data: agr } = await supabase
+      .from('maintenance_agreements')
+      .select('tier:tier_id(default_discount:default_discount_id(id, label, discount_type, value, is_active))')
+      .eq('customer_id', customerId)
+      .eq('status', 'active')
+    ;(agr || []).forEach((row) => {
+      const d = row.tier && row.tier.default_discount
+      if (d && d.is_active) candidates.push(d)
+    })
+    setStanding(candidates)
   }
 
  async function handleSendEmail() {
@@ -374,18 +396,38 @@ async function loadLineItems(invoiceId) {
   const subtotal = billable.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const taxableSubtotal = billable.filter((li) => li.taxable).reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const salesTax = taxableSubtotal * (taxRate / 100)
-  const discountValue =
-    discountType === 'percent' ? subtotal * ((parseFloat(discountAmount) || 0) / 100) : parseFloat(discountAmount) || 0
+  const discountCandidates = (() => {
+    const list = [...standing]
+    if (pickedDiscountId) {
+      const picked = catalog.find((c) => c.id === pickedDiscountId)
+      if (picked) list.push(picked)
+    }
+    const byId = {}
+    list.forEach((c) => { byId[c.id] = c })
+    return Object.values(byId)
+      .map((c) => ({ ...c, dollars: c.discount_type === 'percent' ? subtotal * (Number(c.value) / 100) : Number(c.value) }))
+      .filter((c) => c.dollars > 0)
+  })()
+  const winningDiscount = discountCandidates.sort((a, b) => b.dollars - a.dollars)[0] || null
+  const discountValue = winningDiscount ? winningDiscount.dollars : 0
+  const isManualWinner = !!(winningDiscount && pickedDiscountId === winningDiscount.id && !standing.some((s) => s.id === winningDiscount.id))
   const totalDue = Math.max(subtotal + salesTax - discountValue, 0)
 
   useEffect(() => {
     if (!invoice) return
     supabase
       .from('invoices')
-      .update({ subtotal, sales_tax: salesTax, job_total: totalDue, amount_due: totalDue, balance: totalDue })
+      .update({
+        subtotal, sales_tax: salesTax, job_total: totalDue, amount_due: totalDue, balance: totalDue,
+        discount_id: winningDiscount ? winningDiscount.id : null,
+        discount_type: winningDiscount ? (winningDiscount.discount_type === 'percent' ? 'percent' : 'dollar') : 'dollar',
+        discount_amount: winningDiscount ? (winningDiscount.discount_type === 'percent' ? Number(winningDiscount.value) : winningDiscount.dollars) : 0,
+        discount_approved_by: isManualWinner ? (profile?.id || null) : null,
+        discount_approved_at: isManualWinner ? new Date().toISOString() : null,
+      })
       .eq('id', invoice.id)
       .then(() => {})
-  }, [subtotal, salesTax, totalDue, invoice])
+  }, [subtotal, salesTax, totalDue, invoice, winningDiscount?.id, isManualWinner])
 
   return (
     <div>
@@ -539,20 +581,28 @@ async function loadLineItems(invoiceId) {
           <div className="auth-card" style={{ maxWidth: 400 }}>
             <div className="field">
               <label>Discount</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} style={{ flex: 1 }}>
-                  <option value="dollar">$</option>
-                  <option value="percent">%</option>
+              {winningDiscount ? (
+                <p style={{ margin: '4px 0' }}>
+                  {winningDiscount.label} {'\u2014'} {winningDiscount.discount_type === 'percent' ? `${Number(winningDiscount.value)}%` : `$${Number(winningDiscount.value).toFixed(2)}`} (-${discountValue.toFixed(2)})
+                </p>
+              ) : (
+                <p style={{ margin: '4px 0', color: 'var(--mist)' }}>None</p>
+              )}
+              {isFieldAdmin ? (
+                <select value={pickedDiscountId} onChange={(e) => setPickedDiscountId(e.target.value)} style={{ width: '100%' }}>
+                  <option value="">Auto (standing discounts only)</option>
+                  {catalog.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label} ({c.discount_type === 'percent' ? `${Number(c.value)}%` : `$${Number(c.value).toFixed(2)}`}){c.discount_type === 'flat' ? ' \u2014 flat, your approval' : ''}
+                    </option>
+                  ))}
                 </select>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={discountAmount}
-                  onChange={(e) => setDiscountAmount(e.target.value)}
-                  onBlur={saveDiscount}
-                  style={{ flex: 2 }}
-                />
-              </div>
+              ) : (
+                <p style={{ margin: '4px 0', fontSize: 12, color: 'var(--mist)' }}>Applied automatically from the customer&rsquo;s plan and eligibility.</p>
+              )}
+              {isManualWinner && (
+                <p style={{ margin: '4px 0', fontSize: 12, color: 'var(--mist)' }}>Approved by you {'\u00b7'} not shown to the customer</p>
+              )}
             </div>
             <p style={{ margin: '8px 0' }}>Subtotal: ${subtotal.toFixed(2)}</p>
             <p style={{ margin: '8px 0' }}>Sales tax: ${salesTax.toFixed(2)}</p>
