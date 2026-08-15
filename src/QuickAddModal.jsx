@@ -310,7 +310,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
       }
 
       let propertyId = existingPropertyId
-      const needsNewProperty = customerMode === 'new' || propertyMode === 'new'
+      const needsNewProperty = customerMode === 'new' || propertyMode === 'new' || mode === 'property'
 
       if (needsNewProperty) {
         if (!newStreet.trim()) throw new Error('Street address is required.')
@@ -720,7 +720,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
             </>
           )}
 
-          {(mode === 'property' || mode === 'job') && (customerMode === 'new' || propertyMode === 'new') && (
+          {(mode === 'property' || (mode === 'job' && (customerMode === 'new' || propertyMode === 'new'))) && (
             <>
               <div className="field">
                 <label htmlFor="newBillTo">Bill To Customer</label>
