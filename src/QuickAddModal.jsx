@@ -42,6 +42,8 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
   const [newTenantPhone, setNewTenantPhone] = useState('')
   const [newTenant2Name, setNewTenant2Name] = useState('')
   const [newTenant2Phone, setNewTenant2Phone] = useState('')
+  const [newTenantRelationship, setNewTenantRelationship] = useState('')
+  const [newTenant2Relationship, setNewTenant2Relationship] = useState('')
   const [newPropertyNotes, setNewPropertyNotes] = useState('')
 
   const [jobDate, setJobDate] = useState('')
@@ -122,7 +124,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
     if (mode === 'job' && customerMode === 'existing' && existingCustomerId) {
       supabase
         .from('properties')
-        .select('id, street_address')
+        .select('id, street_address, unit')
         .eq('customer_id', existingCustomerId)
         .eq('is_active', true)
         .order('street_address')
@@ -144,7 +146,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
     if (mode === 'job' && propertyMode === 'existing' && existingPropertyId) {
       supabase
         .from('property_tenants')
-        .select('id, name, phone')
+        .select('id, name, phone, relationship')
         .eq('property_id', existingPropertyId)
         .order('created_at')
         .then(({ data }) => {
@@ -152,8 +154,10 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
           setExistingTenantIds([tenants[0]?.id || null, tenants[1]?.id || null])
           setNewTenantName(tenants[0]?.name || '')
           setNewTenantPhone(tenants[0]?.phone || '')
+          setNewTenantRelationship(tenants[0]?.relationship || '')
           setNewTenant2Name(tenants[1]?.name || '')
           setNewTenant2Phone(tenants[1]?.phone || '')
+          setNewTenant2Relationship(tenants[1]?.relationship || '')
         })
     } else if (propertyMode !== 'existing') {
       setExistingTenantIds([null, null])
@@ -240,10 +244,10 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
     onClose()
   }
 
-  async function upsertTenant(propertyId, tenantId, name, phone) {
+  async function upsertTenant(propertyId, tenantId, name, phone, relationship) {
     if (tenantId) {
       if (name.trim()) {
-        await supabase.from('property_tenants').update({ name: name.trim(), phone: phone.trim() || null }).eq('id', tenantId)
+        await supabase.from('property_tenants').update({ name: name.trim(), phone: phone.trim() || null, relationship: relationship || null }).eq('id', tenantId)
       }
     } else if (name.trim()) {
       await supabase.from('property_tenants').insert({
@@ -251,6 +255,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
         property_id: propertyId,
         name: name.trim(),
         phone: phone.trim() || null,
+        relationship: relationship || null,
       })
     }
   }
@@ -340,6 +345,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
             property_id: propertyId,
             name: newTenantName.trim(),
             phone: newTenantPhone.trim() || null,
+            relationship: newTenantRelationship || null,
           })
         }
         if (newTenant2Name.trim()) {
@@ -348,14 +354,15 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
             property_id: propertyId,
             name: newTenant2Name.trim(),
             phone: newTenant2Phone.trim() || null,
+            relationship: newTenant2Relationship || null,
           })
         }
       } else {
         if (!existingPropertyId) throw new Error('Please select a property.')
         // Persist any tenant edits made against the existing property (or add
         // tenants that weren't on file before) rather than silently discarding them.
-        await upsertTenant(propertyId, existingTenantIds[0], newTenantName, newTenantPhone)
-        await upsertTenant(propertyId, existingTenantIds[1], newTenant2Name, newTenant2Phone)
+        await upsertTenant(propertyId, existingTenantIds[0], newTenantName, newTenantPhone, newTenantRelationship)
+        await upsertTenant(propertyId, existingTenantIds[1], newTenant2Name, newTenant2Phone, newTenant2Relationship)
       }
 
       if (mode === 'property') {
@@ -686,7 +693,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
               <select value={existingPropertyId} onChange={(e) => setExistingPropertyId(e.target.value)} required>
                 <option value="">Select a property…</option>
                 {customerProperties.map((p) => (
-                  <option key={p.id} value={p.id}>{p.street_address}</option>
+                  <option key={p.id} value={p.id}>{p.street_address}{p.unit ? ` — ${p.unit}` : ''}</option>
                 ))}
               </select>
             </div>
@@ -695,26 +702,48 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
           {mode === 'job' && customerMode === 'existing' && propertyMode === 'existing' && existingPropertyId && (
             <>
               <p style={{ fontSize: 12, color: 'var(--mist)', margin: '4px 0' }}>
-                Tenants on file at this property — edit if anything's changed, or fill in if blank
+                Contacts on file at this property — edit if anything's changed, or fill in if blank
               </p>
               <div style={{ display: 'flex', gap: 8 }}>
-                <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="existTenant1Name">Tenant 1</label>
+                <div className="field" style={{ flex: 1.4 }}>
+                  <label htmlFor="existTenant1Name">Contact 1</label>
                   <input id="existTenant1Name" type="text" value={newTenantName} onChange={(e) => setNewTenantName(e.target.value)} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="existTenant1Phone">Tenant 1 phone</label>
+                  <label htmlFor="existTenant1Phone">Phone</label>
                   <input id="existTenant1Phone" type="tel" value={newTenantPhone} onChange={(e) => setNewTenantPhone(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="existTenant1Rel">Relationship</label>
+                  <select id="existTenant1Rel" value={newTenantRelationship} onChange={(e) => setNewTenantRelationship(e.target.value)}>
+                    <option value="">—</option>
+                    <option>Owner</option>
+                    <option>Tenant</option>
+                    <option>Occupant</option>
+                    <option>Property Manager</option>
+                    <option>Other</option>
+                  </select>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="existTenant2Name">Tenant 2</label>
+                <div className="field" style={{ flex: 1.4 }}>
+                  <label htmlFor="existTenant2Name">Contact 2</label>
                   <input id="existTenant2Name" type="text" value={newTenant2Name} onChange={(e) => setNewTenant2Name(e.target.value)} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="existTenant2Phone">Tenant 2 phone</label>
+                  <label htmlFor="existTenant2Phone">Phone</label>
                   <input id="existTenant2Phone" type="tel" value={newTenant2Phone} onChange={(e) => setNewTenant2Phone(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="existTenant2Rel">Relationship</label>
+                  <select id="existTenant2Rel" value={newTenant2Relationship} onChange={(e) => setNewTenant2Relationship(e.target.value)}>
+                    <option value="">—</option>
+                    <option>Owner</option>
+                    <option>Tenant</option>
+                    <option>Occupant</option>
+                    <option>Property Manager</option>
+                    <option>Other</option>
+                  </select>
                 </div>
               </div>
             </>
@@ -772,23 +801,45 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                 <input id="newGateCode" type="text" value={newGateCode} onChange={(e) => setNewGateCode(e.target.value)} />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="newTenantName">Tenant 1 (optional)</label>
+                <div className="field" style={{ flex: 1.4 }}>
+                  <label htmlFor="newTenantName">Contact 1 (optional)</label>
                   <input id="newTenantName" type="text" value={newTenantName} onChange={(e) => setNewTenantName(e.target.value)} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="newTenantPhone">Tenant 1 phone</label>
+                  <label htmlFor="newTenantPhone">Phone</label>
                   <input id="newTenantPhone" type="tel" value={newTenantPhone} onChange={(e) => setNewTenantPhone(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newTenantRel">Relationship</label>
+                  <select id="newTenantRel" value={newTenantRelationship} onChange={(e) => setNewTenantRelationship(e.target.value)}>
+                    <option value="">—</option>
+                    <option>Owner</option>
+                    <option>Tenant</option>
+                    <option>Occupant</option>
+                    <option>Property Manager</option>
+                    <option>Other</option>
+                  </select>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="newTenant2Name">Tenant 2 (optional)</label>
+                <div className="field" style={{ flex: 1.4 }}>
+                  <label htmlFor="newTenant2Name">Contact 2 (optional)</label>
                   <input id="newTenant2Name" type="text" value={newTenant2Name} onChange={(e) => setNewTenant2Name(e.target.value)} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="newTenant2Phone">Tenant 2 phone</label>
+                  <label htmlFor="newTenant2Phone">Phone</label>
                   <input id="newTenant2Phone" type="tel" value={newTenant2Phone} onChange={(e) => setNewTenant2Phone(e.target.value)} />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newTenant2Rel">Relationship</label>
+                  <select id="newTenant2Rel" value={newTenant2Relationship} onChange={(e) => setNewTenant2Relationship(e.target.value)}>
+                    <option value="">—</option>
+                    <option>Owner</option>
+                    <option>Tenant</option>
+                    <option>Occupant</option>
+                    <option>Property Manager</option>
+                    <option>Other</option>
+                  </select>
                 </div>
               </div>
               <div className="field">
