@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import RoutingSummary from './RoutingSummary'
 
 export default function SystemEstimate({ profile }) {
   const { jobId } = useParams()
@@ -39,7 +40,7 @@ export default function SystemEstimate({ profile }) {
     setLoading(true)
     const { data: jobData } = await supabase
       .from('jobs')
-      .select('id, job_number, job_date, org_id, customer_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1))')
+      .select('id, job_number, job_date, org_id, customer_id, property_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1))')
       .eq('id', jobId)
       .single()
     setJob(jobData)
@@ -366,6 +367,8 @@ export default function SystemEstimate({ profile }) {
               </div>
             </div>
           </div>
+
+          <RoutingSummary customerId={job.customer_id} propertyId={job.property_id} label="Estimate" />
 
           <div className="grid-table" style={{ gridTemplateColumns: '2fr 0.6fr 0.9fr 0.9fr 0.6fr 0.6fr', marginBottom: 20 }}>
             <div className="grid-cell grid-head">Description</div>
