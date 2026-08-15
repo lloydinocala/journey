@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import TripChargePicker from './TripChargePicker'
 import CustomerSearchSelect from './CustomerSearchSelect'
+import PropertySearchSelect from './PropertySearchSelect'
 import { zonedToUtcIso } from './utils/tz'
 
 export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated }) {
@@ -13,6 +14,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
   const [allJobs, setAllJobs] = useState([])
 
   const [customerMode, setCustomerMode] = useState('existing')
+  const [jobLookupMode, setJobLookupMode] = useState('customer')
   const [existingCustomerId, setExistingCustomerId] = useState('')
   const [existingCustomerBanned, setExistingCustomerBanned] = useState(false)
   const [newCustomerName, setNewCustomerName] = useState('')
@@ -571,7 +573,42 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
         <h3>{mode === 'job' ? 'New Job' : mode === 'property' ? 'New Property' : 'New Customer'}</h3>
 
         <form onSubmit={handleSubmit}>
-          {(mode === 'property' || mode === 'job') && (
+          {mode === 'job' && (
+            <div className="field">
+              <label>Look up by</label>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+                <label style={{ fontSize: 13, cursor: 'pointer' }}>
+                  <input type="radio" checked={jobLookupMode === 'customer'} onChange={() => setJobLookupMode('customer')} /> Customer
+                </label>
+                <label style={{ fontSize: 13, cursor: 'pointer' }}>
+                  <input type="radio" checked={jobLookupMode === 'address'} onChange={() => setJobLookupMode('address')} /> Address
+                </label>
+              </div>
+            </div>
+          )}
+
+          {mode === 'job' && jobLookupMode === 'address' && (
+            <div className="field">
+              <label>Search by service address</label>
+              <PropertySearchSelect
+                orgId={orgId}
+                onPick={(p) => {
+                  setCustomerMode('existing')
+                  setExistingCustomerId(p.customer_id)
+                  setExistingCustomerBanned(p.customers?.is_banned || false)
+                  setPropertyMode('existing')
+                  setExistingPropertyId(p.id)
+                }}
+              />
+              {existingCustomerId && existingPropertyId && (
+                <p style={{ fontSize: 12, color: 'var(--mist)', margin: '6px 0 0' }}>
+                  Customer &amp; property set from the address — just fill in the job details below.
+                </p>
+              )}
+            </div>
+          )}
+
+          {(mode === 'property' || (mode === 'job' && jobLookupMode === 'customer')) && (
             <div className="field">
               <label>Customer</label>
               <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
@@ -585,7 +622,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
             </div>
           )}
 
-          {(mode === 'property' || mode === 'job') && customerMode === 'existing' && (
+          {(mode === 'property' || (mode === 'job' && jobLookupMode === 'customer')) && customerMode === 'existing' && (
             <div className="field">
               <label>Select a customer</label>
               <CustomerSearchSelect
