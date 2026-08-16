@@ -28,7 +28,7 @@ function timeLabel(startTime) {
 export default function TechJobs({ profile }) {
   const navigate = useNavigate()
   const isSuperAdmin = profile?.role === 'super_admin'
-  const seeAllTasks = isFieldAdmin(profile) && !isSuperAdmin
+  const seeAll = isSuperAdmin || isFieldAdmin(profile)
 
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -87,7 +87,7 @@ export default function TechJobs({ profile }) {
       uid = userData?.user?.id
     }
 
-    if (!uid || !orgId) {
+    if (!orgId || (!seeAll && !uid)) {
       setItems([])
       setLoading(false)
       return
@@ -107,17 +107,17 @@ export default function TechJobs({ profile }) {
       .is('deleted_at', null)
       .gte('scheduled_at', dayStart.toISOString())
       .lt('scheduled_at', dayEnd.toISOString())
-    if (!seeAllTasks) taskQuery = taskQuery.eq('assigned_user_id', uid)
+    if (!seeAll) taskQuery = taskQuery.eq('assigned_user_id', uid)
 
     const [{ data: assignedRows }, { data: taskRows }] = await Promise.all([
-      supabase.from('job_technicians').select('job_id').eq('org_id', orgId).eq('user_id', uid),
+      seeAll ? Promise.resolve({ data: [] }) : supabase.from('job_technicians').select('job_id').eq('org_id', orgId).eq('user_id', uid),
       taskQuery,
     ])
 
-    const jobIds = [...new Set((assignedRows || []).map((r) => r.job_id))]
+    const jobIds = seeAll ? null : [...new Set((assignedRows || []).map((r) => r.job_id))]
     let jobRows = []
-    if (jobIds.length > 0) {
-      const { data } = await supabase
+    if (seeAll || (jobIds && jobIds.length > 0)) {
+      let jobQuery = supabase
         .from('jobs')
         .select(`
           id, job_number, segment, status, job_date, start_time, job_type, service_complaint,
@@ -127,7 +127,8 @@ export default function TechJobs({ profile }) {
         .eq('org_id', orgId)
         .eq('job_date', date)
         .is('deleted_at', null)
-        .in('id', jobIds)
+      if (!seeAll) jobQuery = jobQuery.in('id', jobIds)
+      const { data } = await jobQuery
       jobRows = data || []
     }
 
@@ -214,7 +215,7 @@ export default function TechJobs({ profile }) {
               <div className="job-card-customer">{it.data.destination_name}</div>
               <div className="job-card-sub">
                 {timeLabel(it.data.scheduled_at)}{timeLabel(it.data.scheduled_at) && ' · '}Task
-                {seeAllTasks && it.data.assigned?.full_name && <> · for {it.data.assigned.full_name}</>}
+                {seeAll && it.data.assigned?.full_name && <> · for {it.data.assigned.full_name}</>}
               </div>
               {it.data.address && (
                 <div className="job-card-address">{it.data.address}</div>
