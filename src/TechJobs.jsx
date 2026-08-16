@@ -21,6 +21,12 @@ function todayISO() {
   return new Date(d - tz).toISOString().slice(0, 10)
 }
 
+function shiftDate(iso, days) {
+  const d = new Date(iso + 'T12:00:00')
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
 function timeLabel(startTime) {
   return formatTimeInZone(startTime)
 }
@@ -162,6 +168,14 @@ export default function TechJobs({ profile }) {
       </div>
 
       <div className="mobile-body">
+        {seeAll && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <button type="button" className="mobile-header-action-btn" onClick={() => setDate(shiftDate(date, -1))}>&lsaquo;</button>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ flex: 1 }} />
+            <button type="button" className="mobile-header-action-btn" onClick={() => setDate(shiftDate(date, 1))}>&rsaquo;</button>
+            <button type="button" className="mobile-header-action-btn" onClick={() => setDate(todayISO())}>Today</button>
+          </div>
+        )}
         {effUid && effOrgId && (
           <ClockWidget userId={effUid} orgId={effOrgId} variant="mobile" />
         )}
@@ -176,9 +190,6 @@ export default function TechJobs({ profile }) {
                 {orgUsers.length === 0 && <option value="">No users in this org</option>}
                 {orgUsers.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
               </select>
-            </div>
-            <div className="preview-banner-row">
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
           </div>
         )}
