@@ -36,6 +36,12 @@ export default function OnCallSchedule({ profile }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const [editingId, setEditingId] = useState(null)
+  const [editSup, setEditSup] = useState('')
+  const [editTech, setEditTech] = useState('')
+  const [editStart, setEditStart] = useState('')
+  const [editEnd, setEditEnd] = useState('')
+
   useEffect(() => {
     if (!isSuperAdmin) return
     supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
@@ -89,6 +95,36 @@ export default function OnCallSchedule({ profile }) {
     load()
   }
 
+  function startEdit(p) {
+    setEditingId(p.id)
+    setEditSup(p.supervisor_user_id || '')
+    setEditTech(p.tech_user_id || '')
+    setEditStart(toLocalInput(new Date(p.period_start)))
+    setEditEnd(toLocalInput(new Date(p.period_end)))
+    setError('')
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setError('')
+  }
+
+  async function saveEdit(id) {
+    setError('')
+    if (!editSup) { setError('Choose an on-call supervisor.'); return }
+    if (!editStart || !editEnd) { setError('Set a start and end.'); return }
+    if (new Date(editEnd) <= new Date(editStart)) { setError('End must be after start.'); return }
+    const { error: err } = await supabase.from('on_call_schedule').update({
+      supervisor_user_id: editSup,
+      tech_user_id: editTech || null,
+      period_start: new Date(editStart).toISOString(),
+      period_end: new Date(editEnd).toISOString(),
+    }).eq('id', id)
+    if (err) { setError(err.message); return }
+    setEditingId(null)
+    load()
+  }
+
   function gapBefore(i) {
     if (i === 0) return null
     const prevEnd = new Date(periods[i - 1].period_end).getTime()
@@ -126,6 +162,32 @@ export default function OnCallSchedule({ profile }) {
                 {periods.map((p, i) => {
                   const g = gapBefore(i)
                   const active = nowMs >= new Date(p.period_start).getTime() && nowMs < new Date(p.period_end).getTime()
+                  const editing = editingId === p.id
+                  if (editing) {
+                    return (
+                      <tr key={p.id}>
+                        <td style={{ color: 'var(--mist)' }}>Editing</td>
+                        <td><input type="datetime-local" value={editStart} onChange={(e) => setEditStart(e.target.value)} style={{ width: '100%' }} /></td>
+                        <td><input type="datetime-local" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} style={{ width: '100%' }} /></td>
+                        <td>
+                          <select value={editSup} onChange={(e) => setEditSup(e.target.value)} style={{ width: '100%' }}>
+                            <option value="">Choose&hellip;</option>
+                            {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                          </select>
+                        </td>
+                        <td>
+                          <select value={editTech} onChange={(e) => setEditTech(e.target.value)} style={{ width: '100%' }}>
+                            <option value="">Choose&hellip;</option>
+                            {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                          </select>
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <button className="auth-button" type="button" onClick={() => saveEdit(p.id)} style={{ width: 'auto', padding: '4px 12px', marginRight: 6 }}>Save</button>
+                          <button className="logout-button" type="button" onClick={cancelEdit}>Cancel</button>
+                        </td>
+                      </tr>
+                    )
+                  }
                   return (
                     <tr key={p.id} style={active ? { background: 'var(--surface-2, #eaf5ec)' } : undefined}>
                       <td style={{ whiteSpace: 'nowrap' }}>
@@ -138,7 +200,10 @@ export default function OnCallSchedule({ profile }) {
                       <td>{fmt(p.period_end)}</td>
                       <td>{nameOf(p.supervisor_user_id)}</td>
                       <td>{nameOf(p.tech_user_id)}</td>
-                      <td><button className="logout-button" type="button" onClick={() => removePeriod(p.id)}>Remove</button></td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <button className="logout-button" type="button" onClick={() => startEdit(p)} style={{ marginRight: 6 }}>Edit</button>
+                        <button className="logout-button" type="button" onClick={() => removePeriod(p.id)}>Remove</button>
+                      </td>
                     </tr>
                   )
                 })}
