@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import { can } from './utils/permissions'
 import SignaturePad from './SignaturePad'
 import RoutingSummary from './RoutingSummary'
 
@@ -62,6 +63,11 @@ export default function Invoice({ profile }) {
   const [catalog, setCatalog] = useState([])
   const [standing, setStanding] = useState([])
   const [pickedDiscountId, setPickedDiscountId] = useState('')
+  const [custOpen, setCustOpen] = useState(false)
+  const [custAmt, setCustAmt] = useState('')
+  const [custType, setCustType] = useState('dollar')
+  const [custReason, setCustReason] = useState('')
+  const [discountApproverName, setDiscountApproverName] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sendError, setSendError] = useState('')
 
@@ -270,6 +276,38 @@ async function loadLineItems(invoiceId) {
   }
 
   const isFieldAdmin = !!(profile && (['org_admin', 'super_admin'].includes(profile.role) || profile.is_field_supervisor))
+  const canApproveDiscount = profile?.role === 'super_admin' || can(profile, 'approve_nonstandard_discounts')
+
+  async function reloadInvoice() {
+    if (!invoice) return
+    const { data } = await supabase.from('invoices').select('*').eq('id', invoice.id).single()
+    if (data) setInvoice(data)
+  }
+  async function requestCustomDiscount() {
+    const amt = parseFloat(custAmt)
+    if (!(amt > 0)) return
+    await supabase.from('invoices').update({
+      discount_id: null, discount_type: 'dollar', discount_amount: amt,
+      discount_label: custReason.trim() || 'Custom discount', discount_status: 'pending',
+      discount_approved_by: null, discount_approved_at: null,
+    }).eq('id', invoice.id)
+    setCustOpen(false); setCustAmt(''); setCustReason(''); setPickedDiscountId('')
+    reloadInvoice()
+  }
+  async function approveCustomDiscount() {
+    await supabase.from('invoices').update({
+      discount_status: 'approved', discount_approved_by: profile?.id || null, discount_approved_at: new Date().toISOString(),
+    }).eq('id', invoice.id)
+    reloadInvoice()
+  }
+  async function removeCustomDiscount() {
+    await supabase.from('invoices').update({
+      discount_id: null, discount_amount: 0, discount_type: 'dollar', discount_label: null,
+      discount_status: null, discount_approved_by: null, discount_approved_at: null,
+    }).eq('id', invoice.id)
+    setCustOpen(false)
+    reloadInvoice()
+  }
 
   async function approveCustom(li) {
     if (!(Number(li.unit_price) > 0)) return
@@ -397,6 +435,11 @@ async function loadLineItems(invoiceId) {
   const subtotal = billable.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const taxableSubtotal = billable.filter((li) => li.taxable).reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const salesTax = taxableSubtotal * (taxRate / 100)
+
+  const hasCustomDiscount = !!(invoice && !invoice.discount_id && invoice.discount_status && Number(invoice.discount_amount) > 0)
+  const customDollars = hasCustomDiscount ? (invoice.discount_type === 'percent' ? subtotal * (Number(invoice.discount_amount) / 100) : Number(invoice.discount_amount)) : 0
+  const customApproved = hasCustomDiscount && invoice.discount_status === 'approved'
+
   const discountCandidates = (() => {
     const list = [...standing]
     if (pickedDiscountId) {
@@ -409,26 +452,37 @@ async function loadLineItems(invoiceId) {
       .map((c) => ({ ...c, dollars: c.discount_type === 'percent' ? subtotal * (Number(c.value) / 100) : Number(c.value) }))
       .filter((c) => c.dollars > 0)
   })()
-  const winningDiscount = discountCandidates.sort((a, b) => b.dollars - a.dollars)[0] || null
-  const discountValue = winningDiscount ? winningDiscount.dollars : 0
+  const winningDiscount = hasCustomDiscount ? null : (discountCandidates.sort((a, b) => b.dollars - a.dollars)[0] || null)
   const isManualWinner = !!(winningDiscount && pickedDiscountId === winningDiscount.id && !standing.some((s) => s.id === winningDiscount.id))
+  const discountValue = hasCustomDiscount ? (customApproved ? customDollars : 0) : (winningDiscount ? winningDiscount.dollars : 0)
   const totalDue = Math.max(subtotal + salesTax - discountValue, 0)
 
   useEffect(() => {
     if (!invoice) return
+    const base = { subtotal, sales_tax: salesTax, job_total: totalDue, amount_due: totalDue, balance: totalDue }
+    const update = hasCustomDiscount ? base : {
+      ...base,
+      discount_id: winningDiscount ? winningDiscount.id : null,
+      discount_type: winningDiscount ? (winningDiscount.discount_type === 'percent' ? 'percent' : 'dollar') : 'dollar',
+      discount_amount: winningDiscount ? (winningDiscount.discount_type === 'percent' ? Number(winningDiscount.value) : winningDiscount.dollars) : 0,
+      discount_approved_by: isManualWinner ? (profile?.id || null) : null,
+      discount_approved_at: isManualWinner ? new Date().toISOString() : null,
+    }
     supabase
       .from('invoices')
-      .update({
-        subtotal, sales_tax: salesTax, job_total: totalDue, amount_due: totalDue, balance: totalDue,
-        discount_id: winningDiscount ? winningDiscount.id : null,
-        discount_type: winningDiscount ? (winningDiscount.discount_type === 'percent' ? 'percent' : 'dollar') : 'dollar',
-        discount_amount: winningDiscount ? (winningDiscount.discount_type === 'percent' ? Number(winningDiscount.value) : winningDiscount.dollars) : 0,
-        discount_approved_by: isManualWinner ? (profile?.id || null) : null,
-        discount_approved_at: isManualWinner ? new Date().toISOString() : null,
-      })
+      .update(update)
       .eq('id', invoice.id)
       .then(() => {})
-  }, [subtotal, salesTax, totalDue, invoice, winningDiscount?.id, isManualWinner])
+  }, [subtotal, salesTax, totalDue, invoice, winningDiscount?.id, isManualWinner, hasCustomDiscount])
+
+  useEffect(() => {
+    const uid = invoice?.discount_approved_by
+    if (uid && invoice && !invoice.discount_id) {
+      supabase.from('users').select('full_name').eq('id', uid).single().then(({ data }) => setDiscountApproverName(data?.full_name || ''))
+    } else {
+      setDiscountApproverName('')
+    }
+  }, [invoice?.discount_approved_by, invoice?.discount_id])
 
   return (
     <div>
@@ -502,7 +556,12 @@ async function loadLineItems(invoiceId) {
                   />
                 </div>
                 <div className="grid-cell">${(li.quantity * li.unit_price).toFixed(2)}</div>
-                <div className="grid-cell">{li.taxable ? 'Yes' : 'No'}</div>
+                <div className="grid-cell">
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={!!li.taxable} onChange={(e) => updateLineItem(li.id, 'taxable', e.target.checked)} />
+                    <span style={{ fontSize: 13, color: li.taxable ? undefined : 'var(--mist)' }}>{li.taxable ? 'Taxable' : 'Exempt'}</span>
+                  </label>
+                </div>
                 <div className="grid-cell grid-actions">
                   {isPendingCustom(li) && isFieldAdmin && (
                     <button className="logout-button" style={{ borderColor: '#1F7A43', color: '#1F7A43' }} disabled={!(Number(li.unit_price) > 0)} title={Number(li.unit_price) > 0 ? 'Approve this custom item' : 'Set a price first'} onClick={() => approveCustom(li)}>Approve</button>
@@ -584,27 +643,69 @@ async function loadLineItems(invoiceId) {
           <div className="auth-card" style={{ maxWidth: 400 }}>
             <div className="field">
               <label>Discount</label>
-              {winningDiscount ? (
-                <p style={{ margin: '4px 0' }}>
-                  {winningDiscount.label} {'\u2014'} {winningDiscount.discount_type === 'percent' ? `${Number(winningDiscount.value)}%` : `$${Number(winningDiscount.value).toFixed(2)}`} (-${discountValue.toFixed(2)})
-                </p>
+              {hasCustomDiscount ? (
+                <div style={{ margin: '4px 0' }}>
+                  <p style={{ margin: '2px 0', fontWeight: 600 }}>
+                    Custom: {invoice.discount_type === 'percent' ? `${Number(invoice.discount_amount)}%` : `$${Number(invoice.discount_amount).toFixed(2)}`} (-${customDollars.toFixed(2)})
+                  </p>
+                  {invoice.discount_label && <p style={{ margin: '2px 0', fontSize: 12, color: 'var(--mist)' }}>{invoice.discount_label}</p>}
+                  {customApproved ? (
+                    <p style={{ margin: '2px 0', fontSize: 12, color: '#1F7A43', fontWeight: 600 }}>Approved{discountApproverName ? ` by ${discountApproverName}` : ''}</p>
+                  ) : (
+                    <p style={{ margin: '2px 0', fontSize: 12, color: '#B8860B', fontWeight: 600 }}>Pending approval {'\u2014'} not applied until approved</p>
+                  )}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                    {!customApproved && canApproveDiscount && (
+                      <button type="button" className="logout-button" style={{ borderColor: '#1F7A43', color: '#1F7A43' }} onClick={approveCustomDiscount}>Approve discount</button>
+                    )}
+                    {isFieldAdmin && <button type="button" className="logout-button" onClick={removeCustomDiscount}>Remove</button>}
+                  </div>
+                </div>
               ) : (
-                <p style={{ margin: '4px 0', color: 'var(--mist)' }}>None</p>
-              )}
-              {isFieldAdmin ? (
-                <select value={pickedDiscountId} onChange={(e) => setPickedDiscountId(e.target.value)} style={{ width: '100%' }}>
-                  <option value="">Auto (standing discounts only)</option>
-                  {catalog.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label} ({c.discount_type === 'percent' ? `${Number(c.value)}%` : `$${Number(c.value).toFixed(2)}`}){c.discount_type === 'flat' ? ' \u2014 flat, your approval' : ''}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <p style={{ margin: '4px 0', fontSize: 12, color: 'var(--mist)' }}>Applied automatically from the customer&rsquo;s plan and eligibility.</p>
-              )}
-              {isManualWinner && (
-                <p style={{ margin: '4px 0', fontSize: 12, color: 'var(--mist)' }}>Approved by you {'\u00b7'} not shown to the customer</p>
+                <>
+                  {winningDiscount ? (
+                    <p style={{ margin: '4px 0' }}>
+                      {winningDiscount.label} {'\u2014'} {winningDiscount.discount_type === 'percent' ? `${Number(winningDiscount.value)}%` : `$${Number(winningDiscount.value).toFixed(2)}`} (-${discountValue.toFixed(2)})
+                    </p>
+                  ) : (
+                    <p style={{ margin: '4px 0', color: 'var(--mist)' }}>None</p>
+                  )}
+                  {isFieldAdmin ? (
+                    <select value={pickedDiscountId} onChange={(e) => setPickedDiscountId(e.target.value)} style={{ width: '100%' }}>
+                      <option value="">Auto (standing discounts only)</option>
+                      {catalog.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.label} ({c.discount_type === 'percent' ? `${Number(c.value)}%` : `$${Number(c.value).toFixed(2)}`}){c.discount_type === 'flat' ? ' \u2014 flat, your approval' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p style={{ margin: '4px 0', fontSize: 12, color: 'var(--mist)' }}>Applied automatically from the customer&rsquo;s plan and eligibility.</p>
+                  )}
+                  {isManualWinner && (
+                    <p style={{ margin: '4px 0', fontSize: 12, color: 'var(--mist)' }}>Approved by you {'\u00b7'} not shown to the customer</p>
+                  )}
+                  {isFieldAdmin && (
+                    <div style={{ marginTop: 8, borderTop: '1px solid var(--border,#eee)', paddingTop: 8 }}>
+                      {!custOpen ? (
+                        <button type="button" className="logout-button" onClick={() => setCustOpen(true)}>+ Custom discount</button>
+                      ) : (
+                        <div>
+                          <p style={{ margin: '0 0 6px', fontSize: 12, color: 'var(--mist)' }}>One-off dollar discount {'\u2014'} needs supervisor approval before it applies; not itemized on the customer&rsquo;s invoice.</p>
+                          <div style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                            <span style={{ color: 'var(--mist)', fontWeight: 600 }}>$</span>
+                            <input type="number" step="0.01" min="0" value={custAmt} onChange={(e) => setCustAmt(e.target.value)} placeholder="Dollar amount off" style={{ flex: 1 }} />
+                          </div>
+                          <input value={custReason} onChange={(e) => setCustReason(e.target.value)} placeholder="Reason (shown to approver)" style={{ width: '100%', marginBottom: 6 }} />
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button type="button" className="auth-button" style={{ width: 'auto', padding: '6px 14px' }} onClick={requestCustomDiscount} disabled={!(parseFloat(custAmt) > 0)}>Submit for approval</button>
+                            <button type="button" className="logout-button" onClick={() => { setCustOpen(false); setCustAmt(''); setCustReason('') }}>Cancel</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <p style={{ margin: '8px 0' }}>Subtotal: ${subtotal.toFixed(2)}</p>
