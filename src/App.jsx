@@ -27,6 +27,7 @@ import Calendar from './Calendar'
 import Pricebook from './Pricebook'
 import SystemsPricebook from './SystemsPricebook'
 import DiscountCatalog from './DiscountCatalog'
+import OnCallSchedule from './OnCallSchedule'
 import MaintenanceAgreementTiers from './MaintenanceAgreementTiers'
 import MaintenanceAgreements from './MaintenanceAgreements'
 import Invoice from './Invoice'
@@ -193,6 +194,7 @@ function AuthenticatedApp() {
         <Route path="/parts-catalog" element={<PartsCatalog profile={profile} />} />
         <Route path="/settings" element={<Settings profile={profile} />} />
         <Route path="/team" element={<Team profile={profile} />} />
+        <Route path="/on-call" element={<OnCallSchedule profile={profile} />} />
         <Route path="/session-log" element={<SessionLog profile={profile} />} />
         <Route path="/import/customers" element={<CustomerImport profile={profile} />} />
         <Route path="/import/properties" element={<PropertyImport profile={profile} />} />
