@@ -189,7 +189,9 @@ export default function Team({ profile }) {
     setSaving(false)
 
     if (error) {
-      setError(error.message)
+      let msg = error.message
+      try { const b = await error.context?.json(); if (b?.error) msg = b.error } catch (_) { /* keep generic */ }
+      setError(msg)
     } else if (data?.error) {
       setError(data.error)
     } else {
