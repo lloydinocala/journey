@@ -29,10 +29,17 @@ export default function InvoiceDocument({ data, footer }) {
   const paymentTermsLabel = !org?.payment_terms_days ? 'Due Upon Receipt' : 'Net ' + org.payment_terms_days
   const dueDate = addDaysFormatted(invoice.invoice_date, org?.payment_terms_days || 0)
 
+  const isCustomDiscount = invoice.discount_amount > 0 && !invoice.discount_id
+  const customApplied = isCustomDiscount && invoice.discount_status === 'approved'
+  const customDiscountAmt = customApplied
+    ? (invoice.discount_type === 'percent' ? invoice.subtotal * (invoice.discount_amount / 100) : invoice.discount_amount)
+    : 0
+  // Catalog/plan discounts are shown to the customer; a supervisor-approved custom discount is NOT — it's folded into the subtotal.
   const discountDisplay =
-    invoice.discount_amount > 0
+    (invoice.discount_amount > 0 && invoice.discount_id)
       ? (invoice.discount_type === 'percent' ? invoice.subtotal * (invoice.discount_amount / 100) : invoice.discount_amount)
       : 0
+  const shownSubtotal = (invoice.subtotal || 0) - customDiscountAmt
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', background: 'white', borderRadius: 12, padding: 40, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
@@ -150,7 +157,7 @@ export default function InvoiceDocument({ data, footer }) {
 
       <div style={{ maxWidth: 280, marginLeft: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}>
-          <span>Subtotal</span><span>${invoice.subtotal?.toFixed(2)}</span>
+          <span>Subtotal</span><span>${shownSubtotal.toFixed(2)}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 4 }}>
           <span>Sales tax</span><span>${invoice.sales_tax?.toFixed(2)}</span>
