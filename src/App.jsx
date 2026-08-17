@@ -29,6 +29,7 @@ import Pricebook from './Pricebook'
 import SystemsPricebook from './SystemsPricebook'
 import DiscountCatalog from './DiscountCatalog'
 import OnCallSchedule from './OnCallSchedule'
+import RolesConfig from './RolesConfig'
 import MySchedule from './MySchedule'
 import MaintenanceAgreementTiers from './MaintenanceAgreementTiers'
 import MaintenanceAgreements from './MaintenanceAgreements'
@@ -201,6 +202,7 @@ function AuthenticatedApp() {
         <Route path="/settings" element={<Settings profile={profile} />} />
         <Route path="/team" element={<Team profile={profile} />} />
         <Route path="/on-call" element={<OnCallSchedule profile={profile} />} />
+        <Route path="/roles" element={<RolesConfig profile={profile} />} />
         <Route path="/session-log" element={<SessionLog profile={profile} />} />
         <Route path="/import/customers" element={<CustomerImport profile={profile} />} />
         <Route path="/import/properties" element={<PropertyImport profile={profile} />} />
