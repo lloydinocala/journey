@@ -29,6 +29,7 @@ import Pricebook from './Pricebook'
 import SystemsPricebook from './SystemsPricebook'
 import DiscountCatalog from './DiscountCatalog'
 import OnCallSchedule from './OnCallSchedule'
+import MySchedule from './MySchedule'
 import MaintenanceAgreementTiers from './MaintenanceAgreementTiers'
 import MaintenanceAgreements from './MaintenanceAgreements'
 import Invoice from './Invoice'
@@ -171,6 +172,7 @@ function AuthenticatedApp() {
         <Route path="/tech/estimate/:jobId" element={<TechEstimate profile={profile} />} />
         <Route path="/tech/system-estimate/:jobId" element={<TechSystemEstimate profile={profile} />} />
         <Route path="/tech/schedule" element={<TechSchedule profile={profile} />} />
+        <Route path="/tech/my-schedule" element={<MySchedule profile={profile} />} />
         <Route path="/tech/new-job" element={<TechNewJob profile={profile} mode="job" />} />
         <Route path="/tech/new-service-estimate" element={<TechNewJob profile={profile} mode="service-estimate" />} />
         <Route path="/tech/new-system-estimate" element={<TechNewJob profile={profile} mode="system-estimate" />} />
