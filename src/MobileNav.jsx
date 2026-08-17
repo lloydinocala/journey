@@ -11,7 +11,7 @@ export default function MobileNav({ profile }) {
   const admin = isFieldAdmin(profile)
 
   const TABS = [
-    { key: 'calendar', label: admin ? 'Schedule' : 'Calendar', icon: IconCalendar, path: admin ? '/tech/schedule' : null },
+    { key: 'calendar', label: admin ? 'Schedule' : 'My Schedule', icon: IconCalendar, path: admin ? '/tech/schedule' : '/tech/my-schedule' },
     { key: 'jobcards', label: 'Job Cards', icon: IconList, path: '/tech' },
     { key: 'misc', label: admin ? 'New Job' : 'Misc', icon: IconMore, path: admin ? '/tech/new-job' : null },
     { key: 'apollo', label: 'Quincy', icon: IconSparkles, path: '/tech/apollo' },
