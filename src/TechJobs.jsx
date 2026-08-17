@@ -5,6 +5,7 @@ import { signOutMobile } from './utils/mobileSessionLog'
 import MobileNav, { isFieldAdmin } from './MobileNav'
 import ClockWidget from './ClockWidget'
 import { formatTimeInZone, loadOrgTz } from './utils/tz'
+import { can } from './utils/permissions'
 
 const STATUS_LABEL = {
   scheduled: 'Scheduled',
@@ -27,6 +28,10 @@ function shiftDate(iso, days) {
   return d.toISOString().slice(0, 10)
 }
 
+function fmtOnCall(iso) {
+  return new Date(iso).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
 function timeLabel(startTime) {
   return formatTimeInZone(startTime)
 }
@@ -34,13 +39,36 @@ function timeLabel(startTime) {
 export default function TechJobs({ profile }) {
   const navigate = useNavigate()
   const isSuperAdmin = profile?.role === 'super_admin'
-  const seeAll = isSuperAdmin || isFieldAdmin(profile)
+  const seeAll = isSuperAdmin || isFieldAdmin(profile) || can(profile, 'view_all_jobs')
 
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [date, setDate] = useState(todayISO())
   const [effUid, setEffUid] = useState(null)
   const [effOrgId, setEffOrgId] = useState(null)
+  const [onCallInfo, setOnCallInfo] = useState(null)
+
+  useEffect(() => {
+    const uid = profile?.id
+    const oid = profile?.org_id
+    if (!uid || !oid) return
+    const nowIso = new Date().toISOString()
+    supabase
+      .from('on_call_schedule')
+      .select('period_start, period_end, supervisor_user_id, tech_user_id')
+      .eq('org_id', oid)
+      .or(`supervisor_user_id.eq.${uid},tech_user_id.eq.${uid}`)
+      .gt('period_end', nowIso)
+      .order('period_start')
+      .limit(5)
+      .then(({ data }) => {
+        if (!data || !data.length) { setOnCallInfo(null); return }
+        const now = Date.now()
+        const current = data.find((p) => new Date(p.period_start).getTime() <= now && now < new Date(p.period_end).getTime())
+        const next = data.find((p) => new Date(p.period_start).getTime() > now)
+        setOnCallInfo({ current, next, uid })
+      })
+  }, [profile?.id, profile?.org_id])
 
   const [orgs, setOrgs] = useState([])
   const [previewOrgId, setPreviewOrgId] = useState(localStorage.getItem('tech_preview_org_id') || '')
@@ -168,6 +196,27 @@ export default function TechJobs({ profile }) {
       </div>
 
       <div className="mobile-body">
+        {onCallInfo && (onCallInfo.current || onCallInfo.next) && (() => {
+          const p = onCallInfo.current || onCallInfo.next
+          const role = p.supervisor_user_id === onCallInfo.uid ? 'On-Call Supervisor' : 'On-Call Tech'
+          const isNow = !!onCallInfo.current
+          return (
+            <div style={{
+              borderRadius: 10, padding: '10px 14px', marginBottom: 12,
+              background: isNow ? '#eaf5ec' : '#fff6e5',
+              border: isNow ? '1px solid #0B6E2E' : '1px solid #d9a441',
+            }}>
+              <div style={{ fontWeight: 600, color: isNow ? '#0B6E2E' : '#8a5a00' }}>
+                {isNow ? `\u25CF On call now \u2014 ${role}` : `Next on-call turn \u2014 ${role}`}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--mist)', marginTop: 2 }}>
+                {isNow
+                  ? `Until ${fmtOnCall(p.period_end)} \u00B7 supervisor access active this window`
+                  : `${fmtOnCall(p.period_start)} \u2192 ${fmtOnCall(p.period_end)}`}
+              </div>
+            </div>
+          )
+        })()}
         {seeAll && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
             <button type="button" className="mobile-header-action-btn" onClick={() => setDate(shiftDate(date, -1))}>&lsaquo;</button>
