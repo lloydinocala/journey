@@ -53,6 +53,17 @@ export default function Team({ profile }) {
   const [editDept, setEditDept] = useState('')
   const [editTags, setEditTags] = useState([])
 
+  const [detailsId, setDetailsId] = useState(null)
+  const [certsByUser, setCertsByUser] = useState({})
+  const [ecName, setEcName] = useState('')
+  const [ecRel, setEcRel] = useState('')
+  const [ecPhone, setEcPhone] = useState('')
+  const [ecSaved, setEcSaved] = useState(false)
+  const [certName, setCertName] = useState('')
+  const [certNumber, setCertNumber] = useState('')
+  const [certIssued, setCertIssued] = useState('')
+  const [certExpiry, setCertExpiry] = useState('')
+
   const isSuperAdmin = profile.role === 'super_admin'
 
   useEffect(() => {
@@ -73,16 +84,17 @@ export default function Team({ profile }) {
   async function loadMembers(orgId) {
     if (!orgId) return
     setLoading(true)
-    const [membersRes, permsRes, tagsRes, rpRes, ujrRes] = await Promise.all([
+    const [membersRes, permsRes, tagsRes, rpRes, ujrRes, certsRes] = await Promise.all([
       supabase
         .from('users')
-        .select('id, full_name, email, role, calendar_color, is_active, is_field_supervisor')
+        .select('id, full_name, email, role, calendar_color, is_active, is_field_supervisor, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone')
         .eq('org_id', orgId)
         .order('full_name'),
       supabase.from('user_permissions').select('user_id, permission_key').eq('org_id', orgId),
       supabase.from('job_roles').select('id, name, department, is_oncall, sort_order').eq('org_id', orgId).order('sort_order'),
       supabase.from('role_permissions').select('role_id, permission_key').eq('org_id', orgId),
       supabase.from('user_job_roles').select('user_id, job_role_id').eq('org_id', orgId),
+      supabase.from('user_certifications').select('*').eq('org_id', orgId).order('expiry_date', { nullsFirst: false }),
     ])
 
     const permsByUser = {}
@@ -100,6 +112,9 @@ export default function Team({ profile }) {
 
     setTagsCatalog(tagsRes.data || [])
     setPermsByTag(pbt)
+    const certsBy = {}
+    ;(certsRes.data || []).forEach((c) => { (certsBy[c.user_id] = certsBy[c.user_id] || []).push(c) })
+    setCertsByUser(certsBy)
     setMembers((membersRes.data || []).map((m) => ({ ...m, permission_keys: permsByUser[m.id] || [], tag_ids: tagsByUser[m.id] || [] })))
     setLoading(false)
   }
@@ -115,6 +130,47 @@ export default function Team({ profile }) {
   }
   function tagNames(tagIds) {
     return tagsCatalog.filter((x) => (tagIds || []).includes(x.id)).map((x) => x.name)
+  }
+
+  function openDetails(m) {
+    if (detailsId === m.id) { setDetailsId(null); return }
+    setDetailsId(m.id)
+    setEcName(m.emergency_contact_name || '')
+    setEcRel(m.emergency_contact_relationship || '')
+    setEcPhone(m.emergency_contact_phone || '')
+    setEcSaved(false)
+    setCertName(''); setCertNumber(''); setCertIssued(''); setCertExpiry('')
+  }
+  async function saveEmergency(m) {
+    await supabase.from('users').update({
+      emergency_contact_name: ecName.trim() || null,
+      emergency_contact_relationship: ecRel.trim() || null,
+      emergency_contact_phone: ecPhone.trim() || null,
+    }).eq('id', m.id)
+    setEcSaved(true)
+    loadMembers(selectedOrg)
+  }
+  async function addCert(m) {
+    if (!certName.trim()) return
+    await supabase.from('user_certifications').insert({
+      org_id: selectedOrg, user_id: m.id, name: certName.trim(),
+      number: certNumber.trim() || null,
+      issued_date: certIssued || null,
+      expiry_date: certExpiry || null,
+    })
+    setCertName(''); setCertNumber(''); setCertIssued(''); setCertExpiry('')
+    loadMembers(selectedOrg)
+  }
+  async function removeCert(id) {
+    await supabase.from('user_certifications').delete().eq('id', id)
+    loadMembers(selectedOrg)
+  }
+  function certStatus(expiry) {
+    if (!expiry) return null
+    const days = Math.ceil((new Date(expiry + 'T00:00:00').getTime() - Date.now()) / 86400000)
+    if (days < 0) return { label: 'Expired', color: '#c0392b' }
+    if (days <= 60) return { label: `Expires in ${days}d`, color: '#8a5a00' }
+    return null
   }
 
   useEffect(() => {
@@ -525,6 +581,7 @@ export default function Team({ profile }) {
                   </div>
                 )}
                 <div className="grid-cell grid-actions">
+                  <button className="logout-button" onClick={() => openDetails(m)}>{detailsId === m.id ? 'Hide' : 'Details'}</button>
                   <button className="logout-button" onClick={() => startEdit(m)}>Edit</button>
                   <button className="logout-button" onClick={() => handleResetPassword(m)}>
                     {resetSentId === m.id ? 'Email sent!' : 'Reset Password'}
@@ -544,6 +601,48 @@ export default function Team({ profile }) {
                     </button>
                   )}
                 </div>
+                {detailsId === m.id && (
+                  <div className="grid-cell" style={{ gridColumn: '1 / -1', background: 'var(--surface-2,#f4f7fa)', padding: '16px 18px', borderTop: '1px solid var(--border,#e0e0e0)' }}>
+                    <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                      <div style={{ flex: '1 1 280px', minWidth: 250 }}>
+                        <div style={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--ink,#0f2f44)', marginBottom: 8 }}>Emergency Contact</div>
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                          <div className="field" style={{ margin: 0, flex: '1 1 140px' }}><label style={{ fontSize: 11 }}>Name</label><input value={ecName} onChange={(e) => { setEcName(e.target.value); setEcSaved(false) }} /></div>
+                          <div className="field" style={{ margin: 0, flex: '1 1 120px' }}><label style={{ fontSize: 11 }}>Relationship</label><input value={ecRel} onChange={(e) => { setEcRel(e.target.value); setEcSaved(false) }} /></div>
+                          <div className="field" style={{ margin: 0, flex: '1 1 140px' }}><label style={{ fontSize: 11 }}>Phone</label><input value={ecPhone} onChange={(e) => { setEcPhone(e.target.value); setEcSaved(false) }} /></div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 }}>
+                          <button type="button" className="auth-button" style={{ width: 'auto', padding: '6px 16px' }} onClick={() => saveEmergency(m)}>Save contact</button>
+                          {ecSaved && <span style={{ fontSize: 12, color: '#0B6E2E' }}>Saved</span>}
+                        </div>
+                      </div>
+
+                      <div style={{ flex: '2 1 420px', minWidth: 320 }}>
+                        <div style={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--ink,#0f2f44)', marginBottom: 8 }}>Certifications &amp; Licenses</div>
+                        {(certsByUser[m.id] || []).length === 0 && <div style={{ fontSize: 13, color: 'var(--mist)', marginBottom: 8 }}>None on file.</div>}
+                        {(certsByUser[m.id] || []).map((c) => {
+                          const st = certStatus(c.expiry_date)
+                          return (
+                            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, padding: '5px 0', borderBottom: '1px solid var(--border,#eee)' }}>
+                              <span style={{ fontWeight: 600, minWidth: 130 }}>{c.name}</span>
+                              {c.number && <span style={{ color: 'var(--mist)' }}>#{c.number}</span>}
+                              <span style={{ color: 'var(--mist)', fontSize: 12 }}>{c.issued_date ? `issued ${c.issued_date}` : ''}{c.expiry_date ? ` \u00b7 exp ${c.expiry_date}` : ''}</span>
+                              {st && <span style={{ color: st.color, fontWeight: 600 }}>&#9888; {st.label}</span>}
+                              <button type="button" className="logout-button" style={{ marginLeft: 'auto', fontSize: 11 }} onClick={() => removeCert(c.id)}>Remove</button>
+                            </div>
+                          )
+                        })}
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 10 }}>
+                          <div className="field" style={{ margin: 0, flex: '1 1 150px' }}><label style={{ fontSize: 11 }}>Certification / license</label><input value={certName} onChange={(e) => setCertName(e.target.value)} placeholder="e.g. EPA 608 Universal" /></div>
+                          <div className="field" style={{ margin: 0, flex: '0 1 100px' }}><label style={{ fontSize: 11 }}>Number</label><input value={certNumber} onChange={(e) => setCertNumber(e.target.value)} /></div>
+                          <div className="field" style={{ margin: 0, flex: '0 1 130px' }}><label style={{ fontSize: 11 }}>Issued</label><input type="date" value={certIssued} onChange={(e) => setCertIssued(e.target.value)} /></div>
+                          <div className="field" style={{ margin: 0, flex: '0 1 130px' }}><label style={{ fontSize: 11 }}>Expires</label><input type="date" value={certExpiry} onChange={(e) => setCertExpiry(e.target.value)} /></div>
+                          <button type="button" className="logout-button" onClick={() => addCert(m)}>+ Add</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )
           )}
@@ -555,3 +654,4 @@ export default function Team({ profile }) {
     </div>
   )
 }
+
