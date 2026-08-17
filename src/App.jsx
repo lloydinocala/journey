@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { loadOrgTz } from './utils/tz'
+import { loadPermissions } from './utils/permissions'
 import PartsCatalog from './PartsCatalog'
 import PartsCatalogImport from './PartsCatalogImport'
 import VendorPriceImport from './VendorPriceImport'
@@ -123,7 +124,7 @@ function AuthenticatedApp() {
           supabase.auth.signOut()
           return
         }
-        const [permsRes, elemRes, rewardsRes, mktRes] = await Promise.all([
+        const [permsRes, elemRes, rewardsRes, mktRes, effPerms] = await Promise.all([
           supabase.from('user_permissions').select('permission_key').eq('user_id', session.user.id),
           userRes.data.org_id
             ? supabase.from('elements_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
@@ -134,6 +135,7 @@ function AuthenticatedApp() {
           userRes.data.org_id
             ? supabase.from('marketing_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
             : Promise.resolve({ data: null }),
+          loadPermissions(session.user.id, userRes.data.org_id),
         ])
         // Prime the active org timezone so all times render/parse in the
         // organization's zone, not the viewer's device zone. Super-admins have
@@ -142,6 +144,8 @@ function AuthenticatedApp() {
         setProfile({
           ...userRes.data,
           permissions: (permsRes.data || []).map((p) => p.permission_key),
+          permKeys: effPerms.keys,   // resolved effective permissions (tags + live on-call elevation)
+          onCall: effPerms.onCall,   // { until, as } while on-call now, else null
           elementsEntitled: !!elemRes?.data?.entitled,   // Elements-HVAC subscription gate
           rewardsEntitled: !!rewardsRes?.data?.entitled,  // Rewards-HVAC subscription gate
           marketingEntitled: !!mktRes?.data?.entitled,   // Marketing-HVAC subscription gate
