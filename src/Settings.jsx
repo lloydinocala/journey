@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import EmployeePayRates from './EmployeePayRates'
+import BusinessHours from './BusinessHours'
 import { browserTz, setActiveOrgTz, tzShortLabel } from './utils/tz'
 
 // The zones an HVAC contractor in the US is realistically in. IANA names carry
@@ -455,25 +456,7 @@ export default function Settings({ profile }) {
       </form>
 
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Business hours</h3>
-      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
-        Controls how the Calendar displays your day — 15-minute slots during these hours,
-        30-minute slots outside them for after-hours calls.
-      </p>
-
-      <form className="inline-form" onSubmit={saveBusinessHours} style={{ marginBottom: 28 }}>
-        <div className="field">
-          <label htmlFor="bStart">Opens</label>
-          <input id="bStart" type="time" value={businessStart} onChange={(e) => setBusinessStart(e.target.value)} required />
-        </div>
-        <div className="field">
-          <label htmlFor="bEnd">Closes</label>
-          <input id="bEnd" type="time" value={businessEnd} onChange={(e) => setBusinessEnd(e.target.value)} required />
-        </div>
-        <button className="auth-button" type="submit" disabled={savingHours}>
-          {savingHours ? 'Saving…' : 'Save hours'}
-        </button>
-        {hoursSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
-      </form>
+      <BusinessHours orgId={selectedOrg} />
 
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Sales tax</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
