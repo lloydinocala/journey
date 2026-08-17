@@ -44,6 +44,15 @@ export default function Team({ profile }) {
   const [editSupervisor, setEditSupervisor] = useState(false)
   const [editPermissions, setEditPermissions] = useState([])
 
+  // Tag model: Role = department, Tags = positions (user_job_roles). Legacy role/is_field_supervisor are kept for access during transition — never downgraded here.
+  const DEPARTMENTS = ['Admin', 'Field', 'Shop', 'Front Office', 'Back Office']
+  const [tagsCatalog, setTagsCatalog] = useState([])
+  const [permsByTag, setPermsByTag] = useState({})
+  const [addDept, setAddDept] = useState('Field')
+  const [addTags, setAddTags] = useState([])
+  const [editDept, setEditDept] = useState('')
+  const [editTags, setEditTags] = useState([])
+
   const isSuperAdmin = profile.role === 'super_admin'
 
   useEffect(() => {
@@ -64,13 +73,16 @@ export default function Team({ profile }) {
   async function loadMembers(orgId) {
     if (!orgId) return
     setLoading(true)
-    const [membersRes, permsRes] = await Promise.all([
+    const [membersRes, permsRes, tagsRes, rpRes, ujrRes] = await Promise.all([
       supabase
         .from('users')
         .select('id, full_name, email, role, calendar_color, is_active, is_field_supervisor')
         .eq('org_id', orgId)
         .order('full_name'),
       supabase.from('user_permissions').select('user_id, permission_key').eq('org_id', orgId),
+      supabase.from('job_roles').select('id, name, department, is_oncall, sort_order').eq('org_id', orgId).order('sort_order'),
+      supabase.from('role_permissions').select('role_id, permission_key').eq('org_id', orgId),
+      supabase.from('user_job_roles').select('user_id, job_role_id').eq('org_id', orgId),
     ])
 
     const permsByUser = {}
@@ -78,9 +90,31 @@ export default function Team({ profile }) {
       if (!permsByUser[p.user_id]) permsByUser[p.user_id] = []
       permsByUser[p.user_id].push(p.permission_key)
     })
+    const tagsByUser = {}
+    ;(ujrRes.data || []).forEach((r) => {
+      if (!tagsByUser[r.user_id]) tagsByUser[r.user_id] = []
+      tagsByUser[r.user_id].push(r.job_role_id)
+    })
+    const pbt = {}
+    ;(rpRes.data || []).forEach((r) => { (pbt[r.role_id] = pbt[r.role_id] || new Set()).add(r.permission_key) })
 
-    setMembers((membersRes.data || []).map((m) => ({ ...m, permission_keys: permsByUser[m.id] || [] })))
+    setTagsCatalog(tagsRes.data || [])
+    setPermsByTag(pbt)
+    setMembers((membersRes.data || []).map((m) => ({ ...m, permission_keys: permsByUser[m.id] || [], tag_ids: tagsByUser[m.id] || [] })))
     setLoading(false)
+  }
+
+  function inheritedKeys(tagIds) {
+    const s = new Set()
+    ;(tagIds || []).forEach((id) => (permsByTag[id] || new Set()).forEach((k) => s.add(k)))
+    return s
+  }
+  function deptOf(tagIds) {
+    const t = tagsCatalog.find((x) => (tagIds || []).includes(x.id) && x.department)
+    return t ? t.department : ''
+  }
+  function tagNames(tagIds) {
+    return tagsCatalog.filter((x) => (tagIds || []).includes(x.id)).map((x) => x.name)
   }
 
   useEffect(() => {
@@ -138,15 +172,16 @@ export default function Team({ profile }) {
     const { data: sessionData } = await supabase.auth.getSession()
     const token = sessionData.session.access_token
 
+    const derivedRole = addDept === 'Admin' ? 'org_admin' : 'tech'
     const { data, error } = await supabase.functions.invoke('create-team-member', {
       body: {
         action: 'invite',
         email: email.trim(),
         full_name: fullName.trim(),
-        role,
+        role: derivedRole,
         org_id: selectedOrg,
         calendar_color: color,
-        permission_keys: role === 'org_admin' ? [] : selectedPermissions,
+        permission_keys: [],
       },
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -158,11 +193,18 @@ export default function Team({ profile }) {
     } else if (data?.error) {
       setError(data.error)
     } else {
+      // attach the chosen tags to the freshly-created user; grant field-supervisor if a tag confers all-jobs access
+      const { data: newUser } = await supabase.from('users').select('id').eq('org_id', selectedOrg).eq('email', email.trim()).maybeSingle()
+      if (newUser?.id && addTags.length) {
+        await supabase.from('user_job_roles').insert(addTags.map((job_role_id) => ({ org_id: selectedOrg, user_id: newUser.id, job_role_id })))
+        if (inheritedKeys(addTags).has('view_all_jobs')) {
+          await supabase.from('users').update({ is_field_supervisor: true }).eq('id', newUser.id)
+        }
+      }
       setSuccess(`Invite sent to ${email}.`)
       setFullName('')
       setEmail('')
-      setRole('tech')
-      setSelectedPermissions([])
+      setAddTags([])
       loadMembers(selectedOrg)
     }
   }
@@ -175,21 +217,28 @@ export default function Team({ profile }) {
     setEditEmail(member.email)
     setEditSupervisor(!!member.is_field_supervisor)
     setEditPermissions(member.permission_keys || [])
+    setEditDept(deptOf(member.tag_ids) || '')
+    setEditTags(member.tag_ids || [])
   }
 
   async function saveEdit(member) {
     setError('')
+    const newRole = editDept === 'Admin' ? 'org_admin' : member.role
+    const grantSup = inheritedKeys(editTags).has('view_all_jobs')
     await supabase
       .from('users')
       .update({
         full_name: editName.trim(),
-        role: editRole,
+        role: newRole,
         calendar_color: editColor,
-        is_field_supervisor: editSupervisor,
+        is_field_supervisor: grantSup ? true : member.is_field_supervisor,
       })
       .eq('id', member.id)
 
-    await syncPermissions(member.id, selectedOrg, editRole === 'org_admin' ? [] : editPermissions)
+    await supabase.from('user_job_roles').delete().eq('user_id', member.id)
+    if (editTags.length) {
+      await supabase.from('user_job_roles').insert(editTags.map((job_role_id) => ({ org_id: selectedOrg, user_id: member.id, job_role_id })))
+    }
 
     if (editEmail.trim() !== member.email) {
       const { data: sessionData } = await supabase.auth.getSession()
@@ -280,12 +329,10 @@ export default function Team({ profile }) {
       [
         { key: 'full_name', label: 'Name' },
         { key: 'email', label: 'Email' },
-        { key: 'role', label: 'Role' },
+        { label: 'Role', value: (m) => deptOf(m.tag_ids) || m.role },
+        { label: 'Tags', value: (m) => tagNames(m.tag_ids).join('; ') },
         { label: 'Status', value: (m) => (m.is_active ? 'Active' : 'Deactivated') },
-        {
-          label: 'Permissions',
-          value: (m) => (m.role === 'org_admin' ? 'Full access' : (m.permission_keys || []).map(permissionLabel).join('; ') || 'None'),
-        },
+        { label: 'Permissions', value: (m) => `${inheritedKeys(m.tag_ids).size} inherited` },
       ],
       'team-' + new Date().toISOString().slice(0, 10) + '.csv'
 )
@@ -312,34 +359,35 @@ export default function Team({ profile }) {
           <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="orlando@aircareconnect.com" required />
         </div>
         <div className="field">
-          <label htmlFor="role">Role</label>
-          <select id="role" value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="tech">Technician</option>
-            <option value="csr">CSR / Office</option>
-            <option value="org_admin">Admin</option>
+          <label htmlFor="dept">Role (department)</label>
+          <select id="dept" value={addDept} onChange={(e) => { setAddDept(e.target.value); setAddTags([]) }}>
+            {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>
         <div className="field">
           <label htmlFor="color">Calendar color</label>
           <input id="color" type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ width: 60, padding: 4, height: 40 }} />
         </div>
-        {role !== 'org_admin' && permissionsCatalog.length > 0 && (
-          <div className="field">
-            <label>Dashboard Access</label>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {permissionsCatalog.map((p) => (
-                <label key={p.key} title={p.description} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedPermissions.includes(p.key)}
-                    onChange={() => togglePermission(selectedPermissions, setSelectedPermissions, p.key)}
-                  />
-                  {p.label.replace('Dashboard: ', '')}
-                </label>
-              ))}
-            </div>
+        <div className="field" style={{ flexBasis: '100%' }}>
+          <label>Tags (positions)</label>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            {tagsCatalog.filter((t) => !t.is_oncall && t.department === addDept).map((t) => (
+              <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
+                <input type="checkbox" checked={addTags.includes(t.id)}
+                  onChange={() => setAddTags((prev) => prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id])} />
+                {t.name}
+              </label>
+            ))}
+            {tagsCatalog.filter((t) => !t.is_oncall && t.department === addDept).length === 0 && (
+              <span style={{ fontSize: 12, color: 'var(--mist)' }}>No tags in this department yet &mdash; add them under Roles &amp; Tags.</span>
+            )}
           </div>
-        )}
+          {addTags.length > 0 && (
+            <div style={{ fontSize: 12, color: 'var(--mist)', marginTop: 6 }}>
+              Inherits {inheritedKeys(addTags).size} permission{inheritedKeys(addTags).size === 1 ? '' : 's'} from {addTags.length} tag{addTags.length === 1 ? '' : 's'}. What each tag grants is managed under Roles &amp; Tags.
+            </div>
+          )}
+        </div>
         <button className="auth-button" type="submit" disabled={saving}>
           {saving ? 'Sending invite…' : 'Send invite'}
         </button>
@@ -423,30 +471,20 @@ export default function Team({ profile }) {
                 )}
                 {visibleColumns.includes('role') && (
                   <div className="grid-cell">
-                    <select value={editRole} onChange={(e) => setEditRole(e.target.value)}>
-                      <option value="tech">Technician</option>
-                      <option value="csr">CSR / Office</option>
-                      <option value="org_admin">Admin</option>
+                    <select value={editDept} onChange={(e) => { setEditDept(e.target.value); setEditTags([]) }}>
+                      <option value="">&mdash; department &mdash;</option>
+                      {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
                     </select>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, marginTop: 4, cursor: 'pointer', color: 'var(--mist)' }}>
-                      <input type="checkbox" checked={editSupervisor} onChange={(e) => setEditSupervisor(e.target.checked)} />
-                      Field Supervisor (mobile admin access)
-                    </label>
-                    {editRole !== 'org_admin' &&
-                      permissionsCatalog.map((p) => (
-                        <label
-                          key={p.key}
-                          title={p.description}
-                          style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, marginTop: 4, cursor: 'pointer', color: 'var(--mist)' }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={editPermissions.includes(p.key)}
-                            onChange={() => togglePermission(editPermissions, setEditPermissions, p.key)}
-                          />
-                          {p.label}
+                    <div style={{ marginTop: 4 }}>
+                      {tagsCatalog.filter((t) => !t.is_oncall && t.department === editDept).map((t) => (
+                        <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, marginTop: 3, cursor: 'pointer', color: 'var(--mist)' }}>
+                          <input type="checkbox" checked={editTags.includes(t.id)}
+                            onChange={() => setEditTags((prev) => prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id])} />
+                          {t.name}
                         </label>
                       ))}
+                    </div>
+                    {editTags.length > 0 && <div style={{ fontSize: 10, color: 'var(--mist)', marginTop: 3 }}>Inherits {inheritedKeys(editTags).size} permissions</div>}
                   </div>
                 )}
                 {visibleColumns.includes('status') && <div className="grid-cell">{m.is_active ? 'Active' : 'Deactivated'}</div>}
@@ -462,19 +500,17 @@ export default function Team({ profile }) {
                 {visibleColumns.includes('email') && <div className="grid-cell">{m.email}</div>}
                 {visibleColumns.includes('role') && (
                   <div className="grid-cell">
-                    {m.role}
-                    {m.is_field_supervisor && <span className="badge" style={{ marginLeft: 6, fontSize: 10 }}>Supervisor</span>}
+                    {deptOf(m.tag_ids) || <span style={{ color: 'var(--mist)' }}>{m.role}</span>}
                     <div style={{ marginTop: 4 }}>
-                      {m.role === 'org_admin' ? (
-                        <span className="badge" style={{ fontSize: 10 }}>Full Dashboard Access</span>
-                      ) : m.permission_keys && m.permission_keys.length > 0 ? (
-                        m.permission_keys.map((k) => (
-                          <span key={k} className="badge" style={{ marginRight: 4, fontSize: 10 }}>
-                            {permissionLabel(k).replace('Dashboard: ', '')}
-                          </span>
+                      {tagNames(m.tag_ids).length > 0 ? (
+                        tagNames(m.tag_ids).map((n) => (
+                          <span key={n} className="badge" style={{ marginRight: 4, fontSize: 10 }}>{n}</span>
                         ))
                       ) : (
-                        <span style={{ fontSize: 10, color: 'var(--mist)' }}>No dashboard access</span>
+                        <span style={{ fontSize: 10, color: 'var(--mist)' }}>No tags assigned</span>
+                      )}
+                      {m.tag_ids && m.tag_ids.length > 0 && (
+                        <div style={{ fontSize: 10, color: 'var(--mist)', marginTop: 2 }}>{inheritedKeys(m.tag_ids).size} permissions</div>
                       )}
                     </div>
                   </div>
