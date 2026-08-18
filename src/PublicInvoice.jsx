@@ -10,6 +10,17 @@ export default function PublicInvoice() {
   const [error, setError] = useState('')
   const [payingNow, setPayingNow] = useState(false)
   const [payError, setPayError] = useState('')
+  const [deciding, setDeciding] = useState(false)
+  const [decideError, setDecideError] = useState('')
+  const [decidedStatus, setDecidedStatus] = useState('')
+
+  async function handleDecision(d) {
+    setDeciding(true); setDecideError('')
+    const { data: result, error } = await supabase.rpc('record_customer_estimate_decision', { p_estimate_id: invoiceId, p_decision: d })
+    setDeciding(false)
+    if (error) setDecideError(error.message)
+    else setDecidedStatus(result || (d === 'approved' ? 'Approved' : 'Declined'))
+  }
 
   async function handlePayNow() {
     setPayingNow(true)
@@ -56,7 +67,27 @@ export default function PublicInvoice() {
 
   const isEstimate = data.invoice.kind === 'estimate'
 
-  const footer = isEstimate ? null : data.invoice.paid_at ? (
+  const estStatus = decidedStatus || data.invoice.approval_status
+  const estimateFooter = (
+    <div style={{ textAlign: 'center', marginTop: 28 }}>
+      {estStatus === 'Approved' ? (
+        <div style={{ color: '#1F7A43', fontWeight: 700, fontSize: 16 }}>✓ Approved — thank you! We&rsquo;ll be in touch to schedule the work.</div>
+      ) : estStatus === 'Declined' ? (
+        <div style={{ color: '#64748B', fontWeight: 600, fontSize: 15 }}>You declined this estimate. Contact us any time if you&rsquo;d like to revisit it.</div>
+      ) : (
+        <div>
+          <p style={{ color: '#152238', fontSize: 15, marginBottom: 14 }}>Approve this estimate to authorize the repair, or decline.</p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <button onClick={() => handleDecision('approved')} disabled={deciding} style={{ background: '#1F7A43', color: 'white', border: 'none', borderRadius: 8, padding: '14px 36px', fontSize: 15, fontWeight: 700, cursor: deciding ? 'default' : 'pointer', opacity: deciding ? 0.7 : 1 }}>{deciding ? 'Saving…' : 'Approve'}</button>
+            <button onClick={() => handleDecision('declined')} disabled={deciding} style={{ background: 'white', color: '#C0392B', border: '1px solid #C0392B', borderRadius: 8, padding: '14px 36px', fontSize: 15, fontWeight: 700, cursor: deciding ? 'default' : 'pointer', opacity: deciding ? 0.7 : 1 }}>Decline</button>
+          </div>
+          {decideError && <p style={{ color: '#C0392B', fontSize: 13, marginTop: 10 }}>{decideError}</p>}
+        </div>
+      )}
+    </div>
+  )
+
+  const footer = isEstimate ? estimateFooter : data.invoice.paid_at ? (
     <div style={{ textAlign: 'center', marginTop: 28, color: '#4CD97B', fontWeight: 600 }}>
       ✓ Paid on {new Date(data.invoice.paid_at).toLocaleDateString()}
     </div>
