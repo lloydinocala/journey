@@ -15,14 +15,11 @@ function dataUrlToBlob(dataUrl) {
 }
 
 const NOT_PRESENT_REASONS = [
+  'Customer not present',
   'Verbal approval — in person',
   'Phone verbal approval',
   'Text or email approval',
-  'Unable to sign (physical limitation)',
-  'Approved by spouse or household member',
-  'Approved by property manager or landlord',
-  'Tenant present, owner approved remotely',
-  'Customer declined the estimate',
+  'Declined',
   'Other',
 ]
 
@@ -292,12 +289,16 @@ export default function TechInvoiceView({ profile }) {
 
     const now = new Date().toISOString()
 
+    const declined = useTypedFallback && /declin/i.test(notPresentReason)
+    const approvedByLabel = useTypedFallback ? notPresentReason : (approverName.trim() || 'Signed in person')
+
     const { error: invErr } = await supabase
       .from('invoices')
       .update({
         approved_at: now,
         approved_by: useTypedFallback ? `Not present — ${notPresentReason}` : approverName.trim(),
         approval_signature_url: signaturePath,
+        approval_status: declined ? 'Declined' : 'Approved',
       })
       .eq('id', invoiceId)
     if (invErr) {
@@ -306,9 +307,8 @@ export default function TechInvoiceView({ profile }) {
       return
     }
 
-    // A declined estimate is recorded (so it can be sent/noted) but does NOT start
-    // the follow-up "Incomplete Jobs" workflow — no approved work to schedule.
-    const declined = useTypedFallback && /declin/i.test(notPresentReason)
+    // A declined estimate is recorded (so it can be sent/noted) but does NOT convert
+    // to an invoice or start the "Incomplete Jobs" workflow — no approved work to schedule.
     if (!declined) {
       await supabase.from('jobs').update({ status: 'incomplete' }).eq('id', invoiceRow.job_id)
       await supabase.from('job_incomplete_records').insert({
@@ -316,6 +316,8 @@ export default function TechInvoiceView({ profile }) {
         job_id: invoiceRow.job_id,
         estimate_id: invoiceId,
       })
+      // Snapshot the approved estimate(s) into the job's invoice, stamped "Repair Pre-Approved by: <method>"
+      await supabase.rpc('convert_approved_estimate', { p_estimate_id: invoiceId, p_approved_by: approvedByLabel })
     }
 
     setSavingApproval(false)
