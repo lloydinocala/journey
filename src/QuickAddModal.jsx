@@ -508,11 +508,13 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="contStart">Start time</label>
-                  <input id="contStart" type="time" value={contStartTime} onChange={(e) => setContStartTime(e.target.value)} />
+                  <input id="contStart" type="time" step="900" value={contStartTime} onChange={(e) => setContStartTime(e.target.value)} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="contDuration">Duration (hrs)</label>
-                  <input id="contDuration" type="number" step="0.5" value={contDuration} onChange={(e) => setContDuration(e.target.value)} />
+                  <select id="contDuration" value={contDuration} onChange={(e) => setContDuration(e.target.value)}>
+                    {Array.from({ length: 40 }, (_, i) => { const n = (i + 1) * 0.25; const v = String(n); return <option key={v} value={v}>{(Number.isInteger(n) ? n.toFixed(1) : v)} hr</option> })}
+                  </select>
                 </div>
               </div>
               <div className="field">
@@ -743,7 +745,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
               </p>
               <div style={{ display: 'flex', gap: 8 }}>
                 <div className="field" style={{ flex: 1.4 }}>
-                  <label htmlFor="existTenant1Name">Contact 1</label>
+                  <label htmlFor="existTenant1Name">Occupant 1</label>
                   <input id="existTenant1Name" type="text" value={newTenantName} onChange={(e) => setNewTenantName(e.target.value)} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
@@ -764,7 +766,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <div className="field" style={{ flex: 1.4 }}>
-                  <label htmlFor="existTenant2Name">Contact 2</label>
+                  <label htmlFor="existTenant2Name">Occupant 2</label>
                   <input id="existTenant2Name" type="text" value={newTenant2Name} onChange={(e) => setNewTenant2Name(e.target.value)} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
@@ -839,7 +841,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <div className="field" style={{ flex: 1.4 }}>
-                  <label htmlFor="newTenantName">Contact 1 (optional)</label>
+                  <label htmlFor="newTenantName">Occupant 1 (optional)</label>
                   <input id="newTenantName" type="text" value={newTenantName} onChange={(e) => setNewTenantName(e.target.value)} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
@@ -860,7 +862,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <div className="field" style={{ flex: 1.4 }}>
-                  <label htmlFor="newTenant2Name">Contact 2 (optional)</label>
+                  <label htmlFor="newTenant2Name">Occupant 2 (optional)</label>
                   <input id="newTenant2Name" type="text" value={newTenant2Name} onChange={(e) => setNewTenant2Name(e.target.value)} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
@@ -894,11 +896,13 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="startTime">Start time</label>
-                  <input id="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+                  <input id="startTime" type="time" step="900" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="duration">Duration (hrs)</label>
-                  <input id="duration" type="number" step="0.5" value={durationHours} onChange={(e) => setDurationHours(e.target.value)} />
+                  <select id="duration" value={durationHours} onChange={(e) => setDurationHours(e.target.value)}>
+                    {Array.from({ length: 40 }, (_, i) => { const n = (i + 1) * 0.25; const v = String(n); return <option key={v} value={v}>{(Number.isInteger(n) ? n.toFixed(1) : v)} hr</option> })}
+                  </select>
                 </div>
               </div>
               <div className="field">
