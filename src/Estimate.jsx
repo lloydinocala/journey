@@ -377,7 +377,7 @@ export default function Estimate({ profile }) {
                 >
                   <option value="Pending">Pending</option>
                   <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
+                  <option value="Declined">Declined</option>
                   <option value="Pending Financing">Pending Financing</option>
                 </select>
               </div>
