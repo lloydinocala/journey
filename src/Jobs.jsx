@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import TimePicker15 from './TimePicker15'
 import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
@@ -847,7 +848,7 @@ export default function Jobs({ profile }) {
                     )
                     if (col.key === 'start_time') return (
                       <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
-                        <input type="time" step="900" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} />
+                        <TimePicker15 value={editStartTime} onChange={setEditStartTime} />
                         <label style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 6, fontSize: 11, color: '#555' }}>
                           <span>Duration (hrs)</span>
                           <input type="number" step="0.5" min="0" value={editDuration} onChange={(e) => setEditDuration(e.target.value)} placeholder="1" style={{ width: '100%', maxWidth: 80, boxSizing: 'border-box' }} />
