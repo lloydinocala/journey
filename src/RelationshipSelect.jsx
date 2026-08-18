@@ -1,4 +1,4 @@
-const PRESET_RELS = ['Homeowner', 'Renter', 'Property Manager', 'Landlord', 'Owner', 'Tenant', 'Occupant', 'Family Member']
+const PRESET_RELS = ['Homeowner', 'Property Manager', 'Owner', 'Tenant']
 
 // A relationship picker whose value IS the saved string. Presets save as-is;
 // choosing "Other…" reveals a text box, and whatever is typed (e.g. "Security Guard",
