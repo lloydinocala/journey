@@ -54,7 +54,7 @@ export default function TechEstimate({ profile }) {
     setLoading(true)
     const { data: jobData } = await supabase
       .from('jobs')
-      .select('id, job_number, job_date, org_id, customer_id, property_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
+      .select('id, job_number, job_date, diagnosis_note, org_id, customer_id, property_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
       .eq('id', jobId)
       .single()
     setJob(jobData)
@@ -271,6 +271,12 @@ export default function TechEstimate({ profile }) {
       </div>
 
       <div className="mobile-body">
+        {job?.diagnosis_note && (
+          <div className="section-card">
+            <div className="section-card-header"><span>Diagnosis</span></div>
+            <div className="section-card-body"><p style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.5 }}>{job.diagnosis_note}</p></div>
+          </div>
+        )}
         <div className="section-card">
           <div className="section-card-header"><span>Estimate Details</span></div>
           <div className="section-card-body">
