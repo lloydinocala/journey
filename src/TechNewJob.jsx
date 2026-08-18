@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import TimePicker15 from './TimePicker15'
 import TripChargePicker from './TripChargePicker'
 import CustomerSearchSelect from './CustomerSearchSelect'
 import { IconChevronLeft } from './MobileIcons'
@@ -362,7 +363,7 @@ export default function TechNewJob({ profile, mode = 'job' }) {
               <div className="section-card-body">
                 <div className="mobile-field-row">
                   <div className="mobile-field"><label>Date</label><input type="date" value={jobDate} onChange={(e) => setJobDate(e.target.value)} required /></div>
-                  <div className="mobile-field"><label>Start Time</label><input type="time" step="900" value={startTime} onChange={(e) => setStartTime(e.target.value)} /></div>
+                  <div className="mobile-field"><label>Start Time</label><TimePicker15 value={startTime} onChange={setStartTime} /></div>
                 </div>
                 <div className="mobile-field-row">
                   <div className="mobile-field"><label>Duration (hrs)</label><select value={durationHours} onChange={(e) => setDurationHours(e.target.value)}>
