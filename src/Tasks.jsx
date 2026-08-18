@@ -103,7 +103,7 @@ export default function Tasks({ profile }) {
       fetchAllRows(() => supabase.from('field_tasks').select('*').eq('org_id', orgId).is('deleted_at', null).order('scheduled_at', { ascending: false })),
       supabase.from('users').select('id, full_name, role, task_hourly_rate, standard_hourly_rate').eq('org_id', orgId).eq('is_active', true).order('full_name'),
       supabase.from('parts_orders').select('id, part_description, part_number, po_number, delivery_verified, jobs ( job_number ), vendors ( name, street_address, city, state, zip )').eq('org_id', orgId).order('created_at', { ascending: false }),
-      supabase.from('vendors').select('id, name, street_address, city, state, zip').eq('org_id', orgId).order('name'),
+      supabase.from('vendors').select('id, name, street_address, city, state, zip, phone').eq('org_id', orgId).order('name'),
     ])
     setTasks(taskData)
     setUsers(userData.data || [])
@@ -166,7 +166,7 @@ export default function Tasks({ profile }) {
     if (!id) return
     const v = vendors.find((x) => x.id === id)
     if (!v) return
-    setForm((f) => ({ ...f, destination_name: v.name, address: vendorAddr(v) || f.address }))
+    setForm((f) => ({ ...f, destination_name: v.name, address: vendorAddr(v) || f.address, contact_phone: v.phone || f.contact_phone }))
   }
 
   // A task may not overlap the assigned user's scheduled jobs or their other tasks.
@@ -485,7 +485,7 @@ export default function Tasks({ profile }) {
                 <td>{userName(t.assigned_user_id)}</td>
                 <td>{t.destination_name}{linkedPart && <span className="status-pill status-scheduled" style={{ marginLeft: 6, fontSize: 10 }}>PARTS</span>}{t.return_to && <span className="status-pill status-scheduled" style={{ marginLeft: 6, fontSize: 10 }}>{t.return_to === 'shop' ? '\u21A9 SHOP' : '\u21A9 JOB'}</span>}</td>
                 <td>{t.address || '—'}</td>
-                <td style={{ fontSize: 12 }}>{t.contact_name || '—'}{t.contact_phone ? <div style={{ color: 'var(--mist)' }}>{t.contact_phone}</div> : ''}</td>
+                <td style={{ fontSize: 12 }}>{t.contact_name || '—'}{t.contact_phone ? <div style={{ color: 'var(--mist)' }}><a href={`tel:${t.contact_phone}`}>{t.contact_phone}</a>{' · '}<a href={`sms:${t.contact_phone}`}>text</a></div> : ''}</td>
                 <td>{fmtStamp(t.scheduled_at)}</td>
                 <td>{durLabel(t.duration_minutes)}</td>
                 <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(t.on_my_way_at)}</td>
