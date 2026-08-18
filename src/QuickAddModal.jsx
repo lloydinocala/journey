@@ -5,6 +5,7 @@ import TripChargePicker from './TripChargePicker'
 import CustomerSearchSelect from './CustomerSearchSelect'
 import PropertySearchSelect from './PropertySearchSelect'
 import RelationshipSelect from './RelationshipSelect'
+import NewTaskModal from './NewTaskModal'
 import TimePicker15 from './TimePicker15'
 import { zonedToUtcIso } from './utils/tz'
 
@@ -421,6 +422,10 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
     } finally {
       setSaving(false)
     }
+  }
+
+  if (mode === 'task') {
+    return <NewTaskModal orgId={orgId} profile={profile} onClose={onClose} onCreated={onCreated} />
   }
 
   if (mode === 'pickEstimateJob' || mode === 'pickInvoiceJob' || mode === 'pickSystemEstimateJob') {
