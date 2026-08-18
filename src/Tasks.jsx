@@ -1,5 +1,6 @@
 import { useState, useEffect, Fragment } from 'react'
 import { supabase } from './utils/supabase'
+import TimePicker15 from './TimePicker15'
 import OrgPicker from './OrgPicker'
 import { fetchAllRows } from './utils/csvImport'
 import { loadOrgTz, formatTimeInZone, formatDateTimeInZone, zonedToUtcIso, utcToZonedInputs } from './utils/tz'
@@ -316,7 +317,7 @@ export default function Tasks({ profile }) {
           </div>
           <div className="field">
             <label>Time</label>
-            <input type="time" step="900" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} required />
+            <TimePicker15 value={form.time} onChange={(v) => setForm({ ...form, time: v })} required />
           </div>
           <div className="field" style={{ width: 120 }}>
             <label>Est. Minutes</label>
