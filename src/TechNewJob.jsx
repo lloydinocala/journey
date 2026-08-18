@@ -362,10 +362,12 @@ export default function TechNewJob({ profile, mode = 'job' }) {
               <div className="section-card-body">
                 <div className="mobile-field-row">
                   <div className="mobile-field"><label>Date</label><input type="date" value={jobDate} onChange={(e) => setJobDate(e.target.value)} required /></div>
-                  <div className="mobile-field"><label>Start Time</label><input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} /></div>
+                  <div className="mobile-field"><label>Start Time</label><input type="time" step="900" value={startTime} onChange={(e) => setStartTime(e.target.value)} /></div>
                 </div>
                 <div className="mobile-field-row">
-                  <div className="mobile-field"><label>Duration (hrs)</label><input type="number" step="0.5" value={durationHours} onChange={(e) => setDurationHours(e.target.value)} /></div>
+                  <div className="mobile-field"><label>Duration (hrs)</label><select value={durationHours} onChange={(e) => setDurationHours(e.target.value)}>
+                    {Array.from({ length: 40 }, (_, i) => { const n = (i + 1) * 0.25; const v = String(n); return <option key={v} value={v}>{(Number.isInteger(n) ? n.toFixed(1) : v)} hr</option> })}
+                  </select></div>
                   <div className="mobile-field">
                     <label>Job Type</label>
                     <select value={jobType} onChange={(e) => setJobType(e.target.value)}>
