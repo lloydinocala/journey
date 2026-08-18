@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import TripChargePicker from './TripChargePicker'
 import CustomerSearchSelect from './CustomerSearchSelect'
 import PropertySearchSelect from './PropertySearchSelect'
+import RelationshipSelect from './RelationshipSelect'
 import { zonedToUtcIso } from './utils/tz'
 
 export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated }) {
@@ -754,14 +755,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="existTenant1Rel">Relationship</label>
-                  <select id="existTenant1Rel" value={newTenantRelationship} onChange={(e) => setNewTenantRelationship(e.target.value)}>
-                    <option value="">—</option>
-                    <option>Owner</option>
-                    <option>Tenant</option>
-                    <option>Occupant</option>
-                    <option>Property Manager</option>
-                    <option>Other</option>
-                  </select>
+                  <RelationshipSelect id="existTenant1Rel" value={newTenantRelationship} onChange={setNewTenantRelationship} />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -775,14 +769,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="existTenant2Rel">Relationship</label>
-                  <select id="existTenant2Rel" value={newTenant2Relationship} onChange={(e) => setNewTenant2Relationship(e.target.value)}>
-                    <option value="">—</option>
-                    <option>Owner</option>
-                    <option>Tenant</option>
-                    <option>Occupant</option>
-                    <option>Property Manager</option>
-                    <option>Other</option>
-                  </select>
+                  <RelationshipSelect id="existTenant2Rel" value={newTenant2Relationship} onChange={setNewTenant2Relationship} />
                 </div>
               </div>
             </>
@@ -850,14 +837,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="newTenantRel">Relationship</label>
-                  <select id="newTenantRel" value={newTenantRelationship} onChange={(e) => setNewTenantRelationship(e.target.value)}>
-                    <option value="">—</option>
-                    <option>Owner</option>
-                    <option>Tenant</option>
-                    <option>Occupant</option>
-                    <option>Property Manager</option>
-                    <option>Other</option>
-                  </select>
+                  <RelationshipSelect id="newTenantRel" value={newTenantRelationship} onChange={setNewTenantRelationship} />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -871,14 +851,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="newTenant2Rel">Relationship</label>
-                  <select id="newTenant2Rel" value={newTenant2Relationship} onChange={(e) => setNewTenant2Relationship(e.target.value)}>
-                    <option value="">—</option>
-                    <option>Owner</option>
-                    <option>Tenant</option>
-                    <option>Occupant</option>
-                    <option>Property Manager</option>
-                    <option>Other</option>
-                  </select>
+                  <RelationshipSelect id="newTenant2Rel" value={newTenant2Relationship} onChange={setNewTenant2Relationship} />
                 </div>
               </div>
               <div className="field">
