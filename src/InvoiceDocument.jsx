@@ -129,6 +129,12 @@ export default function InvoiceDocument({ data, footer }) {
         {docLabel.toUpperCase()} {invoice.invoice_number}
       </div>
 
+      {!isEstimate && invoice.pre_approved_by && (
+        <div style={{ border: '1px solid #1F7A43', color: '#1F7A43', background: '#F0F9F4', padding: '8px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
+          Repair Pre-Approved by: {invoice.pre_approved_by}
+        </div>
+      )}
+
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', background: primary, color: 'white', padding: '8px 14px', borderRadius: '6px 6px 0 0', fontSize: 13, fontWeight: 600 }}>
           <div style={{ flex: 3 }}>Services</div>
