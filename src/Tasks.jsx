@@ -316,7 +316,7 @@ export default function Tasks({ profile }) {
           </div>
           <div className="field">
             <label>Time</label>
-            <input type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} required />
+            <input type="time" step="900" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} required />
           </div>
           <div className="field" style={{ width: 120 }}>
             <label>Est. Minutes</label>
