@@ -979,3 +979,4 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
     </div>
   )
 }
+
