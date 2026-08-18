@@ -33,9 +33,9 @@ const COLUMNS = [
   { key: 'job_type', label: 'Type' },
   { key: 'service_complaint', label: 'Issue' },
   { key: 'gate_code', label: 'Gate Code' },
-  { key: 'tenant_1', label: 'Tenant 1' },
+  { key: 'tenant_1', label: 'Occupant 1' },
   { key: 'tenant_1_phone', label: 'Phone 1' },
-  { key: 'tenant_2', label: 'Tenant 2' },
+  { key: 'tenant_2', label: 'Occupant 2' },
   { key: 'tenant_2_phone', label: 'Phone 2' },
   { key: 'technician_1', label: 'Technician 1' },
   { key: 'technician_2', label: 'Technician 2' },
@@ -847,7 +847,7 @@ export default function Jobs({ profile }) {
                     )
                     if (col.key === 'start_time') return (
                       <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
-                        <input type="time" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} />
+                        <input type="time" step="900" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} />
                         <label style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 6, fontSize: 11, color: '#555' }}>
                           <span>Duration (hrs)</span>
                           <input type="number" step="0.5" min="0" value={editDuration} onChange={(e) => setEditDuration(e.target.value)} placeholder="1" style={{ width: '100%', maxWidth: 80, boxSizing: 'border-box' }} />
