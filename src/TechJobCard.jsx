@@ -2,8 +2,8 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import SignaturePad from './SignaturePad'
-import { formatTimeInZone, formatDateTimeInZone } from './utils/tz'
 import RelationshipSelect from './RelationshipSelect'
+import { formatTimeInZone, formatDateTimeInZone } from './utils/tz'
 import {
   IconChevronLeft, IconPhone, IconMessage, IconPin, IconNavigation, IconCamera,
   IconReceipt, IconShield, IconFile, IconCalculator, IconLock, IconList,
@@ -92,6 +92,16 @@ function isSystemFilled(eq) {
   const hasModel = !!(eq.outdoor_model || eq.indoor_model || eq.furnace_model)
   return hasSerial && hasModel
 }
+// Per-job-type matrix: what the spine's middle gate is, and which spine tasks show.
+// Keyed on the job_type NAME (the repair-style default covers Repair / Labor Warranty /
+// Punchlist / Retrofit / Duct Repair / Other). Filter deliveries ride as tasks/segments,
+// so they need no variant here.
+function jobTypeConfig(jobType) {
+  const t = (jobType || '').trim().toLowerCase()
+  if (t === 'maintenance') return { middle: 'checklist', showServiceEstimate: true }
+  if (t === 'system estimate') return { middle: 'none', showServiceEstimate: false }
+  return { middle: 'diagnosis', showServiceEstimate: true }
+}
 function haversineMeters(a, b) {
   const R = 6371000, toRad = (x) => (x * Math.PI) / 180
   const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng)
@@ -161,6 +171,7 @@ export default function TechJobCard({ profile }) {
   const cameraInputRef = useRef(null)
   const ocrInputRef = useRef(null)
   const geoWatchRef = useRef(null)
+  const photoPhaseRef = useRef('pre') // which capture point the next photo belongs to: 'pre' | 'post'
 
   const [job, setJob] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -202,6 +213,14 @@ export default function TechJobCard({ profile }) {
 
   const [notes, setNotes] = useState('')
   const [notesSaved, setNotesSaved] = useState(true)
+
+  // Diagnosis (forced-chain keystone) — voice-to-text and manual text are co-equal inputs.
+  const [diagnosisNote, setDiagnosisNote] = useState('')
+  const [diagnosisSaved, setDiagnosisSaved] = useState(true)
+  const [listening, setListening] = useState(false)
+  const recognitionRef = useRef(null)
+  // Pre-repair photo "why not" reason (when a starting-condition photo can't be taken).
+  const [savingPrePhotoReason, setSavingPrePhotoReason] = useState(false)
 
   const [history, setHistory] = useState([])
   const [histOpen, setHistOpen] = useState({})
@@ -259,15 +278,15 @@ export default function TechJobCard({ profile }) {
     const { data } = await supabase.from('jobs').select(`
       id, org_id, property_id, customer_id, job_number, segment, status, start_time, duration_hours, job_type,
       service_complaint, internal_notes, auth_diagnose_only, auth_limit_amount, service_estimate_not_needed, plan_options_sent_at,
-      tech_email_edited_at, tech_phone_edited_at,
+      tech_email_edited_at, tech_phone_edited_at, diagnosis_note, diagnosis_recorded_at, pre_photo_skip_reason,
       properties ( street_address, unit, city, state, zip, expected_system_count ),
       customers ( display_name, spouse_name, primary_phone, secondary_phone, email_1 ),
       trip_charge:trip_charge_price_id ( location, access, hours, price, services ( name ) )
     `).eq('id', jobId).single()
-    setJob(data); setNotes(data?.internal_notes || ''); setLoading(false)
+    setJob(data); setNotes(data?.internal_notes || ''); setDiagnosisNote(data?.diagnosis_note || ''); setLoading(false)
   }
   async function loadPhotos() {
-    const { data } = await supabase.from('attachments').select('id, file_path, file_name, taken_at').eq('job_id', jobId).eq('category', 'photo').order('taken_at', { ascending: false })
+    const { data } = await supabase.from('attachments').select('id, file_path, file_name, taken_at, phase').eq('job_id', jobId).eq('category', 'photo').order('taken_at', { ascending: false })
     const rows = data || []; setPhotos(rows)
     const entries = await Promise.all(rows.map(async (a) => {
       const { data: s } = await supabase.storage.from('job-photos').createSignedUrl(a.file_path, 3600)
@@ -359,9 +378,21 @@ export default function TechJobCard({ profile }) {
   const expected = expectedSystems === '' ? equipment.length : parseInt(expectedSystems, 10) || 0
   const slotCount = Math.max(expected, equipment.length)
   const filledCount = equipment.filter(isSystemFilled).length
-  const equipDone = slotCount > 0 && filledCount >= slotCount
+  const systemsFilled = slotCount > 0 && filledCount >= slotCount
 
-  const photosDone = photos.length > 0
+  // The two money-moment capture points. Legacy photos (phase null) read as pre-repair.
+  const prePhotos = photos.filter((p) => p.phase !== 'post')
+  const postPhotos = photos.filter((p) => p.phase === 'post')
+  // A starting-condition photo — OR a logged reason one couldn't be taken — satisfies pre-work photos.
+  const preRepairSatisfied = prePhotos.length > 0 || !!job?.pre_photo_skip_reason
+  const preWorkPhotosDone = preRepairSatisfied
+  // "Equipment accounted for" = every system captured/documented. Pre-work photos are now
+  // their own section in the start-of-work group, not folded into Equipment.
+  const equipDone = systemsFilled
+
+  // Diagnosis is blue the moment a real note exists (voice or typed) — no minimum length.
+  const diagnosisDone = !!(job?.diagnosis_note && job.diagnosis_note.trim())
+
   const invoiceDone = !!invoice && invoiceItems > 0
   const viewSendDone = !!invoice?.sent_at
   // Before-work signature is optional; the after-work (work_finished) signature
@@ -372,12 +403,36 @@ export default function TechJobCard({ profile }) {
   const maintDone = planExists || planSent
   const serviceEstDone = !!job?.service_estimate_not_needed || serviceEstItems > 0
 
+  // ---- per-job-type matrix: which spine tasks show + what the middle gate is ----
+  const jtCfg = jobTypeConfig(job?.job_type)
+  const showDiagnosis = jtCfg.middle === 'diagnosis'   // repair-style
+  const showChecklist = jtCfg.middle === 'checklist'   // maintenance
+  const showServiceEstimate = jtCfg.showServiceEstimate
+  // Maintenance uses the customer's plan-tier checklist, or Basic when no plan is on record.
+  const maintChecklistName = plan?.maintenance_agreement_tiers?.name || 'Basic'
+  // The middle gate that must be blue before the Service Estimate unlocks. Checklist
+  // completion isn't wired until the checklist engine ships, so on Maintenance the estimate
+  // unlocks after Equipment for now (flagged); it becomes the checklist gate later.
+  const middleGateDone = showDiagnosis ? diagnosisDone : true
+
+  // START-OF-WORK GROUP: Equipment on File · Diagnosis · Pre-Work Photos are freely orderable —
+  // the tech may begin with any one, and that first tap auto-starts the job clock. Only the
+  // downstream Service Estimate is gated: no quote without a diagnosis on record.
+  const diagnosisLocked = false
+  const checklistLocked = !equipDone
+  const serviceEstimateLocked = showDiagnosis ? !diagnosisDone : !equipDone
+  const lockReason = {
+    diagnosis: '',
+    checklist: 'Account for the equipment first, then run the maintenance checklist.',
+    service_estimate: showDiagnosis ? 'Record the diagnosis first — no quote without a diagnosis.' : 'Account for the equipment first.',
+  }
+
   const invoiceTotal = invoice ? (invoice.amount_due ?? invoice.job_total ?? 0) : 0
   const repairLimit = job?.auth_limit_amount != null ? Number(job.auth_limit_amount) : null
   const exceedsLimit = repairLimit != null && invoiceTotal > repairLimit
 
   // Required tasks that drive the status pill. Warning banners do NOT count.
-  const requiredDone = photosDone && invoiceDone && viewSendDone && sigDone && equipDone && maintDone && serviceEstDone
+  const requiredDone = equipDone && preWorkPhotosDone && middleGateDone && (showServiceEstimate ? serviceEstDone : true) && invoiceDone && viewSendDone && sigDone && maintDone
   const allClear = requiredDone && !exceedsLimit
   const status = job?.status
 
@@ -467,6 +522,13 @@ export default function TechJobCard({ profile }) {
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => { window.removeEventListener('popstate', onPop); window.removeEventListener('beforeunload', onBeforeUnload) }
   }, [timingLocked])
+  // Auto-start the job clock the first time the tech opens a start-of-work section
+  // (Equipment, Diagnosis, or Pre-Work Photos). GPS-based start is unreliable, so the
+  // first real work action starts the clock. Fires once — once in_progress the guard below is false.
+  useEffect(() => {
+    const anyWorkOpen = isOpen('equipment') || isOpen('diagnosis') || isOpen('prework_photos')
+    if (anyWorkOpen && (status === 'scheduled' || status === 'on_my_way')) updateStatus('in_progress')
+  }, [openMap, status])
   function flashLock() { setLockHint(true); setTimeout(() => setLockHint(false), 2600) }
   function handleBack() { if (timingLocked) { flashLock(); return } navigate('/tech') }
 
@@ -523,15 +585,60 @@ export default function TechJobCard({ profile }) {
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
       const path = `${job.org_id}/${jobId}/${crypto.randomUUID()}.${ext}`
       const { error } = await supabase.storage.from('job-photos').upload(path, file, { contentType: file.type || 'image/jpeg' })
-      if (!error) await supabase.from('attachments').insert({ org_id: job.org_id, job_id: jobId, uploaded_by: uid, file_path: path, file_name: file.name, mime_type: file.type || 'image/jpeg', file_size_bytes: file.size, category: 'photo' })
+      if (!error) await supabase.from('attachments').insert({ org_id: job.org_id, job_id: jobId, uploaded_by: uid, file_path: path, file_name: file.name, mime_type: file.type || 'image/jpeg', file_size_bytes: file.size, category: 'photo', phase: photoPhaseRef.current })
+    }
+    // Capturing a starting-condition photo clears any earlier "couldn't photograph" reason.
+    if (photoPhaseRef.current === 'pre' && job.pre_photo_skip_reason) {
+      await supabase.from('jobs').update({ pre_photo_skip_reason: null }).eq('id', jobId)
+      setJob((p) => ({ ...p, pre_photo_skip_reason: null }))
     }
     setUploading(false)
     await loadPhotos()
   }
+  function capturePhoto(phase, mode) {
+    photoPhaseRef.current = phase
+    setOpen(phase === 'pre' ? 'prework_photos' : 'completion_photos', true)
+    ;(mode === 'upload' ? fileInputRef : cameraInputRef).current?.click()
+  }
   async function handlePhotoSelect(e) {
     const files = Array.from(e.target.files || []); e.target.value = ''
     await uploadPhotoFiles(files)
-    if (files.length) setOpen('attachments', false)
+  }
+  async function savePrePhotoSkipReason(reason) {
+    setSavingPrePhotoReason(true)
+    await supabase.from('jobs').update({ pre_photo_skip_reason: reason || null }).eq('id', jobId)
+    setJob((p) => ({ ...p, pre_photo_skip_reason: reason || null }))
+    setSavingPrePhotoReason(false)
+  }
+  // ---- diagnosis (voice-to-text + manual, co-equal) ----
+  async function saveDiagnosis() {
+    const note = diagnosisNote.trim()
+    const patch = { diagnosis_note: note || null, diagnosis_recorded_at: note ? new Date().toISOString() : null }
+    const { error } = await supabase.from('jobs').update(patch).eq('id', jobId)
+    if (!error) { setJob((p) => ({ ...p, ...patch })); setDiagnosisSaved(true) }
+  }
+  function toggleDictation() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) return
+    if (listening) { recognitionRef.current?.stop(); return }
+    const rec = new SR()
+    rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = true
+    let base = diagnosisNote ? diagnosisNote + ' ' : ''
+    rec.onresult = (e) => {
+      let finalTxt = '', interim = ''
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript
+        if (e.results[i].isFinal) finalTxt += t; else interim += t
+      }
+      if (finalTxt) base += finalTxt
+      setDiagnosisNote((base + interim).replace(/\s+/g, ' ').trimStart())
+      setDiagnosisSaved(false)
+    }
+    rec.onend = () => { setListening(false); saveDiagnosis() }
+    rec.onerror = () => setListening(false)
+    recognitionRef.current = rec
+    setListening(true)
+    rec.start()
   }
   // SCAN uses the AI-scan capture; the image is saved to attachments now, AI read-out follows.
   async function handleAttachScan(e) {
@@ -635,7 +742,7 @@ export default function TechJobCard({ profile }) {
       const path = `${job.org_id}/${jobId}/${crypto.randomUUID()}.jpg`
       const { error } = await supabase.storage.from('job-photos').upload(path, blob, { contentType: 'image/jpeg' })
       if (!error) {
-        await supabase.from('attachments').insert({ org_id: job.org_id, job_id: jobId, uploaded_by: uid, file_path: path, file_name: `${label} nameplate.jpg`, mime_type: 'image/jpeg', file_size_bytes: blob.size, category: 'photo' })
+        await supabase.from('attachments').insert({ org_id: job.org_id, job_id: jobId, uploaded_by: uid, file_path: path, file_name: `${label} nameplate.jpg`, mime_type: 'image/jpeg', file_size_bytes: blob.size, category: 'photo', phase: 'pre' })
         loadPhotos()
       }
     } catch { /* documentation is best-effort */ }
@@ -758,18 +865,24 @@ export default function TechJobCard({ profile }) {
   const startClass = started || ended ? 'blue' : enRoute ? 'red' : 'idle'
   const stopClass = ended ? 'blue' : started ? 'red' : 'idle'
 
-  function TaskHead({ k, title, icon, done, actions, forceColor }) {
+  function TaskHead({ k, title, icon, done, actions, forceColor, locked }) {
     const color = forceColor || (done ? 'blue' : 'red')
     return (
-      <div className={`jc-task-head ${color}`} role="button" tabIndex={0} onClick={() => toggle(k)}>
+      <div className={`jc-task-head ${color}${locked ? ' locked' : ''}`} role="button" tabIndex={0}
+        style={locked ? { opacity: 0.5, filter: 'grayscale(1)', cursor: 'default' } : undefined}
+        onClick={() => { if (!locked) toggle(k) }}>
         {icon}
         <span className="jc-th-title">{title}</span>
         <span className="jc-th-actions" onClick={(e) => e.stopPropagation()}>
-          {actions}
-          <span className={`jc-th-chevron ${isOpen(k) ? 'open' : ''}`} onClick={() => toggle(k)}>›</span>
+          {!locked && actions}
+          <span className={`jc-th-chevron ${isOpen(k) ? 'open' : ''}`} onClick={() => { if (!locked) toggle(k) }}>{locked ? '🔒' : '›'}</span>
         </span>
       </div>
     )
+  }
+  // Small greyed reason line shown right under a locked task head.
+  function LockNote({ text }) {
+    return <div className="jc-task" style={{ margin: '-4px 0 8px', padding: '6px 12px', fontSize: 12.5, color: 'var(--jc-muted)', display: 'flex', alignItems: 'center', gap: 6 }}><span>🔒</span><span>{text}</span></div>
   }
 
   return (
@@ -799,7 +912,7 @@ export default function TechJobCard({ profile }) {
         {/* Flow buttons */}
         <div className="jc-actions">
           <button className={`jc-flow-btn ${omwClass}`} disabled={status !== 'scheduled' || saving} onClick={() => updateStatus('on_my_way')}>On My Way</button>
-          <button className={`jc-flow-btn ${startClass}`} disabled={status !== 'on_my_way' || saving} onClick={() => updateStatus('in_progress')}>Start My Time</button>
+          <button className={`jc-flow-btn ${startClass}`} disabled={started || status !== 'on_my_way' || saving} onClick={() => updateStatus('in_progress')}>{started ? (job.arrival_at ? `Started ${formatTimeInZone(job.arrival_at)}` : 'Time Started') : 'Start My Time'}</button>
           <button className={`jc-flow-btn ${stopClass}`} disabled={!started || savingStop} onClick={onStopMyTime}>Stop My Time</button>
         </div>
         {enRoute && (
@@ -903,23 +1016,211 @@ export default function TechJobCard({ profile }) {
           )}
         </div>
 
-        {/* Attachments (required) */}
+        {/* Hidden photo inputs (shared by pre- and post-repair capture) */}
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" multiple style={{ display: 'none' }} onChange={handlePhotoSelect} />
+        <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotoSelect} />
+
+        {/* ========== WORKFLOW SPINE — forced order: Equipment -> Diagnosis -> Service Estimate ========== */}
+
+        {/* Equipment on File — nameplates / systems on record (start-of-work group) */}
         <div className="jc-task">
-          <TaskHead k="attachments" title="Attachments" icon={<IconCamera />} done={photosDone}
+          <TaskHead k="equipment" title="Equipment on File" icon={<IconShield />} done={equipDone}
             actions={<>
-              <button className="jc-th-action" onClick={() => { setOpen('attachments', true); cameraInputRef.current?.click() }}>Take Photo</button>
-              <button className="jc-th-action" onClick={() => { setOpen('attachments', true); fileInputRef.current?.click() }}>Upload</button>
+              <button className="jc-th-action" onClick={() => { setEquipEditingId(null); setEquipForm(blankEquip); startUnitScan('outdoor') }}>+Scan</button>
+              <button className="jc-th-action" onClick={() => { setOpen('equipment', true); setShowEquipForm(true); setEquipEditingId(null); setEquipForm(blankEquip); setScanMsg('') }}>+Manual</button>
             </>} />
-          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" multiple style={{ display: 'none' }} onChange={handlePhotoSelect} />
-          <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotoSelect} />
-          {isOpen('attachments') && (
+          <input ref={ocrInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={onNameplateFile} />
+          {isOpen('equipment') && (
             <div className="jc-task-body">
-              {scanNotice && <p className="jc-muted-note" style={{ color: 'var(--jc-blue)', marginBottom: 10 }}>{scanNotice}</p>}
+              <div className="jc-field"><label>Number of systems</label><div className="jc-field-row"><input type="number" min="0" value={expectedSystems} onChange={(e) => setExpectedSystems(e.target.value)} onBlur={(e) => saveExpectedSystems(e.target.value)} placeholder={String(equipment.length || 0)} /></div></div>
+              {Array.from({ length: slotCount }).map((_, i) => {
+                const eq = equipment[i]; const filled = isSystemFilled(eq)
+                if (!eq) return (
+                  <div key={`e-${i}`} className="jc-system missing">
+                    <div className="jc-system-top"><span className="jc-system-label">System {i + 1}</span><span className="jc-system-badge missing">Not on file</span></div>
+                    <div className="jc-system-detail">Add this system&apos;s nameplate (Scan or Manual).</div>
+                  </div>
+                )
+                return (
+                  <div key={eq.id} className={`jc-system ${filled ? 'filled' : 'missing'}`}>
+                    <div className="jc-system-top"><span className="jc-system-label">{eq.system_label || `System ${i + 1}`}</span><span className={`jc-system-badge ${filled ? 'filled' : 'missing'}`}>{filled ? 'Filled' : 'Incomplete'}</span></div>
+                    <div className="jc-system-detail">
+                      <div><strong>Outdoor:</strong> {[eq.outdoor_brand, eq.outdoor_model].filter(Boolean).join(' ') || '—'}{eq.outdoor_serial ? ` (SN: ${eq.outdoor_serial})` : ''}</div>
+                      <div><strong>Indoor:</strong> {[eq.indoor_brand, eq.indoor_model].filter(Boolean).join(' ') || '—'}{eq.indoor_serial ? ` (SN: ${eq.indoor_serial})` : ''}</div>
+                      <div><strong>Furnace:</strong> {[eq.furnace_brand, eq.furnace_model].filter(Boolean).join(' ') || '—'}{eq.furnace_serial ? ` (SN: ${eq.furnace_serial})` : ''}</div>
+                      {eq.info_unavailable_reason && <div style={{ color: 'var(--jc-red)', fontWeight: 700, marginTop: 4 }}>Data not available: {eq.info_unavailable_reason}</div>}
+                    </div>
+                    <div className="jc-system-actions"><button className="jc-btn-sm" onClick={() => startEquipEdit(eq)}>Edit</button><button className="jc-btn-sm" style={{ color: 'var(--jc-red)' }} onClick={() => deleteEquipment(eq.id)}>Remove</button></div>
+                  </div>
+                )
+              })}
+              {showEquipForm && (
+                <div style={{ marginTop: 12 }}>
+                  {scanMsg && <p className="jc-muted-note" style={{ color: scanBusy ? 'var(--jc-muted)' : 'var(--jc-blue)', marginBottom: 10, fontWeight: 700 }}>{scanBusy ? '📷 ' : ''}{scanMsg}</p>}
+                  <div className="jc-field"><label>System label</label><input value={equipForm.system_label} onChange={(e) => setEquipForm({ ...equipForm, system_label: e.target.value })} placeholder="e.g. Upstairs" /></div>
+                  <div className="jc-field"><label>Install date</label><input type="date" value={equipForm.install_date} onChange={(e) => setEquipForm({ ...equipForm, install_date: e.target.value })} /></div>
+                  <div className="jc-unit-head"><span>Outdoor</span><button className="jc-scan-btn" disabled={scanBusy} onClick={() => startUnitScan('outdoor')}><IconCamera /> Scan label</button></div>
+                  <div className="jc-field-row"><div className="jc-field"><label>Brand</label><input value={equipForm.outdoor_brand} onChange={(e) => setEquipForm({ ...equipForm, outdoor_brand: e.target.value })} /></div><div className="jc-field"><label>Model</label><input value={equipForm.outdoor_model} onChange={(e) => setEquipForm({ ...equipForm, outdoor_model: e.target.value })} /></div></div>
+                  <div className="jc-field"><label>Serial</label><input value={equipForm.outdoor_serial} onChange={(e) => setEquipForm({ ...equipForm, outdoor_serial: e.target.value })} /></div>
+                  <div className="jc-unit-head"><span>Indoor</span><button className="jc-scan-btn" disabled={scanBusy} onClick={() => startUnitScan('indoor')}><IconCamera /> Scan label</button></div>
+                  <div className="jc-field-row"><div className="jc-field"><label>Brand</label><input value={equipForm.indoor_brand} onChange={(e) => setEquipForm({ ...equipForm, indoor_brand: e.target.value })} /></div><div className="jc-field"><label>Model</label><input value={equipForm.indoor_model} onChange={(e) => setEquipForm({ ...equipForm, indoor_model: e.target.value })} /></div></div>
+                  <div className="jc-field"><label>Serial</label><input value={equipForm.indoor_serial} onChange={(e) => setEquipForm({ ...equipForm, indoor_serial: e.target.value })} /></div>
+                  <div className="jc-unit-head"><span>Furnace</span><button className="jc-scan-btn" disabled={scanBusy} onClick={() => startUnitScan('furnace')}><IconCamera /> Scan label</button></div>
+                  <div className="jc-field-row"><div className="jc-field"><label>Brand</label><input value={equipForm.furnace_brand} onChange={(e) => setEquipForm({ ...equipForm, furnace_brand: e.target.value })} /></div><div className="jc-field"><label>Model</label><input value={equipForm.furnace_model} onChange={(e) => setEquipForm({ ...equipForm, furnace_model: e.target.value })} /></div></div>
+                  <div className="jc-field"><label>Serial</label><input value={equipForm.furnace_serial} onChange={(e) => setEquipForm({ ...equipForm, furnace_serial: e.target.value })} /></div>
+                  <div className="jc-field"><label>If details are unavailable, why?</label>
+                    <select value={equipForm.info_unavailable_reason} onChange={(e) => setEquipForm({ ...equipForm, info_unavailable_reason: e.target.value })}>
+                      <option value="">— Details captured above —</option>
+                      <option value="Unable to read label">Unable to read label</option>
+                      <option value="Data plate missing">Data plate missing</option>
+                    </select>
+                  </div>
+                  <button className="jc-btn wide" disabled={savingEquip} onClick={saveEquipment}>{savingEquip ? 'Saving…' : equipEditingId ? 'Save Changes' : 'Add System'}</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Diagnosis (Repair-style) — locked until Equipment is done; unlocks the Service Estimate */}
+        {showDiagnosis && <>
+        {diagnosisLocked && <LockNote text={lockReason.diagnosis} />}
+        <div className="jc-task">
+          <TaskHead k="diagnosis" title="Diagnosis" icon={<IconFile />} done={diagnosisDone} locked={diagnosisLocked} />
+          {!diagnosisLocked && isOpen('diagnosis') && (
+            <div className="jc-task-body">
+              <p className="jc-muted-note" style={{ marginBottom: 8 }}>What&apos;s wrong and why — dictate it or type it. Recording this unlocks the Service Estimate.</p>
+              <textarea className="jc-notes" placeholder="Describe the diagnosis…" value={diagnosisNote} onChange={(e) => { setDiagnosisNote(e.target.value); setDiagnosisSaved(false) }} onBlur={saveDiagnosis} />
+              <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {(window.SpeechRecognition || window.webkitSpeechRecognition) && (
+                  <button className={`jc-btn${listening ? ' red' : ''}`} onClick={toggleDictation}>{listening ? '● Stop dictation' : '🎤 Dictate'}</button>
+                )}
+                <button className="jc-btn ghost" onClick={saveDiagnosis} disabled={diagnosisSaved}>Save</button>
+                {!diagnosisSaved && <span className="jc-muted-note">Unsaved — saves when you tap away</span>}
+                {diagnosisSaved && diagnosisDone && <span className="jc-done-line">Recorded.</span>}
+              </div>
+            </div>
+          )}
+        </div>
+
+        </>}
+
+        {/* Pre-Work Photos — third of the start-of-work group; starting-condition photos or a logged reason */}
+        <div className="jc-task">
+          <TaskHead k="prework_photos" title="Pre-Work Photos" icon={<IconCamera />} done={preWorkPhotosDone}
+            actions={<>
+              <button className="jc-th-action" onClick={() => capturePhoto('pre', 'camera')}>Take</button>
+              <button className="jc-th-action" onClick={() => capturePhoto('pre', 'upload')}>Upload</button>
+            </>} />
+          {isOpen('prework_photos') && (
+            <div className="jc-task-body">
+              <p className="jc-muted-note" style={{ marginBottom: 8 }}>Starting-condition photos before you begin — or log why one can&apos;t be taken.</p>
               <div className="jc-photo-grid">
-                {photos.map((p) => (
+                {prePhotos.map((p) => (
                   <a key={p.id} href={photoUrls[p.id] || '#'} target="_blank" rel="noreferrer" className="jc-photo">{photoUrls[p.id] ? <img src={photoUrls[p.id]} alt={p.file_name} /> : <IconCamera />}</a>
                 ))}
-                <div className="jc-photo-add" onClick={() => fileInputRef.current?.click()}>+</div>
+                <div className="jc-photo-add" onClick={() => capturePhoto('pre', 'camera')}>+</div>
+              </div>
+              {prePhotos.length === 0 && (
+                <div className="jc-field" style={{ marginTop: 8 }}>
+                  <label>Can&apos;t take a photo? Pick a reason — it&apos;s logged as documented</label>
+                  <select value={job.pre_photo_skip_reason || ''} onChange={(e) => savePrePhotoSkipReason(e.target.value)} disabled={savingPrePhotoReason}>
+                    <option value="">— I&apos;ll take a photo —</option>
+                    <option value="No safe access to the unit">No safe access to the unit</option>
+                    <option value="Unit or nameplate not reachable">Unit or nameplate not reachable</option>
+                    <option value="Too dark or tight to photograph">Too dark or tight to photograph</option>
+                    <option value="Customer declined">Customer declined</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  {job.pre_photo_skip_reason && <p className="jc-muted-note" style={{ color: 'var(--jc-blue)', marginTop: 4 }}>Documented: {job.pre_photo_skip_reason}</p>}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Checklist (Maintenance) — replaces Diagnosis; uses the plan-tier checklist, or Basic */}
+        {showChecklist && <>
+        {checklistLocked && <LockNote text={lockReason.checklist} />}
+        <div className="jc-task">
+          <TaskHead k="checklist" title={`Checklist — ${maintChecklistName}`} icon={<IconList />} done={false} locked={checklistLocked} />
+          {!checklistLocked && isOpen('checklist') && (
+            <div className="jc-task-body">
+              <p className="jc-muted-note">This visit uses the <strong>{maintChecklistName}</strong> maintenance checklist{plan ? ' (from the plan on record)' : ' — no plan on record, so the Basic default'}. The full checklist — its line items, required photos, and the completed copy emailed to the customer with the invoice — arrives with the checklist build. For now this is a placeholder and does not block completion.</p>
+            </div>
+          )}
+        </div>
+        </>}
+
+        {/* Service Estimate — locked until the middle gate (diagnosis/checklist) is done */}
+        {showServiceEstimate && <>
+        {serviceEstimateLocked && <LockNote text={lockReason.service_estimate} />}
+        <div className="jc-task">
+          <TaskHead k="service_estimate" title="Service Estimate" icon={<IconFile />} done={serviceEstDone} locked={serviceEstimateLocked}
+            actions={<button className="jc-th-action" onClick={() => { setOpen('service_estimate', true); if (equipDone || job.service_estimate_not_needed) navigate(`/tech/estimate/${jobId}`) }}>+Add</button>} />
+          {!serviceEstimateLocked && isOpen('service_estimate') && (
+            <div className="jc-task-body">
+              <label className="jc-not-needed">
+                <input type="checkbox" checked={!!job.service_estimate_not_needed} onChange={(e) => markServiceEstimateNotNeeded(e.target.checked)} />
+                Not Needed for this job
+              </label>
+              {!job.service_estimate_not_needed && (
+                <Link to={`/tech/estimate/${jobId}`} className="jc-action-link"><IconFile /><span>Build Service Estimate</span><span className="jc-chev">›</span></Link>
+              )}
+              {serviceEstimate && (
+                serviceEstItems > 0 ? (
+                  <button className="jc-btn red wide" style={{ marginTop: 4 }} onClick={() => navigate(`/tech/invoice-view/${serviceEstimate.id}`)}>View, Sign &amp; Send Service Estimate</button>
+                ) : (
+                  <p className="jc-plan-none" style={{ padding: '10px 0 2px' }}>Add at least one line item to the estimate before viewing or sending.</p>
+                )
+              )}
+            </div>
+          )}
+        </div>
+
+        </>}
+
+        {/* ========== FREE ORDER — work these with the customer in any order ========== */}
+
+        {/* Maintenance Agreements */}
+        <div className="jc-task">
+          <TaskHead k="maintenance" title="Maintenance Agreements" icon={<IconShield />} done={maintDone}
+            actions={!planExists ? <button className="jc-th-action" onClick={() => { setOpen('maintenance', true); handleSendPlans() }}>{planSent ? '+Send Again' : '+Send Options'}</button> : null} />
+          {isOpen('maintenance') && (
+            <div className="jc-task-body">
+              {planExists ? (
+                <div className="jc-plan-yes">{(plan.maintenance_agreement_tiers?.name || 'PLAN').toUpperCase()} PLAN ON RECORD</div>
+              ) : planSent ? (
+                <div className="jc-plan-yes">PLAN OPTIONS SENT</div>
+              ) : (
+                <div className="jc-plan-none">CUSTOMER HAS NO PLAN ON RECORD</div>
+              )}
+              {!planExists && (
+                <button className="jc-btn wide" disabled={sendingPlans} onClick={handleSendPlans}>{sendingPlans ? 'Sending…' : planSent ? 'Send Options Again' : 'Send Plan Options'}</button>
+              )}
+              {plansMsg && <p className="jc-muted-note" style={{ marginTop: 8, color: 'var(--jc-blue)' }}>{plansMsg}</p>}
+            </div>
+          )}
+        </div>
+        {/* IAQ and Checklists mount here in later builds (free-order tasks). */}
+
+        {/* ========== WORK & BILLING — after the estimate is approved ========== */}
+
+        {/* Completion (post-repair) photos — the hard gate before Invoice lands in the estimate/invoice build */}
+        <div className="jc-task">
+          <TaskHead k="completion_photos" title="Completion Photos" icon={<IconCamera />} done={postPhotos.length > 0}
+            actions={<>
+              <button className="jc-th-action" onClick={() => capturePhoto('post', 'camera')}>Take Photo</button>
+              <button className="jc-th-action" onClick={() => capturePhoto('post', 'upload')}>Upload</button>
+            </>} />
+          {isOpen('completion_photos') && (
+            <div className="jc-task-body">
+              <p className="jc-muted-note" style={{ marginBottom: 8 }}>Photos of the finished work — proof of completion.</p>
+              <div className="jc-photo-grid">
+                {postPhotos.map((p) => (
+                  <a key={p.id} href={photoUrls[p.id] || '#'} target="_blank" rel="noreferrer" className="jc-photo">{photoUrls[p.id] ? <img src={photoUrls[p.id]} alt={p.file_name} /> : <IconCamera />}</a>
+                ))}
+                <div className="jc-photo-add" onClick={() => capturePhoto('post', 'camera')}>+</div>
               </div>
             </div>
           )}
@@ -950,7 +1251,7 @@ export default function TechJobCard({ profile }) {
                   {invoiceItems > 0 ? (
                     <button className="jc-btn wide" style={{ marginTop: 10 }} onClick={() => navigate(`/tech/invoice-view/${invoice.id}`)}>View &amp; Send Invoice</button>
                   ) : (
-                    <p className="jc-plan-none" style={{ padding: '10px 0 2px' }}>Add at least one service or custom item in Invoice Builder before viewing or sending. (The trip charge alone doesn't count.)</p>
+                    <p className="jc-plan-none" style={{ padding: '10px 0 2px' }}>Add at least one service or custom item in Invoice Builder before viewing or sending. (The trip charge alone doesn&apos;t count.)</p>
                   )}
                 </>
               )}
@@ -1008,112 +1309,7 @@ export default function TechJobCard({ profile }) {
           )}
         </div>
 
-        {/* Equipment on File (required) */}
-        <div className="jc-task">
-          <TaskHead k="equipment" title="Equipment on File" icon={<IconShield />} done={equipDone}
-            actions={<>
-              <button className="jc-th-action" onClick={() => { setEquipEditingId(null); setEquipForm(blankEquip); startUnitScan('outdoor') }}>+Scan</button>
-              <button className="jc-th-action" onClick={() => { setOpen('equipment', true); setShowEquipForm(true); setEquipEditingId(null); setEquipForm(blankEquip); setScanMsg('') }}>+Manual</button>
-            </>} />
-          <input ref={ocrInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={onNameplateFile} />
-          {isOpen('equipment') && (
-            <div className="jc-task-body">
-              <div className="jc-field"><label>Number of systems</label><div className="jc-field-row"><input type="number" min="0" value={expectedSystems} onChange={(e) => setExpectedSystems(e.target.value)} onBlur={(e) => saveExpectedSystems(e.target.value)} placeholder={String(equipment.length || 0)} /></div></div>
-              {Array.from({ length: slotCount }).map((_, i) => {
-                const eq = equipment[i]; const filled = isSystemFilled(eq)
-                if (!eq) return (
-                  <div key={`e-${i}`} className="jc-system missing">
-                    <div className="jc-system-top"><span className="jc-system-label">System {i + 1}</span><span className="jc-system-badge missing">Not on file</span></div>
-                    <div className="jc-system-detail">Add this system's nameplate (Scan or Manual).</div>
-                  </div>
-                )
-                return (
-                  <div key={eq.id} className={`jc-system ${filled ? 'filled' : 'missing'}`}>
-                    <div className="jc-system-top"><span className="jc-system-label">{eq.system_label || `System ${i + 1}`}</span><span className={`jc-system-badge ${filled ? 'filled' : 'missing'}`}>{filled ? 'Filled' : 'Incomplete'}</span></div>
-                    <div className="jc-system-detail">
-                      <div><strong>Outdoor:</strong> {[eq.outdoor_brand, eq.outdoor_model].filter(Boolean).join(' ') || '—'}{eq.outdoor_serial ? ` (SN: ${eq.outdoor_serial})` : ''}</div>
-                      <div><strong>Indoor:</strong> {[eq.indoor_brand, eq.indoor_model].filter(Boolean).join(' ') || '—'}{eq.indoor_serial ? ` (SN: ${eq.indoor_serial})` : ''}</div>
-                      <div><strong>Furnace:</strong> {[eq.furnace_brand, eq.furnace_model].filter(Boolean).join(' ') || '—'}{eq.furnace_serial ? ` (SN: ${eq.furnace_serial})` : ''}</div>
-                      {eq.info_unavailable_reason && <div style={{ color: 'var(--jc-red)', fontWeight: 700, marginTop: 4 }}>Data not available: {eq.info_unavailable_reason}</div>}
-                    </div>
-                    <div className="jc-system-actions"><button className="jc-btn-sm" onClick={() => startEquipEdit(eq)}>Edit</button><button className="jc-btn-sm" style={{ color: 'var(--jc-red)' }} onClick={() => deleteEquipment(eq.id)}>Remove</button></div>
-                  </div>
-                )
-              })}
-              {showEquipForm && (
-                <div style={{ marginTop: 12 }}>
-                  {scanMsg && <p className="jc-muted-note" style={{ color: scanBusy ? 'var(--jc-muted)' : 'var(--jc-blue)', marginBottom: 10, fontWeight: 700 }}>{scanBusy ? '📷 ' : ''}{scanMsg}</p>}
-                  <div className="jc-field"><label>System label</label><input value={equipForm.system_label} onChange={(e) => setEquipForm({ ...equipForm, system_label: e.target.value })} placeholder="e.g. Upstairs" /></div>
-                  <div className="jc-field"><label>Install date</label><input type="date" value={equipForm.install_date} onChange={(e) => setEquipForm({ ...equipForm, install_date: e.target.value })} /></div>
-                  <div className="jc-unit-head"><span>Outdoor</span><button className="jc-scan-btn" disabled={scanBusy} onClick={() => startUnitScan('outdoor')}><IconCamera /> Scan label</button></div>
-                  <div className="jc-field-row"><div className="jc-field"><label>Brand</label><input value={equipForm.outdoor_brand} onChange={(e) => setEquipForm({ ...equipForm, outdoor_brand: e.target.value })} /></div><div className="jc-field"><label>Model</label><input value={equipForm.outdoor_model} onChange={(e) => setEquipForm({ ...equipForm, outdoor_model: e.target.value })} /></div></div>
-                  <div className="jc-field"><label>Serial</label><input value={equipForm.outdoor_serial} onChange={(e) => setEquipForm({ ...equipForm, outdoor_serial: e.target.value })} /></div>
-                  <div className="jc-unit-head"><span>Indoor</span><button className="jc-scan-btn" disabled={scanBusy} onClick={() => startUnitScan('indoor')}><IconCamera /> Scan label</button></div>
-                  <div className="jc-field-row"><div className="jc-field"><label>Brand</label><input value={equipForm.indoor_brand} onChange={(e) => setEquipForm({ ...equipForm, indoor_brand: e.target.value })} /></div><div className="jc-field"><label>Model</label><input value={equipForm.indoor_model} onChange={(e) => setEquipForm({ ...equipForm, indoor_model: e.target.value })} /></div></div>
-                  <div className="jc-field"><label>Serial</label><input value={equipForm.indoor_serial} onChange={(e) => setEquipForm({ ...equipForm, indoor_serial: e.target.value })} /></div>
-                  <div className="jc-unit-head"><span>Furnace</span><button className="jc-scan-btn" disabled={scanBusy} onClick={() => startUnitScan('furnace')}><IconCamera /> Scan label</button></div>
-                  <div className="jc-field-row"><div className="jc-field"><label>Brand</label><input value={equipForm.furnace_brand} onChange={(e) => setEquipForm({ ...equipForm, furnace_brand: e.target.value })} /></div><div className="jc-field"><label>Model</label><input value={equipForm.furnace_model} onChange={(e) => setEquipForm({ ...equipForm, furnace_model: e.target.value })} /></div></div>
-                  <div className="jc-field"><label>Serial</label><input value={equipForm.furnace_serial} onChange={(e) => setEquipForm({ ...equipForm, furnace_serial: e.target.value })} /></div>
-                  <div className="jc-field"><label>If details are unavailable, why?</label>
-                    <select value={equipForm.info_unavailable_reason} onChange={(e) => setEquipForm({ ...equipForm, info_unavailable_reason: e.target.value })}>
-                      <option value="">— Details captured above —</option>
-                      <option value="Unable to read label">Unable to read label</option>
-                      <option value="Data plate missing">Data plate missing</option>
-                    </select>
-                  </div>
-                  <button className="jc-btn wide" disabled={savingEquip} onClick={saveEquipment}>{savingEquip ? 'Saving…' : equipEditingId ? 'Save Changes' : 'Add System'}</button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Maintenance Agreements (required, default open) */}
-        <div className="jc-task">
-          <TaskHead k="maintenance" title="Maintenance Agreements" icon={<IconShield />} done={maintDone}
-            actions={!planExists ? <button className="jc-th-action" onClick={() => { setOpen('maintenance', true); handleSendPlans() }}>{planSent ? '+Send Again' : '+Send Options'}</button> : null} />
-          {isOpen('maintenance') && (
-            <div className="jc-task-body">
-              {planExists ? (
-                <div className="jc-plan-yes">{(plan.maintenance_agreement_tiers?.name || 'PLAN').toUpperCase()} PLAN ON RECORD</div>
-              ) : planSent ? (
-                <div className="jc-plan-yes">PLAN OPTIONS SENT</div>
-              ) : (
-                <div className="jc-plan-none">CUSTOMER HAS NO PLAN ON RECORD</div>
-              )}
-              {!planExists && (
-                <button className="jc-btn wide" disabled={sendingPlans} onClick={handleSendPlans}>{sendingPlans ? 'Sending…' : planSent ? 'Send Options Again' : 'Send Plan Options'}</button>
-              )}
-              {plansMsg && <p className="jc-muted-note" style={{ marginTop: 8, color: 'var(--jc-blue)' }}>{plansMsg}</p>}
-            </div>
-          )}
-        </div>
-
-        {/* Service Estimate (required) */}
-        <div className="jc-task">
-          <TaskHead k="service_estimate" title="Service Estimate" icon={<IconFile />} done={serviceEstDone}
-            actions={<button className="jc-th-action" onClick={() => { setOpen('service_estimate', true); if (equipDone || job.service_estimate_not_needed) navigate(`/tech/estimate/${jobId}`) }}>+Add</button>} />
-          {isOpen('service_estimate') && (
-            <div className="jc-task-body">
-              <label className="jc-not-needed">
-                <input type="checkbox" checked={!!job.service_estimate_not_needed} onChange={(e) => markServiceEstimateNotNeeded(e.target.checked)} />
-                Not Needed for this job
-              </label>
-              {!job.service_estimate_not_needed && !equipDone ? (
-                <p className="jc-plan-none" style={{ padding: '10px 0 2px' }}>Record the Equipment on File first — the Service Estimate pulls each system's brand, model and serial (or the reason it's unavailable) from it.</p>
-              ) : !job.service_estimate_not_needed && (
-                <Link to={`/tech/estimate/${jobId}`} className="jc-action-link"><IconFile /><span>Build Service Estimate</span><span className="jc-chev">›</span></Link>
-              )}
-              {serviceEstimate && (
-                serviceEstItems > 0 ? (
-                  <button className="jc-btn red wide" style={{ marginTop: 4 }} onClick={() => navigate(`/tech/invoice-view/${serviceEstimate.id}`)}>View, Sign &amp; Send Service Estimate</button>
-                ) : (
-                  <p className="jc-plan-none" style={{ padding: '10px 0 2px' }}>Add at least one line item to the estimate before viewing or sending.</p>
-                )
-              )}
-            </div>
-          )}
-        </div>
+        {/* ========== REFERENCE ========== */}
 
         {/* Equipment Estimate (optional / blue) */}
         <div className="jc-task">
