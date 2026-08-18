@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
-import { IconChevronLeft, IconPin, IconNavigation, IconList } from './MobileIcons'
+import { IconChevronLeft, IconPin, IconNavigation, IconList, IconPhone, IconMessage } from './MobileIcons'
 import { formatTimeInZone, formatDateTimeInZone } from './utils/tz'
 
 const INCOMPLETE_REASONS = [
@@ -272,6 +272,27 @@ export default function TechTaskCard({ profile }) {
           </div>
         </div>
 
+        {/* Contact */}
+        {(task.contact_name || task.contact_phone) && (
+          <div className="jc-task">
+            <div className="jc-task-head blue"><IconPhone /><span className="jc-th-title">Contact</span></div>
+            <div className="jc-task-body">
+              {task.contact_name && (
+                <div className="jc-tenant-name">{task.contact_name}{task.contact_title ? ` \u2013 ${task.contact_title}` : ''}</div>
+              )}
+              {task.contact_phone && (
+                <div className="jc-phone">
+                  <span>{task.contact_name || 'Contact'}</span>
+                  <div className="jc-phone-icons">
+                    <a className="call" href={`tel:${task.contact_phone}`} title="Call" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconPhone /></a>
+                    <a className="text" href={`sms:${task.contact_phone}`} title="Text" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconMessage /></a>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Parts pickup (if this task is linked to a parts order) */}
         {part && (
           <div className="jc-task">
@@ -291,11 +312,16 @@ export default function TechTaskCard({ profile }) {
         )}
 
         {/* Description */}
-        {task.description && (
+        {(task.description || task.return_to) && (
           <div className="jc-task">
-            <div className="jc-task-head blue"><IconList /><span className="jc-th-title">Details</span></div>
+            <div className="jc-task-head blue"><IconList /><span className="jc-th-title">Description</span></div>
             <div className="jc-task-body">
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: 15, lineHeight: 1.4 }}>{task.description}</div>
+              {task.return_to && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#EEF3FF', color: '#2F5DE3', border: '1px solid #C7D6FF', borderRadius: 6, padding: '5px 10px', fontSize: 14, fontWeight: 700, marginBottom: task.description ? 10 : 0 }}>
+                  {'\u21A9'} {task.return_to === 'shop' ? 'Return to Shop' : 'Return to Job'}
+                </div>
+              )}
+              {task.description && <div style={{ whiteSpace: 'pre-wrap', fontSize: 15, lineHeight: 1.4 }}>{task.description}</div>}
             </div>
           </div>
         )}
