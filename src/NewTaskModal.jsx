@@ -33,7 +33,7 @@ export default function NewTaskModal({ orgId, profile, onClose, onCreated }) {
     if (!orgId) return
     supabase.from('users').select('id, full_name').eq('org_id', orgId).eq('is_active', true).order('full_name')
       .then(({ data }) => setUsers(data || []))
-    supabase.from('vendors').select('id, name, street_address, city, state, zip').eq('org_id', orgId).order('name')
+    supabase.from('vendors').select('id, name, street_address, city, state, zip, phone').eq('org_id', orgId).order('name')
       .then(({ data }) => setVendors(data || []))
   }, [orgId])
 
@@ -44,6 +44,7 @@ export default function NewTaskModal({ orgId, profile, onClose, onCreated }) {
     const line2 = [v.city, v.state, v.zip].filter(Boolean).join(', ')
     const full = [v.street_address, line2].filter(Boolean).join(', ')
     if (full) setAddress(full)
+    if (v.phone) setContactPhone(v.phone)
   }
 
   async function handleSave(e) {
@@ -163,3 +164,4 @@ export default function NewTaskModal({ orgId, profile, onClose, onCreated }) {
     </div>
   )
 }
+
