@@ -241,7 +241,7 @@ function OrgDashboard({ orgId, showAccounting, showOperations }) {
   const openEstimates = estimates.filter((i) => i.approval_status === 'Pending')
   const pendingFinancing = estimates.filter((i) => i.approval_status === 'Pending Financing')
   const approvedEstimates = estimates.filter((i) => i.approval_status === 'Approved')
-  const rejectedEstimates = estimates.filter((i) => i.approval_status === 'Rejected')
+  const rejectedEstimates = estimates.filter((i) => i.approval_status === 'Declined')
   const decidedCount = approvedEstimates.length + rejectedEstimates.length
   const conversionRate = decidedCount ? (approvedEstimates.length / decidedCount) * 100 : null
   const staleEstimates = [...openEstimates, ...pendingFinancing].filter(
