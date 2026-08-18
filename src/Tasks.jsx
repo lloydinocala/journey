@@ -22,12 +22,19 @@ function todayISO() {
 
 const blankForm = {
   assigned_user_id: '', destination_name: '', address: '', description: '',
-  date: todayISO(), time: '09:00', duration_minutes: '30', parts_order_id: '',
+  contact_name: '', contact_title: '', contact_phone: '',
+  date: todayISO(), time: '09:00', duration_minutes: '30', parts_order_id: '', return_to: '',
 }
 
 function vendorAddr(v) {
   if (!v) return ''
   return [v.street_address, [v.city, v.state].filter(Boolean).join(', '), v.zip].filter(Boolean).join(' ').trim()
+}
+// Duration: 15-minute increments up to 10 hours (like Jobs).
+const DUR_OPTS = Array.from({ length: 32 }, (_, i) => (i + 1) * 15)
+function durLabel(min) {
+  const h = min / 60
+  return `${Number.isInteger(h) ? h.toFixed(1) : h} hr`
 }
 function mapLink(lat, lng) {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
@@ -62,6 +69,7 @@ export default function Tasks({ profile }) {
   const [tasks, setTasks] = useState([])
   const [users, setUsers] = useState([])
   const [parts, setParts] = useState([])
+  const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
   const [showDone, setShowDone] = useState(false)
   const [expandedId, setExpandedId] = useState(null)
@@ -89,14 +97,16 @@ export default function Tasks({ profile }) {
   async function loadAll(orgId) {
     if (!orgId) return
     setLoading(true)
-    const [taskData, userData, partData] = await Promise.all([
+    const [taskData, userData, partData, vendorData] = await Promise.all([
       fetchAllRows(() => supabase.from('field_tasks').select('*').eq('org_id', orgId).is('deleted_at', null).order('scheduled_at', { ascending: false })),
       supabase.from('users').select('id, full_name, role, task_hourly_rate, standard_hourly_rate').eq('org_id', orgId).eq('is_active', true).order('full_name'),
       supabase.from('parts_orders').select('id, part_description, part_number, po_number, delivery_verified, jobs ( job_number ), vendors ( name, street_address, city, state, zip )').eq('org_id', orgId).order('created_at', { ascending: false }),
+      supabase.from('vendors').select('id, name, street_address, city, state, zip').eq('org_id', orgId).order('name'),
     ])
     setTasks(taskData)
     setUsers(userData.data || [])
     setParts(partData.data || [])
+    setVendors(vendorData.data || [])
     setLoading(false)
   }
 
@@ -122,10 +132,14 @@ export default function Tasks({ profile }) {
       destination_name: t.destination_name || '',
       address: t.address || '',
       description: t.description || '',
+      contact_name: t.contact_name || '',
+      contact_title: t.contact_title || '',
+      contact_phone: t.contact_phone || '',
       date: zoned.date,
       time: zoned.time,
       duration_minutes: String(t.duration_minutes || 30),
       parts_order_id: t.parts_order_id || '',
+      return_to: t.return_to || '',
     })
     setEditingId(t.id)
     setError('')
@@ -143,6 +157,14 @@ export default function Tasks({ profile }) {
       address: vendorAddr(p?.vendors) || f.address,
       description: p ? `Pick up: ${p.part_description}${p.po_number ? ' · PO ' + p.po_number : ''}` : f.description,
     }))
+  }
+
+  // Quick-fill the destination from a saved parts house (vendor). Free-text stays editable.
+  function chooseVendor(id) {
+    if (!id) return
+    const v = vendors.find((x) => x.id === id)
+    if (!v) return
+    setForm((f) => ({ ...f, destination_name: v.name, address: vendorAddr(v) || f.address }))
   }
 
   // A task may not overlap the assigned user's scheduled jobs or their other tasks.
@@ -210,9 +232,13 @@ export default function Tasks({ profile }) {
       destination_name: form.destination_name.trim(),
       address: form.address.trim() || null,
       description: form.description.trim() || null,
+      contact_name: form.contact_name.trim() || null,
+      contact_title: form.contact_title.trim() || null,
+      contact_phone: form.contact_phone.trim() || null,
       scheduled_at: scheduledIso,
       duration_minutes: dur,
       parts_order_id: form.parts_order_id || null,
+      return_to: form.return_to || null,
     }
 
     let err
@@ -299,17 +325,44 @@ export default function Tasks({ profile }) {
               {users.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
             </select>
           </div>
+          <div className="field" style={{ minWidth: 190 }}>
+            <label>Parts House (quick-fill)</label>
+            <select value="" onChange={(e) => chooseVendor(e.target.value)}>
+              <option value="">Pick a parts house…</option>
+              {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+          </div>
           <div className="field" style={{ minWidth: 200 }}>
             <label>Destination Name</label>
-            <input type="text" value={form.destination_name} onChange={(e) => setForm({ ...form, destination_name: e.target.value })} placeholder="e.g. Johnstone Supply — pickup" required />
+            <input type="text" value={form.destination_name} onChange={(e) => setForm({ ...form, destination_name: e.target.value })} placeholder="Pick a parts house above, or type any destination" required />
           </div>
           <div className="field" style={{ minWidth: 240 }}>
             <label>Address</label>
             <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Street, City, State ZIP" />
           </div>
+          <div className="field" style={{ minWidth: 170 }}>
+            <label>Contact Name</label>
+            <input type="text" value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} placeholder="Who to ask for" />
+          </div>
+          <div className="field" style={{ width: 150 }}>
+            <label>Contact Title</label>
+            <input type="text" value={form.contact_title} onChange={(e) => setForm({ ...form, contact_title: e.target.value })} placeholder="e.g. Counter Mgr" />
+          </div>
+          <div className="field" style={{ width: 160 }}>
+            <label>Contact Phone</label>
+            <input type="tel" value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} placeholder="Phone" />
+          </div>
           <div className="field" style={{ minWidth: 240 }}>
             <label>Description</label>
-            <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="What needs to happen" />
+            <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Re: PO # or Job #" />
+          </div>
+          <div className="field" style={{ minWidth: 200 }}>
+            <label>On Completion</label>
+            <select value={form.return_to} onChange={(e) => setForm({ ...form, return_to: e.target.value })}>
+              <option value="">Done — back to Job Cards</option>
+              <option value="shop">Return to Shop</option>
+              <option value="job">Return to Job</option>
+            </select>
           </div>
           <div className="field">
             <label>Date</label>
@@ -319,9 +372,11 @@ export default function Tasks({ profile }) {
             <label>Time</label>
             <TimePicker15 value={form.time} onChange={(v) => setForm({ ...form, time: v })} required />
           </div>
-          <div className="field" style={{ width: 120 }}>
-            <label>Est. Minutes</label>
-            <input type="number" min="5" step="5" value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: e.target.value })} />
+          <div className="field" style={{ width: 150 }}>
+            <label>Duration</label>
+            <select value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: e.target.value })}>
+              {DUR_OPTS.map((m) => <option key={m} value={m}>{durLabel(m)}</option>)}
+            </select>
           </div>
           <div className="field" style={{ minWidth: 260 }}>
             <label>Link to Parts Order (optional)</label>
@@ -396,7 +451,7 @@ export default function Tasks({ profile }) {
               <th>Started</th>
               <th>Stopped</th>
               <th>Status</th>
-              <th>Issue</th>
+              <th>Description</th>
             </tr>
           </thead>
           <tbody>
@@ -415,7 +470,7 @@ export default function Tasks({ profile }) {
                   </div>
                 </td>
                 <td>{userName(t.assigned_user_id)}</td>
-                <td>{t.destination_name}{linkedPart && <span className="status-pill status-scheduled" style={{ marginLeft: 6, fontSize: 10 }}>PARTS</span>}</td>
+                <td>{t.destination_name}{linkedPart && <span className="status-pill status-scheduled" style={{ marginLeft: 6, fontSize: 10 }}>PARTS</span>}{t.return_to && <span className="status-pill status-scheduled" style={{ marginLeft: 6, fontSize: 10 }}>{t.return_to === 'shop' ? '\u21A9 SHOP' : '\u21A9 JOB'}</span>}</td>
                 <td>{t.address || '—'}</td>
                 <td>{fmtStamp(t.scheduled_at)}</td>
                 <td>{t.duration_minutes}m</td>
@@ -423,7 +478,7 @@ export default function Tasks({ profile }) {
                 <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(t.started_at)}</td>
                 <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(t.stopped_at)}</td>
                 <td><span className={`status-pill status-${t.status}`}>{STATUS_LABEL[t.status] || t.status}</span></td>
-                <td style={{ maxWidth: 220, fontSize: 12 }}>{t.status === 'incomplete' ? (t.incomplete_reason || 'Reported incomplete') : '—'}</td>
+                <td style={{ maxWidth: 220, fontSize: 12 }}>{t.description || '—'}{t.status === 'incomplete' && t.incomplete_reason ? <span style={{ color: '#C0392B' }}> · {t.incomplete_reason}</span> : ''}</td>
               </tr>
               {open && (
                 <tr>
