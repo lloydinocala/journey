@@ -5,6 +5,7 @@ import TripChargePicker from './TripChargePicker'
 import CustomerSearchSelect from './CustomerSearchSelect'
 import PropertySearchSelect from './PropertySearchSelect'
 import RelationshipSelect from './RelationshipSelect'
+import TimePicker15 from './TimePicker15'
 import { zonedToUtcIso } from './utils/tz'
 
 export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated }) {
@@ -509,7 +510,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="contStart">Start time</label>
-                  <input id="contStart" type="time" step="900" value={contStartTime} onChange={(e) => setContStartTime(e.target.value)} />
+                  <TimePicker15 id="contStart" value={contStartTime} onChange={setContStartTime} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="contDuration">Duration (hrs)</label>
@@ -869,7 +870,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="startTime">Start time</label>
-                  <input id="startTime" type="time" step="900" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+                  <TimePicker15 id="startTime" value={startTime} onChange={setStartTime} />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label htmlFor="duration">Duration (hrs)</label>
