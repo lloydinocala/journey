@@ -1,6 +1,7 @@
 import { useState, useEffect, Fragment } from 'react'
 import { supabase } from './utils/supabase'
 import TimePicker15 from './TimePicker15'
+import NewTaskModal from './NewTaskModal'
 import OrgPicker from './OrgPicker'
 import { fetchAllRows } from './utils/csvImport'
 import { loadOrgTz, formatTimeInZone, formatDateTimeInZone, zonedToUtcIso, utcToZonedInputs } from './utils/tz'
@@ -78,6 +79,7 @@ export default function Tasks({ profile }) {
   const [payTo, setPayTo] = useState(todayISO())
 
   const [showForm, setShowForm] = useState(false)
+  const [showNewModal, setShowNewModal] = useState(false)
   const [form, setForm] = useState(blankForm)
   const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -298,8 +300,8 @@ export default function Tasks({ profile }) {
           <span className="badge">{openCount.toLocaleString()} open</span>
           {openIssues > 0 && <span className="status-pill status-incomplete">{openIssues} incomplete</span>}
         </div>
-        <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => (showForm ? resetForm() : setShowForm(true))}>
-          {showForm ? 'Cancel' : '+ New Task'}
+        <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => (showForm ? resetForm() : setShowNewModal(true))}>
+          {showForm ? 'Cancel edit' : '+ New Task'}
         </button>
       </div>
 
@@ -314,6 +316,15 @@ export default function Tasks({ profile }) {
           <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
           <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
         </div>
+      )}
+
+      {showNewModal && (
+        <NewTaskModal
+          orgId={selectedOrg}
+          profile={profile}
+          onClose={() => setShowNewModal(false)}
+          onCreated={() => { setShowNewModal(false); loadAll(selectedOrg) }}
+        />
       )}
 
       {showForm && (
@@ -386,8 +397,9 @@ export default function Tasks({ profile }) {
             </select>
           </div>
           <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto' }}>
-            {saving ? 'Saving…' : editingId ? 'Save changes' : 'Add task'}
+            {saving ? 'Saving…' : 'Save changes'}
           </button>
+          <button type="button" className="logout-button" style={{ width: 'auto' }} onClick={resetForm}>Cancel</button>
         </form>
       )}
       {error && <div className="auth-error" style={{ marginBottom: 16 }}>{error}</div>}
@@ -445,8 +457,9 @@ export default function Tasks({ profile }) {
               <th>Assigned To</th>
               <th>Destination</th>
               <th>Address</th>
+              <th>Contact</th>
               <th>Date &amp; Time</th>
-              <th>Est.</th>
+              <th>Duration</th>
               <th>On My Way</th>
               <th>Started</th>
               <th>Stopped</th>
@@ -472,8 +485,9 @@ export default function Tasks({ profile }) {
                 <td>{userName(t.assigned_user_id)}</td>
                 <td>{t.destination_name}{linkedPart && <span className="status-pill status-scheduled" style={{ marginLeft: 6, fontSize: 10 }}>PARTS</span>}{t.return_to && <span className="status-pill status-scheduled" style={{ marginLeft: 6, fontSize: 10 }}>{t.return_to === 'shop' ? '\u21A9 SHOP' : '\u21A9 JOB'}</span>}</td>
                 <td>{t.address || '—'}</td>
+                <td style={{ fontSize: 12 }}>{t.contact_name || '—'}{t.contact_phone ? <div style={{ color: 'var(--mist)' }}>{t.contact_phone}</div> : ''}</td>
                 <td>{fmtStamp(t.scheduled_at)}</td>
-                <td>{t.duration_minutes}m</td>
+                <td>{durLabel(t.duration_minutes)}</td>
                 <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(t.on_my_way_at)}</td>
                 <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(t.started_at)}</td>
                 <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(t.stopped_at)}</td>
@@ -482,7 +496,7 @@ export default function Tasks({ profile }) {
               </tr>
               {open && (
                 <tr>
-                  <td colSpan="11" style={{ background: 'var(--ink)', padding: '14px 16px' }}>
+                  <td colSpan="12" style={{ background: 'var(--ink)', padding: '14px 16px' }}>
                     <div style={{ display: 'flex', gap: 40, flexWrap: 'wrap' }}>
                       <div>
                         <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--mist)', marginBottom: 8 }}>Button Records</div>
@@ -523,7 +537,7 @@ export default function Tasks({ profile }) {
               )
             })}
             {visible.length === 0 && (
-              <tr><td colSpan="11" style={{ color: 'var(--mist)' }}>No tasks{showDone ? '' : ' open'} right now.</td></tr>
+              <tr><td colSpan="12" style={{ color: 'var(--mist)' }}>No tasks{showDone ? '' : ' open'} right now.</td></tr>
             )}
           </tbody>
         </table>
