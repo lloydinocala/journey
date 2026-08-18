@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import SignaturePad from './SignaturePad'
 import { formatTimeInZone, formatDateTimeInZone } from './utils/tz'
+import RelationshipSelect from './RelationshipSelect'
 import {
   IconChevronLeft, IconPhone, IconMessage, IconPin, IconNavigation, IconCamera,
   IconReceipt, IconShield, IconFile, IconCalculator, IconLock, IconList,
@@ -856,10 +857,7 @@ export default function TechJobCard({ profile }) {
                 <>
                   <div className="jc-field"><label>Occupant name</label><input value={custForm.name} onChange={(e) => setCustForm({ ...custForm, name: e.target.value })} /></div>
                   <div className="jc-field"><label>Occupant status</label>
-                    <select value={custForm.relationship} onChange={(e) => setCustForm({ ...custForm, relationship: e.target.value })}>
-                      <option value="">Select…</option>
-                      {RELATIONSHIP_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    <RelationshipSelect value={custForm.relationship} onChange={(v) => setCustForm({ ...custForm, relationship: v })} />
                   </div>
                   <div className="jc-field"><label>Street address</label><input value={custForm.street} onChange={(e) => setCustForm({ ...custForm, street: e.target.value })} /></div>
                   <div className="jc-field-row">
