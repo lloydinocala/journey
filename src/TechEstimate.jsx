@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { IconChevronLeft, IconFile } from './MobileIcons'
+import { can } from './utils/permissions'
 
 function unitLine(label, brand, model, serial) {
   if (!brand && !model && !serial) return null
@@ -43,11 +44,15 @@ export default function TechEstimate({ profile }) {
   const [customDesc, setCustomDesc] = useState('')
   const [customQty, setCustomQty] = useState('1')
   const [customPrice, setCustomPrice] = useState('')
-  const [customTaxable, setCustomTaxable] = useState(true)
+  const [customTaxable, setCustomTaxable] = useState(false)
   const [addingCustom, setAddingCustom] = useState(false)
 
   const [discountType, setDiscountType] = useState('dollar')
   const [discountAmount, setDiscountAmount] = useState('0')
+  const [custOpen, setCustOpen] = useState(false)
+  const [custAmt, setCustAmt] = useState('')
+  const [custReason, setCustReason] = useState('')
+  const [discountApproverName, setDiscountApproverName] = useState('')
   const [taxRate, setTaxRate] = useState(0)
 
   async function loadJobAndEstimate() {
@@ -181,7 +186,7 @@ export default function TechEstimate({ profile }) {
       description: resolvedVariant.customer_display,
       unit_price: resolvedVariant.price,
       quantity: 1,
-      taxable: !svc?.is_tax_exempt,
+      taxable: svc?.is_tax_exempt === false,
       is_custom: false,
       sort_order: nextSort,
       service_id: pickServiceId,           // Elements-HVAC: stamped for later invoice consumption
@@ -239,17 +244,61 @@ export default function TechEstimate({ profile }) {
   async function saveDiscount() {
     await supabase.from('invoices').update({ discount_type: discountType, discount_amount: parseFloat(discountAmount) || 0 }).eq('id', estimate.id)
   }
+  async function reloadEstimate() {
+    const { data } = await supabase.from('invoices').select('*').eq('id', estimate.id).maybeSingle()
+    if (data) setEstimate(data)
+  }
+  async function requestCustomDiscount() {
+    const amt = parseFloat(custAmt)
+    if (!(amt > 0)) return
+    await supabase.from('invoices').update({
+      discount_id: null, discount_type: 'dollar', discount_amount: amt,
+      discount_label: custReason.trim() || 'Custom discount', discount_status: 'pending',
+      discount_approved_by: null, discount_approved_at: null,
+    }).eq('id', estimate.id)
+    setCustOpen(false); setCustAmt(''); setCustReason('')
+    reloadEstimate()
+  }
+  async function approveCustomDiscount() {
+    await supabase.from('invoices').update({
+      discount_status: 'approved', discount_approved_by: profile?.id || null, discount_approved_at: new Date().toISOString(),
+    }).eq('id', estimate.id)
+    reloadEstimate()
+  }
+  async function removeCustomDiscount() {
+    await supabase.from('invoices').update({
+      discount_id: null, discount_amount: 0, discount_type: 'dollar', discount_label: null,
+      discount_status: null, discount_approved_by: null, discount_approved_at: null,
+    }).eq('id', estimate.id)
+    setCustOpen(false); reloadEstimate()
+  }
+
+  const isFieldAdmin = !!(profile && (['org_admin', 'super_admin'].includes(profile.role) || profile.is_field_supervisor))
+  const canApproveDiscount = profile?.role === 'super_admin' || can(profile, 'approve_nonstandard_discounts')
 
   const subtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const taxableSubtotal = lineItems.filter((li) => li.taxable).reduce((sum, li) => sum + li.quantity * li.unit_price, 0)
   const salesTax = taxableSubtotal * (taxRate / 100)
-  const discountValue = discountType === 'percent' ? subtotal * ((parseFloat(discountAmount) || 0) / 100) : parseFloat(discountAmount) || 0
+  const hasCustomDiscount = !!(estimate && !estimate.discount_id && estimate.discount_status && Number(estimate.discount_amount) > 0)
+  const customApproved = hasCustomDiscount && estimate.discount_status === 'approved'
+  const customDollars = hasCustomDiscount ? Number(estimate.discount_amount) : 0
+  const discountValue = hasCustomDiscount
+    ? (customApproved ? customDollars : 0)
+    : (discountType === 'percent' ? subtotal * ((parseFloat(discountAmount) || 0) / 100) : parseFloat(discountAmount) || 0)
   const totalDue = Math.max(subtotal + salesTax - discountValue, 0)
+  const equipmentSummary = lineItems.find((li) => li.category === 'EQUIPMENT ON FILE')?.description || ''
+  const serviceLineItems = lineItems.filter((li) => li.category !== 'EQUIPMENT ON FILE')
 
   useEffect(() => {
     if (!estimate) return
     supabase.from('invoices').update({ subtotal, sales_tax: salesTax, job_total: totalDue, amount_due: totalDue, balance: totalDue }).eq('id', estimate.id).then(() => {})
   }, [subtotal, salesTax, totalDue, estimate])
+
+  useEffect(() => {
+    if (estimate?.discount_approved_by) {
+      supabase.from('users').select('full_name').eq('id', estimate.discount_approved_by).maybeSingle().then(({ data }) => setDiscountApproverName(data?.full_name || ''))
+    } else setDiscountApproverName('')
+  }, [estimate?.discount_approved_by])
 
   if (loading || !job || !estimate) {
     return (
@@ -271,12 +320,23 @@ export default function TechEstimate({ profile }) {
       </div>
 
       <div className="mobile-body">
-        {job?.diagnosis_note && (
-          <div className="section-card">
-            <div className="section-card-header"><span>Diagnosis</span></div>
-            <div className="section-card-body"><p style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.5 }}>{job.diagnosis_note}</p></div>
+        {/* Under the Estimate # header: Equipment on File + Current Diagnosis, both required */}
+        <div className="section-card">
+          <div className="section-card-header"><span>Equipment on File</span></div>
+          <div className="section-card-body">
+            {equipmentSummary
+              ? <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.5 }}>{equipmentSummary}</p>
+              : <p style={{ margin: 0, fontSize: 13, color: '#C0392B', fontWeight: 600 }}>Required — no equipment on file yet. Capture it on the job card before sending this estimate.</p>}
           </div>
-        )}
+        </div>
+        <div className="section-card">
+          <div className="section-card-header"><span>Current Diagnosis</span></div>
+          <div className="section-card-body">
+            {job?.diagnosis_note
+              ? <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.5 }}>{job.diagnosis_note}</p>
+              : <p style={{ margin: 0, fontSize: 13, color: '#C0392B', fontWeight: 600 }}>Required — no diagnosis recorded yet. Record it on the job card before sending this estimate.</p>}
+          </div>
+        </div>
         <div className="section-card">
           <div className="section-card-header"><span>Estimate Details</span></div>
           <div className="section-card-body">
@@ -294,7 +354,7 @@ export default function TechEstimate({ profile }) {
               <select value={estimate.approval_status || 'Pending'} onChange={(e) => updateApprovalStatus(e.target.value)}>
                 <option value="Pending">Pending</option>
                 <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
+                <option value="Declined">Declined</option>
                 <option value="Pending Financing">Pending Financing</option>
               </select>
             </div>
@@ -305,8 +365,8 @@ export default function TechEstimate({ profile }) {
         <div className="section-card">
           <div className="section-card-header"><span><IconFile /> Line Items</span></div>
           <div className="section-card-body">
-            {lineItems.length === 0 && <p style={{ color: 'var(--mist)', fontSize: 13, margin: 0 }}>No line items yet — add one below.</p>}
-            {lineItems.map((li) => (
+            {serviceLineItems.length === 0 && <p style={{ color: 'var(--mist)', fontSize: 13, margin: 0 }}>No line items yet — add one below.</p>}
+            {serviceLineItems.map((li) => (
               <div key={li.id} className="line-item-card">
                 <div className="line-item-desc">{li.description}</div>
                 <div className="line-item-fields">
@@ -396,19 +456,60 @@ export default function TechEstimate({ profile }) {
         <div className="section-card">
           <div className="section-card-header"><span>Totals</span></div>
           <div className="section-card-body">
-            <div className="mobile-field-row" style={{ marginBottom: 10 }}>
-              <div className="mobile-field" style={{ flex: '0 0 80px' }}>
-                <label>Discount</label>
-                <select value={discountType} onChange={(e) => setDiscountType(e.target.value)}>
-                  <option value="dollar">$</option>
-                  <option value="percent">%</option>
-                </select>
+            {hasCustomDiscount ? (
+              <div style={{ marginBottom: 10 }}>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--mist)', marginBottom: 2 }}>Discount</label>
+                <p style={{ margin: '2px 0', fontWeight: 600 }}>Custom: ${customDollars.toFixed(2)} off</p>
+                {estimate.discount_label && <p style={{ margin: '2px 0', fontSize: 12, color: 'var(--mist)' }}>{estimate.discount_label}</p>}
+                {customApproved ? (
+                  <p style={{ margin: '2px 0', fontSize: 12, color: '#1F7A43', fontWeight: 600 }}>Approved{discountApproverName ? ` by ${discountApproverName}` : ''}</p>
+                ) : (
+                  <p style={{ margin: '2px 0', fontSize: 12, color: '#B8860B', fontWeight: 600 }}>Pending approval &mdash; not applied until approved</p>
+                )}
+                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                  {!customApproved && canApproveDiscount && (
+                    <button type="button" className="action-btn" style={{ flex: 'none', padding: '7px 14px', borderColor: '#1F7A43', color: '#1F7A43' }} onClick={approveCustomDiscount}>Approve discount</button>
+                  )}
+                  {isFieldAdmin && <button type="button" className="action-btn" style={{ flex: 'none', padding: '7px 14px' }} onClick={removeCustomDiscount}>Remove</button>}
+                </div>
               </div>
-              <div className="mobile-field">
-                <label>Amount</label>
-                <input type="number" step="0.01" value={discountAmount} onChange={(e) => setDiscountAmount(e.target.value)} onBlur={saveDiscount} />
+            ) : (
+              <div style={{ marginBottom: 10 }}>
+                <div className="mobile-field-row">
+                  <div className="mobile-field" style={{ flex: '0 0 80px' }}>
+                    <label>Discount</label>
+                    <select value={discountType} onChange={(e) => setDiscountType(e.target.value)}>
+                      <option value="dollar">$</option>
+                      <option value="percent">%</option>
+                    </select>
+                  </div>
+                  <div className="mobile-field">
+                    <label>Amount</label>
+                    <input type="number" step="0.01" value={discountAmount} onChange={(e) => setDiscountAmount(e.target.value)} onBlur={saveDiscount} />
+                  </div>
+                </div>
+                {isFieldAdmin && (
+                  <div style={{ marginTop: 8, borderTop: '1px solid var(--border,#eee)', paddingTop: 8 }}>
+                    {!custOpen ? (
+                      <button type="button" className="action-btn" style={{ flex: 'none', padding: '7px 14px' }} onClick={() => setCustOpen(true)}>+ Custom discount</button>
+                    ) : (
+                      <div>
+                        <p style={{ margin: '0 0 6px', fontSize: 12, color: 'var(--mist)' }}>One-off dollar discount &mdash; needs supervisor approval before it applies; not itemized on the customer&rsquo;s estimate.</p>
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                          <span style={{ color: 'var(--mist)', fontWeight: 600 }}>$</span>
+                          <input type="number" step="0.01" min="0" value={custAmt} onChange={(e) => setCustAmt(e.target.value)} placeholder="Dollar amount off" style={{ flex: 1 }} />
+                        </div>
+                        <input value={custReason} onChange={(e) => setCustReason(e.target.value)} placeholder="Reason (shown to approver)" style={{ width: '100%', marginBottom: 6 }} />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button type="button" className="action-btn primary" style={{ flex: 'none', padding: '7px 14px' }} onClick={requestCustomDiscount} disabled={!(parseFloat(custAmt) > 0)}>Submit for approval</button>
+                          <button type="button" className="action-btn" style={{ flex: 'none', padding: '7px 14px' }} onClick={() => { setCustOpen(false); setCustAmt(''); setCustReason('') }}>Cancel</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
+            )}
             <div className="totals-block">
               <div className="totals-row"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
               <div className="totals-row"><span>Sales Tax</span><span>${salesTax.toFixed(2)}</span></div>
