@@ -294,6 +294,11 @@ export default function TechInvoice({ profile }) {
 
       <div className="mobile-body">
         <RoutingSummary customerId={job.customer_id} propertyId={job.property_id} label="Invoice" />
+        {invoice?.pre_approved_by && (
+          <div className="section-card" style={{ borderLeft: '3px solid #1F7A43' }}>
+            <div className="section-card-body"><p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#1F7A43' }}>Repair Pre-Approved by: {invoice.pre_approved_by}</p></div>
+          </div>
+        )}
         {job?.diagnosis_note && (
           <div className="section-card">
             <div className="section-card-header"><span>Diagnosis</span></div>
