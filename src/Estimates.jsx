@@ -16,7 +16,7 @@ function formatPhone(raw) {
 
 const LINE_ITEM_COUNT = 9
 
-const APPROVAL_STATUS_OPTIONS = ['Pending', 'Approved', 'Rejected', 'Pending Financing']
+const APPROVAL_STATUS_OPTIONS = ['Pending', 'Approved', 'Declined', 'Pending Financing']
 
 const ACTIONS_WIDTH = 320
 const FROZEN_KEYS = ['invoice_date', 'invoice_number', 'job_number', 'customer']
