@@ -19,9 +19,11 @@ const INCOMPLETE_REASONS = [
 ]
 
 const RELATIONSHIP_OPTIONS = [
-  { value: 'homeowner', label: 'HomeOwner' },
-  { value: 'renter', label: 'Renter' },
-  { value: 'property_manager', label: 'Property Mgr' },
+  { value: 'Owner', label: 'Owner' },
+  { value: 'Tenant', label: 'Tenant' },
+  { value: 'Occupant', label: 'Occupant' },
+  { value: 'Property Manager', label: 'Property Manager' },
+  { value: 'Other', label: 'Other' },
 ]
 const RELATIONSHIP_LABEL = Object.fromEntries(RELATIONSHIP_OPTIONS.map((o) => [o.value, o.label]))
 
@@ -338,6 +340,20 @@ export default function TechJobCard({ profile }) {
     ...(tenants.map((t) => t.phone).filter(Boolean)),
     job?.customers?.primary_phone, job?.customers?.secondary_phone,
   ].filter(Boolean)))
+  const phoneEntries = (() => {
+    const seen = new Set()
+    const out = []
+    tenants.forEach((t) => {
+      if (t.phone && !seen.has(t.phone)) {
+        seen.add(t.phone)
+        out.push({ phone: t.phone, label: (t.name || 'Occupant') + (t.relationship ? ` – ${RELATIONSHIP_LABEL[t.relationship] || t.relationship}` : '') })
+      }
+    })
+    ;[job?.customers?.primary_phone, job?.customers?.secondary_phone].filter(Boolean).forEach((p) => {
+      if (!seen.has(p)) { seen.add(p); out.push({ phone: p, label: job?.customers?.display_name || 'Customer' }) }
+    })
+    return out
+  })()
 
   const expected = expectedSystems === '' ? equipment.length : parseInt(expectedSystems, 10) || 0
   const slotCount = Math.max(expected, equipment.length)
@@ -803,21 +819,31 @@ export default function TechJobCard({ profile }) {
             <div className="jc-task-body">
               {!showCustEdit ? (
                 <>
-                  <div className="jc-tenant-name">{occupantName}{occupantRel ? ` – ${RELATIONSHIP_LABEL[occupantRel]}` : ''}</div>
+                  <div className="jc-tenant-name">{job?.customers?.display_name || occupantName}</div>
                   {job.properties?.street_address && (
                     <div className="jc-address">
                       <div className="jc-address-text">{job.properties.street_address}{job.properties.unit ? ` #${job.properties.unit}` : ''}, {job.properties.city}, {job.properties.state} {job.properties.zip}</div>
                       <div className="jc-map-icons">
-                        {dmaps && <a href={dmaps} target="_blank" rel="noreferrer" title="Device maps"><IconPin /></a>}
-                        {gmaps && <a className="alt" href={gmaps} target="_blank" rel="noreferrer" title="Google Maps"><IconNavigation /></a>}
+                        {dmaps && (
+                          <a href={dmaps} target="_blank" rel="noreferrer" title="Your device's default map app (Apple Maps, Waze, etc.)" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                            <IconPin />
+                            <span style={{ fontSize: 9, lineHeight: 1, color: '#64748B' }}>Device</span>
+                          </a>
+                        )}
+                        {gmaps && (
+                          <a className="alt" href={gmaps} target="_blank" rel="noreferrer" title="Google Maps (app default)" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                            <IconNavigation />
+                            <span style={{ fontSize: 9, lineHeight: 1, color: '#64748B' }}>Google</span>
+                          </a>
+                        )}
                       </div>
                     </div>
                   )}
-                  {phoneList.map((p) => (
-                    <div key={p} className="jc-phone">
-                      <span>Phone/Text</span>
+                  {phoneEntries.map((e) => (
+                    <div key={e.phone} className="jc-phone">
+                      <span>{e.label}</span>
                       <div className="jc-phone-icons">
-                        <a className="call" href={`tel:${p}`} title="Call" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconPhone /></a>
+                        <a className="call" href={`tel:${e.phone}`} title="Call" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconPhone /></a>
                         <button className="text" title="Messages" onClick={() => navigate(`/tech/messages/${jobId}`)}><IconMessage /></button>
                       </div>
                     </div>
@@ -873,7 +899,7 @@ export default function TechJobCard({ profile }) {
               {job.duration_hours && <div className="jc-kv"><span>Planned Duration</span><strong>{job.duration_hours} hr</strong></div>}
               {job.service_complaint && <div className="jc-kv"><span>Issue</span><strong>{job.service_complaint}</strong></div>}
               {job.trip_charge && (
-                <div className="jc-kv"><span>Trip Charge</span><strong>{job.trip_charge.services?.name}{typeof job.trip_charge.price === 'number' ? ` · $${job.trip_charge.price.toFixed(2)}` : ''}</strong></div>
+                <div className="jc-kv"><span>Trip Charge</span><strong>{job.trip_charge.services?.name}</strong></div>
               )}
             </div>
           )}
