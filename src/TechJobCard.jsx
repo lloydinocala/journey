@@ -936,8 +936,10 @@ export default function TechJobCard({ profile }) {
         {/* Property image with dispatched banner overlays */}
         <a className="jc-property" href={dmaps || undefined} target="_blank" rel="noreferrer" style={{ pointerEvents: dmaps ? 'auto' : 'none' }}>
           {mapImg ? <img src={mapImg} alt="Property" className="jc-property-img" /> : <div className="jc-property-fallback"><IconPin /> Property photo</div>}
-          {(warningBanner || messageBanner) && (
+          {(warningBanner || messageBanner || job?.auth_diagnose_only || repairLimit != null) && (
             <div className="jc-img-banners">
+              {job?.auth_diagnose_only && <div className="jc-img-banner estimate-only">Create Estimate Only</div>}
+              {repairLimit != null && <div className="jc-img-banner repair-limit">Repairs Limited to ${repairLimit.toLocaleString()}</div>}
               {warningBanner && <div className="jc-img-banner warning">{warningBanner.body}</div>}
               {messageBanner && <div className="jc-img-banner message">{messageBanner.body}</div>}
             </div>
