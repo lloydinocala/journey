@@ -2142,7 +2142,10 @@ body {
   max-width: 92%; text-align: center; font-size: 16px; font-weight: 800; color: #fff;
   padding: 8px 18px; border-radius: 999px; box-shadow: 0 3px 10px rgba(0,0,0,0.35);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
 }
+.jc-img-banner.estimate-only { background: rgba(217,119,6,0.6); }
+.jc-img-banner.repair-limit { background: rgba(124,58,237,0.6); }
 .jc-img-banner.warning { background: var(--jc-red); }
 .jc-img-banner.message { background: var(--jc-blue); }
 
