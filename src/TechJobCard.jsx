@@ -231,6 +231,10 @@ export default function TechJobCard({ profile }) {
   const isOpen = (k) => !!openMap[k]
   const toggle = (k) => setOpenMap((m) => ({ ...m, [k]: !m[k] }))
   const setOpen = (k, v) => setOpenMap((m) => ({ ...m, [k]: v }))
+  // Collapsible section groups: one of groups 1-3 open at a time (accordion); Other Estimates is independent.
+  const [openGroup, setOpenGroup] = useState('start')
+  const [otherOpen, setOtherOpen] = useState(false)
+  const groupPrevDone = useRef({})
 
   // Customer edit
   const [showCustEdit, setShowCustEdit] = useState(false)
@@ -435,6 +439,18 @@ export default function TechJobCard({ profile }) {
   const requiredDone = equipDone && preWorkPhotosDone && middleGateDone && (showServiceEstimate ? serviceEstDone : true) && invoiceDone && viewSendDone && sigDone && maintDone
   const allClear = requiredDone && !exceedsLimit
   const status = job?.status
+
+  // Group completion (all subsections blue) → auto-close the group; next opens manually.
+  const startGroupDone = equipDone && diagnosisDone && preWorkPhotosDone
+  const estimateGroupDone = serviceEstDone && maintDone
+  const paymentGroupDone = invoiceDone && viewSendDone
+  useEffect(() => {
+    const gs = { start: startGroupDone, estimate: estimateGroupDone, payment: paymentGroupDone }
+    for (const g of Object.keys(gs)) {
+      if (gs[g] && !groupPrevDone.current[g] && openGroup === g) setOpenGroup(null)
+      groupPrevDone.current[g] = gs[g]
+    }
+  }, [startGroupDone, estimateGroupDone, paymentGroupDone, openGroup])
 
   // ---- GPS auto-start (best effort) + arrival diagnostics ----
   const autoStartArmed = status === 'on_my_way'
@@ -865,6 +881,17 @@ export default function TechJobCard({ profile }) {
   const startClass = started || ended ? 'blue' : enRoute ? 'red' : 'idle'
   const stopClass = ended ? 'blue' : started ? 'red' : 'idle'
 
+  function GroupHead({ g, label, done, independent }) {
+    const isOpenG = independent ? otherOpen : openGroup === g
+    const toggleG = () => independent ? setOtherOpen((v) => !v) : setOpenGroup(isOpenG ? null : g)
+    return (
+      <div className={`jc-group-head ${done ? 'blue' : 'red'}${isOpenG ? ' open' : ''}`} role="button" tabIndex={0} onClick={toggleG}>
+        <span className="jc-group-label">{label}</span>
+        <span className={`jc-th-chevron ${isOpenG ? 'open' : ''}`}>›</span>
+      </div>
+    )
+  }
+
   function TaskHead({ k, title, icon, done, actions, forceColor, locked }) {
     const color = forceColor || (done ? 'blue' : 'red')
     return (
@@ -1022,6 +1049,8 @@ export default function TechJobCard({ profile }) {
 
         {/* ========== WORKFLOW SPINE — forced order: Equipment -> Diagnosis -> Service Estimate ========== */}
 
+        <GroupHead g="start" label="Start Here" done={startGroupDone} />
+        {openGroup === 'start' && (<div className="jc-group-body">
         {/* Equipment on File — nameplates / systems on record (start-of-work group) */}
         <div className="jc-task">
           <TaskHead k="equipment" title="Equipment on File" icon={<IconShield />} done={equipDone}
@@ -1139,6 +1168,9 @@ export default function TechJobCard({ profile }) {
           )}
         </div>
 
+        </div>)}
+        <GroupHead g="estimate" label="Create Services Estimate" done={estimateGroupDone} />
+        {openGroup === 'estimate' && (<div className="jc-group-body">
         {/* Checklist (Maintenance) — replaces Diagnosis; uses the plan-tier checklist, or Basic */}
         {showChecklist && <>
         {checklistLocked && <LockNote text={lockReason.checklist} />}
@@ -1156,7 +1188,7 @@ export default function TechJobCard({ profile }) {
         {showServiceEstimate && <>
         {serviceEstimateLocked && <LockNote text={lockReason.service_estimate} />}
         <div className="jc-task">
-          <TaskHead k="service_estimate" title="Service Estimate" icon={<IconFile />} done={serviceEstDone} locked={serviceEstimateLocked}
+          <TaskHead k="service_estimate" title="Services Estimate" icon={<IconFile />} done={serviceEstDone} locked={serviceEstimateLocked}
             actions={<button className="jc-th-action" onClick={() => { setOpen('service_estimate', true); if (equipDone || job.service_estimate_not_needed) navigate(`/tech/estimate/${jobId}`) }}>+Add</button>} />
           {!serviceEstimateLocked && isOpen('service_estimate') && (
             <div className="jc-task-body">
@@ -1206,6 +1238,9 @@ export default function TechJobCard({ profile }) {
 
         {/* ========== WORK & BILLING — after the estimate is approved ========== */}
 
+        </div>)}
+        <GroupHead g="payment" label="Collect Payment" done={paymentGroupDone} />
+        {openGroup === 'payment' && (<div className="jc-group-body">
         {/* Completion (post-repair) photos — the hard gate before Invoice lands in the estimate/invoice build */}
         <div className="jc-task">
           <TaskHead k="completion_photos" title="Completion Photos" icon={<IconCamera />} done={postPhotos.length > 0}
@@ -1259,6 +1294,9 @@ export default function TechJobCard({ profile }) {
           )}
         </div>
 
+        </div>)}
+        {/* Post-work Signatures removed — approval is signed at estimate approval; post-work photos verify the work. */}
+        {false && (<>
         {/* Signatures (required) */}
         <div className="jc-task">
           <TaskHead k="signatures" title="Signatures" icon={<IconFile />} done={sigDone} />
@@ -1311,9 +1349,12 @@ export default function TechJobCard({ profile }) {
 
         {/* ========== REFERENCE ========== */}
 
+        </>)}
+        <GroupHead label="Other Estimates" independent done={false} />
+        {otherOpen && (<div className="jc-group-body">
         {/* Equipment Estimate (optional / blue) */}
         <div className="jc-task">
-          <TaskHead k="equipment_estimate" title="Equipment Estimate" icon={<IconCalculator />} done forceColor="blue" />
+          <TaskHead k="equipment_estimate" title="System Estimate" icon={<IconCalculator />} done forceColor="blue" />
           {isOpen('equipment_estimate') && (
             <div className="jc-task-body">
               <Link to={`/tech/system-estimate/${jobId}`} className="jc-action-link"><IconCalculator /><span>Build Equipment (System) Estimate</span><span className="jc-chev">›</span></Link>
@@ -1321,6 +1362,7 @@ export default function TechJobCard({ profile }) {
           )}
         </div>
 
+        </div>)}
         {/* Service History (optional / blue) */}
         <div className="jc-task">
           <TaskHead k="history" title="Service History" icon={<IconList />} done forceColor="blue" />
