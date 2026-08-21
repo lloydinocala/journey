@@ -43,6 +43,14 @@ export default function Organizations() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // Provision a new org's first administrator (super-admin action).
+  const [inviteOrg, setInviteOrg] = useState(null)
+  const [inviteName, setInviteName] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteSaving, setInviteSaving] = useState(false)
+  const [inviteError, setInviteError] = useState('')
+  const [inviteSuccess, setInviteSuccess] = useState('')
+
   const [searchText, setSearchText] = useState('')
   const [sortField, setSortField] = useState('created_at')
   const [sortDirection, setSortDirection] = useState('desc')
@@ -56,6 +64,37 @@ export default function Organizations() {
   const [editName, setEditName] = useState('')
   const [editSlug, setEditSlug] = useState('')
   const [slugTouched, setSlugTouched] = useState(false)
+
+  async function inviteAdmin(e) {
+    e?.preventDefault()
+    if (!inviteName.trim() || !inviteEmail.trim() || !inviteOrg) return
+    setInviteSaving(true); setInviteError(''); setInviteSuccess('')
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+    const { data, error } = await supabase.functions.invoke('create-team-member', {
+      body: {
+        action: 'invite',
+        email: inviteEmail.trim(),
+        full_name: inviteName.trim(),
+        role: 'org_admin',
+        org_id: inviteOrg.id,
+        calendar_color: '#2F5DE3',
+        permission_keys: [],
+      },
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    setInviteSaving(false)
+    if (error) {
+      let msg = error.message
+      try { const b = await error.context?.json(); if (b?.error) msg = b.error } catch (_) { /* keep generic */ }
+      setInviteError(msg)
+    } else if (data?.error) {
+      setInviteError(data.error)
+    } else {
+      setInviteSuccess(`Admin invite sent to ${inviteEmail.trim()}.`)
+      setInviteName(''); setInviteEmail('')
+    }
+  }
 
   async function loadOrgs() {
     setLoading(true)
@@ -393,6 +432,7 @@ export default function Organizations() {
                   {visibleColumns.includes('created_at') && <td>{new Date(org.created_at).toLocaleDateString()}</td>}
                   <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button className="logout-button" onClick={() => startEdit(org)}>Edit</button>
+                    <button className="logout-button" onClick={() => { setInviteOrg(org); setInviteName(''); setInviteEmail(''); setInviteError(''); setInviteSuccess('') }}>Invite Admin</button>
                     <button
                       className="logout-button"
                       onClick={() => toggleElements(org)}
@@ -428,6 +468,34 @@ export default function Organizations() {
             )}
           </tbody>
         </table>
+      )}
+
+      {inviteOrg && (
+        <div onClick={() => setInviteOrg(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 24, width: '100%', maxWidth: 440, boxShadow: '0 12px 40px rgba(0,0,0,0.25)' }}>
+            <h3 style={{ margin: '0 0 4px' }}>Invite Admin — {inviteOrg.name}</h3>
+            <p style={{ color: 'var(--mist, #667)', fontSize: 14, marginTop: 0 }}>
+              Creates the first administrator for this organization and emails them an invite to set their password. They&apos;ll run this company independently.
+            </p>
+            <form onSubmit={inviteAdmin}>
+              <div className="field">
+                <label>Full name</label>
+                <input value={inviteName} onChange={(e) => setInviteName(e.target.value)} placeholder="e.g. Stacy Jones" autoFocus />
+              </div>
+              <div className="field">
+                <label>Email</label>
+                <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="admin@company.com" />
+                <p style={{ color: 'var(--mist, #667)', fontSize: 12.5, marginTop: 4 }}>Must be unique across all organizations — an email can only belong to one account.</p>
+              </div>
+              {inviteError && <p style={{ color: '#C0392B', fontSize: 13.5 }}>{inviteError}</p>}
+              {inviteSuccess && <p style={{ color: '#1F7A43', fontSize: 13.5, fontWeight: 600 }}>{inviteSuccess}</p>}
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <button className="auth-button" style={{ width: 'auto' }} type="submit" disabled={inviteSaving}>{inviteSaving ? 'Sending…' : 'Send admin invite'}</button>
+                <button className="logout-button" type="button" onClick={() => setInviteOrg(null)}>Close</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   )
