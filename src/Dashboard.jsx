@@ -131,6 +131,34 @@ function OrgDashboard({ orgId, showAccounting, showOperations }) {
   const [leads, setLeads] = useState([])
   const [agreements, setAgreements] = useState([])
   const [approvals, setApprovals] = useState([])
+  const [discReqs, setDiscReqs] = useState([])
+  const [discUsers, setDiscUsers] = useState({})
+  const [discSelfApprove, setDiscSelfApprove] = useState(true)
+  const [discUid, setDiscUid] = useState(null)
+
+  useEffect(() => { supabase.auth.getUser().then(({ data }) => setDiscUid(data?.user?.id || null)) }, [])
+  async function loadDiscReqs(id) {
+    const { data } = await supabase.from('invoices')
+      .select('id, invoice_number, discount_amount, discount_label, discount_requested_by, jobs(job_number)')
+      .eq('org_id', id).eq('kind', 'estimate').eq('discount_status', 'pending').order('invoice_date', { ascending: false })
+    setDiscReqs(data || [])
+  }
+  useEffect(() => {
+    if (!orgId) return
+    loadDiscReqs(orgId)
+    supabase.from('organizations').select('discount_self_approve').eq('id', orgId).single().then(({ data }) => setDiscSelfApprove(data?.discount_self_approve !== false))
+    supabase.from('users').select('id, full_name').eq('org_id', orgId).then(({ data }) => { const m = {}; (data || []).forEach((u) => { m[u.id] = u.full_name }); setDiscUsers(m) })
+    const ch = supabase.channel('dash-disc-' + orgId).on('postgres_changes', { event: '*', schema: 'public', table: 'invoices', filter: `org_id=eq.${orgId}` }, () => loadDiscReqs(orgId)).subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [orgId])
+  async function approveDisc(d) {
+    await supabase.from('invoices').update({ discount_status: 'approved', discount_approved_by: discUid, discount_approved_at: new Date().toISOString() }).eq('id', d.id)
+    loadDiscReqs(orgId)
+  }
+  async function declineDisc(d) {
+    await supabase.from('invoices').update({ discount_id: null, discount_amount: 0, discount_type: 'dollar', discount_label: null, discount_status: null, discount_approved_by: null, discount_approved_at: null }).eq('id', d.id)
+    loadDiscReqs(orgId)
+  }
 
   useEffect(() => {
     if (orgId) loadAll(orgId)
@@ -319,6 +347,31 @@ function OrgDashboard({ orgId, showAccounting, showOperations }) {
   return (
     <div>
       <h3 style={{ marginTop: 32, marginBottom: 4 }}>{orgInfo.name}</h3>
+
+      {discReqs.length > 0 && (
+        <div style={{ border: '2px solid #E8930C', background: '#FFF4E5', borderRadius: 8, padding: 14, margin: '12px 0 20px' }}>
+          <h4 style={{ margin: '0 0 10px', color: '#8A5200' }}>Discount Approvals — Backup ({discReqs.length})</h4>
+          {discReqs.map((d) => {
+            const isOwn = !discSelfApprove && d.discount_requested_by === discUid
+            return (
+              <div key={d.id} style={{ background: '#fff', border: '1px solid #F0D6AE', borderRadius: 6, padding: '8px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                  <strong>${Number(d.discount_amount || 0).toFixed(2)} off</strong> — {d.discount_label || 'Custom discount'}
+                  <span style={{ color: '#666', fontSize: 13 }}> · Est {d.invoice_number}{d.jobs?.job_number ? ` · Job ${d.jobs.job_number}` : ''}{discUsers[d.discount_requested_by] ? ` · requested by ${discUsers[d.discount_requested_by]}` : ''}</span>
+                </div>
+                {isOwn ? (
+                  <span style={{ color: '#8A5200', fontSize: 13, fontWeight: 600 }}>Your own request — needs another approver</span>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => approveDisc(d)} style={{ background: '#1F7A43', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', fontWeight: 700, cursor: 'pointer' }}>Approve</button>
+                    <button onClick={() => declineDisc(d)} style={{ background: '#fff', color: '#C0392B', border: '1px solid #C0392B', borderRadius: 6, padding: '7px 16px', fontWeight: 700, cursor: 'pointer' }}>Decline</button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {showAccounting && (
         <div style={{ marginBottom: 36 }}>
