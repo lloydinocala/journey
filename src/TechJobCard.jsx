@@ -28,6 +28,9 @@ const RELATIONSHIP_OPTIONS = [
 ]
 const RELATIONSHIP_LABEL = Object.fromEntries(RELATIONSHIP_OPTIONS.map((o) => [o.value, o.label]))
 
+// Air-filter mounting locations. "Other" is a catch-all for anything outside these — stored as-is, no sub-detail.
+const FILTER_LOCATIONS = ['Ceiling', 'Wall', 'Through the door', 'In the unit', 'Other']
+
 const SIG_STAGES = [
   { key: 'work_approved_to_begin', label: 'Before Work Begins' },
   { key: 'work_finished', label: 'When Work Completes' },
@@ -251,6 +254,14 @@ export default function TechJobCard({ profile }) {
   const [scanTarget, setScanTarget] = useState(null)
   const [scanBusy, setScanBusy] = useState(false)
 
+  // Air filters (per-property; captured once, reused on every visit; feeds retail ordering)
+  const blankFilter = { width: '', height: '', thickness: '', merv: '', location: '', quantity: '1' }
+  const [filters, setFilters] = useState([])
+  const [filterForm, setFilterForm] = useState(blankFilter)
+  const [showFilterForm, setShowFilterForm] = useState(false)
+  const [filterEditingId, setFilterEditingId] = useState(null)
+  const [savingFilter, setSavingFilter] = useState(false)
+
   // Maintenance
   const [sendingPlans, setSendingPlans] = useState(false)
   const [plansMsg, setPlansMsg] = useState('')
@@ -272,7 +283,7 @@ export default function TechJobCard({ profile }) {
   }, [jobId])
 
   useEffect(() => {
-    if (job?.property_id) { loadEquipment(job.property_id); loadTenants(job.property_id); loadPlan(job.property_id); loadHistory(job.property_id) }
+    if (job?.property_id) { loadEquipment(job.property_id); loadFilters(job.property_id); loadTenants(job.property_id); loadPlan(job.property_id); loadHistory(job.property_id) }
     if (job?.properties?.expected_system_count != null) setExpectedSystems(String(job.properties.expected_system_count))
   }, [job?.property_id])
 
@@ -393,6 +404,8 @@ export default function TechJobCard({ profile }) {
   // "Equipment accounted for" = every system captured/documented. Pre-work photos are now
   // their own section in the start-of-work group, not folded into Equipment.
   const equipDone = systemsFilled
+  // Air filters are an optional data-gathering point, not a completion gate — blue once any is recorded.
+  const filtersDone = filters.length > 0
 
   // Diagnosis is blue the moment a real note exists (voice or typed) — no minimum length.
   const diagnosisDone = !!(job?.diagnosis_note && job.diagnosis_note.trim())
@@ -719,6 +732,32 @@ export default function TechJobCard({ profile }) {
     await loadEquipment(job.property_id)
   }
   async function deleteEquipment(id) { if (!window.confirm('Remove this equipment record?')) return; await supabase.from('property_equipment').delete().eq('id', id); loadEquipment(job.property_id) }
+  async function loadFilters(propertyId) {
+    const { data } = await supabase.from('property_filters').select('*').eq('property_id', propertyId).order('created_at')
+    setFilters(data || [])
+  }
+  function startFilterAdd() { setFilterEditingId(null); setFilterForm(blankFilter); setShowFilterForm(true); setOpen('filters', true) }
+  function startFilterEdit(f) {
+    setFilterEditingId(f.id)
+    setFilterForm({ width: f.width ?? '', height: f.height ?? '', thickness: f.thickness ?? '', merv: f.merv ?? '', location: f.location || '', quantity: f.quantity != null ? String(f.quantity) : '1' })
+    setShowFilterForm(true); setOpen('filters', true)
+  }
+  async function saveFilter() {
+    if (!job?.property_id) return
+    setSavingFilter(true)
+    const numOrNull = (v) => (v === '' || v == null ? null : Number(v))
+    const payload = {
+      width: numOrNull(filterForm.width), height: numOrNull(filterForm.height), thickness: numOrNull(filterForm.thickness),
+      merv: filterForm.merv === '' ? null : parseInt(filterForm.merv, 10),
+      location: filterForm.location || null,
+      quantity: filterForm.quantity === '' ? 1 : parseInt(filterForm.quantity, 10) || 1,
+    }
+    if (filterEditingId) await supabase.from('property_filters').update(payload).eq('id', filterEditingId)
+    else await supabase.from('property_filters').insert({ ...payload, org_id: job.org_id, property_id: job.property_id })
+    setSavingFilter(false); setFilterEditingId(null); setFilterForm(blankFilter); setShowFilterForm(false)
+    await loadFilters(job.property_id)
+  }
+  async function deleteFilter(id) { if (!window.confirm('Remove this filter record?')) return; await supabase.from('property_filters').delete().eq('id', id); loadFilters(job.property_id) }
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const r = new FileReader()
@@ -1249,6 +1288,52 @@ export default function TechJobCard({ profile }) {
             </div>
           )}
         </div>
+        {/* Air Filters — the home's filter sizes / MERV / locations. Feeds the customer filter-ordering option. */}
+        <div className="jc-task">
+          <TaskHead k="filters" title="Air Filters" icon={<IconList />} done={filtersDone}
+            actions={<button className="jc-th-action" onClick={() => { setOpen('filters', true); startFilterAdd() }}>+Add</button>} />
+          {isOpen('filters') && (
+            <div className="jc-task-body">
+              <p className="jc-muted-note" style={{ marginBottom: 8 }}>Record each filter this home uses — size, MERV, and where it lives. Captured once for the home and reused on every visit.</p>
+              {filters.map((f) => (
+                <div key={f.id} className="jc-system filled">
+                  <div className="jc-system-top">
+                    <span className="jc-system-label">{[f.width, f.height, f.thickness].filter((n) => n != null).join(' × ') || 'Size not set'}{f.quantity > 1 ? ` · Qty ${f.quantity}` : ''}</span>
+                    <span className="jc-system-badge filled">{f.location || 'No location'}</span>
+                  </div>
+                  <div className="jc-system-detail">{f.merv != null ? `MERV ${f.merv}` : 'MERV not set'}</div>
+                  <div className="jc-system-actions"><button className="jc-btn-sm" onClick={() => startFilterEdit(f)}>Edit</button><button className="jc-btn-sm" style={{ color: 'var(--jc-red)' }} onClick={() => deleteFilter(f.id)}>Remove</button></div>
+                </div>
+              ))}
+              {filters.length === 0 && !showFilterForm && <p className="jc-plan-none">No filters recorded for this home yet.</p>}
+              {showFilterForm && (
+                <div style={{ marginTop: 12 }}>
+                  <div className="jc-field-row">
+                    <div className="jc-field"><label>Width (in)</label><input type="number" inputMode="decimal" value={filterForm.width} onChange={(e) => setFilterForm({ ...filterForm, width: e.target.value })} placeholder="16" /></div>
+                    <div className="jc-field"><label>Height (in)</label><input type="number" inputMode="decimal" value={filterForm.height} onChange={(e) => setFilterForm({ ...filterForm, height: e.target.value })} placeholder="25" /></div>
+                    <div className="jc-field"><label>Thickness (in)</label><input type="number" inputMode="decimal" value={filterForm.thickness} onChange={(e) => setFilterForm({ ...filterForm, thickness: e.target.value })} placeholder="1" /></div>
+                  </div>
+                  <div className="jc-field-row">
+                    <div className="jc-field"><label>MERV</label><input type="number" inputMode="numeric" value={filterForm.merv} onChange={(e) => setFilterForm({ ...filterForm, merv: e.target.value })} placeholder="8" /></div>
+                    <div className="jc-field"><label>Quantity</label><input type="number" inputMode="numeric" min="1" value={filterForm.quantity} onChange={(e) => setFilterForm({ ...filterForm, quantity: e.target.value })} /></div>
+                  </div>
+                  <div className="jc-field"><label>Location</label>
+                    <select value={filterForm.location} onChange={(e) => setFilterForm({ ...filterForm, location: e.target.value })}>
+                      <option value="">Select…</option>
+                      {FILTER_LOCATIONS.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="jc-btn wide" disabled={savingFilter} onClick={saveFilter}>{savingFilter ? 'Saving…' : filterEditingId ? 'Save Changes' : 'Add Filter'}</button>
+                    <button className="jc-btn ghost" onClick={() => { setShowFilterForm(false); setFilterEditingId(null); setFilterForm(blankFilter) }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+              {!showFilterForm && <button className="jc-btn wide" style={{ marginTop: 10 }} onClick={startFilterAdd}>+ Add a filter</button>}
+            </div>
+          )}
+        </div>
+
         {/* IAQ and Checklists mount here in later builds (free-order tasks). */}
 
         {/* ========== WORK & BILLING — after the estimate is approved ========== */}
