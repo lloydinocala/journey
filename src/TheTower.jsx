@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+mport { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import MobileNav, { isFieldAdmin } from './MobileNav'
+import { can } from './utils/permissions'
 
 /* ------------------------------------------------------------------ *
  * THE TOWER — field-supervisor crew oversight (real data).
@@ -97,6 +98,48 @@ export default function TheTower({ profile }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [myUid, setMyUid] = useState(null)
+  const [pendingDiscounts, setPendingDiscounts] = useState([])
+  const [userMap, setUserMap] = useState({})
+  const [selfApprove, setSelfApprove] = useState(true)
+  const canApproveDiscount = profile?.role === 'super_admin' || can(profile, 'approve_nonstandard_discounts') || !!profile?.is_field_supervisor
+
+  async function loadPendingDiscounts() {
+    if (!orgId) return
+    const { data } = await supabase
+      .from('invoices')
+      .select('id, invoice_number, discount_amount, discount_label, job_id, estimating_technician_id, discount_requested_by, jobs(job_number)')
+      .eq('org_id', orgId).eq('kind', 'estimate').eq('discount_status', 'pending')
+      .order('invoice_date', { ascending: false })
+    setPendingDiscounts(data || [])
+  }
+  useEffect(() => {
+    if (!orgId || !canApproveDiscount) return
+    loadPendingDiscounts()
+    supabase.from('organizations').select('discount_self_approve').eq('id', orgId).single()
+      .then(({ data }) => setSelfApprove(data?.discount_self_approve !== false))
+    supabase.from('users').select('id, full_name').eq('org_id', orgId).then(({ data }) => {
+      const m = {}; (data || []).forEach((u) => { m[u.id] = u.full_name }); setUserMap(m)
+    })
+    const ch = supabase
+      .channel('tower-discounts-' + orgId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices', filter: `org_id=eq.${orgId}` }, () => loadPendingDiscounts())
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [orgId, canApproveDiscount])
+
+  async function approveDiscount(d) {
+    await supabase.from('invoices').update({
+      discount_status: 'approved', discount_approved_by: profile.id, discount_approved_at: new Date().toISOString(),
+    }).eq('id', d.id)
+    loadPendingDiscounts()
+  }
+  async function declineDiscount(d) {
+    await supabase.from('invoices').update({
+      discount_id: null, discount_amount: 0, discount_type: 'dollar', discount_label: null,
+      discount_status: null, discount_approved_by: null, discount_approved_at: null,
+    }).eq('id', d.id)
+    loadPendingDiscounts()
+  }
 
   const offset = dayKey === 'yesterday' ? -1 : dayKey === 'tomorrow' ? 1 : 0
   const activeDate = pickDate || dayStr(offset)
@@ -272,6 +315,37 @@ export default function TheTower({ profile }) {
           </label>
         </div>
       </div>
+
+      {/* Discount approvals — routed live from techs in the field */}
+      {canApproveDiscount && pendingDiscounts.length > 0 && (
+        <div style={{ padding: '12px 14px 0' }}>
+          <div style={{ background: '#FFF4E5', border: '2px solid #E8930C', borderRadius: 12, padding: '12px 14px' }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#8A5200', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>
+              Discount Approvals ({pendingDiscounts.length})
+            </div>
+            {pendingDiscounts.map((d) => {
+              const isOwn = !selfApprove && d.discount_requested_by === profile.id
+              return (
+              <div key={d.id} style={{ background: '#fff', border: '1px solid #F0D6AE', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+                <div style={{ fontSize: 17, fontWeight: 800, color: NAVY }}>${Number(d.discount_amount || 0).toFixed(2)} off</div>
+                <div style={{ fontSize: 13, color: '#42566B', margin: '2px 0 8px' }}>
+                  {d.discount_label || 'Custom discount'} · Est {d.invoice_number}
+                  {d.jobs?.job_number ? ` · Job ${d.jobs.job_number}` : ''}
+                  {userMap[d.estimating_technician_id] ? ` · ${userMap[d.estimating_technician_id]}` : ''}
+                </div>
+                {isOwn ? (
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#8A5200' }}>You requested this — another supervisor or the dispatcher must approve it.</div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => approveDiscount(d)} style={{ flex: 1, border: 'none', cursor: 'pointer', borderRadius: 9, padding: '10px', fontSize: 14, fontWeight: 800, background: '#1F7A43', color: '#fff' }}>Approve</button>
+                    <button onClick={() => declineDiscount(d)} style={{ flex: 1, cursor: 'pointer', borderRadius: 9, padding: '10px', fontSize: 14, fontWeight: 800, background: '#fff', color: '#C0392B', border: '1px solid #C0392B' }}>Decline</button>
+                  </div>
+                )}
+              </div>
+            )})}
+          </div>
+        </div>
+      )}
 
       {/* Count strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, padding: '12px 14px 4px' }}>
