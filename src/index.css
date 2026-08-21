@@ -2181,6 +2181,9 @@ body {
 /* --- Collapsible section groups ------------------------------ */
 .jc-group { border: 2px solid var(--jc-red); border-radius: 16px; margin-top: 14px; padding: 6px; }
 .jc-group.blue { border-color: var(--jc-blue); }
+.jc-group + .jc-task { margin-top: 14px; }
+.jc-group-head.locked { opacity: 0.5; cursor: not-allowed; }
+.jc-group-head .jc-group-lock { font-size: 12px; font-weight: 700; color: var(--jc-red); }
 .jc-group-head {
   display: flex; align-items: center; gap: 9px; padding: 18px 16px; cursor: pointer;
   font-size: 18px; font-weight: 900; letter-spacing: 0.3px; color: var(--jc-blue);
@@ -2424,4 +2427,3 @@ body {
   .mobile-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .job-card-v2 .jc-sections { column-count: 3; }
 }
-
