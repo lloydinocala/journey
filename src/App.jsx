@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+ import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { loadOrgTz } from './utils/tz'
@@ -33,6 +33,7 @@ import RolesConfig from './RolesConfig'
 import MySchedule from './MySchedule'
 import MaintenanceAgreementTiers from './MaintenanceAgreementTiers'
 import MaintenanceAgreements from './MaintenanceAgreements'
+import MaintenanceDue from './MaintenanceDue'
 import Invoice from './Invoice'
 import Invoices from './Invoices'
 import Estimate from './Estimate'
@@ -217,6 +218,7 @@ function AuthenticatedApp() {
         <Route path="/discount-catalog" element={<DiscountCatalog profile={profile} />} />
         <Route path="/maintenance-tiers" element={<MaintenanceAgreementTiers profile={profile} />} />
         <Route path="/maintenance-agreements" element={<MaintenanceAgreements profile={profile} />} />
+        <Route path="/maintenance-due" element={<MaintenanceDue profile={profile} />} />
         <Route path="/invoice/:jobId" element={<Invoice profile={profile} />} />
         <Route path="/estimate/:jobId" element={<Estimate profile={profile} />} />
         <Route path="/system-estimate/:jobId" element={<SystemEstimate profile={profile} />} />
