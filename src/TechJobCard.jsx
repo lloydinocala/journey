@@ -927,6 +927,7 @@ export default function TechJobCard({ profile }) {
         <div className="jc-header-text">
           <div className="jc-title">{job.job_number}{job.segment > 1 ? `-${job.segment}` : ''} — {job.customers?.display_name}</div>
           <div className="jc-sub">{date}, {time}{job.duration_hours ? ` · ${job.duration_hours}h` : ''}</div>
+          <div className="jc-signed-in">Signed in as {profile?.full_name}</div>
         </div>
         <span className={`jc-status ${allClear ? 'done' : ''}`}>{allClear ? 'Complete' : 'Incomplete'}</span>
         <button className="jc-theme-toggle" title="Light / Dark" onClick={toggleDark}>{dark ? '☀' : '☾'}</button>
@@ -1136,7 +1137,7 @@ export default function TechJobCard({ profile }) {
                   <button className={`jc-btn${listening ? ' red' : ''}`} onClick={toggleDictation}>{listening ? '● Stop dictation' : '🎤 Dictate'}</button>
                 )}
                 <button className="jc-btn ghost" onClick={clearDiagnosis} disabled={!diagnosisNote}>Clear</button>
-                <button className="jc-btn ghost" onClick={saveDiagnosis} disabled={diagnosisSaved}>Save</button>
+                <button className="jc-btn ghost" onClick={() => { if (listening) recognitionRef.current?.stop(); else saveDiagnosis() }} disabled={!listening && diagnosisSaved}>Save</button>
                 {!diagnosisSaved && <span className="jc-muted-note">Unsaved — saves when you tap away</span>}
                 {diagnosisSaved && diagnosisDone && <span className="jc-done-line">Recorded.</span>}
               </div>
