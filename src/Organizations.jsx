@@ -36,6 +36,8 @@ export default function Organizations() {
 
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
+  const [trialDays, setTrialDays] = useState(7)
+  const [graceDays, setGraceDays] = useState(2)
   const [newTz, setNewTz] = useState(() => {
     const b = browserTz()
     return US_TIMEZONES.some((z) => z.value === b) ? b : 'America/New_York'
@@ -162,11 +164,16 @@ export default function Organizations() {
     if (!name.trim()) return
 
     setSaving(true)
+    const nowMs = Date.now()
+    const trialEnds = new Date(nowMs + (Number(trialDays) || 7) * 86400000)
+    const graceEnds = new Date(trialEnds.getTime() + (Number(graceDays) || 2) * 86400000)
     const { error } = await supabase.from('organizations').insert({
       name: name.trim(),
       slug: slugify(name),
       billing_status: 'trial',
       timezone: newTz,
+      trial_ends_at: trialEnds.toISOString(),
+      grace_ends_at: graceEnds.toISOString(),
     })
     setSaving(false)
 
@@ -320,6 +327,16 @@ export default function Organizations() {
             {US_TIMEZONES.map((z) => <option key={z.value} value={z.value}>{z.label}</option>)}
           </select>
           <span style={{ fontSize: 12, color: 'var(--mist)' }}>The subscriber's operating zone (they can change it later)</span>
+        </div>
+        <div className="field">
+          <label htmlFor="orgTrial">Trial length (days)</label>
+          <input id="orgTrial" type="number" min="1" value={trialDays} onChange={(e) => setTrialDays(e.target.value)} style={{ width: 100 }} />
+          <span style={{ fontSize: 12, color: 'var(--mist)' }}>Full access for this many days, then a grace freeze.</span>
+        </div>
+        <div className="field">
+          <label htmlFor="orgGrace">Grace freeze (days)</label>
+          <input id="orgGrace" type="number" min="0" value={graceDays} onChange={(e) => setGraceDays(e.target.value)} style={{ width: 100 }} />
+          <span style={{ fontSize: 12, color: 'var(--mist)' }}>After the trial ends: locked, data preserved, pay to continue — then archived.</span>
         </div>
         <button className="auth-button" type="submit" disabled={saving}>
           {saving ? 'Adding…' : 'Add organization'}
@@ -500,3 +517,4 @@ export default function Organizations() {
     </div>
   )
 }
+
