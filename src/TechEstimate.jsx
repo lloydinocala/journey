@@ -39,6 +39,11 @@ export default function TechEstimate({ profile }) {
   const [pickServiceId, setPickServiceId] = useState('')
   const [matchingVariants, setMatchingVariants] = useState([])
   const [pickPartSource, setPickPartSource] = useState('')
+  const [addonCat, setAddonCat] = useState('')
+  const [addonSvcList, setAddonSvcList] = useState([])
+  const [addonSvcId, setAddonSvcId] = useState('')
+  const [addonVariants, setAddonVariants] = useState([])
+  const [addonPartSource, setAddonPartSource] = useState('')
   const [addingService, setAddingService] = useState(false)
 
   const [customDesc, setCustomDesc] = useState('')
@@ -114,6 +119,21 @@ export default function TechEstimate({ profile }) {
     // the estimate as a non-billable "Equipment on File" note line, kept in sync.
     await syncEquipmentLine(existingEstimate.id, jobData)
 
+    // Default the Estimating Technician to the job's first-listed technician (by sort order).
+    if (!existingEstimate.estimating_technician_id) {
+      const { data: firstTech } = await supabase
+        .from('job_technicians')
+        .select('user_id')
+        .eq('job_id', jobId)
+        .order('sort_order')
+        .limit(1)
+        .maybeSingle()
+      if (firstTech?.user_id) {
+        await supabase.from('invoices').update({ estimating_technician_id: firstTech.user_id }).eq('id', existingEstimate.id)
+        existingEstimate = { ...existingEstimate, estimating_technician_id: firstTech.user_id }
+      }
+    }
+
     setEstimate(existingEstimate)
     setDiscountType(existingEstimate.discount_type || 'dollar')
     setDiscountAmount(String(existingEstimate.discount_amount || 0))
@@ -123,10 +143,9 @@ export default function TechEstimate({ profile }) {
     const { data: cats } = await supabase.from('services').select('category').eq('org_id', jobData.org_id).eq('is_active', true).neq('category', 'TRIP CHARGES')
     setCategories([...new Set((cats || []).map((c) => c.category))].sort())
 
-    const { data: orgData } = await supabase.from('organizations').select('sales_tax_rate, services_taxable_by_default').eq('id', jobData.org_id).single()
+    const { data: orgData } = await supabase.from('organizations').select('sales_tax_rate').eq('id', jobData.org_id).single()
     if (orgData) {
       setTaxRate(orgData.sales_tax_rate || 0)
-      setCustomTaxable(orgData.services_taxable_by_default)
     }
 
     setLoading(false)
@@ -150,6 +169,17 @@ export default function TechEstimate({ profile }) {
   }
 
   useEffect(() => { loadJobAndEstimate() }, [jobId])
+
+  // Live discount decisions: when a supervisor approves/declines from The Tower,
+  // reload so the estimate reflects it immediately (applied, or gone).
+  useEffect(() => {
+    if (!estimate?.id) return
+    const ch = supabase
+      .channel('estimate-' + estimate.id)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'invoices', filter: `id=eq.${estimate.id}` }, () => { reloadEstimate() })
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [estimate?.id])
 
   useEffect(() => {
     if (!pickCategory || !job) { setServicesInCategory([]); return }
@@ -175,6 +205,24 @@ export default function TechEstimate({ profile }) {
       ? matchingVariants[0]
       : matchingVariants.find((v) => (v.part_source || '') === pickPartSource) || null
 
+  useEffect(() => {
+    if (!addonCat || !job) { setAddonSvcList([]); return }
+    supabase.from('services').select('id, name, is_tax_exempt').eq('org_id', job.org_id).eq('category', addonCat).eq('is_active', true).order('name')
+      .then(({ data }) => setAddonSvcList(data || []))
+  }, [addonCat, job])
+
+  useEffect(() => {
+    if (!addonSvcId || !job?.trip_charge) { setAddonVariants([]); return }
+    supabase.from('service_prices').select('id, part_source, customer_display, price').eq('service_id', addonSvcId)
+      .eq('location', job.trip_charge.location).eq('access', job.trip_charge.access).eq('hours', job.trip_charge.hours).eq('is_active', true)
+      .then(({ data }) => { setAddonVariants(data || []); setAddonPartSource('') })
+  }, [addonSvcId, job])
+
+  const resolvedAddonVariant =
+    addonVariants.length === 1
+      ? addonVariants[0]
+      : addonVariants.find((v) => (v.part_source || '') === addonPartSource) || null
+
   async function handleAddService() {
     if (!resolvedVariant) return
     setAddingService(true)
@@ -199,6 +247,32 @@ export default function TechEstimate({ profile }) {
     loadLineItems(estimate.id)
   }
 
+  async function handleAddAddon() {
+    const addonCount = lineItems.filter((li) => li.category === 'RECOMMENDED ADDONS').length
+    if (!resolvedAddonVariant || addonCount >= 2) return
+    setAddingService(true)
+    const svc = addonSvcList.find((s) => s.id === addonSvcId)
+    const nextSort = lineItems.length > 0 ? Math.max(...lineItems.map((li) => li.sort_order)) + 1 : 1
+    await supabase.from('invoice_line_items').insert({
+      invoice_id: estimate.id,
+      org_id: job.org_id,
+      description: resolvedAddonVariant.customer_display,
+      unit_price: resolvedAddonVariant.price,
+      quantity: 1,
+      taxable: svc?.is_tax_exempt === false,
+      is_custom: false,
+      sort_order: nextSort,
+      service_id: addonSvcId,
+      service_price_id: resolvedAddonVariant.id,
+      category: 'RECOMMENDED ADDONS',
+    })
+    setAddingService(false)
+    setAddonCat('')
+    setAddonSvcId('')
+    setAddonVariants([])
+    loadLineItems(estimate.id)
+  }
+
   async function handleAddCustom(e) {
     e.preventDefault()
     if (!customDesc.trim() || !customPrice) return
@@ -218,6 +292,7 @@ export default function TechEstimate({ profile }) {
     setCustomDesc('')
     setCustomQty('1')
     setCustomPrice('')
+    setCustomTaxable(false)
     loadLineItems(estimate.id)
   }
 
@@ -254,7 +329,7 @@ export default function TechEstimate({ profile }) {
     await supabase.from('invoices').update({
       discount_id: null, discount_type: 'dollar', discount_amount: amt,
       discount_label: custReason.trim() || 'Custom discount', discount_status: 'pending',
-      discount_approved_by: null, discount_approved_at: null,
+      discount_approved_by: null, discount_approved_at: null, discount_requested_by: profile.id,
     }).eq('id', estimate.id)
     setCustOpen(false); setCustAmt(''); setCustReason('')
     reloadEstimate()
@@ -287,7 +362,8 @@ export default function TechEstimate({ profile }) {
     : (discountType === 'percent' ? subtotal * ((parseFloat(discountAmount) || 0) / 100) : parseFloat(discountAmount) || 0)
   const totalDue = Math.max(subtotal + salesTax - discountValue, 0)
   const equipmentSummary = lineItems.find((li) => li.category === 'EQUIPMENT ON FILE')?.description || ''
-  const serviceLineItems = lineItems.filter((li) => li.category !== 'EQUIPMENT ON FILE')
+  const addonItems = lineItems.filter((li) => li.category === 'RECOMMENDED ADDONS')
+  const serviceLineItems = lineItems.filter((li) => li.category !== 'EQUIPMENT ON FILE' && li.category !== 'RECOMMENDED ADDONS')
 
   useEffect(() => {
     if (!estimate) return
@@ -454,6 +530,68 @@ export default function TechEstimate({ profile }) {
         </div>
 
         <div className="section-card">
+          <div className="section-card-header"><span>Recommended Add-Ons</span></div>
+          <div className="section-card-body">
+            <p style={{ color: 'var(--mist)', fontSize: 12.5, marginTop: 0 }}>Optional upgrades to present for approval — up to 2, pulled from the pricebook.</p>
+            {addonItems.map((li) => (
+              <div key={li.id} className="line-item-card">
+                <div className="line-item-desc">{li.description}</div>
+                <div className="line-item-fields">
+                  <div className="mobile-field">
+                    <label>Qty</label>
+                    <input type="number" step="1" value={li.quantity} onChange={(e) => updateLineItem(li.id, 'quantity', parseFloat(e.target.value) || 0)} />
+                  </div>
+                  <div className="mobile-field">
+                    <label>Unit Price</label>
+                    <input type="number" step="0.01" value={li.unit_price} onChange={(e) => updateLineItem(li.id, 'unit_price', parseFloat(e.target.value) || 0)} />
+                  </div>
+                  <div className="line-item-ext">${(li.quantity * li.unit_price).toFixed(2)}</div>
+                </div>
+                <div className="line-item-meta-row">
+                  <span>{li.taxable ? 'Taxable' : 'Non-taxable'}</span>
+                  <button className="remove-item-btn" onClick={() => removeLineItem(li.id)}>Remove</button>
+                </div>
+              </div>
+            ))}
+            {addonItems.length < 2 ? (
+              <>
+                <div className="mobile-field">
+                  <label>Category</label>
+                  <select value={addonCat} onChange={(e) => { setAddonCat(e.target.value); setAddonSvcId('') }}>
+                    <option value="">Select…</option>
+                    {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                {addonCat && (
+                  <div className="mobile-field">
+                    <label>Service</label>
+                    <select value={addonSvcId} onChange={(e) => setAddonSvcId(e.target.value)}>
+                      <option value="">Select…</option>
+                      {addonSvcList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                )}
+                {addonSvcId && addonVariants.length > 1 && (
+                  <div className="mobile-field">
+                    <label>Part Source</label>
+                    <select value={addonPartSource} onChange={(e) => setAddonPartSource(e.target.value)}>
+                      <option value="">Select…</option>
+                      {addonVariants.map((v) => <option key={v.id} value={v.part_source || ''}>{v.part_source || 'N/A'}</option>)}
+                    </select>
+                  </div>
+                )}
+                {resolvedAddonVariant && <p style={{ fontWeight: 700, color: 'var(--route-blue)', fontSize: 14 }}>${resolvedAddonVariant.price.toFixed(2)}</p>}
+                <button className="action-btn primary" style={{ flex: 'none', padding: '9px 20px' }} onClick={handleAddAddon} disabled={!resolvedAddonVariant || addingService}>
+                  {addingService ? 'Adding…' : '+ Add Recommended Add-On'}
+                </button>
+              </>
+            ) : (
+              <p style={{ color: 'var(--mist)', fontSize: 12.5, margin: 0 }}>Maximum of 2 recommended add-ons reached.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="section-card">
           <div className="section-card-header"><span>Totals</span></div>
           <div className="section-card-body">
             {hasCustomDiscount ? (
@@ -462,7 +600,7 @@ export default function TechEstimate({ profile }) {
                 <p style={{ margin: '2px 0', fontWeight: 600 }}>Custom: ${customDollars.toFixed(2)} off</p>
                 {estimate.discount_label && <p style={{ margin: '2px 0', fontSize: 12, color: 'var(--mist)' }}>{estimate.discount_label}</p>}
                 {customApproved ? (
-                  <p style={{ margin: '2px 0', fontSize: 12, color: '#1F7A43', fontWeight: 600 }}>Approved{discountApproverName ? ` by ${discountApproverName}` : ''}</p>
+                  <p style={{ margin: '2px 0', fontSize: 12, color: '#1F7A43', fontWeight: 600 }}>Approved{discountApproverName ? ` by ${discountApproverName}` : ''}{estimate.discount_approved_at ? ` · ${new Date(estimate.discount_approved_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : ''}</p>
                 ) : (
                   <p style={{ margin: '2px 0', fontSize: 12, color: '#B8860B', fontWeight: 600 }}>Pending approval &mdash; not applied until approved</p>
                 )}
