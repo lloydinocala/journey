@@ -1,4 +1,4 @@
-mport { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import MobileNav, { isFieldAdmin } from './MobileNav'
