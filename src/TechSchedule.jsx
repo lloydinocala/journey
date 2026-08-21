@@ -73,7 +73,7 @@ export default function TechSchedule({ profile }) {
   const navigate = useNavigate()
   const [date, setDate] = useState(todayISO())
   const [viewMode, setViewMode] = useState('list')
-  const [techFilter, setTechFilter] = useState('all')
+  const [techFilter, setTechFilter] = useState(() => (profile && !isFieldAdmin(profile) ? profile.id : 'all'))
   const [users, setUsers] = useState([])
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -196,10 +196,12 @@ export default function TechSchedule({ profile }) {
 
         <div className="schedule-filters">
           {viewMode === 'list' && <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />}
-          <select value={techFilter} onChange={(e) => setTechFilter(e.target.value)} style={{ flex: viewMode === 'calendar' ? 1 : undefined }}>
-            <option value="all">All Technicians</option>
-            {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </select>
+          {isFieldAdmin(profile) && (
+            <select value={techFilter} onChange={(e) => setTechFilter(e.target.value)} style={{ flex: viewMode === 'calendar' ? 1 : undefined }}>
+              <option value="all">All Technicians</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+            </select>
+          )}
         </div>
 
         {viewMode === 'calendar' ? (
