@@ -63,6 +63,8 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
   const [tripChargeId, setTripChargeId] = useState(null)
   const [authDiagnoseOnly, setAuthDiagnoseOnly] = useState(false)
   const [authLimitAmount, setAuthLimitAmount] = useState('')
+  const [readNotesBefore, setReadNotesBefore] = useState(false)
+  const [privateNotes, setPrivateNotes] = useState('')
   const [overrideBan, setOverrideBan] = useState(false)
 
   const [continueSearchText, setContinueSearchText] = useState('')
@@ -398,6 +400,8 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
           trip_charge_price_id: tripChargeId || null,
           auth_diagnose_only: authDiagnoseOnly,
           auth_limit_amount: authDiagnoseOnly ? null : (authLimitAmount ? parseFloat(authLimitAmount) : null),
+          read_notes_before_job: readNotesBefore,
+          internal_notes: privateNotes.trim() || null,
         })
         .select()
         .single()
@@ -895,6 +899,15 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
               <div className="field">
                 <label htmlFor="complaint">Issue</label>
                 <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling, or notes for a System Estimate visit" />
+              </div>
+              <div className="field">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={readNotesBefore} onChange={(e) => setReadNotesBefore(e.target.checked)} />
+                  Flag: tech must read Private Notes before going to job
+                </label>
+                {readNotesBefore && (
+                  <textarea value={privateNotes} onChange={(e) => setPrivateNotes(e.target.value)} rows={3} placeholder="Private notes for the tech — shown on the job card, never to the customer" style={{ width: '100%', marginTop: 6 }} />
+                )}
               </div>
               {[
                 { label: 'Technician 1', value: technicianId, set: setTechnicianId },
