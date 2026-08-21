@@ -909,7 +909,7 @@ export default function TechJobCard({ profile }) {
   }
   // Small greyed reason line shown right under a locked task head.
   function LockNote({ text }) {
-    return <div className="jc-task" style={{ margin: '-4px 0 8px', padding: '6px 12px', fontSize: 12.5, color: 'var(--jc-muted)', display: 'flex', alignItems: 'center', gap: 6 }}><span>🔒</span><span>{text}</span></div>
+    return <div className="jc-task" style={{ margin: '-4px 0 8px', padding: '6px 12px', fontSize: 14, color: 'var(--jc-muted)', display: 'flex', alignItems: 'center', gap: 6 }}><span>🔒</span><span>{text}</span></div>
   }
 
   return (
@@ -968,13 +968,13 @@ export default function TechJobCard({ profile }) {
                         {dmaps && (
                           <a href={dmaps} target="_blank" rel="noreferrer" title="Your device's default map app (Apple Maps, Waze, etc.)" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                             <IconPin />
-                            <span style={{ fontSize: 9, lineHeight: 1, color: '#64748B' }}>Device</span>
+                            <span style={{ fontSize: 10, lineHeight: 1, color: '#64748B' }}>Device</span>
                           </a>
                         )}
                         {gmaps && (
                           <a className="alt" href={gmaps} target="_blank" rel="noreferrer" title="Google Maps (app default)" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                             <IconNavigation />
-                            <span style={{ fontSize: 9, lineHeight: 1, color: '#64748B' }}>Google</span>
+                            <span style={{ fontSize: 10, lineHeight: 1, color: '#64748B' }}>Google</span>
                           </a>
                         )}
                       </div>
@@ -1312,7 +1312,7 @@ export default function TechJobCard({ profile }) {
                 const existing = approvals.find((a) => a.stage === s.key)
                 return (
                   <div key={s.key} style={{ marginBottom: 12 }}>
-                    <strong style={{ fontSize: 14 }}>{s.label}</strong>
+                    <strong style={{ fontSize: 16 }}>{s.label}</strong>
                     {existing ? (
                       <div style={{ marginTop: 4 }}>
                         <p className="jc-muted-note">{existing.signature_url ? 'Signed' : 'Recorded'} by {existing.approved_by} · {new Date(existing.approved_at).toLocaleDateString()}</p>
@@ -1337,7 +1337,7 @@ export default function TechJobCard({ profile }) {
                         ) : (
                           <SignaturePad onChange={setSigData} />
                         )}
-                        {sigError && <p style={{ color: 'var(--jc-red)', fontSize: 12.5, margin: '6px 0' }}>{sigError}</p>}
+                        {sigError && <p style={{ color: 'var(--jc-red)', fontSize: 14, margin: '6px 0' }}>{sigError}</p>}
                         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                           <button className="jc-btn" onClick={() => submitSignature(s.key)}>{noSig ? 'Record Reason' : 'Save Signature'}</button>
                           <button className="jc-btn ghost" onClick={() => { setSigningStage(null); setApproverName(''); setSigData(null); setSigError(''); setNoSig(false); setSigReason('') }}>Cancel</button>
@@ -1434,13 +1434,13 @@ export default function TechJobCard({ profile }) {
       {showStopModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1500 }} onClick={() => !savingStop && setShowStopModal(false)}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: '100%', maxWidth: 520, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, paddingBottom: 32 }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 18 }}>Stopping with items still red</h3>
+            <h3 style={{ margin: '0 0 4px', fontSize: 21 }}>Stopping with items still red</h3>
             <p className="jc-muted-note" style={{ marginBottom: 14 }}>This job will be sent to the office as <strong style={{ color: 'var(--jc-red)' }}>Incomplete</strong>. Pick the reason.</p>
-            <select value={incompleteReason} onChange={(e) => setIncompleteReason(e.target.value)} style={{ width: '100%', padding: 12, fontSize: 16, borderRadius: 10, border: '1px solid var(--jc-line)', marginBottom: 12 }}>
+            <select value={incompleteReason} onChange={(e) => setIncompleteReason(e.target.value)} style={{ width: '100%', padding: 12, fontSize: 18, borderRadius: 10, border: '1px solid var(--jc-line)', marginBottom: 12 }}>
               <option value="">Select a reason…</option>
               {INCOMPLETE_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
-            {stopError && <p style={{ color: 'var(--jc-red)', fontSize: 13, marginBottom: 10 }}>{stopError}</p>}
+            {stopError && <p style={{ color: 'var(--jc-red)', fontSize: 15, marginBottom: 10 }}>{stopError}</p>}
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="jc-btn ghost" disabled={savingStop} onClick={() => setShowStopModal(false)}>Cancel</button>
               <button className="jc-btn red wide" disabled={savingStop || !incompleteReason} onClick={() => finishJob('incomplete', incompleteReason)}>{savingStop ? 'Saving…' : 'Stop — Mark Incomplete'}</button>
