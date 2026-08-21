@@ -1049,6 +1049,7 @@ export default function TechJobCard({ profile }) {
 
         {/* ========== WORKFLOW SPINE — forced order: Equipment -> Diagnosis -> Service Estimate ========== */}
 
+        <div className={`jc-group ${startGroupDone ? 'blue' : 'red'}`}>
         <GroupHead g="start" label="Start Here" done={startGroupDone} />
         {openGroup === 'start' && (<div className="jc-group-body">
         {/* Equipment on File — nameplates / systems on record (start-of-work group) */}
@@ -1169,6 +1170,8 @@ export default function TechJobCard({ profile }) {
         </div>
 
         </div>)}
+        </div>
+        <div className={`jc-group ${estimateGroupDone ? 'blue' : 'red'}`}>
         <GroupHead g="estimate" label="Create Services Estimate" done={estimateGroupDone} />
         {openGroup === 'estimate' && (<div className="jc-group-body">
         {/* Checklist (Maintenance) — replaces Diagnosis; uses the plan-tier checklist, or Basic */}
@@ -1239,6 +1242,8 @@ export default function TechJobCard({ profile }) {
         {/* ========== WORK & BILLING — after the estimate is approved ========== */}
 
         </div>)}
+        </div>
+        <div className={`jc-group ${paymentGroupDone ? 'blue' : 'red'}`}>
         <GroupHead g="payment" label="Collect Payment" done={paymentGroupDone} />
         {openGroup === 'payment' && (<div className="jc-group-body">
         {/* Completion (post-repair) photos — the hard gate before Invoice lands in the estimate/invoice build */}
@@ -1295,6 +1300,7 @@ export default function TechJobCard({ profile }) {
         </div>
 
         </div>)}
+        </div>
         {/* Post-work Signatures removed — approval is signed at estimate approval; post-work photos verify the work. */}
         {false && (<>
         {/* Signatures (required) */}
@@ -1350,6 +1356,7 @@ export default function TechJobCard({ profile }) {
         {/* ========== REFERENCE ========== */}
 
         </>)}
+        <div className="jc-group blue">
         <GroupHead label="Other Estimates" independent done={false} />
         {otherOpen && (<div className="jc-group-body">
         {/* Equipment Estimate (optional / blue) */}
@@ -1363,6 +1370,7 @@ export default function TechJobCard({ profile }) {
         </div>
 
         </div>)}
+        </div>
         {/* Service History (optional / blue) */}
         <div className="jc-task">
           <TaskHead k="history" title="Service History" icon={<IconList />} done forceColor="blue" />
