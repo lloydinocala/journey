@@ -293,7 +293,7 @@ export default function TechJobCard({ profile }) {
     const { data } = await supabase.from('jobs').select(`
       id, org_id, property_id, customer_id, job_number, segment, status, start_time, duration_hours, job_type,
       service_complaint, internal_notes, auth_diagnose_only, auth_limit_amount, service_estimate_not_needed, plan_options_sent_at, read_notes_before_job,
-      tech_email_edited_at, tech_phone_edited_at, diagnosis_note, diagnosis_recorded_at, pre_photo_skip_reason,
+      tech_email_edited_at, tech_phone_edited_at, diagnosis_note, diagnosis_recorded_at, pre_photo_skip_reason, arrival_at, paused_at, paused_seconds,
       properties ( street_address, unit, city, state, zip, expected_system_count ),
       customers ( display_name, spouse_name, primary_phone, secondary_phone, email_1 ),
       trip_charge:trip_charge_price_id ( location, access, hours, price, services ( name ) )
@@ -590,6 +590,21 @@ export default function TechJobCard({ profile }) {
     setSaving(false)
   }
 
+  async function pauseJob() {
+    // Stop the clock without ending the job or creating a new segment. Status stays in_progress.
+    if (!started || job?.paused_at) return
+    const now = new Date().toISOString()
+    const { error } = await supabase.from('jobs').update({ paused_at: now }).eq('id', jobId)
+    if (!error) setJob((p) => ({ ...p, paused_at: now }))
+  }
+  async function resumeJob() {
+    // Restart the clock — fold the just-ended pause interval into the running total.
+    if (!job?.paused_at) return
+    const add = Math.max(0, Math.floor((Date.now() - new Date(job.paused_at).getTime()) / 1000))
+    const newSecs = (job.paused_seconds || 0) + add
+    const { error } = await supabase.from('jobs').update({ paused_at: null, paused_seconds: newSecs }).eq('id', jobId)
+    if (!error) setJob((p) => ({ ...p, paused_at: null, paused_seconds: newSecs }))
+  }
   function onStopMyTime() {
     // Ends the job. If everything is clear -> Complete. Otherwise -> Incomplete (reason required).
     if (allClear) { finishJob('completed', null); return }
@@ -597,14 +612,20 @@ export default function TechJobCard({ profile }) {
   }
   async function finishJob(finalStatus, reason) {
     setSavingStop(true)
-    const { error } = await supabase.from('jobs').update({ status: finalStatus, completed_at: new Date().toISOString() }).eq('id', jobId)
+    const patch = { status: finalStatus, completed_at: new Date().toISOString() }
+    if (job?.paused_at) {
+      // Stopped while paused — close the open pause so worked time stays accurate.
+      patch.paused_seconds = (job.paused_seconds || 0) + Math.max(0, Math.floor((Date.now() - new Date(job.paused_at).getTime()) / 1000))
+      patch.paused_at = null
+    }
+    const { error } = await supabase.from('jobs').update(patch).eq('id', jobId)
     if (error) { setStopError(error.message); setSavingStop(false); return }
     if (finalStatus === 'incomplete' && reason) {
       const { data: existing } = await supabase.from('job_incomplete_records').select('id').eq('job_id', jobId).limit(1)
       if (existing && existing.length) await supabase.from('job_incomplete_records').update({ reason }).eq('id', existing[0].id)
       else await supabase.from('job_incomplete_records').insert({ org_id: job.org_id, job_id: jobId, reason })
     }
-    setJob((p) => ({ ...p, status: finalStatus }))
+    setJob((p) => ({ ...p, status: finalStatus, paused_at: null }))
     setSavingStop(false); setShowStopModal(false)
   }
 
@@ -922,6 +943,7 @@ export default function TechJobCard({ profile }) {
 
   // Button flow states
   const started = status === 'in_progress'
+  const isPaused = !!job?.paused_at
   const enRoute = status === 'on_my_way'
   const ended = status === 'completed' || status === 'incomplete'
   const omwClass = enRoute || started || ended ? 'blue' : 'red'
@@ -993,6 +1015,19 @@ export default function TechJobCard({ profile }) {
           <button className={`jc-flow-btn ${startClass}`} disabled={started || status !== 'on_my_way' || saving} onClick={() => updateStatus('in_progress')}>{started ? (job.arrival_at ? `Started ${formatTimeInZone(job.arrival_at)}` : 'Time Started') : 'Start My Time'}</button>
           <button className={`jc-flow-btn ${stopClass}`} disabled={!started || savingStop} onClick={onStopMyTime}>Stop My Time</button>
         </div>
+        {started && !ended && (
+          <div className="jc-actions" style={{ marginTop: 8 }}>
+            {isPaused
+              ? <button className="jc-flow-btn red" disabled={saving} onClick={resumeJob}>▶ Resume My Time</button>
+              : <button className="jc-flow-btn idle" disabled={saving} onClick={pauseJob}>⏸ Pause My Time</button>}
+          </div>
+        )}
+        {isPaused && (
+          <div className="jc-arrival off">
+            <span className="jc-arrival-dot" />
+            Paused{job.paused_at ? ` at ${formatTimeInZone(job.paused_at)}` : ''} — your time is stopped. Tap Resume when you're back to finish this same job.
+          </div>
+        )}
         {enRoute && (
           <div className={`jc-arrival ${arrivalState}`}>
             <span className="jc-arrival-dot" />
