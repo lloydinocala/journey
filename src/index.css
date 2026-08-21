@@ -2165,7 +2165,7 @@ body {
 .jc-task:has(.jc-task-head.red) { border-color: var(--jc-red); }
 .jc-task:has(.jc-task-head.blue) { border-color: var(--jc-blue); }
 .jc-task-head {
-  display: flex; align-items: center; gap: 9px; padding: 13px 15px; cursor: pointer;
+  display: flex; align-items: center; gap: 9px; padding: 20px 15px; cursor: pointer;
   font-size: 15px; font-weight: 800; color: var(--jc-blue); background: var(--jc-card); border: none; width: 100%; text-align: left; font-family: inherit;
 }
 .jc-task-head.red { background: var(--jc-card); color: var(--jc-blue); }
@@ -2177,6 +2177,20 @@ body {
 .jc-th-chevron { color: var(--jc-blue); font-size: 13px; transition: transform 0.15s; flex-shrink: 0; }
 .jc-th-chevron.open { transform: rotate(90deg); }
 .jc-task-body { padding: 14px 15px 16px; }
+
+/* --- Collapsible section groups ------------------------------ */
+.jc-group-head {
+  display: flex; align-items: center; gap: 9px; padding: 18px 16px; margin-top: 12px; cursor: pointer;
+  font-size: 16px; font-weight: 900; letter-spacing: 0.3px; color: var(--jc-blue);
+  background: var(--jc-card); border-radius: 13px; box-shadow: var(--jc-shadow);
+  border: 2px solid var(--jc-red);
+}
+.jc-group-head.blue { border-color: var(--jc-blue); }
+.jc-group-head .jc-group-label { flex: 1; min-width: 0; }
+.jc-group-head .jc-th-chevron { color: var(--jc-blue); font-size: 15px; transition: transform 0.15s; }
+.jc-group-head .jc-th-chevron.open { transform: rotate(90deg); }
+.jc-group-body { margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
+.job-card-v2.jc-dark .jc-group-head, .job-card-v2.jc-dark .jc-group-head .jc-th-chevron { color: #EAF0F6; }
 
 /* --- Customer section ---------------------------------------- */
 .jc-tenant-name { font-size: 25px; font-weight: 800; color: var(--jc-black); line-height: 1.15; }
@@ -2248,8 +2262,8 @@ body {
 
 /* --- Google Reviews (colorful; not blue/red) ----------------- */
 .jc-google {
-  width: 100%; border: none; border-radius: 14px; padding: 14px; cursor: pointer; font-family: inherit;
-  font-size: 17px; font-weight: 900; color: #202124; letter-spacing: 0.3px; box-shadow: var(--jc-shadow);
+  width: 100%; border: none; border-radius: 14px; padding: 11px; cursor: pointer; font-family: inherit;
+  font-size: 15px; font-weight: 900; color: #202124; letter-spacing: 0.3px; box-shadow: var(--jc-shadow);
   background: linear-gradient(90deg, #4285F4 0%, #34A853 33%, #FBBC05 66%, #34A853 100%);
   display: flex; flex-direction: column; align-items: center; gap: 2px;
 }
