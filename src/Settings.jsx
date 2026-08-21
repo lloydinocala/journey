@@ -39,6 +39,7 @@ export default function Settings({ profile }) {
   const [tzSaved, setTzSaved] = useState(false)
 
   const [taxableByDefault, setTaxableByDefault] = useState(false)
+  const [discountSelfApprove, setDiscountSelfApprove] = useState(true)
   const [salesTaxRate, setSalesTaxRate] = useState('0')
   const [savingTax, setSavingTax] = useState(false)
   const [taxSaved, setTaxSaved] = useState(false)
@@ -96,7 +97,7 @@ export default function Settings({ profile }) {
     if (!orgId) return
     const { data } = await supabase
       .from('organizations')
-    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, license_number, payment_terms_days, logo_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
+    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, discount_self_approve, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, license_number, payment_terms_days, logo_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
       .eq('id', orgId)
       .single()
     if (data) {
@@ -104,6 +105,7 @@ export default function Settings({ profile }) {
       setBusinessEnd(data.business_hours_end.slice(0, 5))
       setTimezone(data.timezone || browserTz())
       setTaxableByDefault(data.services_taxable_by_default)
+      setDiscountSelfApprove(data.discount_self_approve !== false)
       setSalesTaxRate(String(data.sales_tax_rate))
       setBizStreet(data.business_street || '')
       setBizCity(data.business_city || '')
@@ -474,6 +476,17 @@ export default function Settings({ profile }) {
               style={{ marginRight: 6 }}
             />
             New pricebook items are taxable by default
+          </label>
+        </div>
+        <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 0 }}>
+          <label style={{ marginBottom: 0, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={discountSelfApprove}
+              onChange={(e) => { setDiscountSelfApprove(e.target.checked); supabase.from('organizations').update({ discount_self_approve: e.target.checked }).eq('id', selectedOrg) }}
+              style={{ marginRight: 6 }}
+            />
+            Supervisors may approve their own discount requests
           </label>
         </div>
         <div className="field">
