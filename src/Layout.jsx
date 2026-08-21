@@ -20,6 +20,7 @@ const CATEGORIES = [
     { label: 'Customers', path: '/customers' },
     { label: 'Text Archive', path: '/text-archive' },
     { label: 'Maintenance Agreements', path: '/maintenance-agreements' },
+    { label: 'Maintenance Due', path: '/maintenance-due' },
     { label: 'Job Estimates', path: '/estimates' },
   ]},
   { key: 'financials', label: 'Financials', items: [
