@@ -404,7 +404,8 @@ export default function TechJobCard({ profile }) {
   // "Equipment accounted for" = every system captured/documented. Pre-work photos are now
   // their own section in the start-of-work group, not folded into Equipment.
   const equipDone = systemsFilled
-  // Air filters are an optional data-gathering point, not a completion gate — blue once any is recorded.
+  // Air filters: blue once any is recorded. Required before the invoice can be built (feeds the
+  // retail filter program + ensures every home's filters are on file).
   const filtersDone = filters.length > 0
 
   // Diagnosis is blue the moment a real note exists (voice or typed) — no minimum length.
@@ -423,6 +424,14 @@ export default function TechJobCard({ profile }) {
   const maintDone = planExists || planSent
   const serviceEstDone = !!job?.service_estimate_not_needed || serviceEstItems > 0
 
+  // The invoice can't be built until three process steps are complete: verification photos
+  // (proof of work), the home's air filters captured, and maintenance-agreement options offered
+  // (a plan already on record also satisfies it). Each cascades — no invoice, no send, no payment.
+  const invoiceBlockers = []
+  if (!verifyDone) invoiceBlockers.push('upload verification photos (Verify, below)')
+  if (!filtersDone) invoiceBlockers.push("record the home's air filters (in Create Services Estimate)")
+  if (!maintDone) invoiceBlockers.push('send maintenance agreement options (in Create Services Estimate)')
+  const canBuildInvoice = invoiceBlockers.length === 0
   // ---- per-job-type matrix: which spine tasks show + what the middle gate is ----
   const jtCfg = jobTypeConfig(job?.job_type)
   const showDiagnosis = jtCfg.middle === 'diagnosis'   // repair-style
@@ -1402,12 +1411,12 @@ export default function TechJobCard({ profile }) {
           )}
         </div>
 
-        {/* Invoice Builder (required) — HARD-GATED on verification photos */}
-        {!verifyDone && <LockNote text="Upload verification photos first — the invoice can't be built or billed until the completed work is verified by photo." />}
+        {/* Invoice Builder (required) — HARD-GATED: verification photos + air filters + agreement offered */}
+        {!canBuildInvoice && <LockNote text={`Before building the invoice — ${invoiceBlockers.join('; ')}.`} />}
         <div className="jc-task">
-          <TaskHead k="invoice" title="Invoice Builder" icon={<IconReceipt />} done={invoiceDone} locked={!verifyDone}
-            actions={verifyDone ? <button className="jc-th-action" onClick={() => navigate(`/tech/invoice/${jobId}`)}>+Add</button> : null} />
-          {verifyDone && isOpen('invoice') && (
+          <TaskHead k="invoice" title="Invoice Builder" icon={<IconReceipt />} done={invoiceDone} locked={!canBuildInvoice}
+            actions={canBuildInvoice ? <button className="jc-th-action" onClick={() => navigate(`/tech/invoice/${jobId}`)}>+Add</button> : null} />
+          {canBuildInvoice && isOpen('invoice') && (
             <div className="jc-task-body">
               <Link to={`/tech/invoice/${jobId}`} className="jc-action-link"><IconReceipt /><span>Open Invoice Builder</span><span className="jc-chev">›</span></Link>
               {invoiceDone && <p className="jc-done-line">{invoiceItems} line item{invoiceItems === 1 ? '' : 's'} on invoice.</p>}
