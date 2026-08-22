@@ -412,6 +412,9 @@ export default function TechJobCard({ profile }) {
 
   const invoiceDone = !!invoice && invoiceItems > 0
   const viewSendDone = !!invoice?.sent_at
+  // HARD GATE: verification (post-work) photos must exist before any invoice building or payment.
+  // "We don't bill for work we haven't done — and haven't verified by photo."
+  const verifyDone = postPhotos.length > 0
   // Before-work signature is optional; the after-work (work_finished) signature
   // or reason is what's required.
   const sigDone = approvals.some((a) => a.stage === 'work_finished')
@@ -458,7 +461,7 @@ export default function TechJobCard({ profile }) {
   // Group completion (all subsections blue) → auto-close the group; next opens manually.
   const startGroupDone = equipDone && middleGateDone && preWorkPhotosDone
   const estimateGroupDone = serviceEstDone && maintDone
-  const paymentGroupDone = invoiceDone && viewSendDone
+  const paymentGroupDone = verifyDone && invoiceDone && viewSendDone
   useEffect(() => {
     const gs = { start: startGroupDone, estimate: estimateGroupDone, payment: paymentGroupDone }
     for (const g of Object.keys(gs)) {
@@ -1381,14 +1384,14 @@ export default function TechJobCard({ profile }) {
         {openGroup === 'payment' && (<div className="jc-group-body">
         {/* Completion (post-repair) photos — the hard gate before Invoice lands in the estimate/invoice build */}
         <div className="jc-task">
-          <TaskHead k="completion_photos" title="Completion Photos" icon={<IconCamera />} done={postPhotos.length > 0}
+          <TaskHead k="completion_photos" title="Verify" icon={<IconCamera />} done={verifyDone}
             actions={<>
               <button className="jc-th-action" onClick={() => capturePhoto('post', 'camera')}>Take Photo</button>
               <button className="jc-th-action" onClick={() => capturePhoto('post', 'upload')}>Upload</button>
             </>} />
           {isOpen('completion_photos') && (
             <div className="jc-task-body">
-              <p className="jc-muted-note" style={{ marginBottom: 8 }}>Photos of the finished work — proof of completion.</p>
+              <p className="jc-muted-note" style={{ marginBottom: 8 }}>Photos that verify the work was completed. Required before the invoice can be built or payment taken — we don&apos;t bill for work we haven&apos;t verified.</p>
               <div className="jc-photo-grid">
                 {postPhotos.map((p) => (
                   <a key={p.id} href={photoUrls[p.id] || '#'} target="_blank" rel="noreferrer" className="jc-photo">{photoUrls[p.id] ? <img src={photoUrls[p.id]} alt={p.file_name} /> : <IconCamera />}</a>
@@ -1399,11 +1402,12 @@ export default function TechJobCard({ profile }) {
           )}
         </div>
 
-        {/* Invoice Builder (required) */}
+        {/* Invoice Builder (required) — HARD-GATED on verification photos */}
+        {!verifyDone && <LockNote text="Upload verification photos first — the invoice can't be built or billed until the completed work is verified by photo." />}
         <div className="jc-task">
-          <TaskHead k="invoice" title="Invoice Builder" icon={<IconReceipt />} done={invoiceDone}
-            actions={<button className="jc-th-action" onClick={() => navigate(`/tech/invoice/${jobId}`)}>+Add</button>} />
-          {isOpen('invoice') && (
+          <TaskHead k="invoice" title="Invoice Builder" icon={<IconReceipt />} done={invoiceDone} locked={!verifyDone}
+            actions={verifyDone ? <button className="jc-th-action" onClick={() => navigate(`/tech/invoice/${jobId}`)}>+Add</button> : null} />
+          {verifyDone && isOpen('invoice') && (
             <div className="jc-task-body">
               <Link to={`/tech/invoice/${jobId}`} className="jc-action-link"><IconReceipt /><span>Open Invoice Builder</span><span className="jc-chev">›</span></Link>
               {invoiceDone && <p className="jc-done-line">{invoiceItems} line item{invoiceItems === 1 ? '' : 's'} on invoice.</p>}
@@ -1421,7 +1425,9 @@ export default function TechJobCard({ profile }) {
                   <div className="jc-kv"><span>Total Due</span><strong>${invoiceTotal.toFixed(2)}</strong></div>
                   <div className="jc-kv"><span>Status</span><strong>{invoice.paid_at ? 'Paid' : 'Unpaid'}{invoice.sent_at ? ' · Sent' : ''}</strong></div>
                   {exceedsLimit && <div className="jc-exceeds">⚠ Exceeds Repair Limit (${repairLimit.toFixed(2)}) — re-authorize or adjust the invoice to complete.</div>}
-                  {invoiceItems > 0 ? (
+                  {!verifyDone ? (
+                    <p className="jc-plan-none" style={{ padding: '10px 0 2px' }}>Upload verification photos before sending or taking payment — we don&apos;t bill for work we haven&apos;t verified.</p>
+                  ) : invoiceItems > 0 ? (
                     <button className="jc-btn wide" style={{ marginTop: 10 }} onClick={() => navigate(`/tech/invoice-view/${invoice.id}`)}>View &amp; Send Invoice</button>
                   ) : (
                     <p className="jc-plan-none" style={{ padding: '10px 0 2px' }}>Add at least one service or custom item in Invoice Builder before viewing or sending. (The trip charge alone doesn&apos;t count.)</p>
