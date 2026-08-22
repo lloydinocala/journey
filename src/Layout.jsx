@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
+import { can } from './utils/permissions'
 import AnnouncementBanner from './AnnouncementBanner'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
@@ -29,6 +30,7 @@ const CATEGORIES = [
     { label: 'Systems Pricebook', path: '/systems-pricebook' },
     { label: 'Discount Catalog', path: '/discount-catalog' },
     { label: 'Maintenance Tiers', path: '/maintenance-tiers' },
+    { label: 'Maintenance Dashboard', path: '/maintenance-dashboard', perm: 'view_maintenance_dashboard' },
   ]},
   { key: 'admin', label: 'Admin', items: [
     { label: 'Team', path: '/team' },
@@ -62,7 +64,7 @@ const PERSONAL_CATEGORY = { key: 'personal', label: 'Personal', items: [
 function getCategoryForPath(pathname) {
   if (pathname === '/') return null
   if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/text-archive') || pathname.startsWith('/maintenance-agreements')) return 'operations'
-  if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/maintenance-tiers')) return 'financials'
+  if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/maintenance-tiers') || pathname.startsWith('/maintenance-dashboard')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
   if (pathname.startsWith('/elements')) return 'elements'
@@ -223,7 +225,7 @@ export default function Layout({ profile }) {
         {activeCategoryData && (
           <div className="sidebar-panel">
             <h3>{activeCategoryData.label}</h3>
-            {activeCategoryData.items.map((item) => (
+            {activeCategoryData.items.filter((item) => !item.perm || isSuperAdmin || can(profile, item.perm)).map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
