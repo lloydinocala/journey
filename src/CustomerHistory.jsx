@@ -10,6 +10,9 @@ export default function CustomerHistory({ profile }) {
   const [jobs, setJobs] = useState([])
   const [invoices, setInvoices] = useState([])
   const [agreements, setAgreements] = useState([])
+  const [offerPropId, setOfferPropId] = useState('')
+  const [sendingOffer, setSendingOffer] = useState(false)
+  const [offerMsg, setOfferMsg] = useState('')
   const [billingHistory, setBillingHistory] = useState({})
   const [attachments, setAttachments] = useState([])
   const [photoUrls, setPhotoUrls] = useState({})
@@ -83,6 +86,7 @@ export default function CustomerHistory({ profile }) {
     ])
 
     setProperties(propsRes.data || [])
+    setOfferPropId((propsRes.data || []).find((p) => p.is_active)?.id || '')
     setJobs(jobsRes.data || [])
     setInvoices(invoicesRes.data || [])
     setAgreements(agreementsRes.data || [])
@@ -223,6 +227,19 @@ export default function CustomerHistory({ profile }) {
 
   if (loading) return <p style={{ color: 'var(--mist)' }}>Loading…</p>
   if (error) return <div className="auth-error">{error}</div>
+  async function sendPlanOffer() {
+    if (!offerPropId) return
+    setSendingOffer(true); setOfferMsg('')
+    const { data, error } = await supabase.functions.invoke('send-agreement-options-email', { body: { propertyId: offerPropId } })
+    if (error || data?.error) { setSendingOffer(false); setOfferMsg('Could not send — check the customer has an email on file.'); return }
+    await supabase.from('maintenance_offers').insert({
+      org_id: customer.org_id, property_id: offerPropId, customer_id: customer.id,
+      offered_by: profile?.id || null, channel: 'email',
+    })
+    setSendingOffer(false)
+    setOfferMsg(data?.sentTo ? `Plan offer sent to ${data.sentTo}` : 'Plan offer sent.')
+  }
+
   if (!customer) return null
 
   return (
@@ -318,6 +335,17 @@ export default function CustomerHistory({ profile }) {
                 )}
               </div>
             ))}
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border, #E2E6ED)' }}>
+              <p style={{ margin: '0 0 6px', fontWeight: 600, fontSize: 13 }}>Offer a plan</p>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <select value={offerPropId} onChange={(e) => setOfferPropId(e.target.value)}>
+                  <option value="">Select property…</option>
+                  {properties.filter((p) => p.is_active).map((p) => <option key={p.id} value={p.id}>{propertyLine(p)}</option>)}
+                </select>
+                <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '8px 16px' }} disabled={!offerPropId || sendingOffer} onClick={sendPlanOffer}>{sendingOffer ? 'Sending…' : 'Send Plan Offer'}</button>
+              </div>
+              {offerMsg && <p style={{ margin: '6px 0 0', fontSize: 13, color: '#2563EB' }}>{offerMsg}</p>}
+            </div>
           </div>
         </div>
 
