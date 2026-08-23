@@ -35,6 +35,7 @@ const CATEGORIES = [
   { key: 'admin', label: 'Admin', items: [
     { label: 'Team', path: '/team' },
     { label: 'Roles & Tags', path: '/roles' },
+    { label: 'Checklists', path: '/checklists' },
     { label: 'On-Call Schedule', path: '/on-call' },
     { label: 'Payroll Capture', path: '/payroll' },
     { label: 'Time Clock', path: '/time-clock' },
@@ -66,7 +67,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/text-archive') || pathname.startsWith('/maintenance-agreements')) return 'operations'
   if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/maintenance-tiers') || pathname.startsWith('/maintenance-dashboard')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
-  if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
+  if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
   if (pathname.startsWith('/elements')) return 'elements'
   if (pathname.startsWith('/fleet')) return 'fleet'
   if (pathname.startsWith('/rewards/payroll')) return 'rewards-payroll'
