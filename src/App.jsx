@@ -32,6 +32,7 @@ import OnCallSchedule from './OnCallSchedule'
 import RolesConfig from './RolesConfig'
 import MySchedule from './MySchedule'
 import MaintenanceAgreementTiers from './MaintenanceAgreementTiers'
+import ChecklistTemplates from './ChecklistTemplates'
 import MaintenanceAgreements from './MaintenanceAgreements'
 import MaintenanceDue from './MaintenanceDue'
 import MaintenanceDashboard from './MaintenanceDashboard'
@@ -218,6 +219,7 @@ function AuthenticatedApp() {
         <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />
         <Route path="/discount-catalog" element={<DiscountCatalog profile={profile} />} />
         <Route path="/maintenance-tiers" element={<MaintenanceAgreementTiers profile={profile} />} />
+        <Route path="/checklists" element={<ChecklistTemplates profile={profile} />} />
         <Route path="/maintenance-agreements" element={<MaintenanceAgreements profile={profile} />} />
         <Route path="/maintenance-due" element={<MaintenanceDue profile={profile} />} />
         <Route path="/maintenance-dashboard" element={<MaintenanceDashboard profile={profile} />} />
