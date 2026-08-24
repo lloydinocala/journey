@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 
 export default function Estimate({ profile }) {
   const { jobId } = useParams()
+  const [searchParams] = useSearchParams()
+  // Follow-up / standalone estimate: jobId is only CONTEXT (customer/property/pricing);
+  // we operate on this specific estimate, which isn't bound to the job.
+  const followupId = searchParams.get('followup')
   const [job, setJob] = useState(null)
   const [estimate, setEstimate] = useState(null)
   const [lineItems, setLineItems] = useState([])
@@ -57,11 +61,11 @@ export default function Estimate({ profile }) {
     let { data: existingEstimate } = await supabase
       .from('invoices')
       .select('*')
-      .eq('job_id', jobId)
+      .eq(followupId ? 'id' : 'job_id', followupId || jobId)
       .eq('kind', 'estimate')
       .maybeSingle()
 
-    if (!existingEstimate) {
+    if (!existingEstimate && !followupId) {
       const { count } = await supabase
         .from('invoices')
         .select('id', { count: 'exact', head: true })
@@ -253,7 +257,7 @@ export default function Estimate({ profile }) {
   }
 
   async function handleAddToIncomplete() {
-    if (!job || !estimate) return
+    if (!job || !estimate || !estimate.job_id) return  // follow-up estimates aren't job-bound
     setAddingIncomplete(true)
     setIncompleteMsg('')
 
@@ -567,3 +571,4 @@ export default function Estimate({ profile }) {
     </div>
   )
 }
+
