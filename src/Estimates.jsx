@@ -387,6 +387,7 @@ export default function Estimates({ profile }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <h2>Job Estimates</h2>
           <span className="badge">{estimates.length.toLocaleString()} total</span>
+          <Link to="/new-followup-estimate" className="auth-button" style={{ textDecoration: 'none', width: 'auto', padding: '6px 14px', margin: 0 }}>+ New Estimate</Link>
         </div>
         <NewItemDropdown onSelect={setNewItemMode} />
       </div>
