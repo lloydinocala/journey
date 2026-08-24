@@ -56,6 +56,7 @@ import TechJobCard from './TechJobCard'
 import TechTaskCard from './TechTaskCard'
 import TechInvoice from './TechInvoice'
 import TechEstimate from './TechEstimate'
+import TechNewEstimate from './TechNewEstimate'
 import TechSystemEstimate from './TechSystemEstimate'
 import TechSchedule from './TechSchedule'
 import TechNewJob from './TechNewJob'
@@ -174,6 +175,7 @@ function AuthenticatedApp() {
         <Route path="/tech/:jobId" element={<TechJobCard profile={profile} />} />
         <Route path="/tech/invoice/:jobId" element={<TechInvoice profile={profile} />} />
         <Route path="/tech/estimate/:jobId" element={<TechEstimate profile={profile} />} />
+        <Route path="/tech/new-followup-estimate" element={<TechNewEstimate profile={profile} />} />
         <Route path="/tech/system-estimate/:jobId" element={<TechSystemEstimate profile={profile} />} />
         <Route path="/tech/schedule" element={<TechSchedule profile={profile} />} />
         <Route path="/tech/my-schedule" element={<MySchedule profile={profile} />} />
