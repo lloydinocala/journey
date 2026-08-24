@@ -308,9 +308,10 @@ export default function TechInvoiceView({ profile }) {
       return
     }
 
-    // A declined estimate is recorded (so it can be sent/noted) but does NOT convert
-    // to an invoice or start the "Incomplete Jobs" workflow — no approved work to schedule.
-    if (!declined) {
+    // A declined estimate is recorded but does NOT convert to an invoice or start the
+    // "Incomplete Jobs" workflow. For a follow-up estimate (no bound job), approval is just
+    // recorded here — a database trigger spawns its unscheduled job.
+    if (!declined && invoiceRow.job_id) {
       await supabase.from('jobs').update({ status: 'incomplete' }).eq('id', invoiceRow.job_id)
       await supabase.from('job_incomplete_records').insert({
         org_id: invoiceRow.org_id,
@@ -603,4 +604,3 @@ export default function TechInvoiceView({ profile }) {
     </div>
   )
 }
-
