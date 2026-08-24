@@ -463,7 +463,7 @@ export default function TechJobCard({ profile }) {
   const exceedsLimit = repairLimit != null && invoiceTotal > repairLimit
 
   // Required tasks that drive the status pill. Warning banners do NOT count.
-  const requiredDone = equipDone && preWorkPhotosDone && middleGateDone && (showServiceEstimate ? serviceEstDone : true) && invoiceDone && viewSendDone && sigDone && maintDone
+  const requiredDone = equipDone && preWorkPhotosDone && middleGateDone && (showServiceEstimate ? serviceEstDone : true) && invoiceDone && viewSendDone && verifyDone && maintDone
   const allClear = requiredDone && !exceedsLimit
   const status = job?.status
 
