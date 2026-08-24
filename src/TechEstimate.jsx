@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { IconChevronLeft, IconFile } from './MobileIcons'
 import { can } from './utils/permissions'
@@ -25,6 +25,11 @@ function buildEquipSummary(list) {
 
 export default function TechEstimate({ profile }) {
   const { jobId } = useParams()
+  const [searchParams] = useSearchParams()
+  // When present, this is a follow-up/standalone estimate: jobId is only the CONTEXT
+  // (customer/property/pricing); we operate on this specific estimate, which isn't bound
+  // to the job and doesn't affect its completion.
+  const followupId = searchParams.get('followup')
   const navigate = useNavigate()
 
   const [job, setJob] = useState(null)
@@ -76,11 +81,11 @@ export default function TechEstimate({ profile }) {
     let { data: existingEstimate } = await supabase
       .from('invoices')
       .select('*')
-      .eq('job_id', jobId)
+      .eq(followupId ? 'id' : 'job_id', followupId || jobId)
       .eq('kind', 'estimate')
       .maybeSingle()
 
-    if (!existingEstimate) {
+    if (!existingEstimate && !followupId) {
       const { count } = await supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('org_id', jobData.org_id).eq('kind', 'estimate')
       const estimateNumber = 'EST-' + String((count || 0) + 1).padStart(4, '0')
       const { data: created } = await supabase
