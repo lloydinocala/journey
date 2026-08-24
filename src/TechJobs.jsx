@@ -251,6 +251,7 @@ export default function TechJobs({ profile }) {
               <button onClick={() => navigate('/tech/schedule')}>Everyone's Schedule</button>
               <button onClick={() => navigate('/tech/new-job')}>+ New Job</button>
               <button onClick={() => navigate('/tech/new-service-estimate')}>+ Service Estimate</button>
+              <button onClick={() => navigate('/tech/new-followup-estimate')}>+ Follow-up Estimate</button>
               <button onClick={() => navigate('/tech/new-system-estimate')}>+ System Estimate</button>
               <button onClick={() => navigate('/tech/apollo')}>Chat with Quincy</button>
             </div>
