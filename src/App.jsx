@@ -39,6 +39,7 @@ import MaintenanceDashboard from './MaintenanceDashboard'
 import Invoice from './Invoice'
 import Invoices from './Invoices'
 import Estimate from './Estimate'
+import NewFollowupEstimate from './NewFollowupEstimate'
 import Estimates from './Estimates'
 import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
@@ -229,6 +230,7 @@ function AuthenticatedApp() {
         <Route path="/estimate/:jobId" element={<Estimate profile={profile} />} />
         <Route path="/system-estimate/:jobId" element={<SystemEstimate profile={profile} />} />
         <Route path="/estimates" element={<Estimates profile={profile} />} />
+        <Route path="/new-followup-estimate" element={<NewFollowupEstimate profile={profile} />} />
         <Route path="/invoices" element={<Invoices profile={profile} />} />
         {/* Elements-HVAC · Inventory + Fleet — gated on subscription (super admin) or entitlement */}
         {(profile.role === 'super_admin' || profile.elementsEntitled) && [...ELEMENTS_FLEET_ROUTES].map((r) => (
