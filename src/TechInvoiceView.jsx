@@ -133,12 +133,13 @@ export default function TechInvoiceView({ profile }) {
       setSendError(`Add at least one service or custom item before sending this ${isEst ? 'estimate' : 'invoice'}. (The trip charge alone doesn't count.)`)
       return
     }
-    if (isEst) {
-      if (!invoiceRow?.approved_at) { setSendError('Record the customer’s signature — or a note such as “declined” — in Customer Approval below before sending the estimate.'); return }
-    } else if (!hasWorkFinished) {
-      setSendError('Capture the after-work signature (or a reason for no signature) in the job’s Signatures section before sending the invoice.')
+    if (isEst && !invoiceRow?.approved_at) {
+      setSendError('Record the customer’s signature — or a note such as “declined” — in Customer Approval below before sending the estimate.')
       return
     }
+    // Invoices carry no signature or payment gate. Verification photos (required to
+    // build the invoice) are the proof of work; sending and collecting payment are
+    // independent — send first or take payment first, in person or by link.
     setSendingEmail(true)
     const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId } })
     setSendingEmail(false)
@@ -602,3 +603,4 @@ export default function TechInvoiceView({ profile }) {
     </div>
   )
 }
+
