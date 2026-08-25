@@ -91,10 +91,6 @@ export default function Estimates({ profile }) {
             job_number,
             properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )
           ),
-          reference_job:jobs!invoices_reference_job_id_fkey (
-            job_number,
-            properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )
-          ),
           invoice_line_items ( description, sort_order ),
           estimating_technician:estimating_technician_id ( full_name )
         `)
@@ -104,7 +100,20 @@ export default function Estimates({ profile }) {
         .eq('is_archived', showArchived),
       supabase.from('users').select('id, full_name').eq('org_id', orgId).order('full_name'),
     ])
-    setEstimates(estimatesRes.data || [])
+    let estimates = estimatesRes.data || []
+    // Follow-up estimates reference a job without being bound to it. Fetch those referenced
+    // jobs in a SEPARATE query and attach them here — embedding a second jobs relationship in
+    // the query above (three FKs from invoices to jobs) makes PostgREST fail the whole query.
+    const refIds = [...new Set(estimates.map((e) => e.reference_job_id).filter(Boolean))]
+    if (refIds.length) {
+      const { data: refJobs } = await supabase
+        .from('jobs')
+        .select('id, job_number, properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )')
+        .in('id', refIds)
+      const byId = Object.fromEntries((refJobs || []).map((j) => [j.id, j]))
+      estimates = estimates.map((e) => (e.reference_job_id ? { ...e, reference_job: byId[e.reference_job_id] || null } : e))
+    }
+    setEstimates(estimates)
     setUsers(usersRes.data || [])
     setLoading(false)
   }
