@@ -190,7 +190,7 @@ export default function SystemEstimate({ profile }) {
     }
     supabase
       .from('equipment')
-      .select('id, ahri_ref, outdoor_brand, outdoor_series, outdoor_model, outdoor_description, indoor_brand, indoor_model, furnace_model, indoor_description, size_tons, seer2, eer2, energy_star, installation_price, subtotal, labor_warranty, manufacturer_warranty_years, lineset_requirements')
+      .select('id, ahri_ref, outdoor_brand, outdoor_series, outdoor_model, outdoor_description, indoor_brand, indoor_model, furnace_model, furnace_description, indoor_description, size_tons, seer2, eer2, energy_star, installation_price, subtotal, labor_warranty, manufacturer_warranty_years, lineset_requirements')
       .eq('org_id', job.org_id)
       .eq('system_type', pickSystemType)
       .eq('size_tons', pickSize)
@@ -224,7 +224,7 @@ export default function SystemEstimate({ profile }) {
     const eq = selectedEquipment
 
     // Re-picking replaces the base system cleanly — clear any existing base sections first.
-    await supabase.from('invoice_line_items').delete().eq('invoice_id', estimate.id).in('category', ['INDOOR_UNIT', 'OUTDOOR_UNIT', 'INSTALLATION', 'ALSO_INCLUDES', 'WARRANTY'])
+    await supabase.from('invoice_line_items').delete().eq('invoice_id', estimate.id).in('category', ['INDOOR_UNIT', 'OUTDOOR_UNIT', 'FURNACE', 'INSTALLATION', 'ALSO_INCLUDES', 'WARRANTY'])
 
     const clean = (str) => str.replace(/\s+/g, ' ').trim()
 
@@ -247,12 +247,22 @@ export default function SystemEstimate({ profile }) {
     const warrantyDesc = ['WARRANTY', warrantyBody].filter(Boolean).join('\n\n')
 
     const base = eq.installation_price || 0
-    const rows = [
+    const sections = [
       { description: indoorDesc, unit_price: base, quantity: 1, category: 'INDOOR_UNIT', sort_order: 10, taxable: systemTaxable },
       { description: outdoorDesc, unit_price: 0, quantity: 1, category: 'OUTDOOR_UNIT', sort_order: 20, taxable: false },
-      { description: installDesc, unit_price: 0, quantity: 1, category: 'INSTALLATION', sort_order: 30, taxable: false },
-      { description: warrantyDesc, unit_price: 0, quantity: 1, category: 'WARRANTY', sort_order: 90, taxable: false },
-    ].map((r) => ({ ...r, invoice_id: estimate.id, org_id: job.org_id, is_custom: false }))
+    ]
+    // Gas systems have a third piece — the furnace. Only add it when the system has one.
+    if (eq.furnace_model) {
+      const furnaceMiddle = clean(`${eq.indoor_brand || ''} ${eq.furnace_description || ''}`)
+      const furnaceDesc = [
+        ['FURNACE', furnaceMiddle].filter(Boolean).join('\n'),
+        `Model # ${eq.furnace_model}`,
+      ].join('\n\n')
+      sections.push({ description: furnaceDesc, unit_price: 0, quantity: 1, category: 'FURNACE', sort_order: 25, taxable: false })
+    }
+    sections.push({ description: installDesc, unit_price: 0, quantity: 1, category: 'INSTALLATION', sort_order: 30, taxable: false })
+    sections.push({ description: warrantyDesc, unit_price: 0, quantity: 1, category: 'WARRANTY', sort_order: 90, taxable: false })
+    const rows = sections.map((r) => ({ ...r, invoice_id: estimate.id, org_id: job.org_id, is_custom: false }))
 
     await supabase.from('invoice_line_items').insert(rows)
 
