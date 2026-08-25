@@ -7,7 +7,6 @@ import { fetchAllRows, readFileSmart, normPrice } from './utils/csvImport'
 const COLUMNS = [
   { key: 'system_type', label: 'System Type', required: true, width: 100, type: 'text' },
   { key: 'size_tons', label: 'Size (Tons)', required: true, width: 90, type: 'number' },
-  { key: 'brand_family', label: 'Brand Family', required: true, width: 140, type: 'text' },
   { key: 'outdoor_brand', label: 'Outdoor Brand', width: 110, type: 'text' },
   { key: 'outdoor_series', label: 'Outdoor Series', width: 130, type: 'text' },
   { key: 'outdoor_model', label: 'Outdoor Model', width: 140, type: 'text' },
@@ -23,14 +22,11 @@ const COLUMNS = [
   { key: 'florida_rating', label: 'FL Rating', width: 80, type: 'number' },
   { key: 'client_rating', label: 'Client Rating', width: 90, type: 'number' },
   { key: 'labor_warranty', label: 'Labor Warranty', width: 100, type: 'text' },
-  { key: 'quality_pledge', label: 'Quality Pledge', width: 100, type: 'boolean' },
-  { key: 'quality_pledge_years', label: 'Pledge Years', width: 90, type: 'number' },
-  { key: 'quality_pledge_issuer', label: 'Pledge Issuer', width: 110, type: 'text' },
+  { key: 'manufacturer_warranty_years', label: 'Mfr Warranty (yrs)', width: 130, type: 'number' },
   { key: 'lineset_requirements', label: 'Lineset', width: 160, type: 'text' },
   { key: 'subtotal', label: 'Subtotal', required: true, width: 90, type: 'number' },
   { key: 'installation_costs', label: 'Our Cost', width: 90, type: 'number' },
   { key: 'installation_price', label: 'Installation Price', required: true, width: 130, type: 'number' },
-  { key: 'recommended', label: 'Recommended', required: true, width: 100, type: 'boolean' },
   { key: 'active', label: 'Active', required: true, width: 80, type: 'boolean' },
 ]
 
@@ -55,7 +51,6 @@ export default function SystemsPricebook({ profile }) {
   const [importFailedRows, setImportFailedRows] = useState([])
 
   const [systemTypeFilter, setSystemTypeFilter] = useState('')
-  const [brandFamilyFilter, setBrandFamilyFilter] = useState('')
   const [showInactive, setShowInactive] = useState(false)
   const [brandNameFilter, setBrandNameFilter] = useState('')
   const [sortField, setSortField] = useState('system_type')
@@ -86,7 +81,7 @@ export default function SystemsPricebook({ profile }) {
     const data = await fetchAllRows(() => {
       let query = supabase.from('equipment').select('*').eq('org_id', orgId)
       if (!showInactive) query = query.eq('active', true)
-      return query.order('system_type').order('size_tons').order('brand_family')
+      return query.order('system_type').order('size_tons').order('seer2', { ascending: false })
     })
     setEquipment(data)
     setLoading(false)
@@ -119,12 +114,10 @@ export default function SystemsPricebook({ profile }) {
   }
 
   const systemTypes = [...new Set(equipment.map((e) => e.system_type))].filter(Boolean).sort()
-  const brandFamilies = [...new Set(equipment.map((e) => e.brand_family))].filter(Boolean).sort()
   const allBrands = [...new Set(equipment.map((e) => e.outdoor_brand))].filter(Boolean).sort()
 
   const filtered = equipment.filter((e) => {
     if (systemTypeFilter && e.system_type !== systemTypeFilter) return false
-    if (brandFamilyFilter && e.brand_family !== brandFamilyFilter) return false
     if (brandNameFilter && e.outdoor_brand !== brandNameFilter) return false
     return true
   })
@@ -178,13 +171,13 @@ export default function SystemsPricebook({ profile }) {
 
   function downloadTemplate() {
     const example = {
-      ID: '', 'System Type': 'Apt CrossOver', 'Size (Tons)': '1.5', 'Brand Family': 'Trending in 2026',
+      ID: '', 'System Type': 'Apt CrossOver', 'Size (Tons)': '1.5',
       'Outdoor Brand': 'BRYANT', 'Outdoor Series': 'D5C Series', 'Outdoor Model': 'D5CUHAH18AAK', 'Indoor Brand': 'BRYANT',
       'Indoor Model': 'D5MUWAQ18XA3', 'Furnace Model': '', 'AHRI Ref #': '217730630', 'Cooling Cap': '18000',
       EER2: '12.1', SEER2: '19.3', 'Home Type': 'Both', 'Energy Star': 'TRUE', 'FL Rating': '4.5',
       'Client Rating': '4.9', 'Labor Warranty': '2', 'Quality Pledge': 'FALSE', 'Pledge Years': '', 'Pledge Issuer': '',
       Lineset: '3/4" & 3/8" Copper Lines', Subtotal: '6500', 'Our Cost': '', 'Installation Price': '25000',
-      Recommended: 'TRUE', Active: 'TRUE',
+      Active: 'TRUE',
     }
     const csv = Papa.unparse([example])
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -403,13 +396,6 @@ export default function SystemsPricebook({ profile }) {
           <select id="typeFilter" value={systemTypeFilter} onChange={(e) => setSystemTypeFilter(e.target.value)}>
             <option value="">All types</option>
             {systemTypes.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-        <div className="field" style={{ marginBottom: 0, minWidth: 180 }}>
-          <label htmlFor="brandFilter">Brand Family</label>
-          <select id="brandFilter" value={brandFamilyFilter} onChange={(e) => setBrandFamilyFilter(e.target.value)}>
-            <option value="">All brand families</option>
-            {brandFamilies.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
         </div>
         <div className="field" style={{ marginBottom: 0, minWidth: 220 }}>
