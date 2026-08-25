@@ -67,7 +67,7 @@ export default function EquipmentImport({ profile }) {
   function downloadTemplate() {
     const csv = Papa.unparse([
       {
-        AhriRef: '217730630', Recommended: 'TRUE', HomeType: 'Both', BrandFamily: 'Trending in 2026',
+        AhriRef: '217730630', HomeType: 'Both',
         OutdoorBrand: 'BRYANT', OutdoorSeries: 'D5C Series', OutdoorModel: 'D5CUHAH18AAK', IndoorBrand: 'BRYANT',
         IndoorModel: 'D5MUWAQ18XA3', FurnaceModel: '', SizeTons: '1.5', CoolingCapacity: '18000', EER2: '12.1',
         SEER2: '19.3', ManufacturedIn: '', SystemType: 'Apt CrossOver', EnergyStar: 'TRUE', FloridaRating: '4.5',
@@ -103,9 +103,7 @@ export default function EquipmentImport({ profile }) {
       const rows = parsed.data
         .map((r) => ({
           ahri_ref: normText(pick(r, 'AhriRef', 'AHRI Ref #')),
-          recommended: normBool(pick(r, 'Recommended', 'Recommended')),
           home_type: normText(pick(r, 'HomeType', 'Home Type')),
-          brand_family: normText(pick(r, 'BrandFamily', 'Brand Family')),
           outdoor_brand: normText(pick(r, 'OutdoorBrand', 'Outdoor Brand')),
           outdoor_series: normText(pick(r, 'OutdoorSeries', 'Outdoor Series')),
           outdoor_model: normText(pick(r, 'OutdoorModel', 'Outdoor Model')),
@@ -232,7 +230,7 @@ export default function EquipmentImport({ profile }) {
       )}
 
       <p style={{ color: 'var(--mist)', fontSize: 14, marginBottom: 8 }}>
-        Upload a CSV with columns: AhriRef, Recommended, HomeType, BrandFamily, OutdoorBrand, OutdoorSeries,
+        Upload a CSV with columns: AhriRef, HomeType, OutdoorBrand, OutdoorSeries,
         OutdoorModel, IndoorBrand, IndoorModel, FurnaceModel, SizeTons, CoolingCapacity, EER2, SEER2, ManufacturedIn,
         SystemType, EnergyStar, FloridaRating, ClientRating, LaborWarranty, QualityPledge, QualityPledgeYears,
         QualityPledgeIssuer, LinesetRequirements, Subtotal, InstallationCosts, InstallationPrice, Active.
