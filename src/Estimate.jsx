@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useSearchParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 
 export default function Estimate({ profile }) {
@@ -8,6 +8,7 @@ export default function Estimate({ profile }) {
   // Follow-up / standalone estimate: jobId is only CONTEXT (customer/property/pricing);
   // we operate on this specific estimate, which isn't bound to the job.
   const followupId = searchParams.get('followup')
+  const navigate = useNavigate()
   const [job, setJob] = useState(null)
   const [estimate, setEstimate] = useState(null)
   const [lineItems, setLineItems] = useState([])
@@ -254,6 +255,26 @@ export default function Estimate({ profile }) {
       .from('invoices')
       .update({ discount_type: discountType, discount_amount: parseFloat(discountAmount) || 0 })
       .eq('id', estimate.id)
+  }
+
+  async function handleDelete() {
+    // History = anything that makes this estimate a record worth keeping. If present,
+    // archive (keep, hidden from the main list). If not, it's a throwaway draft — remove it.
+    const hasHistory = !!(
+      estimate.sent_at ||
+      estimate.approved_at ||
+      estimate.spawned_job_id ||
+      (estimate.approval_status && estimate.approval_status !== 'Pending')
+    )
+    if (hasHistory) {
+      if (!window.confirm(`Estimate ${estimate.invoice_number} has activity on record (sent, approved, or converted to a job), so it will be ARCHIVED — kept for your records but hidden from the main list. Continue?`)) return
+      await supabase.from('invoices').update({ is_archived: true }).eq('id', estimate.id)
+    } else {
+      if (!window.confirm(`Delete estimate ${estimate.invoice_number}? It has no activity on record and will be permanently removed.`)) return
+      await supabase.from('invoice_line_items').delete().eq('invoice_id', estimate.id)
+      await supabase.from('invoices').delete().eq('id', estimate.id)
+    }
+    navigate('/estimates')
   }
 
   async function handleAddToIncomplete() {
@@ -547,6 +568,9 @@ export default function Estimate({ profile }) {
               </button>
             </div>
             <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <button className="auth-button" style={{ width: 'auto', padding: '8px 20px', background: '#2E7FC4' }} onClick={() => window.open('/view-invoice/' + estimate.id, '_blank')}>
+                View / Preview
+              </button>
               <button className="auth-button" style={{ width: 'auto', padding: '8px 20px' }} onClick={handleSendEmail} disabled={sendingEmail}>
                 {sendingEmail ? 'Sending…' : estimate.sent_at ? 'Resend to Customer' : 'Send to Customer'}
               </button>
@@ -557,6 +581,9 @@ export default function Estimate({ profile }) {
               )}
               <button className="logout-button" style={{ width: 'auto', padding: '8px 20px' }} onClick={handleAddToIncomplete} disabled={addingIncomplete}>
                 {addingIncomplete ? 'Adding…' : 'Add to Incomplete Jobs'}
+              </button>
+              <button className="logout-button" style={{ width: 'auto', padding: '8px 20px', color: '#C0392B', marginLeft: 'auto' }} onClick={handleDelete}>
+                Delete
               </button>
               {incompleteMsg && (
                 <span style={{ fontSize: 13, color: incompleteMsg.startsWith('Error') ? 'var(--alert-orange)' : 'var(--route-blue)' }}>
@@ -571,4 +598,3 @@ export default function Estimate({ profile }) {
     </div>
   )
 }
-
