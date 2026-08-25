@@ -2,18 +2,22 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
-import PropertySearchSelect from './PropertySearchSelect'
+import CustomerSearchSelect from './CustomerSearchSelect'
 
-// New-system SALE estimate. Unlike a service estimate, this is not born from a job/service
-// call — a new system can be sold to a referral, a purchased lead, or a cold quote. So it's
-// tied only to a customer + property. No job, and (deliberately) no service-call fee.
+// New-system SALE estimate. Property-based (no job, no service call), but you START from the
+// customer — we remember customers by name, not addresses. Existing customer -> pick them, then
+// choose one of their properties (or add a new one). New customer -> create both on the spot.
 export default function NewSystemEstimate({ profile }) {
   const navigate = useNavigate()
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [mode, setMode] = useState('existing') // 'existing' | 'new'
-  const [picked, setPicked] = useState(null)
+
+  const [existingCustomerId, setExistingCustomerId] = useState('')
+  const [customerProperties, setCustomerProperties] = useState([])
+  const [propertyId, setPropertyId] = useState('')
+  const [addNewProperty, setAddNewProperty] = useState(false)
 
   const [custName, setCustName] = useState('')
   const [custPhone, setCustPhone] = useState('')
@@ -35,39 +39,65 @@ export default function NewSystemEstimate({ profile }) {
     }
   }, [])
 
+  useEffect(() => { setExistingCustomerId('') }, [selectedOrg])
+
+  useEffect(() => {
+    if (!existingCustomerId) { setCustomerProperties([]); setPropertyId(''); setAddNewProperty(false); return }
+    supabase
+      .from('properties')
+      .select('id, street_address, unit, city')
+      .eq('customer_id', existingCustomerId)
+      .eq('is_active', true)
+      .order('street_address')
+      .then(({ data }) => {
+        setCustomerProperties(data || [])
+        setPropertyId(data && data.length === 1 ? data[0].id : '')
+        setAddNewProperty((data || []).length === 0)
+      })
+  }, [existingCustomerId])
+
   async function createEstimate() {
     if (creating) return
     setErr('')
-    let propertyId, customerId
+    let propId, custId
+
     if (mode === 'existing') {
-      if (!picked) { setErr('Pick a property, or switch to New customer.'); return }
-      propertyId = picked.id
-      customerId = picked.customer_id
+      if (!existingCustomerId) { setErr('Pick a customer, or switch to New customer.'); return }
+      custId = existingCustomerId
+      const addingProp = addNewProperty || customerProperties.length === 0
+      if (!addingProp) {
+        if (!propertyId) { setErr('Select a property, or add a new one.'); return }
+        propId = propertyId
+      } else if (!street.trim()) {
+        setErr('Enter the service address for this customer.'); return
+      }
     } else if (!custName.trim() || !street.trim()) {
-      setErr('Customer name and service address are required.')
-      return
+      setErr('Customer name and service address are required.'); return
     }
 
     setCreating(true)
     if (mode === 'new') {
-      const { data: cust, error: cErr } = await supabase.from('customers').insert({
+      const { data: cust, error } = await supabase.from('customers').insert({
         org_id: selectedOrg,
         display_name: custName.trim(),
         primary_phone: custPhone.trim() || null,
         email_1: custEmail.trim() || null,
       }).select('id').single()
-      if (cErr) { setErr(cErr.message); setCreating(false); return }
-      const { data: prop, error: pErr } = await supabase.from('properties').insert({
+      if (error) { setErr(error.message); setCreating(false); return }
+      custId = cust.id
+    }
+
+    if (!propId) {
+      const { data: prop, error } = await supabase.from('properties').insert({
         org_id: selectedOrg,
-        customer_id: cust.id,
+        customer_id: custId,
         street_address: street.trim(),
         city: city.trim() || null,
         state: stateAbbr.trim() || null,
         zip: zip.trim() || null,
       }).select('id').single()
-      if (pErr) { setErr(pErr.message); setCreating(false); return }
-      propertyId = prop.id
-      customerId = cust.id
+      if (error) { setErr(error.message); setCreating(false); return }
+      propId = prop.id
     }
 
     const { count } = await supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('org_id', selectedOrg).eq('kind', 'estimate')
@@ -78,8 +108,8 @@ export default function NewSystemEstimate({ profile }) {
       kind: 'estimate',
       estimate_type: 'system',
       job_id: null,
-      property_id: propertyId,
-      bills_to_customer_id: customerId,
+      property_id: propId,
+      bills_to_customer_id: custId,
       invoice_date: new Date().toISOString().slice(0, 10),
       discount_type: 'dollar',
     }).select('id').single()
@@ -90,11 +120,25 @@ export default function NewSystemEstimate({ profile }) {
   const fieldLabel = { display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 4 }
   const input = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--line, #D5DAE1)', fontSize: 14, boxSizing: 'border-box' }
 
+  const propertyFields = (
+    <>
+      <div>
+        <label style={fieldLabel}>Service address *</label>
+        <input style={input} value={street} onChange={(e) => setStreet(e.target.value)} placeholder="123 Main St" />
+      </div>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ flex: 2 }}><label style={fieldLabel}>City</label><input style={input} value={city} onChange={(e) => setCity(e.target.value)} /></div>
+        <div style={{ flex: 1 }}><label style={fieldLabel}>State</label><input style={input} value={stateAbbr} onChange={(e) => setStateAbbr(e.target.value)} /></div>
+        <div style={{ flex: 1 }}><label style={fieldLabel}>ZIP</label><input style={input} value={zip} onChange={(e) => setZip(e.target.value)} /></div>
+      </div>
+    </>
+  )
+
   return (
     <div>
       <h2 className="page-title">New System Estimate</h2>
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: -8, marginBottom: 20, maxWidth: 620 }}>
-        For a new-system sale — a referral, a purchased lead, or a cold quote. Tied to a customer and property only, with no service call and no job. When the customer accepts, it becomes a job to schedule.
+        For a new-system sale — a referral, a purchased lead, or a cold quote. Start with the customer; it&rsquo;s tied to their property, with no service call and no job. When they accept, it becomes a job to schedule.
       </p>
 
       {isSuperAdmin && (
@@ -110,15 +154,39 @@ export default function NewSystemEstimate({ profile }) {
       </div>
 
       {mode === 'existing' ? (
-        <div style={{ maxWidth: 520 }}>
-          {picked ? (
-            <div style={{ padding: '12px 16px', borderRadius: 8, border: '1px solid var(--line, #E2E6ED)', background: 'var(--panel)' }}>
-              <div style={{ fontWeight: 600 }}>{picked.customers?.display_name || 'Unknown customer'}</div>
-              <div style={{ fontSize: 13, color: 'var(--mist)' }}>{picked.street_address}{picked.city ? `, ${picked.city}` : ''}</div>
-              <button className="logout-button" style={{ width: 'auto', padding: '4px 12px', marginTop: 8 }} onClick={() => setPicked(null)}>Change</button>
+        <div style={{ maxWidth: 520, display: 'grid', gap: 14 }}>
+          <div>
+            <label style={fieldLabel}>Customer</label>
+            <CustomerSearchSelect orgId={selectedOrg} value={existingCustomerId} onChange={(id) => setExistingCustomerId(id)} />
+          </div>
+
+          {existingCustomerId && customerProperties.length > 0 && (
+            <div>
+              <label style={fieldLabel}>Property</label>
+              <select
+                style={input}
+                value={addNewProperty ? '__new__' : propertyId}
+                onChange={(e) => {
+                  if (e.target.value === '__new__') { setAddNewProperty(true); setPropertyId('') }
+                  else { setAddNewProperty(false); setPropertyId(e.target.value) }
+                }}
+              >
+                <option value="">Select…</option>
+                {customerProperties.map((p) => (
+                  <option key={p.id} value={p.id}>{p.street_address}{p.unit ? ` #${p.unit}` : ''}{p.city ? `, ${p.city}` : ''}</option>
+                ))}
+                <option value="__new__">+ Add a new property…</option>
+              </select>
             </div>
-          ) : (
-            <PropertySearchSelect orgId={selectedOrg} onPick={(p) => setPicked(p)} placeholder="Search service address…" />
+          )}
+
+          {existingCustomerId && (addNewProperty || customerProperties.length === 0) && (
+            <div style={{ display: 'grid', gap: 12 }}>
+              {customerProperties.length === 0 && (
+                <p style={{ fontSize: 12.5, color: 'var(--mist)', margin: 0 }}>No properties on file for this customer — add the service address:</p>
+              )}
+              {propertyFields}
+            </div>
           )}
         </div>
       ) : (
@@ -131,15 +199,7 @@ export default function NewSystemEstimate({ profile }) {
             <div style={{ flex: 1 }}><label style={fieldLabel}>Phone</label><input style={input} value={custPhone} onChange={(e) => setCustPhone(e.target.value)} /></div>
             <div style={{ flex: 1 }}><label style={fieldLabel}>Email</label><input style={input} value={custEmail} onChange={(e) => setCustEmail(e.target.value)} /></div>
           </div>
-          <div>
-            <label style={fieldLabel}>Service address *</label>
-            <input style={input} value={street} onChange={(e) => setStreet(e.target.value)} placeholder="123 Main St" />
-          </div>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{ flex: 2 }}><label style={fieldLabel}>City</label><input style={input} value={city} onChange={(e) => setCity(e.target.value)} /></div>
-            <div style={{ flex: 1 }}><label style={fieldLabel}>State</label><input style={input} value={stateAbbr} onChange={(e) => setStateAbbr(e.target.value)} /></div>
-            <div style={{ flex: 1 }}><label style={fieldLabel}>ZIP</label><input style={input} value={zip} onChange={(e) => setZip(e.target.value)} /></div>
-          </div>
+          {propertyFields}
         </div>
       )}
 
