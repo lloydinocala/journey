@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export default function NewItemDropdown({ onSelect }) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -30,6 +32,7 @@ export default function NewItemDropdown({ onSelect }) {
           <div className="org-picker-item" onClick={() => choose('customer')}>New Customer</div>
           <div className="org-picker-item" onClick={() => choose('property')}>New Property</div>
           <div className="org-picker-item" onClick={() => choose('pickEstimateJob')}>New Estimate</div>
+          <div className="org-picker-item" onClick={() => { setOpen(false); navigate('/new-followup-estimate') }}>Follow-up Estimate</div>
           <div className="org-picker-item" onClick={() => choose('pickSystemEstimateJob')}>New System Estimate</div>
           <div className="org-picker-item" onClick={() => choose('pickInvoiceJob')}>New Invoice</div>
         </div>
