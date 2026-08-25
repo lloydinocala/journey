@@ -82,7 +82,7 @@ export default function Invoice({ profile }) {
     setLoading(true)
     const { data: jobData } = await supabase
       .from('jobs')
-      .select('id, job_number, job_date, org_id, customer_id, property_id, trip_charge_price_id, auth_diagnose_only, auth_limit_amount, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
+      .select('id, job_number, job_date, diagnosis_note, org_id, customer_id, property_id, trip_charge_price_id, auth_diagnose_only, auth_limit_amount, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
       .eq('id', jobId)
       .single()
     setJob(jobData)
@@ -121,18 +121,58 @@ export default function Invoice({ profile }) {
         .single()
       existingInvoice = created
 
-      if (jobData.trip_charge_price_id && jobData.trip_charge) {
+      // Open the invoice with full transparency. If an approved estimate exists for this job,
+      // mirror ITS line items (service call + every approved item) so the invoice matches
+      // exactly what the customer approved — the service call carries over once, never doubled.
+      // Otherwise fall back to the trip charge alone. Then surface the tech's diagnosis as a
+      // note line. Everything is renumbered into one clean sequence.
+      const opening = []
+      const { data: approvedEst } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('job_id', jobId)
+        .eq('kind', 'estimate')
+        .not('approved_at', 'is', null)
+        .order('approved_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (approvedEst) {
+        const { data: estItems } = await supabase
+          .from('invoice_line_items')
+          .select('description, unit_price, quantity, taxable, is_custom, category, service_price_id')
+          .eq('invoice_id', approvedEst.id)
+          .order('sort_order')
+        for (const it of estItems || []) opening.push({ ...it })
+      } else if (jobData.trip_charge_price_id && jobData.trip_charge) {
         const tc = jobData.trip_charge
-        await supabase.from('invoice_line_items').insert({
-          invoice_id: created.id,
-          org_id: jobData.org_id,
+        opening.push({
           description: tc.customer_display,
           unit_price: tc.price,
           quantity: 1,
           taxable: !tc.services?.is_tax_exempt,
           is_custom: false,
-          sort_order: 1,
+          category: 'TRIP CHARGES',
+          service_price_id: null,
         })
+      }
+      if (jobData.diagnosis_note && jobData.diagnosis_note.trim() && !opening.some((i) => i.category === 'DIAGNOSIS')) {
+        const diag = {
+          description: 'Diagnosis: ' + jobData.diagnosis_note.trim(),
+          unit_price: 0,
+          quantity: 1,
+          taxable: false,
+          is_custom: false,
+          category: 'DIAGNOSIS',
+          service_price_id: null,
+        }
+        const tcIdx = opening.findIndex((i) => i.category === 'TRIP CHARGES')
+        if (tcIdx >= 0) opening.splice(tcIdx + 1, 0, diag)
+        else opening.unshift(diag)
+      }
+      if (opening.length) {
+        await supabase.from('invoice_line_items').insert(
+          opening.map((it, idx) => ({ ...it, invoice_id: created.id, org_id: jobData.org_id, sort_order: idx }))
+        )
       }
     }
 
