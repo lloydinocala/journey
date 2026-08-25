@@ -150,6 +150,34 @@ export default function Pricebook({ profile }) {
     loadServices(selectedOrg)
   }
 
+  async function handleDeleteService(s) {
+    // Archived → reactivate.
+    if (!s.is_active) {
+      if (!window.confirm(`Reactivate "${s.name}"?`)) return
+      await supabase.from('services').update({ is_active: true }).eq('id', s.id)
+      loadServices(selectedOrg)
+      return
+    }
+    // Active: delete if the service was never used on any estimate/invoice; archive if it has.
+    const { data: prices } = await supabase.from('service_prices').select('id').eq('service_id', s.id)
+    const priceIds = (prices || []).map((p) => p.id)
+    let used = false
+    if (priceIds.length) {
+      const { count } = await supabase.from('invoice_line_items').select('id', { count: 'exact', head: true }).in('service_price_id', priceIds)
+      used = (count || 0) > 0
+    }
+    if (used) {
+      if (!window.confirm(`"${s.name}" has been used on estimates or invoices, so it will be ARCHIVED (kept for records, hidden from the list) rather than deleted. Continue?`)) return
+      await supabase.from('services').update({ is_active: false }).eq('id', s.id)
+    } else {
+      if (!window.confirm(`Delete "${s.name}"? It has never been used and will be permanently removed, along with its prices.`)) return
+      await supabase.from('service_prices').delete().eq('service_id', s.id)
+      await supabase.from('services').delete().eq('id', s.id)
+    }
+    if (selectedServiceId === s.id) setSelectedServiceId(null)
+    loadServices(selectedOrg)
+  }
+
   async function toggleServiceActive(s) {
     const action = s.is_active ? 'archive' : 'reactivate'
     if (!window.confirm(`Are you sure you want to ${action} "${s.name}"? This does not delete its price history.`)) return
@@ -415,18 +443,42 @@ async function loadVariants(serviceId) {
     setVariantError('')
     if (!newPrice) return
     setSavingVariant(true)
-    const { error } = await supabase.from('service_prices').insert({
-      org_id: selectedOrg,
-      service_id: selectedServiceId,
-      location: newLocation,
-      access: newAccess,
-      hours: newHours,
-      part_source: newPartSource || null,
+    const fields = {
       customer_display: newDisplay.trim() || selectedServiceInfo.name,
       price: parseFloat(newPrice) || 0,
       cost: parseFloat(newCost) || 0,
       task_hours: parseFloat(newTaskHours) || 0,
-    })
+      is_active: true,
+    }
+    // Update the existing variant in place if one already exists for this exact combo
+    // (service + location + access + hours + part source). This prevents the duplicate-row
+    // bug that left a $1 row and a $650 row for the same price. A saved price is the price.
+    let q = supabase.from('service_prices').select('id')
+      .eq('org_id', selectedOrg)
+      .eq('service_id', selectedServiceId)
+      .eq('location', newLocation)
+      .eq('access', newAccess)
+      .eq('hours', newHours)
+    q = (newPartSource || null) === null ? q.is('part_source', null) : q.eq('part_source', newPartSource)
+    const { data: existingRows } = await q.limit(1)
+    const existing = existingRows && existingRows[0]
+
+    let error
+    if (existing) {
+      const res = await supabase.from('service_prices').update(fields).eq('id', existing.id)
+      error = res.error
+    } else {
+      const res = await supabase.from('service_prices').insert({
+        org_id: selectedOrg,
+        service_id: selectedServiceId,
+        location: newLocation,
+        access: newAccess,
+        hours: newHours,
+        part_source: newPartSource || null,
+        ...fields,
+      })
+      error = res.error
+    }
     setSavingVariant(false)
     if (error) {
       setVariantError(error.message)
@@ -649,7 +701,7 @@ async function loadVariants(serviceId) {
                 <div className="grid-cell grid-actions">
                   <button className="logout-button" onClick={() => selectService(s)}>Prices</button>
                   <button className="logout-button" onClick={() => startEditService(s)}>Rename</button>
-                  <button className="logout-button" onClick={() => toggleServiceActive(s)}>{s.is_active ? 'Archive' : 'Reactivate'}</button>
+                  <button className="logout-button" style={{ color: s.is_active ? '#C0392B' : undefined }} onClick={() => handleDeleteService(s)}>{s.is_active ? 'Delete' : 'Reactivate'}</button>
                 </div>
                 <div className="grid-cell">{s.category}</div>
                 <div className="grid-cell">{s.name}</div>
