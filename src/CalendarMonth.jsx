@@ -59,8 +59,9 @@ export default function CalendarMonth({ monthDate, gridDays, jobs, onJobClick, o
                 key={job.id}
                 className="calendar-month-job-pill"
                 style={{
-                  backgroundColor:
-                    job.status === 'incomplete'
+                  backgroundColor: job.date_pending
+                    ? '#F59E0B'
+                    : job.status === 'incomplete'
                       ? '#DC2626'
                       : job.status === 'completed'
                       ? '#9CA3AF'
@@ -72,7 +73,7 @@ export default function CalendarMonth({ monthDate, gridDays, jobs, onJobClick, o
                 onDragEnd={() => setDraggingId(null)}
                 onClick={() => onJobClick(job)}
               >
-                {formatJobTime(job)} {job.customer_name}
+                {job.date_pending ? '⏳ ' : ''}{formatJobTime(job)} {job.customer_name}
               </div>
             ))}
             {extraCount > 0 && (
