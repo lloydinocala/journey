@@ -4,7 +4,7 @@ import { supabase } from './utils/supabase'
 import RoutingSummary from './RoutingSummary'
 
 export default function SystemEstimate({ profile }) {
-  const { jobId } = useParams()
+  const { jobId, estimateId } = useParams()
   const [job, setJob] = useState(null)
   const [estimate, setEstimate] = useState(null)
   const [lineItems, setLineItems] = useState([])
@@ -38,17 +38,77 @@ export default function SystemEstimate({ profile }) {
 
   async function loadJobAndEstimate() {
     setLoading(true)
-    const { data: jobData } = await supabase
-      .from('jobs')
-      .select('id, job_number, job_date, org_id, customer_id, property_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1))')
-      .eq('id', jobId)
-      .single()
-    setJob(jobData)
+    let jobData
+    let existingEstimate
 
-    if (!jobData) {
-      setLoading(false)
-      return
+    if (estimateId) {
+      // Property-based (job-less) system estimate — already created by the picker. Load it,
+      // load its property/customer, and build a job-shaped context object so the rest of the
+      // builder works unchanged. No service call, no job is ever involved here.
+      const { data: est } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('id', estimateId)
+        .eq('kind', 'estimate')
+        .maybeSingle()
+      if (!est) { setJob(null); setLoading(false); return }
+      existingEstimate = est
+      const { data: prop } = await supabase
+        .from('properties')
+        .select('street_address, org_id, customer_id, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)')
+        .eq('id', est.property_id)
+        .maybeSingle()
+      jobData = {
+        id: null,
+        org_id: est.org_id,
+        customer_id: est.bills_to_customer_id || prop?.customer_id || null,
+        property_id: est.property_id,
+        properties: prop ? { street_address: prop.street_address, customers: prop.customers } : null,
+      }
+    } else {
+      const { data: jd } = await supabase
+        .from('jobs')
+        .select('id, job_number, job_date, org_id, customer_id, property_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1))')
+        .eq('id', jobId)
+        .single()
+      if (!jd) { setJob(null); setLoading(false); return }
+      jobData = jd
+
+      const { data: ee } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('job_id', jobId)
+        .eq('kind', 'estimate')
+        .maybeSingle()
+      existingEstimate = ee
+
+      if (!existingEstimate) {
+        const { count } = await supabase
+          .from('invoices')
+          .select('id', { count: 'exact', head: true })
+          .eq('org_id', jobData.org_id)
+          .eq('kind', 'estimate')
+        const estimateNumber = 'EST-' + String((count || 0) + 1).padStart(4, '0')
+
+        const { data: created } = await supabase
+          .from('invoices')
+          .insert({
+            org_id: jobData.org_id,
+            invoice_number: estimateNumber,
+            job_id: jobId,
+            invoice_date: new Date().toISOString().slice(0, 10),
+            bills_to_customer_id: jobData.customer_id,
+            discount_type: 'dollar',
+            kind: 'estimate',
+            estimate_type: 'system',
+          })
+          .select()
+          .single()
+        existingEstimate = created
+      }
     }
+
+    setJob(jobData)
 
     const { data: usersData } = await supabase
       .from('users')
@@ -56,38 +116,6 @@ export default function SystemEstimate({ profile }) {
       .eq('org_id', jobData.org_id)
       .order('full_name')
     setUsers(usersData || [])
-
-    let { data: existingEstimate } = await supabase
-      .from('invoices')
-      .select('*')
-      .eq('job_id', jobId)
-      .eq('kind', 'estimate')
-      .maybeSingle()
-
-    if (!existingEstimate) {
-      const { count } = await supabase
-        .from('invoices')
-        .select('id', { count: 'exact', head: true })
-        .eq('org_id', jobData.org_id)
-        .eq('kind', 'estimate')
-      const estimateNumber = 'EST-' + String((count || 0) + 1).padStart(4, '0')
-
-      const { data: created } = await supabase
-        .from('invoices')
-        .insert({
-          org_id: jobData.org_id,
-          invoice_number: estimateNumber,
-          job_id: jobId,
-          invoice_date: new Date().toISOString().slice(0, 10),
-          bills_to_customer_id: jobData.customer_id,
-          discount_type: 'dollar',
-          kind: 'estimate',
-          estimate_type: 'system',
-        })
-        .select()
-        .single()
-      existingEstimate = created
-    }
 
     setEstimate(existingEstimate)
     setDiscountType(existingEstimate.discount_type || 'dollar')
@@ -126,7 +154,7 @@ export default function SystemEstimate({ profile }) {
 
   useEffect(() => {
     loadJobAndEstimate()
-  }, [jobId])
+  }, [jobId, estimateId])
 
   useEffect(() => {
     if (!pickSystemType || !job) {
