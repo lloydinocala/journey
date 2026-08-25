@@ -3,6 +3,19 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import RoutingSummary from './RoutingSummary'
 
+// Render a section description line-by-line, bolding only the equipment name — the line that
+// sits directly under an INDOOR UNIT / OUTDOOR UNIT / FURNACE label (not AHRI or model #).
+function boldEquipmentLines(text) {
+  const lines = (text || '').split('\n')
+  const labels = ['INDOOR UNIT', 'OUTDOOR UNIT', 'FURNACE']
+  let lastNonBlank = ''
+  return lines.map((line, i) => {
+    const bold = labels.includes(lastNonBlank)
+    if (line.trim()) lastNonBlank = line.trim()
+    return <div key={i} style={{ fontWeight: bold ? 700 : 400 }}>{line || '\u00A0'}</div>
+  })
+}
+
 export default function SystemEstimate({ profile }) {
   const { jobId, estimateId } = useParams()
   const [job, setJob] = useState(null)
@@ -462,8 +475,8 @@ export default function SystemEstimate({ profile }) {
 
             {lineItems.map((li) => (
               <>
-                <div className="grid-cell" style={{ whiteSpace: 'pre-line' }}>
-                  {li.description}
+                <div className="grid-cell">
+                  {boldEquipmentLines(li.description)}
                   {isPendingCustom(li) && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#B8860B', background: 'rgba(184,134,11,0.12)', padding: '2px 7px', borderRadius: 6 }}>PENDING · tech request</span>}
                 </div>
                 <div className="grid-cell">
