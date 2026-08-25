@@ -18,6 +18,19 @@ function addDaysFormatted(dateStr, days) {
 // for whatever action area belongs below the totals — Pay Now for customers,
 // Send/Record Payment controls for staff — since those two audiences need
 // very different, and very differently-secured, actions there.
+// Render a section description line-by-line, bolding only the equipment name — the line that
+// sits directly under an INDOOR UNIT / OUTDOOR UNIT / FURNACE label (not AHRI or model #).
+function boldEquipmentLines(text) {
+  const lines = (text || '').split('\n')
+  const labels = ['INDOOR UNIT', 'OUTDOOR UNIT', 'FURNACE']
+  let lastNonBlank = ''
+  return lines.map((line, i) => {
+    const bold = labels.includes(lastNonBlank)
+    if (line.trim()) lastNonBlank = line.trim()
+    return <div key={i} style={{ fontWeight: bold ? 700 : 400 }}>{line || '\u00A0'}</div>
+  })
+}
+
 export default function InvoiceDocument({ data, footer }) {
   const { invoice, org, job, property, customer, lineItems, technicians } = data
   const primary = org?.brand_primary_color || '#2F5DE3'
@@ -153,7 +166,7 @@ export default function InvoiceDocument({ data, footer }) {
               background: idx % 2 === 1 ? '#FAFBFC' : 'white',
             }}
           >
-            <div style={{ flex: 3, whiteSpace: 'pre-line' }}>{li.description}</div>
+            <div style={{ flex: 3 }}>{boldEquipmentLines(li.description)}</div>
             <div style={{ flex: 1, textAlign: 'right', color: '#64748B' }}>{li.quantity}</div>
             <div style={{ flex: 1, textAlign: 'right', color: '#64748B' }}>${li.unit_price.toFixed(2)}</div>
             <div style={{ flex: 1, textAlign: 'right', fontWeight: 600 }}>${(li.quantity * li.unit_price).toFixed(2)}</div>
