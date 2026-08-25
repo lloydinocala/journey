@@ -18,8 +18,7 @@ export default function TechSystemEstimate({ profile }) {
   const [pickSystemType, setPickSystemType] = useState('')
   const [sizeOptions, setSizeOptions] = useState([])
   const [pickSize, setPickSize] = useState('')
-  const [branadFamilies, setBrandFamilies] = useState([])
-  const [pickBrandFamily, setPickBrandFamily] = useState('')
+  const [pickSeer, setPickSeer] = useState('')
   const [matchingEquipment, setMatchingEquipment] = useState([])
   const [equipmentSearch, setEquipmentSearch] = useState('')
   const [selectedEquipmentId, setSelectedEquipmentId] = useState('')
@@ -142,27 +141,23 @@ export default function TechSystemEstimate({ profile }) {
   }, [pickSystemType, job])
 
   useEffect(() => {
-    if (!pickSystemType || !pickSize || !job) { setBrandFamilies([]); return }
-    supabase.from('equipment').select('brand_family').eq('org_id', job.org_id).eq('system_type', pickSystemType).eq('size_tons', pickSize).eq('active', true)
-      .then(({ data }) => setBrandFamilies([...new Set((data || []).map((r) => r.brand_family))].filter(Boolean).sort()))
-  }, [pickSystemType, pickSize, job])
-
-  useEffect(() => {
-    if (!pickSystemType || !pickSize || !pickBrandFamily || !job) { setMatchingEquipment([]); return }
+    if (!pickSystemType || !pickSize || !job) { setMatchingEquipment([]); return }
     supabase
       .from('equipment')
-      .select('id, ahri_ref, recommended, outdoor_brand, outdoor_series, outdoor_model, indoor_brand, indoor_model, furnace_model, size_tons, seer2, eer2, energy_star, installation_price')
+      .select('id, ahri_ref, outdoor_brand, outdoor_series, outdoor_model, indoor_brand, indoor_model, furnace_model, size_tons, seer2, eer2, energy_star, installation_price')
       .eq('org_id', job.org_id)
       .eq('system_type', pickSystemType)
       .eq('size_tons', pickSize)
-      .eq('brand_family', pickBrandFamily)
       .eq('active', true)
-      .order('recommended', { ascending: false })
       .order('outdoor_brand')
+      .order('seer2', { ascending: false })
       .then(({ data }) => setMatchingEquipment(data || []))
-  }, [pickSystemType, pickSize, pickBrandFamily, job])
+  }, [pickSystemType, pickSize, job])
+
+  const seerOptions = [...new Set(matchingEquipment.map((e) => e.seer2))].filter((sv) => sv != null).sort((a, b) => b - a)
 
   const filteredEquipment = matchingEquipment.filter((eq) => {
+    if (pickSeer && String(eq.seer2) !== String(pickSeer)) return false
     if (!equipmentSearch) return true
     const q = equipmentSearch.toLowerCase()
     return (
@@ -197,7 +192,7 @@ export default function TechSystemEstimate({ profile }) {
     setAddingSystem(false)
     setPickSystemType('')
     setPickSize('')
-    setPickBrandFamily('')
+    setPickSeer('')
     setMatchingEquipment([])
     setSelectedEquipmentId('')
     setEquipmentSearch('')
@@ -346,7 +341,7 @@ export default function TechSystemEstimate({ profile }) {
           <div className="section-card-body">
             <div className="mobile-field">
               <label>System Type</label>
-              <select value={pickSystemType} onChange={(e) => { setPickSystemType(e.target.value); setPickSize(''); setPickBrandFamily(''); setSelectedEquipmentId('') }}>
+              <select value={pickSystemType} onChange={(e) => { setPickSystemType(e.target.value); setPickSize(''); setPickSeer(''); setSelectedEquipmentId('') }}>
                 <option value="">Select…</option>
                 {systemTypes.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -354,28 +349,28 @@ export default function TechSystemEstimate({ profile }) {
             {pickSystemType && (
               <div className="mobile-field">
                 <label>Size (Tons)</label>
-                <select value={pickSize} onChange={(e) => { setPickSize(e.target.value); setPickBrandFamily(''); setSelectedEquipmentId('') }}>
+                <select value={pickSize} onChange={(e) => { setPickSize(e.target.value); setPickSeer(''); setSelectedEquipmentId('') }}>
                   <option value="">Select…</option>
                   {sizeOptions.map((s) => <option key={s} value={s}>{s} Ton</option>)}
                 </select>
               </div>
             )}
-            {pickSize && (
+            {pickSize && seerOptions.length > 1 && (
               <div className="mobile-field">
-                <label>Brand Family</label>
-                <select value={pickBrandFamily} onChange={(e) => { setPickBrandFamily(e.target.value); setSelectedEquipmentId('') }}>
-                  <option value="">Select…</option>
-                  {brandFamilies.map((b) => <option key={b} value={b}>{b}</option>)}
+                <label>SEER2 (optional filter)</label>
+                <select value={pickSeer} onChange={(e) => { setPickSeer(e.target.value); setSelectedEquipmentId('') }}>
+                  <option value="">All SEER2</option>
+                  {seerOptions.map((sv) => <option key={sv} value={sv}>SEER2 {sv}</option>)}
                 </select>
               </div>
             )}
-            {pickBrandFamily && matchingEquipment.length > 0 && (
+            {pickSize && matchingEquipment.length > 0 && (
               <div className="mobile-field">
                 <label>Search Models</label>
                 <input type="text" value={equipmentSearch} onChange={(e) => setEquipmentSearch(e.target.value)} placeholder="Filter by brand or model…" />
               </div>
             )}
-            {pickBrandFamily && filteredEquipment.map((eq) => (
+            {pickSize && filteredEquipment.map((eq) => (
               <div
                 key={eq.id}
                 className={'equipment-option-card' + (selectedEquipmentId === eq.id ? ' selected' : '')}
@@ -383,7 +378,6 @@ export default function TechSystemEstimate({ profile }) {
               >
                 <div className="eq-title">
                   {eq.outdoor_brand} {eq.outdoor_model}
-                  {eq.recommended && <span className="recommended-badge">Recommended</span>}
                 </div>
                 <div className="eq-sub">
                   Indoor: {eq.indoor_brand} {eq.indoor_model}{eq.furnace_model ? ` / ${eq.furnace_model}` : ''}
@@ -394,7 +388,7 @@ export default function TechSystemEstimate({ profile }) {
                 <div className="eq-price">${eq.installation_price?.toFixed(2)}</div>
               </div>
             ))}
-            {pickBrandFamily && matchingEquipment.length === 0 && (
+            {pickSize && matchingEquipment.length === 0 && (
               <p style={{ color: '#C0392B', fontSize: 12.5 }}>No equipment found for this combination.</p>
             )}
             {selectedEquipment && (
