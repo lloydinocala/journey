@@ -28,6 +28,7 @@ import Calendar from './Calendar'
 import Pricebook from './Pricebook'
 import SystemsPricebook from './SystemsPricebook'
 import SpecialFeatures from './SpecialFeatures'
+import SystemEstimateSetup from './SystemEstimateSetup'
 import DiscountCatalog from './DiscountCatalog'
 import OnCallSchedule from './OnCallSchedule'
 import RolesConfig from './RolesConfig'
@@ -224,6 +225,7 @@ function AuthenticatedApp() {
         <Route path="/pricebook" element={<Pricebook profile={profile} />} />
         <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />
         <Route path="/special-features" element={<SpecialFeatures profile={profile} />} />
+        <Route path="/system-estimate-setup" element={<SystemEstimateSetup profile={profile} />} />
         <Route path="/discount-catalog" element={<DiscountCatalog profile={profile} />} />
         <Route path="/maintenance-tiers" element={<MaintenanceAgreementTiers profile={profile} />} />
         <Route path="/checklists" element={<ChecklistTemplates profile={profile} />} />
