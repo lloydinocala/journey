@@ -153,7 +153,7 @@ export default function InvoiceDocument({ data, footer }) {
               background: idx % 2 === 1 ? '#FAFBFC' : 'white',
             }}
           >
-            <div style={{ flex: 3 }}>{li.description}</div>
+            <div style={{ flex: 3, whiteSpace: 'pre-line' }}>{li.description}</div>
             <div style={{ flex: 1, textAlign: 'right', color: '#64748B' }}>{li.quantity}</div>
             <div style={{ flex: 1, textAlign: 'right', color: '#64748B' }}>${li.unit_price.toFixed(2)}</div>
             <div style={{ flex: 1, textAlign: 'right', fontWeight: 600 }}>${(li.quantity * li.unit_price).toFixed(2)}</div>
