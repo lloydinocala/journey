@@ -86,13 +86,7 @@ export default function Estimates({ profile }) {
         .select(`
           id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
           discount_amount, discount_type, deposit, amount_due, total_paid, balance,
-          profit, profit_pct, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, approved_at, spawned_job_id, is_archived, reference_job_id,
-          jobs!invoices_job_id_fkey (
-            job_number,
-            properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )
-          ),
-          invoice_line_items ( description, sort_order ),
-          estimating_technician:estimating_technician_id ( full_name )
+          profit, profit_pct, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, approved_at, spawned_job_id, is_archived, reference_job_id
         `)
         .eq('org_id', orgId)
         .eq('kind', 'estimate')
@@ -101,20 +95,42 @@ export default function Estimates({ profile }) {
       supabase.from('users').select('id, full_name').eq('org_id', orgId).order('full_name'),
     ])
     let estimates = estimatesRes.data || []
-    // Follow-up estimates reference a job without being bound to it. Fetch those referenced
-    // jobs in a SEPARATE query and attach them here — embedding a second jobs relationship in
-    // the query above (three FKs from invoices to jobs) makes PostgREST fail the whole query.
-    const refIds = [...new Set(estimates.map((e) => e.reference_job_id).filter(Boolean))]
-    if (refIds.length) {
-      const { data: refJobs } = await supabase
+    const users = usersRes.data || []
+    // NO joins in the query above. invoices has several FKs to jobs (job_id, reference_job_id,
+    // spawned_job_id) and to users (estimating_technician_id, deleted_by); embedding any of them
+    // can make PostgREST fail the entire query and blank the table. So we fetch the related
+    // pieces separately and stitch them on here — the list query itself can never fail this way.
+    const userById = Object.fromEntries(users.map((u) => [u.id, u]))
+    const jobIds = [...new Set(estimates.flatMap((e) => [e.job_id, e.reference_job_id]).filter(Boolean))]
+    let jobById = {}
+    if (jobIds.length) {
+      const { data: jobs } = await supabase
         .from('jobs')
         .select('id, job_number, properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )')
-        .in('id', refIds)
-      const byId = Object.fromEntries((refJobs || []).map((j) => [j.id, j]))
-      estimates = estimates.map((e) => (e.reference_job_id ? { ...e, reference_job: byId[e.reference_job_id] || null } : e))
+        .in('id', jobIds)
+      jobById = Object.fromEntries((jobs || []).map((j) => [j.id, j]))
     }
+    const estIds = estimates.map((e) => e.id)
+    const itemsByInvoice = {}
+    if (estIds.length) {
+      const { data: items } = await supabase
+        .from('invoice_line_items')
+        .select('invoice_id, description, sort_order')
+        .in('invoice_id', estIds)
+      for (const it of items || []) {
+        if (!itemsByInvoice[it.invoice_id]) itemsByInvoice[it.invoice_id] = []
+        itemsByInvoice[it.invoice_id].push(it)
+      }
+    }
+    estimates = estimates.map((e) => ({
+      ...e,
+      jobs: e.job_id ? jobById[e.job_id] || null : null,
+      reference_job: e.reference_job_id ? jobById[e.reference_job_id] || null : null,
+      estimating_technician: e.estimating_technician_id ? userById[e.estimating_technician_id] || null : null,
+      invoice_line_items: itemsByInvoice[e.id] || [],
+    }))
     setEstimates(estimates)
-    setUsers(usersRes.data || [])
+    setUsers(users)
     setLoading(false)
   }
 
@@ -597,3 +613,4 @@ export default function Estimates({ profile }) {
     </div>
   )
 }
+
