@@ -76,7 +76,11 @@ export default function Jobs({ profile }) {
 
   const [visibleStatuses, setVisibleStatuses] = useState(() => {
     const saved = localStorage.getItem('jobs_visible_statuses')
-    return saved ? JSON.parse(saved) : STATUS_OPTIONS.map((s) => s.value)
+    let statuses = saved ? JSON.parse(saved) : STATUS_OPTIONS.map((s) => s.value)
+    // 'unscheduled' was added after some users saved their filter (it's where approved
+    // follow-up estimates and new segments land). Make sure it's never hidden by a stale pref.
+    if (!statuses.includes('unscheduled')) statuses = ['unscheduled', ...statuses]
+    return statuses
   })
   const [showStatusPicker, setShowStatusPicker] = useState(false)
   const [searchText, setSearchText] = useState('')
@@ -146,7 +150,7 @@ export default function Jobs({ profile }) {
           supabase
             .from('jobs')
             .select(`
-              id, job_number, segment, status, job_date, start_time, duration_hours, job_type, service_complaint,
+              id, job_number, segment, status, job_date, date_pending, start_time, duration_hours, job_type, service_complaint,
               property_id, customer_id, trip_charge_price_id, on_my_way_at, arrival_at, completed_at, job_notes, auth_diagnose_only, auth_limit_amount,
               properties ( street_address, unit, city, state, zip, gate_code, property_tenants ( name, phone ) ),
               job_technicians ( sort_order, users ( full_name ) ),
@@ -386,6 +390,7 @@ export default function Jobs({ profile }) {
         property_id: editPropertyId,
         customer_id: editProperty ? editProperty.customer_id : undefined,
         job_date: editJobDate,
+        date_pending: false,
         start_time: startTimestamp,
         duration_hours: editDuration ? parseFloat(editDuration) : null,
         job_type: editJobType,
@@ -934,6 +939,13 @@ export default function Jobs({ profile }) {
                     <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                       {col.key === 'status' ? (
                         <span className={`status-pill status-${j.status}`}>{j.status}</span>
+                      ) : col.key === 'job_date' && j.date_pending ? (
+                        <span
+                          title="Pending — auto-set placeholder date from an approved estimate. Needs real scheduling."
+                          style={{ background: '#F59E0B', color: '#fff', fontWeight: 700, padding: '2px 8px', borderRadius: 6, whiteSpace: 'nowrap', display: 'inline-block' }}
+                        >
+                          ⏳ {j.job_date}
+                        </span>
                       ) : (
                         cellValue(j, col.key)
                       )}
