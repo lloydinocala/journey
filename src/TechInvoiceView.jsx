@@ -133,7 +133,7 @@ export default function TechInvoiceView({ profile }) {
       setSendError(`Add at least one service or custom item before sending this ${isEst ? 'estimate' : 'invoice'}. (The trip charge alone doesn't count.)`)
       return
     }
-    if (isEst && !invoiceRow?.approved_at) {
+    if (isEst && !invoiceRow?.approved_at && invoiceRow?.job_id) {
       setSendError('Record the customer’s signature — or a note such as “declined” — in Customer Approval below before sending the estimate.')
       return
     }
