@@ -86,7 +86,7 @@ export default function Estimates({ profile }) {
         .select(`
           id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
           discount_amount, discount_type, deposit, amount_due, total_paid, balance,
-          profit, profit_pct, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, is_archived, reference_job_id,
+          profit, profit_pct, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, approved_at, spawned_job_id, is_archived, reference_job_id,
           jobs!invoices_job_id_fkey (
             job_number,
             properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )
@@ -169,10 +169,27 @@ export default function Estimates({ profile }) {
     loadEstimates(selectedOrg)
   }
 
-  async function toggleArchive(est) {
-    const action = est.is_archived ? 'unarchive' : 'archive'
-    if (!window.confirm(`Are you sure you want to ${action} estimate ${est.invoice_number}?`)) return
-    await supabase.from('invoices').update({ is_archived: !est.is_archived }).eq('id', est.id)
+  async function handleDelete(est) {
+    // Already archived → offer to restore it.
+    if (est.is_archived) {
+      if (!window.confirm(`Un-archive estimate ${est.invoice_number}?`)) return
+      await supabase.from('invoices').update({ is_archived: false }).eq('id', est.id)
+      loadEstimates(selectedOrg)
+      return
+    }
+    // History worth keeping → archive. Throwaway draft → permanently delete.
+    const hasHistory = !!(
+      est.sent_at || est.approved_at || est.spawned_job_id || est.paid_at ||
+      (est.approval_status && est.approval_status !== 'Pending')
+    )
+    if (hasHistory) {
+      if (!window.confirm(`Estimate ${est.invoice_number} has activity on record, so it will be ARCHIVED (kept for your records, hidden from the main list) rather than deleted. Continue?`)) return
+      await supabase.from('invoices').update({ is_archived: true }).eq('id', est.id)
+    } else {
+      if (!window.confirm(`Delete estimate ${est.invoice_number}? It has no activity on record and will be permanently removed.`)) return
+      await supabase.from('invoice_line_items').delete().eq('invoice_id', est.id)
+      await supabase.from('invoices').delete().eq('id', est.id)
+    }
     loadEstimates(selectedOrg)
   }
 
@@ -490,8 +507,8 @@ export default function Estimates({ profile }) {
                   <button className="logout-button" onClick={() => addToIncompleteJobs(est)}>
                     + Incomplete
                   </button>
-                  <button className="logout-button" onClick={() => toggleArchive(est)}>
-                    {est.is_archived ? 'Unarchive' : 'Archive'}
+                  <button className="logout-button" style={{ color: est.is_archived ? undefined : '#C0392B' }} onClick={() => handleDelete(est)}>
+                    {est.is_archived ? 'Unarchive' : 'Delete'}
                   </button>
                 </div>
                 {visibleColumnDefs.map((col) => {
