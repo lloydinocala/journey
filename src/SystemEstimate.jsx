@@ -12,11 +12,12 @@ export default function SystemEstimate({ profile }) {
   const [users, setUsers] = useState([])
 
   const [systemTypes, setSystemTypes] = useState([])
+  const [orgTemplates, setOrgTemplates] = useState({ install: '', warranty: '' })
   const [pickSystemType, setPickSystemType] = useState('')
   const [sizeOptions, setSizeOptions] = useState([])
   const [pickSize, setPickSize] = useState('')
-  const [brandFamilies, setBrandFamilies] = useState([])
-  const [pickBrandFamily, setPickBrandFamily] = useState('')
+  const [pickSeer, setPickSeer] = useState('')
+  const [pickBrand, setPickBrand] = useState('')
   const [matchingEquipment, setMatchingEquipment] = useState([])
   const [equipmentSearch, setEquipmentSearch] = useState('')
   const [selectedEquipmentId, setSelectedEquipmentId] = useState('')
@@ -132,12 +133,13 @@ export default function SystemEstimate({ profile }) {
 
     const { data: orgData } = await supabase
       .from('organizations')
-      .select('sales_tax_rate, services_taxable_by_default')
+      .select('sales_tax_rate, services_taxable_by_default, system_installation_includes, system_warranty_template')
       .eq('id', jobData.org_id)
       .single()
     if (orgData) {
       setTaxRate(orgData.sales_tax_rate || 0)
       setCustomTaxable(orgData.services_taxable_by_default)
+      setOrgTemplates({ install: orgData.system_installation_includes || '', warranty: orgData.system_warranty_template || '' })
     }
 
     setLoading(false)
@@ -175,40 +177,27 @@ export default function SystemEstimate({ profile }) {
 
   useEffect(() => {
     if (!pickSystemType || !pickSize || !job) {
-      setBrandFamilies([])
-      return
-    }
-    supabase
-      .from('equipment')
-      .select('brand_family')
-      .eq('org_id', job.org_id)
-      .eq('system_type', pickSystemType)
-      .eq('size_tons', pickSize)
-      .eq('active', true)
-      .then(({ data }) => {
-        setBrandFamilies([...new Set((data || []).map((r) => r.brand_family))].filter(Boolean).sort())
-      })
-  }, [pickSystemType, pickSize, job])
-
-  useEffect(() => {
-    if (!pickSystemType || !pickSize || !pickBrandFamily || !job) {
       setMatchingEquipment([])
       return
     }
     supabase
       .from('equipment')
-      .select('id, ahri_ref, recommended, outdoor_brand, outdoor_series, outdoor_model, indoor_brand, indoor_model, furnace_model, size_tons, seer2, eer2, energy_star, installation_price')
+      .select('id, ahri_ref, outdoor_brand, outdoor_series, outdoor_model, outdoor_description, indoor_brand, indoor_model, furnace_model, indoor_description, size_tons, seer2, eer2, energy_star, installation_price, subtotal, labor_warranty, manufacturer_warranty_years, lineset_requirements')
       .eq('org_id', job.org_id)
       .eq('system_type', pickSystemType)
       .eq('size_tons', pickSize)
-      .eq('brand_family', pickBrandFamily)
       .eq('active', true)
-      .order('recommended', { ascending: false })
       .order('outdoor_brand')
+      .order('seer2', { ascending: false })
       .then(({ data }) => setMatchingEquipment(data || []))
-  }, [pickSystemType, pickSize, pickBrandFamily, job])
+  }, [pickSystemType, pickSize, job])
+
+  const seerOptions = [...new Set(matchingEquipment.map((e) => e.seer2))].filter((s) => s != null).sort((a, b) => a - b)
+  const brandOptions = [...new Set(matchingEquipment.map((e) => e.outdoor_brand))].filter(Boolean).sort()
 
   const filteredEquipment = matchingEquipment.filter((eq) => {
+    if (pickSeer && String(eq.seer2) !== String(pickSeer)) return false
+    if (pickBrand && eq.outdoor_brand !== pickBrand) return false
     if (!equipmentSearch) return true
     const q = equipmentSearch.toLowerCase()
     return (
@@ -224,26 +213,48 @@ export default function SystemEstimate({ profile }) {
   async function handleAddSystem() {
     if (!selectedEquipment) return
     setAddingSystem(true)
-    const nextSort = lineItems.length > 0 ? Math.max(...lineItems.map((li) => li.sort_order)) + 1 : 1
-    const desc =
-      selectedEquipment.outdoor_brand + ' ' + selectedEquipment.outdoor_model +
-      ' / ' + selectedEquipment.indoor_brand + ' ' + selectedEquipment.indoor_model +
-      (selectedEquipment.furnace_model ? ' / ' + selectedEquipment.furnace_model : '') +
-      ' — ' + selectedEquipment.size_tons + ' Ton ' + pickSystemType
-    await supabase.from('invoice_line_items').insert({
-      invoice_id: estimate.id,
-      org_id: job.org_id,
-      description: desc,
-      unit_price: selectedEquipment.installation_price,
-      quantity: 1,
-      taxable: systemTaxable,
-      is_custom: false,
-      sort_order: nextSort,
-    })
+    const eq = selectedEquipment
+
+    // Re-picking replaces the base system cleanly — clear any existing base sections first.
+    await supabase.from('invoice_line_items').delete().eq('invoice_id', estimate.id).in('category', ['INDOOR_UNIT', 'OUTDOOR_UNIT', 'INSTALLATION', 'WARRANTY'])
+
+    const clean = (str) => str.replace(/\s+/g, ' ').trim()
+
+    const indoorDesc = [
+      eq.ahri_ref ? `AHRI# ${eq.ahri_ref}` : null,
+      'INDOOR UNIT',
+      clean(`${eq.indoor_brand || ''} ${eq.size_tons ?? ''} TON ${eq.indoor_description || ''}`),
+      eq.indoor_model ? `Model # ${eq.indoor_model}` : null,
+    ].filter(Boolean).join('\n')
+
+    const outdoorDesc = [
+      'OUTDOOR UNIT',
+      clean(`${eq.outdoor_brand || ''} ${eq.size_tons ?? ''} TON, ${eq.seer2 ?? ''} SEER2 ${eq.outdoor_description || ''}`),
+      eq.outdoor_model ? `Model # ${eq.outdoor_model}` : null,
+    ].filter(Boolean).join('\n')
+
+    const installDesc = ['Installation includes:', orgTemplates.install || ''].filter(Boolean).join('\n\n')
+
+    const warrantyBody = (orgTemplates.warranty || '')
+      .replace(/\{manufacturer_years\}/g, eq.manufacturer_warranty_years != null ? String(eq.manufacturer_warranty_years) : '')
+      .replace(/\{contractor_years\}/g, eq.labor_warranty != null ? String(eq.labor_warranty) : '')
+    const warrantyDesc = ['WARRANTY', warrantyBody].filter(Boolean).join('\n\n')
+
+    const base = eq.installation_price || 0
+    const rows = [
+      { description: indoorDesc, unit_price: base, quantity: 1, category: 'INDOOR_UNIT', sort_order: 10, taxable: systemTaxable },
+      { description: outdoorDesc, unit_price: 0, quantity: 1, category: 'OUTDOOR_UNIT', sort_order: 20, taxable: false },
+      { description: installDesc, unit_price: 0, quantity: 1, category: 'INSTALLATION', sort_order: 30, taxable: false },
+      { description: warrantyDesc, unit_price: 0, quantity: 1, category: 'WARRANTY', sort_order: 90, taxable: false },
+    ].map((r) => ({ ...r, invoice_id: estimate.id, org_id: job.org_id, is_custom: false }))
+
+    await supabase.from('invoice_line_items').insert(rows)
+
     setAddingSystem(false)
     setPickSystemType('')
     setPickSize('')
-    setPickBrandFamily('')
+    setPickSeer('')
+    setPickBrand('')
     setMatchingEquipment([])
     setSelectedEquipmentId('')
     setEquipmentSearch('')
@@ -447,7 +458,7 @@ export default function SystemEstimate({ profile }) {
             <h3 style={{ marginTop: 0, fontSize: 15 }}>Add System</h3>
             <div className="field">
               <label>System type</label>
-              <select value={pickSystemType} onChange={(e) => { setPickSystemType(e.target.value); setPickSize(''); setPickBrandFamily(''); setSelectedEquipmentId('') }}>
+              <select value={pickSystemType} onChange={(e) => { setPickSystemType(e.target.value); setPickSize(''); setPickSeer(''); setPickBrand(''); setSelectedEquipmentId('') }}>
                 <option value="">Select…</option>
                 {systemTypes.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -455,22 +466,31 @@ export default function SystemEstimate({ profile }) {
             {pickSystemType && (
               <div className="field">
                 <label>Size (Tons)</label>
-                <select value={pickSize} onChange={(e) => { setPickSize(e.target.value); setPickBrandFamily(''); setSelectedEquipmentId('') }}>
+                <select value={pickSize} onChange={(e) => { setPickSize(e.target.value); setPickSeer(''); setPickBrand(''); setSelectedEquipmentId('') }}>
                   <option value="">Select…</option>
                   {sizeOptions.map((s) => <option key={s} value={s}>{s} Tons</option>)}
                 </select>
               </div>
             )}
-            {pickSystemType && pickSize && (
-              <div className="field">
-                <label>Brand family</label>
-                <select value={pickBrandFamily} onChange={(e) => { setPickBrandFamily(e.target.value); setSelectedEquipmentId('') }}>
-                  <option value="">Select…</option>
-                  {brandFamilies.map((b) => <option key={b} value={b}>{b}</option>)}
-                </select>
+            {pickSystemType && pickSize && (seerOptions.length > 1 || brandOptions.length > 1) && (
+              <div className="field" style={{ display: 'flex', gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <label>SEER2</label>
+                  <select value={pickSeer} onChange={(e) => { setPickSeer(e.target.value); setSelectedEquipmentId('') }}>
+                    <option value="">All</option>
+                    {seerOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label>Brand</label>
+                  <select value={pickBrand} onChange={(e) => { setPickBrand(e.target.value); setSelectedEquipmentId('') }}>
+                    <option value="">All</option>
+                    {brandOptions.map((b) => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                </div>
               </div>
             )}
-            {pickBrandFamily && (
+            {pickSystemType && pickSize && (
               <>
                 <div className="field">
                   <label>Search (model #, brand)</label>
@@ -496,7 +516,6 @@ export default function SystemEstimate({ profile }) {
                         onChange={() => setSelectedEquipmentId(eq.id)}
                         style={{ marginRight: 8 }}
                       />
-                      {eq.recommended && <strong style={{ color: 'var(--route-blue)' }}>★ Recommended — </strong>}
                       {eq.outdoor_brand} {eq.outdoor_model} / {eq.indoor_model}
                       {eq.furnace_model ? ' / ' + eq.furnace_model : ''}
                       {' — SEER2 '}{eq.seer2}{eq.energy_star ? ' — ENERGY STAR' : ''}
