@@ -194,7 +194,7 @@ export default function TechNewJob({ profile, mode = 'job' }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
-    if (!jobDate) {
+    if (mode !== 'system-estimate' && !jobDate) {
       setError('Date is required.')
       return
     }
@@ -204,6 +204,27 @@ export default function TechNewJob({ profile, mode = 'job' }) {
     const resolved = await resolvePropertyAndCustomer()
     if (!resolved) {
       setSaving(false)
+      return
+    }
+
+    // System-sale estimate: property-based, no job, no service call.
+    if (mode === 'system-estimate') {
+      const { count } = await supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('org_id', profile.org_id).eq('kind', 'estimate')
+      const num = 'EST-' + String((count || 0) + 1).padStart(4, '0')
+      const { data: created, error: estErr } = await supabase.from('invoices').insert({
+        org_id: profile.org_id,
+        invoice_number: num,
+        kind: 'estimate',
+        estimate_type: 'system',
+        job_id: null,
+        property_id: resolved.propertyId,
+        bills_to_customer_id: resolved.customerId,
+        invoice_date: new Date().toISOString().slice(0, 10),
+        discount_type: 'dollar',
+      }).select('id').single()
+      if (estErr) { setError(estErr.message); setSaving(false); return }
+      setSaving(false)
+      navigate(`/tech/system-estimate-p/${created.id}`)
       return
     }
 
