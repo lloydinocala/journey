@@ -91,7 +91,7 @@ export default function Estimates({ profile }) {
             job_number,
             properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )
           ),
-          reference_job:reference_job_id (
+          reference_job:jobs!invoices_reference_job_id_fkey (
             job_number,
             properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )
           ),
@@ -391,7 +391,7 @@ export default function Estimates({ profile }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <h2>Job Estimates</h2>
           <span className="badge">{estimates.length.toLocaleString()} total</span>
-          <Link to="/new-followup-estimate" className="auth-button" style={{ textDecoration: 'none', width: 'auto', padding: '6px 14px', margin: 0 }}>+ New Estimate</Link>
+          <Link to="/new-followup-estimate" className="auth-button" style={{ textDecoration: 'none', width: 'auto', padding: '6px 14px', margin: 0 }}>+ Follow-up Estimate</Link>
         </div>
         <NewItemDropdown onSelect={setNewItemMode} />
       </div>
