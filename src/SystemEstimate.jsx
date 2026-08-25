@@ -601,7 +601,10 @@ export default function SystemEstimate({ profile }) {
                 Open
               </button>
             </div>
-            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <button className="auth-button" style={{ width: 'auto', padding: '8px 20px', background: '#2E7FC4' }} onClick={() => window.open('/view-invoice/' + estimate.id, '_blank')}>
+                Review / Preview
+              </button>
               <button className="auth-button" style={{ width: 'auto', padding: '8px 20px' }} onClick={handleSendEmail} disabled={sendingEmail}>
                 {sendingEmail ? 'Sending…' : estimate.sent_at ? 'Resend to Customer' : 'Send to Customer'}
               </button>
