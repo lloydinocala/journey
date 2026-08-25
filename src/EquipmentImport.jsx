@@ -71,7 +71,7 @@ export default function EquipmentImport({ profile }) {
         OutdoorBrand: 'BRYANT', OutdoorSeries: 'D5C Series', OutdoorModel: 'D5CUHAH18AAK', IndoorBrand: 'BRYANT',
         IndoorModel: 'D5MUWAQ18XA3', FurnaceModel: '', SizeTons: '1.5', CoolingCapacity: '18000', EER2: '12.1',
         SEER2: '19.3', ManufacturedIn: '', SystemType: 'Apt CrossOver', EnergyStar: 'TRUE', FloridaRating: '4.5',
-        ClientRating: '4.9', LaborWarranty: '2', QualityPledge: 'FALSE', QualityPledgeYears: '', QualityPledgeIssuer: '',
+        ClientRating: '4.9', LaborWarranty: '2', ManufacturerWarrantyYears: '10',
         LinesetRequirements: '3/4" & 3/8" Copper Lines', Subtotal: '6500', InstallationCosts: '', InstallationPrice: '25000',
         Active: 'TRUE',
       },
@@ -120,9 +120,7 @@ export default function EquipmentImport({ profile }) {
           florida_rating: normNumber(pick(r, 'FloridaRating', 'FL Rating')),
           client_rating: normNumber(pick(r, 'ClientRating', 'Client Rating')),
           labor_warranty: normText(pick(r, 'LaborWarranty', 'Labor Warranty')),
-          quality_pledge: normBool(pick(r, 'QualityPledge', 'Quality Pledge')),
-          quality_pledge_years: normInt(pick(r, 'QualityPledgeYears', 'Pledge Years')),
-          quality_pledge_issuer: normText(pick(r, 'QualityPledgeIssuer', 'Pledge Issuer')),
+          manufacturer_warranty_years: normNumber(pick(r, 'ManufacturerWarrantyYears', 'Mfr Warranty (yrs)')),
           lineset_requirements: normText(pick(r, 'LinesetRequirements', 'Lineset')),
           subtotal: normNumber(pick(r, 'Subtotal', 'Subtotal')),
           installation_costs: normNumber(pick(r, 'InstallationCosts', 'Our Cost')),
@@ -232,8 +230,8 @@ export default function EquipmentImport({ profile }) {
       <p style={{ color: 'var(--mist)', fontSize: 14, marginBottom: 8 }}>
         Upload a CSV with columns: AhriRef, HomeType, OutdoorBrand, OutdoorSeries,
         OutdoorModel, IndoorBrand, IndoorModel, FurnaceModel, SizeTons, CoolingCapacity, EER2, SEER2, ManufacturedIn,
-        SystemType, EnergyStar, FloridaRating, ClientRating, LaborWarranty, QualityPledge, QualityPledgeYears,
-        QualityPledgeIssuer, LinesetRequirements, Subtotal, InstallationCosts, InstallationPrice, Active.
+        SystemType, EnergyStar, FloridaRating, ClientRating, LaborWarranty, ManufacturerWarrantyYears,
+        LinesetRequirements, Subtotal, InstallationCosts, InstallationPrice, Active.
       </p>
       <p style={{ color: 'var(--mist)', fontSize: 13, marginBottom: 8 }}>
         A file exported from the Systems Pricebook page itself also works — its column names ("AHRI Ref #", "Size
