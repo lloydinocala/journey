@@ -86,8 +86,12 @@ export default function Estimates({ profile }) {
         .select(`
           id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
           discount_amount, discount_type, deposit, amount_due, total_paid, balance,
-          profit, profit_pct, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, is_archived,
+          profit, profit_pct, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, is_archived, reference_job_id,
           jobs!invoices_job_id_fkey (
+            job_number,
+            properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )
+          ),
+          reference_job:reference_job_id (
             job_number,
             properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )
           ),
@@ -118,11 +122,11 @@ export default function Estimates({ profile }) {
   }
 
   function customerName(est) {
-    return est.jobs?.properties?.customers?.display_name || 'Unknown'
+    return est.jobs?.properties?.customers?.display_name || est.reference_job?.properties?.customers?.display_name || 'Unknown'
   }
 
   function customerMobile(est) {
-    return formatPhone(est.jobs?.properties?.customers?.primary_phone) || ''
+    return formatPhone(est.jobs?.properties?.customers?.primary_phone || est.reference_job?.properties?.customers?.primary_phone) || ''
   }
 
   function sortedLineItems(est) {
@@ -251,7 +255,7 @@ export default function Estimates({ profile }) {
       const q = searchText.toLowerCase()
       const matchesNumber = est.invoice_number?.toLowerCase().includes(q)
       const matchesCustomer = customerName(est).toLowerCase().includes(q)
-      const matchesJob = est.jobs?.job_number?.toLowerCase().includes(q)
+      const matchesJob = (est.jobs?.job_number || est.reference_job?.job_number || '').toLowerCase().includes(q)
       if (!matchesNumber && !matchesCustomer && !matchesJob) return false
     }
     return true
@@ -349,7 +353,7 @@ export default function Estimates({ profile }) {
   function cellValue(est, key) {
     if (key === 'invoice_date') return est.invoice_date
     if (key === 'invoice_number') return est.invoice_number
-    if (key === 'job_number') return est.jobs?.job_number || ''
+    if (key === 'job_number') return est.jobs?.job_number || (est.reference_job?.job_number ? '\u2192' + est.reference_job.job_number : '')
     if (key === 'customer') return customerName(est)
     if (key === 'customer_mobile') return customerMobile(est)
     if (key.startsWith('line_item_')) {
@@ -475,7 +479,7 @@ export default function Estimates({ profile }) {
               return (
               <div key={est.id} style={{ display: 'contents' }}>
                 <div className="grid-cell grid-actions" style={actionsCellStyle(rowBg)}>
-                  <Link to={'/estimate/' + est.job_id} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
+                  <Link to={est.job_id ? '/estimate/' + est.job_id : '/estimate/' + est.reference_job_id + '?followup=' + est.id} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
                     Edit
                   </Link>
                   <a href={'/view-invoice/' + est.id} target="_blank" rel="noopener noreferrer" className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
