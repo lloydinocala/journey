@@ -94,7 +94,7 @@ export default function Calendar({ profile }) {
     const { data } = await supabase
       .from('jobs')
       .select(
-        'id, job_number, job_date, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(display_name, is_banned))'
+        'id, job_number, job_date, date_pending, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(display_name, is_banned))'
       )
       .eq('org_id', selectedOrg)
       .is('deleted_at', null)
@@ -151,7 +151,7 @@ export default function Calendar({ profile }) {
     const newStartTime = zonedToUtcIso(newDateStr, newTimeStr)
     await supabase
       .from('jobs')
-      .update({ job_date: newDateStr, start_time: newStartTime })
+      .update({ job_date: newDateStr, start_time: newStartTime, date_pending: false })
       .eq('id', jobId)
     loadJobs()
   }
@@ -162,7 +162,7 @@ export default function Calendar({ profile }) {
   }
 
   async function handleMonthDrop(jobId, newDateStr) {
-    await supabase.from('jobs').update({ job_date: newDateStr }).eq('id', jobId)
+    await supabase.from('jobs').update({ job_date: newDateStr, date_pending: false }).eq('id', jobId)
     loadJobs()
   }
 
