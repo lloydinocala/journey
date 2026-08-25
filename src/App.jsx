@@ -45,6 +45,7 @@ import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
 import JoinPlan from './JoinPlan'
 import SystemEstimate from './SystemEstimate'
+import NewSystemEstimate from './NewSystemEstimate'
 import SessionLog from './SessionLog'
 import CustomerImport from './CustomerImport'
 import PricebookImport from './PricebookImport'
@@ -229,6 +230,8 @@ function AuthenticatedApp() {
         <Route path="/invoice/:jobId" element={<Invoice profile={profile} />} />
         <Route path="/estimate/:jobId" element={<Estimate profile={profile} />} />
         <Route path="/system-estimate/:jobId" element={<SystemEstimate profile={profile} />} />
+        <Route path="/system-estimate-p/:estimateId" element={<SystemEstimate profile={profile} />} />
+        <Route path="/new-system-estimate" element={<NewSystemEstimate profile={profile} />} />
         <Route path="/estimates" element={<Estimates profile={profile} />} />
         <Route path="/new-followup-estimate" element={<NewFollowupEstimate profile={profile} />} />
         <Route path="/invoices" element={<Invoices profile={profile} />} />
