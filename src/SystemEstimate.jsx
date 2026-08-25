@@ -23,6 +23,11 @@ export default function SystemEstimate({ profile }) {
   const [selectedEquipmentId, setSelectedEquipmentId] = useState('')
   const [addingSystem, setAddingSystem] = useState(false)
   const [systemTaxable, setSystemTaxable] = useState(false)
+  const [includeLineset, setIncludeLineset] = useState(false)
+  const [linesetPrice, setLinesetPrice] = useState('')
+  const [specialFeatures, setSpecialFeatures] = useState([])
+  const [pickFeatureId, setPickFeatureId] = useState('')
+  const [addingFeature, setAddingFeature] = useState(false)
 
   const [customDesc, setCustomDesc] = useState('')
   const [customQty, setCustomQty] = useState('1')
@@ -131,6 +136,9 @@ export default function SystemEstimate({ profile }) {
       .eq('active', true)
     setSystemTypes([...new Set((typesData || []).map((t) => t.system_type))].filter(Boolean).sort())
 
+    const { data: featData } = await supabase.from('special_features').select('id, name, description, price, warranty_text').eq('org_id', jobData.org_id).eq('active', true).order('name')
+    setSpecialFeatures(featData || [])
+
     const { data: orgData } = await supabase
       .from('organizations')
       .select('sales_tax_rate, services_taxable_by_default, system_installation_includes, system_warranty_template')
@@ -216,22 +224,20 @@ export default function SystemEstimate({ profile }) {
     const eq = selectedEquipment
 
     // Re-picking replaces the base system cleanly — clear any existing base sections first.
-    await supabase.from('invoice_line_items').delete().eq('invoice_id', estimate.id).in('category', ['INDOOR_UNIT', 'OUTDOOR_UNIT', 'INSTALLATION', 'WARRANTY'])
+    await supabase.from('invoice_line_items').delete().eq('invoice_id', estimate.id).in('category', ['INDOOR_UNIT', 'OUTDOOR_UNIT', 'INSTALLATION', 'ALSO_INCLUDES', 'WARRANTY'])
 
     const clean = (str) => str.replace(/\s+/g, ' ').trim()
 
     const indoorDesc = [
       eq.ahri_ref ? `AHRI# ${eq.ahri_ref}` : null,
-      'INDOOR UNIT',
-      clean(`${eq.indoor_brand || ''} ${eq.size_tons ?? ''} TON ${eq.indoor_description || ''}`),
+      ['INDOOR UNIT', clean(`${eq.indoor_brand || ''} ${eq.size_tons ?? ''} TON ${eq.indoor_description || ''}`)].join('\n'),
       eq.indoor_model ? `Model # ${eq.indoor_model}` : null,
-    ].filter(Boolean).join('\n')
+    ].filter(Boolean).join('\n\n')
 
     const outdoorDesc = [
-      'OUTDOOR UNIT',
-      clean(`${eq.outdoor_brand || ''} ${eq.size_tons ?? ''} TON, ${eq.seer2 ?? ''} SEER2 ${eq.outdoor_description || ''}`),
+      ['OUTDOOR UNIT', clean(`${eq.outdoor_brand || ''} ${eq.size_tons ?? ''} TON, ${eq.seer2 ?? ''} SEER2 ${eq.outdoor_description || ''}`)].join('\n'),
       eq.outdoor_model ? `Model # ${eq.outdoor_model}` : null,
-    ].filter(Boolean).join('\n')
+    ].filter(Boolean).join('\n\n')
 
     const installDesc = ['Installation includes:', orgTemplates.install || ''].filter(Boolean).join('\n\n')
 
@@ -250,6 +256,15 @@ export default function SystemEstimate({ profile }) {
 
     await supabase.from('invoice_line_items').insert(rows)
 
+    if (includeLineset) {
+      const linesetText = ['Also includes:', eq.lineset_requirements || ''].filter(Boolean).join('\n\n')
+      await supabase.from('invoice_line_items').insert({
+        invoice_id: estimate.id, org_id: job.org_id,
+        description: linesetText, unit_price: parseFloat(linesetPrice) || 0, quantity: 1,
+        taxable: systemTaxable, is_custom: false, category: 'ALSO_INCLUDES', sort_order: 40,
+      })
+    }
+
     setAddingSystem(false)
     setPickSystemType('')
     setPickSize('')
@@ -258,6 +273,24 @@ export default function SystemEstimate({ profile }) {
     setMatchingEquipment([])
     setSelectedEquipmentId('')
     setEquipmentSearch('')
+    setIncludeLineset(false)
+    setLinesetPrice('')
+    loadLineItems(estimate.id)
+  }
+
+  async function handleAddFeature() {
+    const f = specialFeatures.find((x) => x.id === pickFeatureId)
+    if (!f) return
+    setAddingFeature(true)
+    const desc = [f.name, f.description, f.warranty_text].filter(Boolean).join('\n')
+    const existingSF = lineItems.filter((li) => li.category === 'SPECIAL_FEATURE').length
+    await supabase.from('invoice_line_items').insert({
+      invoice_id: estimate.id, org_id: job.org_id,
+      description: desc, unit_price: f.price || 0, quantity: 1,
+      taxable: systemTaxable, is_custom: false, category: 'SPECIAL_FEATURE', sort_order: 100 + existingSF,
+    })
+    setAddingFeature(false)
+    setPickFeatureId('')
     loadLineItems(estimate.id)
   }
 
@@ -419,7 +452,7 @@ export default function SystemEstimate({ profile }) {
 
             {lineItems.map((li) => (
               <>
-                <div className="grid-cell">
+                <div className="grid-cell" style={{ whiteSpace: 'pre-line' }}>
                   {li.description}
                   {isPendingCustom(li) && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#B8860B', background: 'rgba(184,134,11,0.12)', padding: '2px 7px', borderRadius: 6 }}>PENDING · tech request</span>}
                 </div>
@@ -535,10 +568,41 @@ export default function SystemEstimate({ profile }) {
               <input type="checkbox" checked={systemTaxable} onChange={(e) => setSystemTaxable(e.target.checked)} style={{ marginRight: 6 }} />
               Taxable
             </label>
+            {selectedEquipment && (
+              <>
+                <label style={{ display: 'block', marginBottom: includeLineset ? 6 : 12, cursor: 'pointer', fontSize: 14 }}>
+                  <input type="checkbox" checked={includeLineset} onChange={(e) => setIncludeLineset(e.target.checked)} style={{ marginRight: 6 }} />
+                  Include lineset (&ldquo;Also includes&rdquo;)
+                </label>
+                {includeLineset && (
+                  <div className="field" style={{ maxWidth: 200, marginBottom: 12 }}>
+                    <label>Lineset price</label>
+                    <input type="number" step="0.01" value={linesetPrice} onChange={(e) => setLinesetPrice(e.target.value)} placeholder="0.00" />
+                  </div>
+                )}
+              </>
+            )}
             <button className="auth-button" onClick={handleAddSystem} disabled={!selectedEquipment || addingSystem} style={{ width: 'auto', padding: '8px 20px' }}>
               {addingSystem ? 'Adding…' : 'Add to estimate'}
             </button>
           </div>
+
+          {specialFeatures.length > 0 && (
+            <div className="auth-card" style={{ maxWidth: 500, marginBottom: 24 }}>
+              <h3 style={{ marginTop: 0, fontSize: 15 }}>Add Special Feature</h3>
+              <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>Add-ons from your catalog — add as many as apply.</p>
+              <div className="field">
+                <label>Feature</label>
+                <select value={pickFeatureId} onChange={(e) => setPickFeatureId(e.target.value)}>
+                  <option value="">Select…</option>
+                  {specialFeatures.map((f) => <option key={f.id} value={f.id}>{f.name} — ${Number(f.price || 0).toFixed(2)}</option>)}
+                </select>
+              </div>
+              <button className="auth-button" onClick={handleAddFeature} disabled={!pickFeatureId || addingFeature} style={{ width: 'auto', padding: '8px 20px' }}>
+                {addingFeature ? 'Adding…' : 'Add feature'}
+              </button>
+            </div>
+          )}
 
           <div className="auth-card" style={{ maxWidth: 500, marginBottom: 24 }}>
             <h3 style={{ marginTop: 0, fontSize: 15 }}>Add Misc Item</h3>
