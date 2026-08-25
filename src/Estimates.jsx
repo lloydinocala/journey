@@ -86,7 +86,7 @@ export default function Estimates({ profile }) {
         .select(`
           id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
           discount_amount, discount_type, deposit, amount_due, total_paid, balance,
-          profit, profit_pct, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, approved_at, spawned_job_id, is_archived, reference_job_id
+          profit, profit_pct, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, approved_at, spawned_job_id, converted_to_job_id, is_archived, reference_job_id
         `)
         .eq('org_id', orgId)
         .eq('kind', 'estimate')
@@ -101,12 +101,12 @@ export default function Estimates({ profile }) {
     // can make PostgREST fail the entire query and blank the table. So we fetch the related
     // pieces separately and stitch them on here — the list query itself can never fail this way.
     const userById = Object.fromEntries(users.map((u) => [u.id, u]))
-    const jobIds = [...new Set(estimates.flatMap((e) => [e.job_id, e.reference_job_id]).filter(Boolean))]
+    const jobIds = [...new Set(estimates.flatMap((e) => [e.job_id, e.reference_job_id, e.spawned_job_id, e.converted_to_job_id]).filter(Boolean))]
     let jobById = {}
     if (jobIds.length) {
       const { data: jobs } = await supabase
         .from('jobs')
-        .select('id, job_number, properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )')
+        .select('id, job_number, status, properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) )')
         .in('id', jobIds)
       jobById = Object.fromEntries((jobs || []).map((j) => [j.id, j]))
     }
@@ -126,6 +126,7 @@ export default function Estimates({ profile }) {
       ...e,
       jobs: e.job_id ? jobById[e.job_id] || null : null,
       reference_job: e.reference_job_id ? jobById[e.reference_job_id] || null : null,
+      result_job: (e.spawned_job_id && jobById[e.spawned_job_id]) || (e.converted_to_job_id && jobById[e.converted_to_job_id]) || null,
       estimating_technician: e.estimating_technician_id ? userById[e.estimating_technician_id] || null : null,
       invoice_line_items: itemsByInvoice[e.id] || [],
     }))
@@ -413,7 +414,11 @@ export default function Estimates({ profile }) {
     if (key === 'estimating_technician') return est.estimating_technician?.full_name || ''
     if (key === 'profit') return profitDisplay(est)
     if (key === 'profit_pct') return profitPctDisplay(est)
-    if (key === 'approval_status') return est.approval_status || 'Pending'
+    if (key === 'approval_status') {
+      const base = est.approval_status || 'Pending'
+      const rj = est.result_job
+      return rj ? `${base} \u2192 ${rj.job_number}${rj.status ? ' (' + rj.status + ')' : ''}` : base
+    }
     return ''
   }
 
@@ -613,4 +618,3 @@ export default function Estimates({ profile }) {
     </div>
   )
 }
-
