@@ -14,6 +14,7 @@ const COLUMNS = [
   { key: 'indoor_brand', label: 'Indoor Brand', width: 110, type: 'text' },
   { key: 'indoor_model', label: 'Indoor Model', width: 140, type: 'text' },
   { key: 'furnace_model', label: 'Furnace Model', width: 140, type: 'text' },
+  { key: 'furnace_description', label: 'Furnace Desc', width: 200, type: 'text' },
   { key: 'indoor_description', label: 'Indoor Desc', width: 200, type: 'text' },
   { key: 'ahri_ref', label: 'AHRI Ref #', width: 100, type: 'text' },
   { key: 'cooling_capacity', label: 'Cooling Cap', width: 90, type: 'number' },
