@@ -43,8 +43,9 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
     return {
       top,
       height,
-      backgroundColor:
-        job.status === 'incomplete'
+      backgroundColor: job.date_pending
+        ? '#F59E0B'
+        : job.status === 'incomplete'
           ? '#DC2626'
           : job.status === 'completed'
           ? '#9CA3AF'
@@ -141,13 +142,14 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
                   onClick={() => onJobClick(job)}
                 >
                  <div className="job-block-label">
-                    <strong>{formatTimeLabel(job)}</strong>
+                    {job.date_pending ? '⏳ ' : ''}<strong>{formatTimeLabel(job)}</strong>
                     {job.customer_name}
                   </div>
                   <div className="job-tooltip">
                     <strong>{job.customer_name}</strong>
                     {formatTimeLabel(job)} · {job.job_type}<br />
                     {job.technician_names}<br />
+                    {job.date_pending && <span style={{ color: '#F59E0B', fontWeight: 700 }}>⏳ Pending — needs scheduling<br /></span>}
                     <span className={`status-pill status-${job.status}`} style={{ marginTop: 4 }}>{job.status}</span>
                   </div>
                 </div>
