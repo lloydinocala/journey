@@ -1240,6 +1240,35 @@ export default function TechJobCard({ profile }) {
 
         </>}
 
+        {/* Checklist (Maintenance) — replaces Diagnosis; uses the plan-tier checklist, or Basic */}
+        {showChecklist && <>
+        {checklistLocked && <LockNote text={lockReason.checklist} />}
+        <div className="jc-task">
+          <TaskHead k="checklist" title={`Checklist — ${maintChecklistName}`} icon={<IconList />} done={checklistComplete} locked={checklistLocked} />
+          {!checklistLocked && isOpen('checklist') && (
+            <div className="jc-task-body">
+              {pmInstances.length === 0 ? (
+                <p className="jc-muted-note">No checklist generated yet — that happens when the property has no equipment on file, or no form is assigned for its system type and plan tier. This step won't block completion.</p>
+              ) : (
+                <div>
+                  {pmInstances.map((inst) => (
+                    <div key={inst.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid #F1F4F8' }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{inst.template_name}</div>
+                        <div style={{ fontSize: 12, color: inst.status === 'completed' ? '#16A34A' : 'var(--mist)' }}>{inst.status === 'completed' ? '✓ Completed' : 'Not started'}</div>
+                      </div>
+                      <button className="action-btn" style={{ padding: '7px 16px', whiteSpace: 'nowrap' }} onClick={() => navigate(`/tech/pm-checklist/${inst.id}`)}>
+                        {inst.status === 'completed' ? 'Review' : 'Run'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        </>}
+
         {/* Pre-Work Photos — third of the start-of-work group; starting-condition photos or a logged reason */}
         <div className="jc-task">
           <TaskHead k="prework_photos" title="Pre-Work Photos" icon={<IconCamera />} done={preWorkPhotosDone}
@@ -1279,34 +1308,6 @@ export default function TechJobCard({ profile }) {
         <div className={`jc-group ${estimateGroupDone ? 'blue' : 'red'}`}>
         <GroupHead g="estimate" label="Create Services Estimate" done={estimateGroupDone} locked={!startGroupDone} />
         {openGroup === 'estimate' && (<div className="jc-group-body">
-        {/* Checklist (Maintenance) — replaces Diagnosis; uses the plan-tier checklist, or Basic */}
-        {showChecklist && <>
-        {checklistLocked && <LockNote text={lockReason.checklist} />}
-        <div className="jc-task">
-          <TaskHead k="checklist" title={`Checklist — ${maintChecklistName}`} icon={<IconList />} done={checklistComplete} locked={checklistLocked} />
-          {!checklistLocked && isOpen('checklist') && (
-            <div className="jc-task-body">
-              {pmInstances.length === 0 ? (
-                <p className="jc-muted-note">No checklist generated yet — that happens when the property has no equipment on file, or no form is assigned for its system type and plan tier. This step won't block completion.</p>
-              ) : (
-                <div>
-                  {pmInstances.map((inst) => (
-                    <div key={inst.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid #F1F4F8' }}>
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>{inst.template_name}</div>
-                        <div style={{ fontSize: 12, color: inst.status === 'completed' ? '#16A34A' : 'var(--mist)' }}>{inst.status === 'completed' ? '✓ Completed' : 'Not started'}</div>
-                      </div>
-                      <button className="action-btn" style={{ padding: '7px 16px', whiteSpace: 'nowrap' }} onClick={() => navigate(`/tech/pm-checklist/${inst.id}`)}>
-                        {inst.status === 'completed' ? 'Review' : 'Run'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        </>}
 
         {/* Service Estimate — locked until the middle gate (diagnosis/checklist) is done */}
         {showServiceEstimate && <>
