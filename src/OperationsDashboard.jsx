@@ -49,7 +49,7 @@ export default function OperationsDashboard({ profile }) {
     const iso = (dt) => dt.toISOString()
     const dateStr = (dt) => dt.toISOString().slice(0, 10)
 
-    const [invRes, jobRes, agrRes, payRes] = await Promise.all([
+    const [invRes, jobRes, agrRes, payRes, ocRes] = await Promise.all([
       supabase.from('invoices')
         .select('id, invoice_number, kind, estimate_type, sent_at, approval_status, approved_at, job_total, total_paid, job_id, property_id, bills_to_customer_id')
         .eq('org_id', orgId).is('deleted_at', null).eq('is_archived', false),
@@ -61,8 +61,13 @@ export default function OperationsDashboard({ profile }) {
         .eq('org_id', orgId).eq('is_archived', false).not('next_visit_due_date', 'is', null),
       supabase.from('invoice_payments')
         .select('amount, recorded_at').eq('org_id', orgId).gte('recorded_at', iso(weekStart)),
+      supabase.from('on_call_schedule')
+        .select('period_end').eq('org_id', orgId).order('period_end', { ascending: false }).limit(1),
     ])
     const inv = invRes.data || [], jobs = jobRes.data || [], agr = agrRes.data || [], pays = payRes.data || []
+    const onCallEnd = ocRes.data && ocRes.data[0] ? ocRes.data[0].period_end : null
+    const twoWeeksOut = new Date(now); twoWeeksOut.setDate(now.getDate() + 14)
+    const onCallShort = !onCallEnd || new Date(onCallEnd) < twoWeeksOut
 
     // resolve customer names
     const custIds = new Set()
@@ -119,6 +124,7 @@ export default function OperationsDashboard({ profile }) {
       pendEstTotal: pendEst.reduce((s, x) => s + Number(x.amt || 0), 0),
       draftEstTotal: draftEst.reduce((s, x) => s + Number(x.amt || 0), 0),
       collected, wonAmt, wonCount: wonWeek.length, completedWeek, closeRate,
+      onCallShort, onCallEnd,
     })
     setLastUpdated(new Date())
     setLoading(false)
@@ -155,6 +161,19 @@ export default function OperationsDashboard({ profile }) {
       <p style={{ color: C.mist, fontSize: 13, marginTop: 0, marginBottom: 18 }}>What needs doing today. Click anything to go resolve it.</p>
 
       {isSuperAdmin && <div style={{ maxWidth: 320, marginBottom: 18 }}><OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} /></div>}
+
+      {d.onCallShort && (
+        <Link to="/on-call" style={{ textDecoration: 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: C.amberBg, border: '1px solid #F0D8A0', borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
+            <span style={{ fontSize: 20 }}>⏰</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, color: C.amber, fontSize: 14 }}>Complete On-Call Calendar Assignments</div>
+              <div style={{ fontSize: 12.5, color: '#8A6D2B' }}>Less than 2 weeks of on-call coverage is scheduled{d.onCallEnd ? ` — covered only through ${new Date(d.onCallEnd).toLocaleDateString()}` : ''}.</div>
+            </div>
+            <span style={{ color: C.amber, fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>Go to On-Call Schedule &rarr;</span>
+          </div>
+        </Link>
+      )}
 
       {/* Hero vital signs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, marginBottom: 14 }}>
