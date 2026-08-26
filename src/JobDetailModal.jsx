@@ -39,7 +39,7 @@ export default function JobDetailModal({ job, onClose }) {
 
         <div className="modal-row">
           <span className="label">Customer</span>
-          {job.customer_name}
+          {job.customer_id ? <Link to={`/customers/${job.customer_id}`} onClick={onClose}>{job.customer_name}</Link> : job.customer_name}
           {job.is_banned && (
             <span className="status-pill status-past_due" style={{ marginLeft: 8 }}>Do Not Service</span>
           )}
