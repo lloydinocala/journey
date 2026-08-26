@@ -46,6 +46,7 @@ const COLUMNS = [
   { key: 'arrival_at', label: 'Arrival' },
   { key: 'completed_at', label: 'Completed Time' },
   { key: 'status', label: 'Job Status' },
+  { key: 'invoice_sent', label: 'Invoice Sent' },
   { key: 'job_notes', label: 'Job Notes' },
 ]
 
@@ -164,7 +165,21 @@ export default function Jobs({ profile }) {
       ])
       setProperties(propsData)
       setUsers(usersRes.data || [])
-      setJobs(jobsData)
+      const jobIds = (jobsData || []).map((j) => j.id)
+      let invByJob = {}
+      if (jobIds.length) {
+        const { data: invs } = await supabase
+          .from('invoices')
+          .select('id, invoice_number, sent_at, job_id')
+          .eq('kind', 'invoice')
+          .is('deleted_at', null)
+          .in('job_id', jobIds)
+        for (const inv of invs || []) {
+          const cur = invByJob[inv.job_id]
+          if (!cur || (inv.sent_at || '') > (cur.sent_at || '')) invByJob[inv.job_id] = inv
+        }
+      }
+      setJobs((jobsData || []).map((j) => ({ ...j, invoice: invByJob[j.id] || null })))
       setJobTypes(jobTypesRes.data || [])
     } catch (e) {
       console.error(e)
@@ -638,6 +653,7 @@ export default function Jobs({ profile }) {
     if (key === 'arrival_at') return timeDisplay(j.arrival_at)
     if (key === 'completed_at') return timeDisplay(j.completed_at)
     if (key === 'job_notes') return j.job_notes || '—'
+    if (key === 'invoice_sent') return j.invoice ? (j.invoice.sent_at ? new Date(j.invoice.sent_at).toLocaleDateString() : 'Not sent') : '—'
     return ''
   }
 
@@ -919,6 +935,15 @@ export default function Jobs({ profile }) {
                     if (col.key === 'job_notes') return (
                       <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <input type="text" value={editJobNotes} onChange={(e) => setEditJobNotes(e.target.value)} placeholder="Job notes…" />
+                      </div>
+                    )
+                    if (col.key === 'invoice_sent') return (
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
+                        {j.invoice ? (
+                          <Link to={'/invoice/' + j.id} title={j.invoice.invoice_number}>
+                            {j.invoice.sent_at ? new Date(j.invoice.sent_at).toLocaleDateString() : 'Not sent'}
+                          </Link>
+                        ) : '—'}
                       </div>
                     )
                     return <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>{cellValue(j, col.key)}</div>
