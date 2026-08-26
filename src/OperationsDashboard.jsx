@@ -49,7 +49,7 @@ export default function OperationsDashboard({ profile }) {
     const iso = (dt) => dt.toISOString()
     const dateStr = (dt) => dt.toISOString().slice(0, 10)
 
-    const [invRes, jobRes, agrRes, payRes, ocRes] = await Promise.all([
+    const [invRes, jobRes, agrRes, payRes, ocRes, wrRes] = await Promise.all([
       supabase.from('invoices')
         .select('id, invoice_number, kind, estimate_type, sent_at, approval_status, approved_at, job_total, total_paid, job_id, property_id, bills_to_customer_id')
         .eq('org_id', orgId).is('deleted_at', null).eq('is_archived', false),
@@ -63,8 +63,10 @@ export default function OperationsDashboard({ profile }) {
         .select('amount, recorded_at').eq('org_id', orgId).gte('recorded_at', iso(weekStart)),
       supabase.from('on_call_schedule')
         .select('period_end').eq('org_id', orgId).order('period_end', { ascending: false }).limit(1),
+      supabase.from('warranty_registrations')
+        .select('id, customer_id, install_date, registered_at').eq('org_id', orgId).is('registered_at', null),
     ])
-    const inv = invRes.data || [], jobs = jobRes.data || [], agr = agrRes.data || [], pays = payRes.data || []
+    const inv = invRes.data || [], jobs = jobRes.data || [], agr = agrRes.data || [], pays = payRes.data || [], wr = wrRes.data || []
     const onCallEnd = ocRes.data && ocRes.data[0] ? ocRes.data[0].period_end : null
     const twoWeeksOut = new Date(now); twoWeeksOut.setDate(now.getDate() + 14)
     const onCallShort = !onCallEnd || new Date(onCallEnd) < twoWeeksOut
@@ -74,12 +76,16 @@ export default function OperationsDashboard({ profile }) {
     inv.forEach((i) => i.bills_to_customer_id && custIds.add(i.bills_to_customer_id))
     jobs.forEach((j) => j.customer_id && custIds.add(j.customer_id))
     agr.forEach((a) => a.customer_id && custIds.add(a.customer_id))
+    wr.forEach((w) => w.customer_id && custIds.add(w.customer_id))
     let custById = {}
     if (custIds.size) {
       const { data: cs } = await supabase.from('customers').select('id, display_name').in('id', [...custIds])
       custById = Object.fromEntries((cs || []).map((c) => [c.id, c.display_name]))
     }
     const cname = (id) => custById[id] || 'Unknown'
+
+    const warranty = wr.map((w) => ({ id: w.id, cust: cname(w.customer_id), days: w.install_date ? 30 - daysSince(w.install_date) : null, link: '/warranty-registrations' }))
+      .sort((a, b) => (a.days ?? 999) - (b.days ?? 999))
 
     const bal = (i) => Number(i.job_total || 0) - Number(i.total_paid || 0)
 
@@ -124,7 +130,7 @@ export default function OperationsDashboard({ profile }) {
       pendEstTotal: pendEst.reduce((s, x) => s + Number(x.amt || 0), 0),
       draftEstTotal: draftEst.reduce((s, x) => s + Number(x.amt || 0), 0),
       collected, wonAmt, wonCount: wonWeek.length, completedWeek, closeRate,
-      onCallShort, onCallEnd,
+      onCallShort, onCallEnd, warranty,
     })
     setLastUpdated(new Date())
     setLoading(false)
@@ -215,6 +221,12 @@ export default function OperationsDashboard({ profile }) {
         <Card title="Completed, Not Invoiced" headline={String(d.completedNotInvoiced.length)} count={d.completedNotInvoiced.length} seeAll="/jobs" emptyMsg="All completed work is billed">
           {d.completedNotInvoiced.slice(0, 4).map((x) => (
             <Row key={x.id} to={x.link} left={<>{x.num} · {x.cust}</>} right={<Pill tone={x.days >= 3 ? 'over' : 'amber'}>done {ageLabel(x.days)}</Pill>} />
+          ))}
+        </Card>
+
+        <Card title="Warranty Registration" headline={String(d.warranty.length)} count={d.warranty.length} seeAll="/warranty-registrations" emptyMsg="All new systems registered">
+          {d.warranty.slice(0, 4).map((x) => (
+            <Row key={x.id} to={x.link} left={x.cust} right={<Pill tone={x.days != null && x.days < 0 ? 'over' : x.days != null && x.days <= 7 ? 'amber' : 'mist'}>{x.days == null ? 'no install date' : x.days < 0 ? `${-x.days}d overdue` : `${x.days}d left`}</Pill>} />
           ))}
         </Card>
       </div>
