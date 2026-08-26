@@ -24,7 +24,7 @@ const COLUMNS = [
   { key: 'job_number', label: 'Job #', required: true },
   { key: 'segment', label: 'Segment', required: true },
   { key: 'job_date', label: 'Date', required: true },
-  { key: 'customer', label: 'Customer' },
+  { key: 'customer', label: 'Customer', required: true },
   { key: 'street_address', label: 'Street Address', required: true },
   { key: 'unit', label: 'Unit' },
   { key: 'city', label: 'City' },
