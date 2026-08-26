@@ -30,6 +30,7 @@ import SystemsPricebook from './SystemsPricebook'
 import SpecialFeatures from './SpecialFeatures'
 import SystemEstimateSetup from './SystemEstimateSetup'
 import PMChecklists from './PMChecklists'
+import TechPMChecklist from './TechPMChecklist'
 import DiscountCatalog from './DiscountCatalog'
 import OnCallSchedule from './OnCallSchedule'
 import RolesConfig from './RolesConfig'
@@ -228,6 +229,7 @@ function AuthenticatedApp() {
         <Route path="/special-features" element={<SpecialFeatures profile={profile} />} />
         <Route path="/system-estimate-setup" element={<SystemEstimateSetup profile={profile} />} />
         <Route path="/pm-checklists" element={<PMChecklists profile={profile} />} />
+        <Route path="/tech/pm-checklist/:instanceId" element={<TechPMChecklist profile={profile} />} />
         <Route path="/discount-catalog" element={<DiscountCatalog profile={profile} />} />
         <Route path="/maintenance-tiers" element={<MaintenanceAgreementTiers profile={profile} />} />
         <Route path="/checklists" element={<ChecklistTemplates profile={profile} />} />
