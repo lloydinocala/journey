@@ -101,7 +101,7 @@ function isSystemFilled(eq) {
 // so they need no variant here.
 function jobTypeConfig(jobType) {
   const t = (jobType || '').trim().toLowerCase()
-  if (t === 'maintenance') return { middle: 'checklist', showServiceEstimate: true }
+  if (t === 'maintenance' || t.includes('maint')) return { middle: 'checklist', showServiceEstimate: true }
   if (t === 'system estimate') return { middle: 'none', showServiceEstimate: false }
   return { middle: 'diagnosis', showServiceEstimate: true }
 }
@@ -196,6 +196,7 @@ export default function TechJobCard({ profile }) {
   const [invoiceItems, setInvoiceItems] = useState(0)
   const [serviceEstimate, setServiceEstimate] = useState(null)
   const [serviceEstItems, setServiceEstItems] = useState(0)
+  const [pmInstances, setPmInstances] = useState([])
 
   const [approvals, setApprovals] = useState([])
   const [signingStage, setSigningStage] = useState(null)
@@ -279,7 +280,7 @@ export default function TechJobCard({ profile }) {
   useEffect(() => { supabase.auth.getUser().then(({ data }) => setUid(data?.user?.id || null)) }, [])
 
   useEffect(() => {
-    loadJob(); loadPhotos(); loadInvoice(); loadServiceEstimate(); loadApprovals(); loadBanners()
+    loadJob(); loadPhotos(); loadInvoice(); loadServiceEstimate(); loadApprovals(); loadBanners(); loadPmInstances()
   }, [jobId])
 
   useEffect(() => {
@@ -317,6 +318,10 @@ export default function TechJobCard({ profile }) {
       const { data: li } = await supabase.from('invoice_line_items').select('category').eq('invoice_id', data.id)
       setInvoiceItems((li || []).filter(isRealLineItem).length)
     } else setInvoiceItems(0)
+  }
+  async function loadPmInstances() {
+    const { data } = await supabase.from('pm_checklist_instances').select('id, template_name, status, equipment_id').eq('job_id', jobId).order('created_at')
+    setPmInstances(data || [])
   }
   async function loadServiceEstimate() {
     const { data } = await supabase.from('invoices').select('id, sent_at').eq('job_id', jobId).eq('kind', 'estimate').eq('estimate_type', 'service').maybeSingle()
@@ -442,7 +447,8 @@ export default function TechJobCard({ profile }) {
   // The middle gate that must be blue before the Service Estimate unlocks. Checklist
   // completion isn't wired until the checklist engine ships, so on Maintenance the estimate
   // unlocks after Equipment for now (flagged); it becomes the checklist gate later.
-  const middleGateDone = showDiagnosis ? diagnosisDone : true
+  const checklistComplete = pmInstances.length > 0 && pmInstances.every((i) => i.status === 'completed')
+  const middleGateDone = showDiagnosis ? diagnosisDone : (showChecklist ? (pmInstances.length === 0 || checklistComplete) : true)
 
   // START-OF-WORK GROUP: Equipment on File · Diagnosis · Pre-Work Photos are freely orderable —
   // the tech may begin with any one, and that first tap auto-starts the job clock. Only the
@@ -1277,10 +1283,26 @@ export default function TechJobCard({ profile }) {
         {showChecklist && <>
         {checklistLocked && <LockNote text={lockReason.checklist} />}
         <div className="jc-task">
-          <TaskHead k="checklist" title={`Checklist — ${maintChecklistName}`} icon={<IconList />} done={false} locked={checklistLocked} />
+          <TaskHead k="checklist" title={`Checklist — ${maintChecklistName}`} icon={<IconList />} done={checklistComplete} locked={checklistLocked} />
           {!checklistLocked && isOpen('checklist') && (
             <div className="jc-task-body">
-              <p className="jc-muted-note">This visit uses the <strong>{maintChecklistName}</strong> maintenance checklist{plan ? ' (from the plan on record)' : ' — no plan on record, so the Basic default'}. The full checklist — its line items, required photos, and the completed copy emailed to the customer with the invoice — arrives with the checklist build. For now this is a placeholder and does not block completion.</p>
+              {pmInstances.length === 0 ? (
+                <p className="jc-muted-note">No checklist generated yet — that happens when the property has no equipment on file, or no form is assigned for its system type and plan tier. This step won't block completion.</p>
+              ) : (
+                <div>
+                  {pmInstances.map((inst) => (
+                    <div key={inst.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid #F1F4F8' }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{inst.template_name}</div>
+                        <div style={{ fontSize: 12, color: inst.status === 'completed' ? '#16A34A' : 'var(--mist)' }}>{inst.status === 'completed' ? '✓ Completed' : 'Not started'}</div>
+                      </div>
+                      <button className="action-btn" style={{ padding: '7px 16px', whiteSpace: 'nowrap' }} onClick={() => navigate(`/tech/pm-checklist/${inst.id}`)}>
+                        {inst.status === 'completed' ? 'Review' : 'Run'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
