@@ -565,9 +565,6 @@ export default function Jobs({ profile }) {
     tenant_2: 120, tenant_2_phone: 110, technician_1: 130, technician_2: 130, technician_3: 130, technician_4: 130,
     on_my_way_at: 150, arrival_at: 150, completed_at: 150, status: 100, job_notes: 200,
     customer: 160, invoice_sent: 120,
-    state: 70, zip: 90, gate_code: 110,
-    tenant_1: 130, tenant_1_phone: 130, tenant_2: 130, tenant_2_phone: 130,
-    technician_1: 140, technician_2: 140, technician_3: 140, technician_4: 140,
   }
   const ACTIONS_WIDTH = 240
   const gridTemplateColumns = ACTIONS_WIDTH + 'px ' + visibleColumnDefs.map((c) => (COLUMN_WIDTHS[c.key] || 130) + 'px').join(' ')
