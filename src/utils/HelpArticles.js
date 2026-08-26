@@ -87,6 +87,103 @@ export const HELP_ARTICLES = [
       { h: 'Good to know', body: 'A brand-new column you add may be hidden if your saved column layout predates it — open the Columns picker and switch it on once, and it sticks.' },
     ],
   },
+  {
+    id: 'invoices',
+    title: 'Invoices',
+    area: 'Financials',
+    keywords: ['invoice', 'invoices', 'bill', 'billing', 'payment', 'record payment', 'balance', 'unpaid', 'void', 'cancel', 'archive', 'send invoice', 'paid'],
+    purpose: 'Invoices are the bills you send customers for completed work, and where you record payments. The Invoices table is your master list of what has been billed and what is still owed.',
+    sections: [
+      { h: 'How to use it', items: [
+        'Each row has front-of-row actions: View as customer (the public page they receive), Edit, Archive, and Void (cancel).',
+        'The Customer and Job columns link to those records.',
+        'Send an invoice by email; the customer gets a link to view it and pay.',
+        'Record a payment (cash, check, or card) against an invoice. Recording takes a deliberate button tap and a confirmation, so it cannot fire by accident.',
+      ]},
+      { h: 'Rules', items: [
+        'An invoice’s balance is its total minus what has been paid. Sent-but-unpaid invoices appear on the Operations Dashboard, aged from the send date.',
+        'Void cancels an invoice. Archive hides it from the main list but keeps it for your records.',
+      ]},
+      { h: 'Behind the scenes', body: 'The table loads jobs and line items separately rather than as one joined query — invoices connect to jobs in several ways, and joining them can otherwise blank the whole list.' },
+      { h: 'Good to know', body: 'A completed job with no invoice shows on the dashboard under "Completed, Not Invoiced" — that is unbilled work worth catching.' },
+    ],
+  },
+  {
+    id: 'customers-properties',
+    title: 'Customers & Properties',
+    area: 'Operations',
+    keywords: ['customer', 'customers', 'customer file', 'property', 'properties', 'contact', 'invoice routing', 'history', 'address', 'billing contact'],
+    purpose: 'The customer file is the full picture of one customer — their properties, jobs, estimates, invoices, maintenance agreements, warranty registrations, contacts, and attachments in one place. Properties are the physical locations where work happens; every job and system belongs to a property.',
+    sections: [
+      { h: 'How to use it', items: [
+        'Open a customer file wherever their name appears — the Jobs table, Properties, a calendar job popup, or an estimate.',
+        'Inside the file, Job #, Invoice #, and Estimate # link back to their tables with the row highlighted.',
+        'The Warranty Registrations section lists every new system installed for that customer and whether it has been registered.',
+      ]},
+      { h: 'Rules', items: [
+        'A property belongs to a customer; a job belongs to a property (and therefore to that customer).',
+        'Contacts & Invoice Routing sets who gets billed and who approves — useful for commercial customers with multiple people involved.',
+      ]},
+      { h: 'Good to know', body: 'If a customer’s estimate is a System Estimate, its number links to the System Estimates table; a regular estimate links to Job Estimates.' },
+    ],
+  },
+  {
+    id: 'calendar',
+    title: 'Calendar',
+    area: 'Operations',
+    keywords: ['calendar', 'schedule', 'scheduling', 'appointment', 'day', 'week', 'job popup', 'business hours', 'holidays', 'slot'],
+    purpose: 'The Calendar is the visual schedule — every job on its day and time, so you can see the shape of the week and slot in new work.',
+    sections: [
+      { h: 'How to use it', items: [
+        'Click a job to open its popup with the key details.',
+        'From the popup, "Open in Jobs Table" jumps to that job in the Jobs table with the row highlighted, and the Customer name links to their file.',
+        'Business hours and holidays (in Settings) control which time slots are available.',
+      ]},
+      { h: 'Rules', items: [
+        'Jobs with only a placeholder date (auto-set from an approved estimate) still need a real date — they appear on the dashboard’s "Jobs to Schedule".',
+      ]},
+      { h: 'Good to know', body: 'On-call coverage is scheduled separately on the On-Call Schedule page. The Operations Dashboard warns you when on-call is scheduled less than two weeks out.' },
+    ],
+  },
+  {
+    id: 'maintenance',
+    title: 'Maintenance (Agreements, Due & Checklists)',
+    area: 'Operations',
+    keywords: ['maintenance', 'agreement', 'agreements', 'plan', 'tier', 'due', 'pm', 'preventive', 'checklist', 'inspection', 'report', 'recurring', 'visit'],
+    purpose: 'Maintenance keeps recurring service on track — the agreements customers are on, the visits coming due, and the checklists techs complete on each visit. It is your recurring-revenue engine.',
+    sections: [
+      { h: 'How to use it', items: [
+        'Maintenance Agreements lists who is on a plan, their tier, and when their next visit is due.',
+        'Maintenance Due surfaces upcoming visits so you can schedule them.',
+        'PM Checklists (in Financials) defines what a tech inspects and measures each visit, per system type and tier.',
+        'When a Preventive Maint job runs, the checklist auto-generates for each system at that property. The tech completes it on mobile, and a trended report goes to the customer alongside any recommended-work estimate.',
+      ]},
+      { h: 'Rules', items: [
+        'Higher tiers add deeper checklist items and better benefits — not more visits.',
+        'Measured values are recorded every visit, so the customer can see how their system is trending over time (for example, a capacitor weakening year over year).',
+      ]},
+      { h: 'Good to know', body: 'A clean-bill visit with nothing to quote still sends the customer their report, with a "no repairs recommended" note in place of an estimate.' },
+    ],
+  },
+  {
+    id: 'warranty-registrations',
+    title: 'Warranty Registrations',
+    area: 'Operations',
+    keywords: ['warranty', 'registration', 'register', 'new system', 'retrofit', 'install', 'serial', 'model', 'manufacturer', '30 days', 'extended warranty'],
+    purpose: 'New systems must be registered with the manufacturer within 30 days of install to secure the extended warranty. This page tracks every new install so none slip past the deadline.',
+    sections: [
+      { h: 'How to use it', items: [
+        'Every Retrofit job automatically creates a warranty record — nothing to remember.',
+        'On the Warranty Registrations page, fill in the equipment (brand, models, serials), or hit "Pull from Equipment on File" to copy what the tech recorded, then set the Registered date once you have registered online.',
+        'The days-left pill counts down from 30: amber at 7 days, terracotta when overdue, green once registered.',
+      ]},
+      { h: 'Rules', items: [
+        'The install signal is the Retrofit job type. Install date defaults to the job’s date and is editable.',
+        'Unregistered systems within 30 days appear on the Operations Dashboard, most urgent first, and on the customer’s file.',
+      ]},
+      { h: 'Good to know', body: 'Filter the page by unregistered, all, or registered to focus on what still needs doing.' },
+    ],
+  },
 ]
 
 // Map a route to the article that best explains it, so the drawer can open context-aware.
@@ -95,7 +192,14 @@ export const ROUTE_HELP = {
   '/estimates': 'estimates',
   '/system-estimates': 'estimates',
   '/jobs': 'jobs',
-  '/calendar': 'jobs',
+  '/calendar': 'calendar',
+  '/invoices': 'invoices',
+  '/customers': 'customers-properties',
+  '/properties': 'customers-properties',
+  '/maintenance-agreements': 'maintenance',
+  '/maintenance-due': 'maintenance',
+  '/pm-checklists': 'maintenance',
+  '/warranty-registrations': 'warranty-registrations',
 }
 
 export function searchArticles(query) {
