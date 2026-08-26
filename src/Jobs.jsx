@@ -564,16 +564,20 @@ export default function Jobs({ profile }) {
     state: 60, zip: 80, gate_code: 90, tenant_1: 120, tenant_1_phone: 110,
     tenant_2: 120, tenant_2_phone: 110, technician_1: 130, technician_2: 130, technician_3: 130, technician_4: 130,
     on_my_way_at: 150, arrival_at: 150, completed_at: 150, status: 100, job_notes: 200,
+    customer: 160, invoice_sent: 120,
+    state: 70, zip: 90, gate_code: 110,
+    tenant_1: 130, tenant_1_phone: 130, tenant_2: 130, tenant_2_phone: 130,
+    technician_1: 140, technician_2: 140, technician_3: 140, technician_4: 140,
   }
   const ACTIONS_WIDTH = 240
-  const gridTemplateColumns = ACTIONS_WIDTH + 'px ' + visibleColumnDefs.map((c) => COLUMN_WIDTHS[c.key] + 'px').join(' ')
-  const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + COLUMN_WIDTHS[c.key], 0) + ACTIONS_WIDTH
+  const gridTemplateColumns = ACTIONS_WIDTH + 'px ' + visibleColumnDefs.map((c) => (COLUMN_WIDTHS[c.key] || 130) + 'px').join(' ')
+  const tableMinWidth = visibleColumnDefs.reduce((sum, c) => sum + (COLUMN_WIDTHS[c.key] || 130), 0) + ACTIONS_WIDTH
 
   const stickyLeft = {}
   let stickyCum = ACTIONS_WIDTH
   for (const key of FROZEN_KEYS) {
     stickyLeft[key] = stickyCum
-    stickyCum += COLUMN_WIDTHS[key]
+    stickyCum += (COLUMN_WIDTHS[key] || 130)
   }
 
   const actionsCellStyle = (rowBg) => ({
