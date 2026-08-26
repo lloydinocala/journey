@@ -9,6 +9,7 @@ export default function CustomerHistory({ profile }) {
   const [properties, setProperties] = useState([])
   const [jobs, setJobs] = useState([])
   const [invoices, setInvoices] = useState([])
+  const [warranties, setWarranties] = useState([])
   const [agreements, setAgreements] = useState([])
   const [offerPropId, setOfferPropId] = useState('')
   const [sendingOffer, setSendingOffer] = useState(false)
@@ -53,7 +54,7 @@ export default function CustomerHistory({ profile }) {
     }
     setCustomer(custData)
 
-    const [propsRes, jobsRes, invoicesRes, agreementsRes] = await Promise.all([
+    const [propsRes, jobsRes, invoicesRes, agreementsRes, warrantiesRes] = await Promise.all([
       supabase
         .from('properties')
         .select('id, street_address, unit, city, county, state, zip, gate_code, notes, is_active')
@@ -83,6 +84,11 @@ export default function CustomerHistory({ profile }) {
         `)
         .eq('customer_id', customerId)
         .order('start_date', { ascending: false }),
+      supabase
+        .from('warranty_registrations')
+        .select('id, install_date, brand, indoor_model, indoor_serial, outdoor_model, outdoor_serial, furnace_model, furnace_serial, registered_at')
+        .eq('customer_id', customerId)
+        .order('install_date', { ascending: false }),
     ])
 
     setProperties(propsRes.data || [])
@@ -90,6 +96,7 @@ export default function CustomerHistory({ profile }) {
     setJobs(jobsRes.data || [])
     setInvoices(invoicesRes.data || [])
     setAgreements(agreementsRes.data || [])
+    setWarranties(warrantiesRes.data || [])
 
     const { data: contactsData } = await supabase
       .from('contacts')
@@ -504,6 +511,38 @@ export default function CustomerHistory({ profile }) {
                 </tbody>
               </table>
             </div>
+          )}
+        </div>
+
+        <div>
+          <h3 style={{ marginBottom: 10 }}>Warranty Registrations</h3>
+          {warranties.length === 0 ? (
+            <p style={{ color: 'var(--mist)' }}>No new-system installs on file.</p>
+          ) : (
+            <table className="data-table" style={{ width: '100%' }}>
+              <thead>
+                <tr><th>Install Date</th><th>Brand</th><th>Equipment (model / serial)</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                {warranties.map((w) => {
+                  const eq = [
+                    w.outdoor_model && `Outdoor ${w.outdoor_model}${w.outdoor_serial ? ' / ' + w.outdoor_serial : ''}`,
+                    w.indoor_model && `Indoor ${w.indoor_model}${w.indoor_serial ? ' / ' + w.indoor_serial : ''}`,
+                    w.furnace_model && `Furnace ${w.furnace_model}${w.furnace_serial ? ' / ' + w.furnace_serial : ''}`,
+                  ].filter(Boolean).join('; ') || '—'
+                  return (
+                    <tr key={w.id}>
+                      <td>{w.install_date ? formatDate(w.install_date) : '—'}</td>
+                      <td>{w.brand || '—'}</td>
+                      <td style={{ fontSize: 12.5 }}>{eq}</td>
+                      <td>{w.registered_at
+                        ? <span style={{ color: '#15803D', fontWeight: 600 }}>✓ Registered {formatDate(w.registered_at)}</span>
+                        : <Link to="/warranty-registrations" style={{ color: '#B0472B', fontWeight: 600 }}>Not registered</Link>}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           )}
         </div>
 
