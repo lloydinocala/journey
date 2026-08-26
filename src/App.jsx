@@ -52,6 +52,7 @@ import SystemEstimate from './SystemEstimate'
 import NewSystemEstimate from './NewSystemEstimate'
 import SystemEstimates from './SystemEstimates'
 import OperationsDashboard from './OperationsDashboard'
+import WarrantyRegistrations from './WarrantyRegistrations'
 import SessionLog from './SessionLog'
 import CustomerImport from './CustomerImport'
 import PricebookImport from './PricebookImport'
@@ -246,6 +247,7 @@ function AuthenticatedApp() {
         <Route path="/estimates" element={<Estimates profile={profile} />} />
         <Route path="/system-estimates" element={<SystemEstimates profile={profile} />} />
         <Route path="/operations" element={<OperationsDashboard profile={profile} />} />
+        <Route path="/warranty-registrations" element={<WarrantyRegistrations profile={profile} />} />
         <Route path="/new-followup-estimate" element={<NewFollowupEstimate profile={profile} />} />
         <Route path="/invoices" element={<Invoices profile={profile} />} />
         {/* Elements-HVAC · Inventory + Fleet — gated on subscription (super admin) or entitlement */}
