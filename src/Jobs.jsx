@@ -995,6 +995,14 @@ export default function Jobs({ profile }) {
                         >
                           ⏳ {j.job_date}
                         </span>
+                      ) : col.key === 'customer' ? (
+                        (j.customer_id || j.properties?.customers?.id) ? (
+                          <Link to={'/customers/' + (j.customer_id || j.properties.customers.id)} style={{ color: '#2E7FC4', textDecoration: 'underline', fontWeight: 600 }}>{j.properties?.customers?.display_name || '—'}</Link>
+                        ) : (j.properties?.customers?.display_name || '—')
+                      ) : col.key === 'invoice_sent' ? (
+                        j.invoice ? (
+                          <Link to={'/invoice/' + j.id} title={j.invoice.invoice_number}>{j.invoice.sent_at ? new Date(j.invoice.sent_at).toLocaleDateString() : 'Not sent'}</Link>
+                        ) : '—'
                       ) : (
                         cellValue(j, col.key)
                       )}
