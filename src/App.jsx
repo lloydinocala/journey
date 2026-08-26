@@ -192,6 +192,7 @@ function AuthenticatedApp() {
         <Route path="/tech/apollo" element={<TechApollo profile={profile} />} />
         <Route path="/tech/invoice-view/:invoiceId" element={<TechInvoiceView profile={profile} />} />
         <Route path="/tech/messages/:jobId" element={<TechMessages profile={profile} />} />
+        <Route path="/tech/pm-checklist/:instanceId" element={<TechPMChecklist profile={profile} />} />
       </Route>
       {/* Rewards-HVAC · employee self-service portal — any logged-in employee, own data only (RLS) */}
       <Route path="/my" element={<MyPortal profile={profile} />} />
@@ -229,7 +230,6 @@ function AuthenticatedApp() {
         <Route path="/special-features" element={<SpecialFeatures profile={profile} />} />
         <Route path="/system-estimate-setup" element={<SystemEstimateSetup profile={profile} />} />
         <Route path="/pm-checklists" element={<PMChecklists profile={profile} />} />
-        <Route path="/tech/pm-checklist/:instanceId" element={<TechPMChecklist profile={profile} />} />
         <Route path="/discount-catalog" element={<DiscountCatalog profile={profile} />} />
         <Route path="/maintenance-tiers" element={<MaintenanceAgreementTiers profile={profile} />} />
         <Route path="/checklists" element={<ChecklistTemplates profile={profile} />} />
