@@ -170,7 +170,7 @@ export default function TechInvoiceView({ profile }) {
   }
 
   async function handleRecordPayment(e) {
-    e.preventDefault()
+    if (e && e.preventDefault) e.preventDefault()
     setPaymentError('')
     const amt = parseFloat(paymentAmount)
     if (!amt || amt <= 0) {
@@ -181,6 +181,8 @@ export default function TechInvoiceView({ profile }) {
       setPaymentError('Enter a check number.')
       return
     }
+    const methodLabel = paymentMethod === 'check' ? 'check' : paymentMethod === 'cash' ? 'cash' : 'other'
+    if (!window.confirm(`Record a $${amt.toFixed(2)} ${methodLabel} payment collected in person? This is only for payments you have actually received.`)) return
 
     setRecordingPayment(true)
     const { data: userData } = await supabase.auth.getUser()
@@ -553,7 +555,7 @@ export default function TechInvoiceView({ profile }) {
                 <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 0 }}>
                   For payment collected in person. Card payments through the pay link record themselves automatically.
                 </p>
-                <form onSubmit={handleRecordPayment}>
+                <div>
                   <div className="mobile-field-row">
                     <div className="mobile-field">
                       <label>Amount</label>
@@ -579,10 +581,10 @@ export default function TechInvoiceView({ profile }) {
                     <input type="text" value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} />
                   </div>
                   {paymentError && <p style={{ color: '#C0392B', fontSize: 12.5, marginBottom: 8 }}>{paymentError}</p>}
-                  <button className="action-btn primary" type="submit" disabled={recordingPayment} style={{ width: '100%' }}>
+                  <button className="action-btn primary" type="button" onClick={handleRecordPayment} disabled={recordingPayment} style={{ width: '100%' }}>
                     {recordingPayment ? 'Recording…' : `Record Payment${balance > 0 ? ` (Balance $${balance.toFixed(2)})` : ''}`}
                   </button>
-                </form>
+                </div>
               </div>
             </div>
           )}
