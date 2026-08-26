@@ -71,7 +71,7 @@ export default function CustomerHistory({ profile }) {
         .order('job_date', { ascending: false }),
       supabase
         .from('invoices')
-        .select('id, invoice_number, invoice_date, kind, job_total, amount_due, balance, paid_at, approval_status')
+        .select('id, invoice_number, invoice_date, kind, estimate_type, job_total, amount_due, balance, paid_at, approval_status')
         .eq('bills_to_customer_id', customerId)
         .is('deleted_at', null)
         .order('invoice_date', { ascending: false }),
@@ -489,7 +489,7 @@ export default function CustomerHistory({ profile }) {
                 <tbody>
                   {invoices.map((inv) => (
                     <tr key={inv.id}>
-                      <td><Link to={inv.kind === 'estimate' ? `/estimates?estimate=${inv.id}` : `/invoices?invoice=${inv.id}`} style={{ color: '#2E7FC4', fontWeight: 600 }}>{inv.invoice_number}</Link></td>
+                      <td><Link to={inv.kind === 'estimate' ? (inv.estimate_type === 'system' ? `/system-estimates?estimate=${inv.id}` : `/estimates?estimate=${inv.id}`) : `/invoices?invoice=${inv.id}`} style={{ color: '#2E7FC4', fontWeight: 600 }}>{inv.invoice_number}</Link></td>
                       <td>{formatDate(inv.invoice_date)}</td>
                       <td>{inv.kind === 'estimate' ? 'Estimate' : 'Invoice'}</td>
                       <td>{formatMoney(inv.job_total)}</td>
