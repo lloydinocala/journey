@@ -50,6 +50,7 @@ import PublicInvoice from './PublicInvoice'
 import JoinPlan from './JoinPlan'
 import SystemEstimate from './SystemEstimate'
 import NewSystemEstimate from './NewSystemEstimate'
+import SystemEstimates from './SystemEstimates'
 import SessionLog from './SessionLog'
 import CustomerImport from './CustomerImport'
 import PricebookImport from './PricebookImport'
@@ -242,6 +243,7 @@ function AuthenticatedApp() {
         <Route path="/system-estimate-p/:estimateId" element={<SystemEstimate profile={profile} />} />
         <Route path="/new-system-estimate" element={<NewSystemEstimate profile={profile} />} />
         <Route path="/estimates" element={<Estimates profile={profile} />} />
+        <Route path="/system-estimates" element={<SystemEstimates profile={profile} />} />
         <Route path="/new-followup-estimate" element={<NewFollowupEstimate profile={profile} />} />
         <Route path="/invoices" element={<Invoices profile={profile} />} />
         {/* Elements-HVAC · Inventory + Fleet — gated on subscription (super admin) or entitlement */}
