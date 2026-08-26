@@ -452,6 +452,11 @@ export default function TechInvoiceView({ profile }) {
                 <button className="action-btn primary" style={{ flex: '1 1 auto' }} onClick={handleSendEmail} disabled={sendingEmail}>
                   {sendingEmail ? 'Sending…' : invoiceRow?.sent_at ? 'Resend to Customer' : 'Send to Customer'}
                 </button>
+                {isEstimate && (
+                  <button className="action-btn" style={{ flex: '1 1 auto', background: '#2E7FC4' }} onClick={() => window.open(payLinkUrl(), '_blank')}>
+                    Preview as customer
+                  </button>
+                )}
                 {!isEstimate && (
                   <>
                     <button className="action-btn" style={{ flex: '1 1 auto', background: '#2E7FC4' }} onClick={() => window.open(payLinkUrl(), '_blank')}>
