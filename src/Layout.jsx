@@ -30,6 +30,7 @@ const CATEGORIES = [
     { label: 'Systems Pricebook', path: '/systems-pricebook' },
     { label: 'Special Features', path: '/special-features' },
     { label: 'System Estimate Setup', path: '/system-estimate-setup' },
+    { label: 'PM Checklists', path: '/pm-checklists' },
     { label: 'Discount Catalog', path: '/discount-catalog' },
     { label: 'Maintenance Tiers', path: '/maintenance-tiers' },
     { label: 'Maintenance Dashboard', path: '/maintenance-dashboard', perm: 'view_maintenance_dashboard' },
@@ -67,7 +68,7 @@ const PERSONAL_CATEGORY = { key: 'personal', label: 'Personal', items: [
 function getCategoryForPath(pathname) {
   if (pathname === '/') return null
   if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/text-archive') || pathname.startsWith('/maintenance-agreements')) return 'operations'
-  if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/maintenance-tiers') || pathname.startsWith('/maintenance-dashboard')) return 'financials'
+  if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/maintenance-tiers') || pathname.startsWith('/maintenance-dashboard')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
   if (pathname.startsWith('/elements')) return 'elements'
