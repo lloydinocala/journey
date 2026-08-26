@@ -24,6 +24,7 @@ const COLUMNS = [
   { key: 'job_number', label: 'Job #', required: true },
   { key: 'segment', label: 'Segment', required: true },
   { key: 'job_date', label: 'Date', required: true },
+  { key: 'customer', label: 'Customer' },
   { key: 'street_address', label: 'Street Address', required: true },
   { key: 'unit', label: 'Unit' },
   { key: 'city', label: 'City' },
@@ -153,7 +154,7 @@ export default function Jobs({ profile }) {
             .select(`
               id, job_number, segment, status, job_date, date_pending, start_time, duration_hours, job_type, service_complaint,
               property_id, customer_id, trip_charge_price_id, on_my_way_at, arrival_at, completed_at, job_notes, auth_diagnose_only, auth_limit_amount,
-              properties ( street_address, unit, city, state, zip, gate_code, property_tenants ( name, phone ) ),
+              properties ( street_address, unit, city, state, zip, gate_code, customers!properties_customer_id_fkey ( id, display_name ), property_tenants ( name, phone ) ),
               job_technicians ( sort_order, users ( full_name ) ),
               trip_charge:trip_charge_price_id ( location, access, hours, services ( name ) )
             `)
@@ -645,6 +646,7 @@ export default function Jobs({ profile }) {
     if (key === 'start_time') return startTimeDisplay(j)
     if (key === 'job_type') return j.job_type
     if (key === 'service_complaint') return j.service_complaint || '—'
+    if (key === 'customer') return j.properties?.customers?.display_name || '—'
     if (key === 'street_address') return j.properties?.street_address || '—'
     if (key === 'unit') return j.properties?.unit || '—'
     if (key === 'city') return j.properties?.city || '—'
@@ -946,6 +948,13 @@ export default function Jobs({ profile }) {
                     if (col.key === 'job_notes') return (
                       <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <input type="text" value={editJobNotes} onChange={(e) => setEditJobNotes(e.target.value)} placeholder="Job notes…" />
+                      </div>
+                    )
+                    if (col.key === 'customer') return (
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
+                        {j.properties?.customers?.id ? (
+                          <Link to={'/customers/' + j.properties.customers.id}>{j.properties.customers.display_name || '—'}</Link>
+                        ) : (j.properties?.customers?.display_name || '—')}
                       </div>
                     )
                     if (col.key === 'invoice_sent') return (
