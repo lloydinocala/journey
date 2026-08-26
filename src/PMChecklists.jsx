@@ -2,6 +2,18 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 
+const SYSTEM_TYPES = [
+  { key: 'heat_pump', label: 'Heat Pump (Split)' },
+  { key: 'package_heat_pump', label: 'Package Heat Pump' },
+  { key: 'gas_furnace', label: 'Gas Furnace + AC' },
+]
+const TIERS = [
+  { key: 'basic', label: 'Basic (no agreement)' },
+  { key: 'silver', label: 'Silver' },
+  { key: 'gold', label: 'Gold' },
+  { key: 'platinum', label: 'Platinum' },
+]
+
 const TYPE_BADGE = {
   inspect: { label: 'Inspect', color: '#55607A' },
   measure: { label: 'Measure', color: '#2E7FC4' },
@@ -21,6 +33,8 @@ export default function PMChecklists({ profile }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [view, setView] = useState('templates')
+  const [assignments, setAssignments] = useState([])
 
   const [showAdd, setShowAdd] = useState(false)
   const [niText, setNiText] = useState('')
@@ -47,7 +61,20 @@ export default function PMChecklists({ profile }) {
     setLoading(false)
     if (list.length && !list.find((t) => t.id === selectedId)) setSelectedId(list[0].id)
   }
-  useEffect(() => { if (selectedOrg || !isSuperAdmin) loadTemplates() }, [selectedOrg])
+  async function loadAssignments() {
+    const { data } = await supabase.from('pm_checklist_assignments').select('*').eq('org_id', selectedOrg)
+    setAssignments(data || [])
+  }
+  useEffect(() => { if (selectedOrg || !isSuperAdmin) { loadTemplates(); loadAssignments() } }, [selectedOrg])
+
+  async function setAssignment(system_type, tier, template_id) {
+    if (!template_id) {
+      await supabase.from('pm_checklist_assignments').delete().eq('org_id', selectedOrg).eq('system_type', system_type).eq('tier', tier)
+    } else {
+      await supabase.from('pm_checklist_assignments').upsert({ org_id: selectedOrg, system_type, tier, template_id }, { onConflict: 'org_id,system_type,tier' })
+    }
+    loadAssignments()
+  }
 
   async function loadItems(tid) {
     if (!tid) { setItems([]); return }
@@ -150,7 +177,15 @@ export default function PMChecklists({ profile }) {
         </div>
       )}
 
-      {loading ? <p style={{ color: 'var(--mist)' }}>Loading…</p> : (
+      {isAdmin && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button className={view === 'templates' ? 'auth-button' : 'logout-button'} style={{ width: 'auto', padding: '6px 16px' }} onClick={() => setView('templates')}>Templates</button>
+          <button className={view === 'assignments' ? 'auth-button' : 'logout-button'} style={{ width: 'auto', padding: '6px 16px' }} onClick={() => setView('assignments')}>Assignments</button>
+        </div>
+      )}
+      {loading ? <p style={{ color: 'var(--mist)' }}>Loading…</p> : view === 'assignments' ? (
+        <AssignmentsView templates={templates} assignments={assignments} setAssignment={setAssignment} />
+      ) : (
         <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           {/* Left: template list */}
           <div style={{ width: 300, flexShrink: 0 }}>
@@ -235,6 +270,42 @@ export default function PMChecklists({ profile }) {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function AssignmentsView({ templates, assignments, setAssignment }) {
+  const input = { width: '100%', padding: '7px 9px', borderRadius: 7, border: '1px solid var(--line, #D5DAE1)', fontSize: 13, boxSizing: 'border-box' }
+  const smallLabel = { fontSize: 11, color: 'var(--mist)', display: 'block', marginBottom: 2 }
+  const assignedTemplate = (st, tier) => {
+    const a = assignments.find((x) => x.system_type === st && x.tier === tier)
+    return a ? a.template_id : ''
+  }
+  return (
+    <div style={{ maxWidth: 920 }}>
+      <p style={{ color: 'var(--mist)', fontSize: 13, marginBottom: 14, maxWidth: 640 }}>
+        Pick which form auto-attaches to a PM job for each system type and agreement tier. Higher tiers can use deeper forms — every tier still gets 2 inspections/year. Leave a tier &ldquo;not set&rdquo; and jobs at that tier prompt for a manual pick.
+      </p>
+      {SYSTEM_TYPES.map((st) => {
+        const opts = templates.filter((t) => t.system_type === st.key)
+        return (
+          <div key={st.key} style={{ border: '1px solid var(--line, #E2E6ED)', borderRadius: 10, padding: 14, marginBottom: 14 }}>
+            <div style={{ fontWeight: 700, marginBottom: 10 }}>{st.label}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
+              {TIERS.map((tier) => (
+                <div key={tier.key}>
+                  <label style={smallLabel}>{tier.label}</label>
+                  <select style={input} value={assignedTemplate(st.key, tier.key)} onChange={(e) => setAssignment(st.key, tier.key, e.target.value)}>
+                    <option value="">— not set —</option>
+                    {opts.map((t) => <option key={t.id} value={t.id}>{t.org_id ? t.name : t.name + ' (master)'}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+            {opts.length === 0 && <div style={{ fontSize: 12, color: 'var(--mist)', marginTop: 6 }}>No templates for this system type yet.</div>}
+          </div>
+        )
+      })}
     </div>
   )
 }
