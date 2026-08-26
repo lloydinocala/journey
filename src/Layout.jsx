@@ -5,6 +5,7 @@ import { can } from './utils/permissions'
 import AnnouncementBanner from './AnnouncementBanner'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
+import HelpDrawer from './HelpDrawer'
 import { ELEMENTS_FLEET_NAV } from './modules/elements-hvac'
 import { REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV } from './modules/rewards-hvac'
 import { MARKETING_NAV } from './modules/marketing-hvac'
@@ -247,6 +248,7 @@ export default function Layout({ profile }) {
         <div className="main-content-area">
           <Outlet />
         </div>
+        <HelpDrawer />
       </div>
     </div>
   )
