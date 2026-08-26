@@ -454,7 +454,7 @@ export default function CustomerHistory({ profile }) {
                 <tbody>
                   {jobs.map((j) => (
                     <tr key={j.id}>
-                      <td>{j.job_number}{j.segment > 1 ? `-${j.segment}` : ''}</td>
+                      <td><Link to={`/jobs?job=${j.id}`} style={{ color: '#2E7FC4', fontWeight: 600 }}>{j.job_number}{j.segment > 1 ? `-${j.segment}` : ''}</Link></td>
                       <td>{formatDate(j.job_date)}</td>
                       <td>{j.job_type || '—'}</td>
                       <td><span className="badge">{j.status}</span></td>
@@ -489,7 +489,7 @@ export default function CustomerHistory({ profile }) {
                 <tbody>
                   {invoices.map((inv) => (
                     <tr key={inv.id}>
-                      <td>{inv.invoice_number}</td>
+                      <td><Link to={inv.kind === 'estimate' ? `/estimates?estimate=${inv.id}` : `/invoices?invoice=${inv.id}`} style={{ color: '#2E7FC4', fontWeight: 600 }}>{inv.invoice_number}</Link></td>
                       <td>{formatDate(inv.invoice_date)}</td>
                       <td>{inv.kind === 'estimate' ? 'Estimate' : 'Invoice'}</td>
                       <td>{formatMoney(inv.job_total)}</td>
