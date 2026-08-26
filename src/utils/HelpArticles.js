@@ -18,23 +18,21 @@ export const HELP_ARTICLES = [
         'The four numbers across the top are your vital signs. Click any one to jump to that full list.',
         'Cards are grouped by urgency: "Needs attention now" is money and deadlines; "Coming up" is scheduling and pipeline.',
         'Click any item row inside a card to open that exact record — the invoice, estimate, or job.',
-        'The green "This Week ✓" strip shows what you have already cleared: collected, estimates won, jobs completed, and close rate. It is there so the board motivates, not just nags.',
+        'The green "This Week ✓" strip shows what you have already cleared: collected, estimates won, jobs completed, and close rate.',
         'A green ✓ and "All caught up" on a card means that bucket is empty. That is the win.',
         'If on-call coverage is scheduled less than two weeks out, an amber banner appears at the top — click it to open the On-Call Schedule.',
       ]},
       { h: 'What each bucket means', items: [
-        'Unpaid Invoices — invoices you have sent that still have a balance. Age pills turn amber at 30 days, terracotta at 60+.',
-        'Estimates to Follow Up — estimates sent to a customer with no reply yet. Amber at 2 days, terracotta at 5+.',
-        'Completed, Not Invoiced — finished jobs with no invoice created. This is unbilled money, easy to miss.',
-        'Warranty Registration — new systems (from Retrofit jobs) not yet registered with the manufacturer. There is a 30-day clock.',
-        'Jobs to Schedule — jobs with no real date yet (placeholder or unscheduled).',
-        'Maintenance Due — agreements with a visit due within the next 30 days.',
-        'Estimates Not Yet Sent — drafts that were created but never went out to the customer.',
+        'Unpaid Invoices — sent invoices that still have a balance. Age pills turn amber at 30 days, terracotta at 60+.',
+        'Estimates to Follow Up — estimates sent with no reply yet. Amber at 2 days, terracotta at 5+.',
+        'Completed, Not Invoiced — finished jobs with no invoice. Unbilled money.',
+        'Warranty Registration — new systems (from Retrofit jobs) not yet registered. 30-day clock.',
+        'Jobs to Schedule — jobs with no real date yet.',
+        'Maintenance Due — agreements with a visit due within 30 days.',
+        'Estimates Not Yet Sent — drafts that never went out.',
       ]},
-      { h: 'Behind the scenes', body: 'The board refreshes on its own every minute and again whenever you return to the browser tab, so numbers stay live — mark an invoice paid elsewhere and watch it drop off. All figures are for your organization only. Aging is measured from the date an invoice or estimate was sent.' },
-      { h: 'Good to know', items: [
-        'If an item has been filtered out of its own table (by a status filter, a search, or the archived toggle), clicking it opens the table but may not visibly highlight the row — clear the filter to see it.',
-      ]},
+      { h: 'Behind the scenes', body: 'The board refreshes on its own every minute and again whenever you return to the browser tab, so numbers stay live. All figures are for your organization only. Aging is measured from the date an invoice or estimate was sent.' },
+      { h: 'Good to know', body: 'If an item has been filtered out of its own table (by a status filter, a search, or the archived toggle), clicking it opens the table but may not visibly highlight the row — clear the filter to see it.' },
     ],
   },
   {
@@ -42,24 +40,23 @@ export const HELP_ARTICLES = [
     title: 'Estimates (Job & System)',
     area: 'Operations',
     keywords: ['estimate', 'estimates', 'quote', 'job estimate', 'system estimate', 'approve', 'decline', 'send estimate', 'preview', 'proposal', 'new system'],
-    purpose: 'Estimates are the quotes you send a customer to approve before doing work. Journey has two kinds: Job Estimates (tied to a service job) and System Estimates (new-system installs, which are based on a property and have no job yet).',
+    purpose: 'Estimates are the quotes you send a customer to approve before doing work. Journey has two kinds: Job Estimates (tied to a service job) and System Estimates (new-system installs, based on a property, with no job yet).',
     sections: [
       { h: 'The two kinds', items: [
         'Job Estimate — recommended repair or service work on an existing job. Lives in the "Job Estimates" table.',
-        'System Estimate — a new-system sale (a full install), quoted against a property before any job exists. Lives in its own "System Estimates" table.',
+        'System Estimate — a new-system sale, quoted against a property before any job exists. Lives in its own "System Estimates" table.',
       ]},
       { h: 'How to create and send', items: [
         'Create a Job Estimate from the job it belongs to. Create a System Estimate from the System Estimates table with "+ New System Estimate".',
         'Before sending, use Preview (or "Preview as customer") to see exactly what the customer will receive.',
         'Send to Customer emails them a link where they can Approve or Decline.',
-        'When a preventive-maintenance checklist is completed, its report rides along on the same estimate the customer receives — one link, report on top, recommended work below.',
+        'When a preventive-maintenance checklist is completed, its report rides along on the same estimate — one link, report on top, recommended work below.',
       ]},
       { h: 'Rules', items: [
-        'Approval status is "Pending" until the customer acts, then "Approved". Approved estimates can spawn the actual work.',
+        'Approval status is "Pending" until the customer acts, then "Approved". Approved estimates can spawn the work.',
         'System Estimates resolve their customer and property directly from the estimate, because they have no job to look through.',
-        'The customer, invoice, and estimate numbers in a customer file link back to their tables with the row highlighted.',
       ]},
-      { h: 'Good to know', body: 'A "clean bill" preventive-maintenance visit with nothing to quote still sends the customer their report — with a "no repairs recommended" note in place of an estimate.' },
+      { h: 'Good to know', body: 'A clean-bill preventive-maintenance visit with nothing to quote still sends the customer their report — with a "no repairs recommended" note in place of an estimate.' },
     ],
   },
   {
@@ -76,15 +73,21 @@ export const HELP_ARTICLES = [
         'From a job on the Calendar, open its popup and choose "Open in Jobs Table" to jump here with the row highlighted.',
       ]},
       { h: 'Job types and what they trigger', items: [
-        'Retrofit — a new-system install. Creating a Retrofit job automatically creates a Warranty Registration record (30-day clock starts).',
+        'Retrofit — a new-system install. Creating one automatically creates a Warranty Registration record (30-day clock).',
         'Preventive Maint — generates the PM checklist(s) for the system(s) at that property.',
         'Repair / Other — standard service work.',
       ]},
-      { h: 'Status', items: [
-        'Unscheduled or placeholder-dated jobs appear on the Operations Dashboard under "Jobs to Schedule".',
-        'Completed jobs with no invoice appear under "Completed, Not Invoiced".',
-      ]},
-      { h: 'Good to know', body: 'A brand-new column you add may be hidden if your saved column layout predates it — open the Columns picker and switch it on once, and it sticks.' },
+      { h: 'Good to know', body: 'Unscheduled or placeholder-dated jobs appear on the dashboard under "Jobs to Schedule"; completed jobs with no invoice under "Completed, Not Invoiced". A new column you add may be hidden if your saved column layout predates it — switch it on once in the Columns picker and it sticks.' },
+    ],
+  },
+  {
+    id: 'jobs-management',
+    title: 'Jobs Management',
+    area: 'Operations',
+    keywords: ['jobs management', 'deleted', 'recover', 'cleanup', 'audit', 'bulk', 'oversight'],
+    purpose: 'A higher-level view of jobs for oversight and cleanup — including jobs that have been deleted, so nothing is lost by accident.',
+    sections: [
+      { h: 'How to use it', body: 'Use it to review and audit jobs beyond the day-to-day list, including recently deleted ones (with when they were removed) so you can recover or account for them. For everyday scheduling and editing, use the Jobs table instead.' },
     ],
   },
   {
@@ -98,13 +101,12 @@ export const HELP_ARTICLES = [
         'Each row has front-of-row actions: View as customer (the public page they receive), Edit, Archive, and Void (cancel).',
         'The Customer and Job columns link to those records.',
         'Send an invoice by email; the customer gets a link to view it and pay.',
-        'Record a payment (cash, check, or card) against an invoice. Recording takes a deliberate button tap and a confirmation, so it cannot fire by accident.',
+        'Record a payment (cash, check, or card). Recording takes a deliberate button tap and a confirmation, so it cannot fire by accident.',
       ]},
       { h: 'Rules', items: [
-        'An invoice’s balance is its total minus what has been paid. Sent-but-unpaid invoices appear on the Operations Dashboard, aged from the send date.',
+        'An invoice’s balance is its total minus what has been paid. Sent-but-unpaid invoices appear on the dashboard, aged from the send date.',
         'Void cancels an invoice. Archive hides it from the main list but keeps it for your records.',
       ]},
-      { h: 'Behind the scenes', body: 'The table loads jobs and line items separately rather than as one joined query — invoices connect to jobs in several ways, and joining them can otherwise blank the whole list.' },
       { h: 'Good to know', body: 'A completed job with no invoice shows on the dashboard under "Completed, Not Invoiced" — that is unbilled work worth catching.' },
     ],
   },
@@ -113,7 +115,7 @@ export const HELP_ARTICLES = [
     title: 'Customers & Properties',
     area: 'Operations',
     keywords: ['customer', 'customers', 'customer file', 'property', 'properties', 'contact', 'invoice routing', 'history', 'address', 'billing contact'],
-    purpose: 'The customer file is the full picture of one customer — their properties, jobs, estimates, invoices, maintenance agreements, warranty registrations, contacts, and attachments in one place. Properties are the physical locations where work happens; every job and system belongs to a property.',
+    purpose: 'The customer file is the full picture of one customer — their properties, jobs, estimates, invoices, maintenance agreements, warranty registrations, contacts, and attachments in one place. Properties are the physical locations where work happens.',
     sections: [
       { h: 'How to use it', items: [
         'Open a customer file wherever their name appears — the Jobs table, Properties, a calendar job popup, or an estimate.',
@@ -124,7 +126,6 @@ export const HELP_ARTICLES = [
         'A property belongs to a customer; a job belongs to a property (and therefore to that customer).',
         'Contacts & Invoice Routing sets who gets billed and who approves — useful for commercial customers with multiple people involved.',
       ]},
-      { h: 'Good to know', body: 'If a customer’s estimate is a System Estimate, its number links to the System Estimates table; a regular estimate links to Job Estimates.' },
     ],
   },
   {
@@ -136,33 +137,41 @@ export const HELP_ARTICLES = [
     sections: [
       { h: 'How to use it', items: [
         'Click a job to open its popup with the key details.',
-        'From the popup, "Open in Jobs Table" jumps to that job in the Jobs table with the row highlighted, and the Customer name links to their file.',
+        'From the popup, "Open in Jobs Table" jumps to that job with the row highlighted, and the Customer name links to their file.',
         'Business hours and holidays (in Settings) control which time slots are available.',
       ]},
-      { h: 'Rules', items: [
-        'Jobs with only a placeholder date (auto-set from an approved estimate) still need a real date — they appear on the dashboard’s "Jobs to Schedule".',
-      ]},
-      { h: 'Good to know', body: 'On-call coverage is scheduled separately on the On-Call Schedule page. The Operations Dashboard warns you when on-call is scheduled less than two weeks out.' },
+      { h: 'Good to know', body: 'Jobs with only a placeholder date (auto-set from an approved estimate) still need a real date — they appear on the dashboard’s "Jobs to Schedule". On-call is scheduled separately, on the On-Call Schedule page.' },
+    ],
+  },
+  {
+    id: 'tasks',
+    title: 'Tasks',
+    area: 'Operations',
+    keywords: ['task', 'tasks', 'to do', 'todo', 'reminder', 'follow up', 'callback', 'assign'],
+    purpose: 'A shared to-do list for things that need doing but are not a scheduled job — callbacks, follow-ups, and reminders for the office and field.',
+    sections: [
+      { h: 'How to use it', body: 'Create a task, assign it to a person, and check it off when it is done. Use it for the small things that would otherwise live on sticky notes — the ones easy to forget once the day gets busy.' },
     ],
   },
   {
     id: 'maintenance',
-    title: 'Maintenance (Agreements, Due & Checklists)',
+    title: 'Maintenance (Agreements, Due, Tiers & Checklists)',
     area: 'Operations',
-    keywords: ['maintenance', 'agreement', 'agreements', 'plan', 'tier', 'due', 'pm', 'preventive', 'checklist', 'inspection', 'report', 'recurring', 'visit'],
-    purpose: 'Maintenance keeps recurring service on track — the agreements customers are on, the visits coming due, and the checklists techs complete on each visit. It is your recurring-revenue engine.',
+    keywords: ['maintenance', 'agreement', 'agreements', 'plan', 'tier', 'tiers', 'due', 'pm', 'preventive', 'checklist', 'inspection', 'report', 'recurring', 'visit', 'dashboard'],
+    purpose: 'Maintenance keeps recurring service on track — the agreements customers are on, the visits coming due, the tiers you offer, and the checklists techs complete each visit. It is your recurring-revenue engine.',
     sections: [
-      { h: 'How to use it', items: [
-        'Maintenance Agreements lists who is on a plan, their tier, and when their next visit is due.',
-        'Maintenance Due surfaces upcoming visits so you can schedule them.',
-        'PM Checklists (in Financials) defines what a tech inspects and measures each visit, per system type and tier.',
-        'When a Preventive Maint job runs, the checklist auto-generates for each system at that property. The tech completes it on mobile, and a trended report goes to the customer alongside any recommended-work estimate.',
+      { h: 'The pieces', items: [
+        'Maintenance Agreements — who is on a plan, their tier, and when their next visit is due.',
+        'Maintenance Due — upcoming visits, so you can schedule them.',
+        'Maintenance Tiers — the plan levels you offer (e.g. Silver / Gold / Platinum) and what each includes.',
+        'PM Checklists — what a tech inspects and measures each visit, per system type and tier.',
+        'Maintenance Dashboard — a reporting view of the maintenance program (permission-gated).',
       ]},
+      { h: 'How it flows', body: 'When a Preventive Maint job runs, the checklist auto-generates for each system at that property. The tech completes it on mobile, and a trended report goes to the customer alongside any recommended-work estimate.' },
       { h: 'Rules', items: [
         'Higher tiers add deeper checklist items and better benefits — not more visits.',
-        'Measured values are recorded every visit, so the customer can see how their system is trending over time (for example, a capacitor weakening year over year).',
+        'Measured values are recorded every visit, so the customer sees how their system trends over time (e.g. a capacitor weakening year over year).',
       ]},
-      { h: 'Good to know', body: 'A clean-bill visit with nothing to quote still sends the customer their report, with a "no repairs recommended" note in place of an estimate.' },
     ],
   },
   {
@@ -174,32 +183,192 @@ export const HELP_ARTICLES = [
     sections: [
       { h: 'How to use it', items: [
         'Every Retrofit job automatically creates a warranty record — nothing to remember.',
-        'On the Warranty Registrations page, fill in the equipment (brand, models, serials), or hit "Pull from Equipment on File" to copy what the tech recorded, then set the Registered date once you have registered online.',
+        'Fill in the equipment (brand, models, serials), or hit "Pull from Equipment on File" to copy what the tech recorded, then set the Registered date once you have registered online.',
         'The days-left pill counts down from 30: amber at 7 days, terracotta when overdue, green once registered.',
       ]},
-      { h: 'Rules', items: [
-        'The install signal is the Retrofit job type. Install date defaults to the job’s date and is editable.',
-        'Unregistered systems within 30 days appear on the Operations Dashboard, most urgent first, and on the customer’s file.',
+      { h: 'Good to know', body: 'The install signal is the Retrofit job type; install date defaults to the job’s date and is editable. Unregistered systems within 30 days appear on the dashboard, most urgent first, and on the customer’s file. Filter the page by unregistered / all / registered.' },
+    ],
+  },
+  {
+    id: 'vendors-parts',
+    title: 'Vendors & Parts Catalog',
+    area: 'Operations',
+    keywords: ['vendor', 'vendors', 'supplier', 'parts', 'parts catalog', 'part', 'price', 'cost', 'inventory'],
+    purpose: 'Vendors is your list of suppliers. Parts Catalog is your parts with their costs and prices, so a part drops onto an estimate or invoice at the right number.',
+    sections: [
+      { h: 'How to use it', body: 'Keep your suppliers in Vendors and your parts (with cost and price) in Parts Catalog. You can bulk-load both from Bulk Import — Import Parts Catalog and Import Vendor Price File — instead of typing them in one at a time.' },
+    ],
+  },
+  {
+    id: 'pricing',
+    title: 'Pricebooks, Features & Discounts',
+    area: 'Financials',
+    keywords: ['pricebook', 'systems pricebook', 'special features', 'discount', 'discount catalog', 'pricing', 'price', 'catalog', 'add-on'],
+    purpose: 'Where your pricing lives, so estimates and invoices build themselves at the right numbers.',
+    sections: [
+      { h: 'The catalogs', items: [
+        'Pricebook — your service and repair prices.',
+        'Systems Pricebook — your new-system packages, used to build System Estimates.',
+        'Special Features — the add-ons offered on system estimates (e.g. an upgrade or an extra).',
+        'Discount Catalog — named discounts you can apply to an estimate or invoice.',
       ]},
-      { h: 'Good to know', body: 'Filter the page by unregistered, all, or registered to focus on what still needs doing.' },
+      { h: 'Good to know', body: 'Set these once and they flow everywhere. The Systems Pricebook and Special Features can be bulk-imported from Bulk Import.' },
+    ],
+  },
+  {
+    id: 'system-estimate-setup',
+    title: 'System Estimate Setup',
+    area: 'Financials',
+    keywords: ['system estimate setup', 'included', 'installation', 'warranty', 'template', 'boilerplate', 'what is included'],
+    purpose: 'Sets the standard "what’s included" installation block and the exact warranty wording that appear on every System Estimate — so you write them once instead of on every quote.',
+    sections: [
+      { h: 'How to use it', body: 'Enter your standard installation inclusions and your warranty language here. They are then shown automatically on every System Estimate the customer receives.' },
+    ],
+  },
+  {
+    id: 'text-archive',
+    title: 'Text Archive',
+    area: 'Operations',
+    keywords: ['text', 'texts', 'sms', 'message', 'messages', 'archive', 'thread', 'communication'],
+    purpose: 'A record of every text message technicians send customers from a job — one thread per conversation — so you have a paper trail of what was communicated.',
+    sections: [
+      { h: 'How to use it', body: 'A thread appears here as soon as a technician sends a message on a job. Open one to read the back-and-forth. It is a read record, not a place to start new conversations.' },
+    ],
+  },
+  {
+    id: 'team-roles',
+    title: 'Team, Roles & Permissions',
+    area: 'Admin',
+    keywords: ['team', 'user', 'users', 'staff', 'role', 'roles', 'permission', 'permissions', 'access', 'tags', 'grant'],
+    purpose: 'Team is your people; Roles & Tags controls what each of them can do.',
+    sections: [
+      { h: 'How to use it', items: [
+        'Team lists your users and lets you add or manage them.',
+        'Roles & Tags defines roles and the granular permissions attached to them — who can see the Maintenance Dashboard, void invoices, and so on.',
+        'Assign a person a role to grant them its permissions.',
+      ]},
+      { h: 'Good to know', body: 'On-call technicians can be granted extra permissions automatically, only for their on-call window — see the On-Call Schedule.' },
+    ],
+  },
+  {
+    id: 'on-call',
+    title: 'On-Call Schedule',
+    area: 'Admin',
+    keywords: ['on-call', 'on call', 'after hours', 'emergency', 'coverage', 'supervisor', 'rotation', 'permissions'],
+    purpose: 'Sets who covers after-hours calls — a calendar of periods, each with a supervisor and a technician.',
+    sections: [
+      { h: 'How it works', items: [
+        'Schedule on-call periods ahead of time, each assigning a supervisor and a tech.',
+        'While on call, a technician is automatically granted the extra permissions they need to handle emergencies — and only for their on-call window.',
+      ]},
+      { h: 'Good to know', body: 'The Operations Dashboard shows an amber banner when on-call is scheduled less than two weeks out, so coverage never quietly lapses.' },
+    ],
+  },
+  {
+    id: 'job-checklists',
+    title: 'Job Checklists',
+    area: 'Admin',
+    keywords: ['checklist', 'checklists', 'template', 'safety', 'steps', 'job checklist'],
+    purpose: 'Reusable checklist templates a technician completes on a job — safety steps, install steps, and the like.',
+    sections: [
+      { h: 'Good to know', body: 'These are general job checklists. Preventive-maintenance checklists are separate and live under PM Checklists, because they drive the trended maintenance report.' },
+    ],
+  },
+  {
+    id: 'time-payroll',
+    title: 'Time Clock & Payroll',
+    area: 'Admin',
+    keywords: ['time clock', 'clock in', 'clock out', 'hours', 'payroll', 'pay', 'timesheet', 'capture'],
+    purpose: 'Time Clock is where staff clock in and out; Payroll Capture pulls those hours together for payroll.',
+    sections: [
+      { h: 'How to use it', body: 'Staff clock in and out on the Time Clock. Payroll Capture gathers the recorded hours so you can run payroll from them. (Sign-In Log is separate — that tracks app access, not work hours.)' },
+    ],
+  },
+  {
+    id: 'sign-in-log',
+    title: 'Sign-In Log',
+    area: 'Admin',
+    keywords: ['sign-in', 'sign in', 'sign-out', 'log', 'audit', 'security', 'access', 'session'],
+    purpose: 'A security audit trail of who signed in and out of Journey and when. Admin-only.',
+    sections: [
+      { h: 'Good to know', body: 'Use it to review app access. This is about signing into the software, not clocking in for work — for hours worked, see Time Clock.' },
+    ],
+  },
+  {
+    id: 'settings',
+    title: 'Settings',
+    area: 'Admin',
+    keywords: ['settings', 'business hours', 'holidays', 'branding', 'logo', 'payment terms', 'organization', 'preferences'],
+    purpose: 'Your organization’s settings — the things you configure once that flow through the whole app.',
+    sections: [
+      { h: 'What lives here', items: [
+        'Business hours and holidays — which drive the slots available on the Calendar and in booking.',
+        'Branding shown to customers on estimates and invoices.',
+        'Payment terms and other organization-wide preferences.',
+      ]},
+    ],
+  },
+  {
+    id: 'announcements',
+    title: 'Announcements',
+    area: 'Admin',
+    keywords: ['announcement', 'announcements', 'banner', 'notice', 'broadcast', 'company-wide'],
+    purpose: 'Post a message that shows as a banner to everyone in your organization — handy for company-wide notices.',
+    sections: [
+      { h: 'How to use it', body: 'Create an announcement and it appears as a banner across the app for your team until you remove it.' },
+    ],
+  },
+  {
+    id: 'bulk-import',
+    title: 'Bulk Import',
+    area: 'Admin',
+    keywords: ['import', 'bulk', 'spreadsheet', 'csv', 'upload', 'migrate', 'data', 'customers', 'properties', 'jobs'],
+    purpose: 'Bring existing data into Journey from spreadsheets, instead of entering it by hand.',
+    sections: [
+      { h: 'What you can import', body: 'Customers, Properties, Jobs, your Parts Catalog, Services and Systems Pricebooks, and a Vendor Price File.' },
+      { h: 'Good to know', body: 'Import entities before the things that reference them — Customers and Properties first, then Jobs — so each job can find its customer and property.' },
     ],
   },
 ]
 
 // Map a route to the article that best explains it, so the drawer can open context-aware.
+// NOTE: order matters — a longer path that shares a prefix must come BEFORE the shorter one
+// (e.g. /jobs-management before /jobs), because matching is by startsWith.
 export const ROUTE_HELP = {
   '/operations': 'operations-dashboard',
-  '/estimates': 'estimates',
-  '/system-estimates': 'estimates',
+  '/jobs-management': 'jobs-management',
   '/jobs': 'jobs',
   '/calendar': 'calendar',
-  '/invoices': 'invoices',
+  '/tasks': 'tasks',
   '/customers': 'customers-properties',
   '/properties': 'customers-properties',
+  '/system-estimate-setup': 'system-estimate-setup',
+  '/system-estimates': 'estimates',
+  '/estimates': 'estimates',
   '/maintenance-agreements': 'maintenance',
   '/maintenance-due': 'maintenance',
+  '/maintenance-tiers': 'maintenance',
+  '/maintenance-dashboard': 'maintenance',
   '/pm-checklists': 'maintenance',
   '/warranty-registrations': 'warranty-registrations',
+  '/invoices': 'invoices',
+  '/vendors': 'vendors-parts',
+  '/parts-catalog': 'vendors-parts',
+  '/text-archive': 'text-archive',
+  '/pricebook': 'pricing',
+  '/systems-pricebook': 'pricing',
+  '/special-features': 'pricing',
+  '/discount-catalog': 'pricing',
+  '/team': 'team-roles',
+  '/roles': 'team-roles',
+  '/on-call': 'on-call',
+  '/checklists': 'job-checklists',
+  '/time-clock': 'time-payroll',
+  '/payroll': 'time-payroll',
+  '/session-log': 'sign-in-log',
+  '/settings': 'settings',
+  '/announcements': 'announcements',
+  '/import': 'bulk-import',
 }
 
 export function searchArticles(query) {
