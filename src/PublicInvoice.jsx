@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import InvoiceDocument from './InvoiceDocument'
+import PMReportDocument from './PMReportDocument'
 
 export default function PublicInvoice() {
   const { invoiceId } = useParams()
@@ -116,7 +117,14 @@ export default function PublicInvoice() {
 
   return (
     <div style={{ minHeight: '100vh', padding: '40px 20px', background: '#EEF1F6' }}>
-      <InvoiceDocument data={data} footer={footer} />
+      {data.pmReport && <PMReportDocument report={data.pmReport} org={data.org} property={data.property} customer={data.customer} />}
+      {(!data.pmReport || (data.lineItems && data.lineItems.length > 0)) ? (
+        <InvoiceDocument data={data} footer={footer} />
+      ) : (
+        <div style={{ maxWidth: 800, margin: '0 auto', background: 'white', borderRadius: 12, padding: '24px 28px', textAlign: 'center', color: '#1F7A43', fontWeight: 600, boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}>
+          No repairs are recommended at this time — your system is in good working order.
+        </div>
+      )}
     </div>
   )
 }
