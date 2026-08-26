@@ -5,6 +5,7 @@ import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import { exportToCSV } from './utils/csvExport'
 import { fetchAllRows } from './utils/csvImport'
+import { Link } from 'react-router-dom'
 import CustomerSearchSelect from './CustomerSearchSelect'
 
 function formatPhone(raw) {
@@ -615,7 +616,7 @@ export default function Properties({ profile }) {
                   {visibleColumns.includes('state') && <div className="grid-cell" style={{ background: rowBg }}>{p.state || '—'}</div>}
                   {visibleColumns.includes('zip') && <div className="grid-cell" style={{ background: rowBg }}>{p.zip || '—'}</div>}
                   {visibleColumns.includes('county') && <div className="grid-cell" style={{ background: rowBg }}>{p.county || '—'}</div>}
-                  {visibleColumns.includes('customer') && <div className="grid-cell" style={{ background: rowBg }}>{p.customers?.display_name || '—'}</div>}
+                  {visibleColumns.includes('customer') && <div className="grid-cell" style={{ background: rowBg }}>{p.customer_id ? <Link to={`/customers/${p.customer_id}`}>{p.customers?.display_name || '—'}</Link> : (p.customers?.display_name || '—')}</div>}
                   {visibleColumns.includes('bill_to') && <div className="grid-cell" style={{ background: rowBg }}>{billToLabel(p) || 'Same as Customer'}</div>}
                   {visibleColumns.includes('gate_code') && <div className="grid-cell" style={{ background: rowBg }}>{p.gate_code || '—'}</div>}
                   {visibleColumns.includes('tenants') && <div className="grid-cell" style={{ background: rowBg }}>{tenantsLabel(p) || '—'}</div>}
