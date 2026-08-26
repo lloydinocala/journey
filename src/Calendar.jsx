@@ -94,7 +94,7 @@ export default function Calendar({ profile }) {
     const { data } = await supabase
       .from('jobs')
       .select(
-        'id, job_number, job_date, date_pending, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(display_name, is_banned))'
+        'id, job_number, job_date, date_pending, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(id, display_name, is_banned))'
       )
       .eq('org_id', selectedOrg)
       .is('deleted_at', null)
@@ -106,6 +106,7 @@ export default function Calendar({ profile }) {
       return {
         ...j,
         customer_name: j.properties?.customers?.display_name || 'Unknown',
+        customer_id: j.properties?.customers?.id || null,
         address: j.properties?.street_address || '',
         full_address: [
           j.properties?.street_address,
