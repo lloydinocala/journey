@@ -35,6 +35,7 @@ export default function PMChecklists({ profile }) {
   const [busy, setBusy] = useState(false)
   const [view, setView] = useState('templates')
   const [assignments, setAssignments] = useState([])
+  const [tiers, setTiers] = useState([])
 
   const [showAdd, setShowAdd] = useState(false)
   const [niText, setNiText] = useState('')
@@ -64,6 +65,8 @@ export default function PMChecklists({ profile }) {
   async function loadAssignments() {
     const { data } = await supabase.from('pm_checklist_assignments').select('*').eq('org_id', selectedOrg)
     setAssignments(data || [])
+    const { data: tierData } = await supabase.from('maintenance_agreement_tiers').select('name').eq('org_id', selectedOrg).eq('is_active', true).order('sort_order')
+    setTiers([{ key: 'basic', label: 'Basic (no agreement)' }, ...(tierData || []).map((t) => ({ key: t.name, label: t.name }))])
   }
   useEffect(() => { if (selectedOrg || !isSuperAdmin) { loadTemplates(); loadAssignments() } }, [selectedOrg])
 
@@ -184,7 +187,7 @@ export default function PMChecklists({ profile }) {
         </div>
       )}
       {loading ? <p style={{ color: 'var(--mist)' }}>Loading…</p> : view === 'assignments' ? (
-        <AssignmentsView templates={templates} assignments={assignments} setAssignment={setAssignment} />
+        <AssignmentsView templates={templates} assignments={assignments} setAssignment={setAssignment} tiers={tiers} />
       ) : (
         <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           {/* Left: template list */}
@@ -274,7 +277,7 @@ export default function PMChecklists({ profile }) {
   )
 }
 
-function AssignmentsView({ templates, assignments, setAssignment }) {
+function AssignmentsView({ templates, assignments, setAssignment, tiers }) {
   const input = { width: '100%', padding: '7px 9px', borderRadius: 7, border: '1px solid var(--line, #D5DAE1)', fontSize: 13, boxSizing: 'border-box' }
   const smallLabel = { fontSize: 11, color: 'var(--mist)', display: 'block', marginBottom: 2 }
   const assignedTemplate = (st, tier) => {
@@ -292,7 +295,7 @@ function AssignmentsView({ templates, assignments, setAssignment }) {
           <div key={st.key} style={{ border: '1px solid var(--line, #E2E6ED)', borderRadius: 10, padding: 14, marginBottom: 14 }}>
             <div style={{ fontWeight: 700, marginBottom: 10 }}>{st.label}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
-              {TIERS.map((tier) => (
+              {tiers.map((tier) => (
                 <div key={tier.key}>
                   <label style={smallLabel}>{tier.label}</label>
                   <select style={input} value={assignedTemplate(st.key, tier.key)} onChange={(e) => setAssignment(st.key, tier.key, e.target.value)}>
