@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import TimePicker15 from './TimePicker15'
 import OrgPicker from './OrgPicker'
@@ -606,6 +606,16 @@ export default function Jobs({ profile }) {
 
   const scrollTableRef = useRef(null)
   const scrollBarRef = useRef(null)
+  const [searchParams] = useSearchParams()
+  const highlightJobId = searchParams.get('job')
+  const highlightRef = useRef(null)
+  const didScrollRef = useRef(false)
+  useEffect(() => {
+    if (highlightJobId && highlightRef.current && !didScrollRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      didScrollRef.current = true
+    }
+  })
   const [scrollBarRect, setScrollBarRect] = useState({ left: 0, width: 0 })
 
   useEffect(() => {
@@ -824,7 +834,8 @@ export default function Jobs({ profile }) {
             ))}
 
             {sorted.map((j, rowIdx) => {
-              const rowBg = rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)'
+              const isHighlight = highlightJobId && j.id === highlightJobId
+              const rowBg = isHighlight ? '#FFF3C4' : (rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)')
               return editingId === j.id ? (
                 <>
                   <div className="grid-cell grid-actions" style={{ ...actionsCellStyle(rowBg), flexDirection: 'column', alignItems: 'stretch' }}>
@@ -951,7 +962,7 @@ export default function Jobs({ profile }) {
                 </>
               ) : (
                 <>
-                  <div className="grid-cell grid-actions" style={actionsCellStyle(rowBg)}>
+                  <div ref={isHighlight ? highlightRef : undefined} className="grid-cell grid-actions" style={actionsCellStyle(rowBg)}>
                     <button className="logout-button" onClick={() => startEdit(j)}>Edit</button>
                     <Link to={`/invoice/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Invoice</Link>
                     <Link to={`/estimate/${j.id}`} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>Estimate</Link>
