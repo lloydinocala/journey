@@ -212,12 +212,6 @@ export default function OperationsDashboard({ profile }) {
           ))}
         </Card>
 
-        <Card title="Jobs to Schedule" headline={String(d.toSchedule.length)} count={d.toSchedule.length} seeAll="/jobs" emptyMsg="Everything's on the calendar">
-          {d.toSchedule.slice(0, 4).map((x) => (
-            <Row key={x.id} to={x.link} left={<>{x.num} · {x.cust}</>} right={x.days != null ? <Pill tone="mist">placeholder {ageLabel(x.days)}</Pill> : null} />
-          ))}
-        </Card>
-
         <Card title="Completed, Not Invoiced" headline={String(d.completedNotInvoiced.length)} count={d.completedNotInvoiced.length} seeAll="/jobs" emptyMsg="All completed work is billed">
           {d.completedNotInvoiced.slice(0, 4).map((x) => (
             <Row key={x.id} to={x.link} left={<>{x.num} · {x.cust}</>} right={<Pill tone={x.days >= 3 ? 'over' : 'amber'}>done {ageLabel(x.days)}</Pill>} />
@@ -233,6 +227,12 @@ export default function OperationsDashboard({ profile }) {
 
       <SectionHead>Coming up</SectionHead>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+        <Card title="Jobs to Schedule" headline={String(d.toSchedule.length)} count={d.toSchedule.length} seeAll="/jobs" emptyMsg="Everything's on the calendar">
+          {d.toSchedule.slice(0, 4).map((x) => (
+            <Row key={x.id} to={x.link} left={<>{x.num} · {x.cust}</>} right={x.days != null ? <Pill tone="mist">placeholder {ageLabel(x.days)}</Pill> : null} />
+          ))}
+        </Card>
+
         <Card title="Maintenance Due" headline={String(d.maintDue.length)} count={d.maintDue.length} seeAll="/maintenance-due" emptyMsg="No visits due soon">
           {d.maintDue.slice(0, 4).map((x) => (
             <Row key={x.id} to={x.link} left={x.cust} right={<Pill tone={x.days > 0 ? 'over' : 'mist'}>{x.days > 0 ? `overdue ${ageLabel(x.days)}` : `due ${x.due}`}</Pill>} />
