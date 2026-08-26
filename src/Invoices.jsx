@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
@@ -71,6 +71,17 @@ export default function Invoices({ profile }) {
       })
     }
   }, [])
+
+  const [searchParams] = useSearchParams()
+  const highlightId = searchParams.get('invoice')
+  const highlightRef = useRef(null)
+  const didScrollRef = useRef(false)
+  useEffect(() => {
+    if (highlightId && highlightRef.current && !didScrollRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      didScrollRef.current = true
+    }
+  })
 
   async function loadInvoices(orgId) {
     if (!orgId) return
@@ -496,11 +507,12 @@ export default function Invoices({ profile }) {
             ))}
 
             {sorted.map((inv, rowIdx) => {
-              const rowBg = rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)'
+              const isHighlight = highlightId && inv.id === highlightId
+              const rowBg = isHighlight ? '#FFF3C4' : (rowIdx % 2 === 0 ? 'var(--panel)' : 'var(--ink)')
               const flagUnpaid = isCompletedUnpaid(inv)
               return (
               <div key={inv.id} style={{ display: 'contents' }}>
-                <div className="grid-cell grid-actions" style={actionsCellStyle(rowBg)}>
+                <div ref={isHighlight ? highlightRef : undefined} className="grid-cell grid-actions" style={actionsCellStyle(rowBg)}>
                   <Link to={'/invoice/' + inv.job_id} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
                     Edit
                   </Link>
