@@ -23,6 +23,7 @@ const CATEGORIES = [
     { label: 'Text Archive', path: '/text-archive' },
     { label: 'Maintenance Agreements', path: '/maintenance-agreements' },
     { label: 'Maintenance Due', path: '/maintenance-due' },
+    { label: 'Warranty Registrations', path: '/warranty-registrations' },
     { label: 'Job Estimates', path: '/estimates' },
     { label: 'System Estimates', path: '/system-estimates' },
   ]},
@@ -250,4 +251,3 @@ export default function Layout({ profile }) {
     </div>
   )
 }
-
