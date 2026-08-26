@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { formatTimeInZone } from './utils/tz'
 
@@ -110,7 +111,12 @@ export default function JobDetailModal({ job, onClose }) {
           </div>
         )}
 
-        <button className="logout-button" onClick={onClose} style={{ marginTop: 16 }}>Close</button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <Link to={`/jobs?job=${job.id}`} onClick={onClose} className="logout-button" style={{ textDecoration: 'none' }}>
+            Open in Jobs Table
+          </Link>
+          <button className="logout-button" onClick={onClose}>Close</button>
+        </div>
       </div>
     </div>
   )
