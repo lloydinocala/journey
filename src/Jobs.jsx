@@ -957,7 +957,7 @@ export default function Jobs({ profile }) {
                     if (col.key === 'customer') return (
                       <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         {j.properties?.customers?.id ? (
-                          <Link to={'/customers/' + j.properties.customers.id}>{j.properties.customers.display_name || '—'}</Link>
+                          <Link to={'/customers/' + j.properties.customers.id} style={{ color: '#2E7FC4', textDecoration: 'underline', fontWeight: 600 }}>{j.properties.customers.display_name || '—'}</Link>
                         ) : (j.properties?.customers?.display_name || '—')}
                       </div>
                     )
