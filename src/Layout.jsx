@@ -11,6 +11,7 @@ import { MARKETING_NAV } from './modules/marketing-hvac'
 
 const CATEGORIES = [
   { key: 'operations', label: 'Operations', items: [
+    { label: 'Operations Dashboard', path: '/operations' },
     { label: 'Calendar', path: '/calendar' },
     { label: 'Jobs', path: '/jobs' },
     { label: 'Jobs Management', path: '/jobs-management' },
@@ -249,3 +250,4 @@ export default function Layout({ profile }) {
     </div>
   )
 }
+
