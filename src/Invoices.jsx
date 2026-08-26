@@ -75,24 +75,49 @@ export default function Invoices({ profile }) {
   async function loadInvoices(orgId) {
     if (!orgId) return
     setLoading(true)
-    const { data } = await supabase
+    // No joins here: invoices has several FKs to jobs (job_id, reference_job_id, spawned_job_id),
+    // so embedding jobs makes PostgREST fail the whole query and blank the table. Fetch jobs +
+    // line items separately and stitch them on — same approach as Estimates.
+    const { data: invRows } = await supabase
       .from('invoices')
       .select(`
         id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
         discount_amount, discount_type, deposit, amount_due, total_paid, balance,
-        profit, profit_pct, paid_at, sent_at, sent_count, last_sent_to, is_archived,
-        jobs!invoices_job_id_fkey (
-          job_number, segment, status,
-          properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) ),
-          job_technicians ( sort_order, users ( full_name ) )
-        ),
-        invoice_line_items ( description, sort_order )
+        profit, profit_pct, paid_at, sent_at, sent_count, last_sent_to, is_archived
       `)
       .eq('org_id', orgId)
       .eq('kind', 'invoice')
       .is('deleted_at', null)
       .eq('is_archived', showArchived)
-    setInvoices(data || [])
+    let rows = invRows || []
+
+    const jobIds = [...new Set(rows.map((r) => r.job_id).filter(Boolean))]
+    let jobById = {}
+    if (jobIds.length) {
+      const { data: jobs } = await supabase
+        .from('jobs')
+        .select('id, job_number, segment, status, properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) ), job_technicians ( sort_order, users ( full_name ) )')
+        .in('id', jobIds)
+      jobById = Object.fromEntries((jobs || []).map((j) => [j.id, j]))
+    }
+    const invIds = rows.map((r) => r.id)
+    const itemsByInvoice = {}
+    if (invIds.length) {
+      const { data: items } = await supabase
+        .from('invoice_line_items')
+        .select('invoice_id, description, sort_order')
+        .in('invoice_id', invIds)
+      for (const it of items || []) {
+        if (!itemsByInvoice[it.invoice_id]) itemsByInvoice[it.invoice_id] = []
+        itemsByInvoice[it.invoice_id].push(it)
+      }
+    }
+    rows = rows.map((r) => ({
+      ...r,
+      jobs: r.job_id ? jobById[r.job_id] || null : null,
+      invoice_line_items: itemsByInvoice[r.id] || [],
+    }))
+    setInvoices(rows)
     setLoading(false)
   }
 
