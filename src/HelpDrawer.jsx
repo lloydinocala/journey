@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
-import { HELP_ARTICLES, ROUTE_HELP, searchArticles } from './utils/helpArticles'
+import { HELP_ARTICLES, ROUTE_HELP, searchArticles } from './utils/HelpArticles'
 
 // Floating "?" button + a right-side Help drawer. Works with zero AI (searchable docs) for users
 // who aren't comfortable with AI yet; the "Ask AI" tab is the on-ramp for those who are.
