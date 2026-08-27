@@ -6,7 +6,7 @@ import AnnouncementBanner from './AnnouncementBanner'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
 import HelpDrawer from './HelpDrawer'
-import { ELEMENTS_FLEET_NAV } from './modules/elements-hvac'
+import { ELEMENTS_NAV, ELEMENTS_FLEET_NAV } from './modules/elements-hvac'
 import { REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV } from './modules/rewards-hvac'
 import { MARKETING_NAV } from './modules/marketing-hvac'
 
@@ -91,11 +91,11 @@ export default function Layout({ profile }) {
   const location = useLocation()
   const isSuperAdmin = profile?.role === 'super_admin'
   // Elements-HVAC appears only for the platform owner or an entitled subscriber.
-  const showElements = profile?.role !== 'tech' && (isSuperAdmin || profile?.elementsEntitled)
+  const showElements = profile?.role !== 'tech'
   // Rewards-HVAC (HR/Payroll) — same gating: platform owner or an entitled subscriber.
   const showRewards = profile?.role !== 'tech' && (isSuperAdmin || profile?.rewardsEntitled)
   // Elements · Inventory retired (replaced by the native Parts Catalog); keep Fleet.
-  const withElements = showElements ? [...CATEGORIES, ELEMENTS_FLEET_NAV] : CATEGORIES
+  const withElements = showElements ? [...CATEGORIES, ELEMENTS_NAV, ELEMENTS_FLEET_NAV] : CATEGORIES
   const baseCategories = showRewards ? [...withElements, REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV] : withElements
   // Marketing-HVAC — platform owner or an entitled subscriber.
   const showMarketing = profile?.role !== 'tech' && (isSuperAdmin || profile?.marketingEntitled)
