@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { loadOrgTz } from './utils/tz'
 import { loadPermissions, can } from './utils/permissions'
+import AssetsDashboard from './AssetsDashboard'
 import PartsCatalog from './PartsCatalog'
 import PartsCatalogImport from './PartsCatalogImport'
 import VendorPriceImport from './VendorPriceImport'
@@ -253,6 +254,7 @@ function AuthenticatedApp() {
         <Route path="/estimates" element={<Estimates profile={profile} />} />
         <Route path="/system-estimates" element={<SystemEstimates profile={profile} />} />
         <Route path="/operations" element={<OperationsDashboard profile={profile} />} />
+       <Route path="/assets" element={<AssetsDashboard profile={profile} />} />
         <Route path="/warranty-registrations" element={<WarrantyRegistrations profile={profile} />} />
         <Route path="/new-followup-estimate" element={<NewFollowupEstimate profile={profile} />} />
         <Route path="/invoices" element={<Invoices profile={profile} />} />
