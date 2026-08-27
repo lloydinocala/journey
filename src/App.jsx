@@ -2,7 +2,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { loadOrgTz } from './utils/tz'
-import { loadPermissions } from './utils/permissions'
+import { loadPermissions, can } from './utils/permissions'
 import PartsCatalog from './PartsCatalog'
 import PartsCatalogImport from './PartsCatalogImport'
 import VendorPriceImport from './VendorPriceImport'
@@ -205,7 +205,8 @@ function AuthenticatedApp() {
            <Route path="/" element={
      profile.role === 'tech' ? <Navigate to="/tech" replace />
        : profile.role === 'super_admin' ? <OperationsDashboard profile={profile} />
-       : <OrgHome profile={profile} />
+       : can(profile, 'view_home_dashboard') ? <OrgHome profile={profile} />
+            : <OperationsDashboard profile={profile} />
    } />
         <Route path="/customers" element={<Customers profile={profile} />} />
         <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
