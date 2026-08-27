@@ -65,3 +65,17 @@ export const ELEMENTS_FLEET_NAV = {
     { label: 'Inspections', path: '/fleet/inspections' },
   ],
 }
+
+// Assets Management — umbrella nav grouping Inventory + Fleet under one section.
+// Sub-headers keep each area visually distinct within the single panel.
+export const ASSETS_NAV = {
+  key: 'assets',
+  label: 'Assets Management',
+  items: [
+    { label: 'Assets Dashboard', path: '/assets' },
+    { header: 'Inventory Management' },
+    ...ELEMENTS_NAV.items,
+    { header: 'Fleet Management' },
+    ...ELEMENTS_FLEET_NAV.items,
+  ],
+}
