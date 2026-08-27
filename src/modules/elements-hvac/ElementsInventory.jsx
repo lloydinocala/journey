@@ -42,7 +42,7 @@ export default function ElementsInventory({ profile }) {
     <div>
       <div className="page-header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <h2>Elements-HVAC · Inventory</h2>
+          <h2>Inventory Management</h2>
           <EnabledPill enabled={stats.enabled} />
         </div>
       </div>
