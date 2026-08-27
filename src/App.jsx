@@ -201,7 +201,7 @@ function AuthenticatedApp() {
       <Route path="/my" element={<MyPortal profile={profile} />} />
       <Route element={<Layout profile={profile} />}>
         {/* <Route path="/rewards-hvac" element={<PayrollDashboard />} /> */}  {/* TODO: re-enable with the import above when Payroll module is finished */}
-        <Route path="/" element={profile.role === 'tech' ? <Navigate to="/tech" replace /> : <Dashboard profile={profile} />} />
+        <Route path="/" element={profile.role === 'tech' ? <Navigate to="/tech" replace /> : <OperationsDashboard profile={profile} />} />
         <Route path="/customers" element={<Customers profile={profile} />} />
         <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
         <Route path="/text-archive" element={<TextArchive profile={profile} />} />
