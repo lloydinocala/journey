@@ -28,7 +28,7 @@ export const ELEMENTS_ROUTES = [
 // Sidebar category (Layout.jsx). Shown to office roles (not techs).
 export const ELEMENTS_NAV = {
   key: 'elements',
-  label: 'Elements · Inventory',
+  label: 'Inventory Management',
   items: [
     { label: 'Inventory Overview', path: '/elements' },
     { label: 'Locations', path: '/elements/locations' },
@@ -53,7 +53,7 @@ export const ELEMENTS_FLEET_ROUTES = [
 
 export const ELEMENTS_FLEET_NAV = {
   key: 'fleet',
-  label: 'Elements · Fleet',
+  label: 'Fleet Management',
   items: [
     { label: 'Fleet Dashboard', path: '/fleet' },
     { label: 'Vehicles', path: '/fleet/vehicles' },
