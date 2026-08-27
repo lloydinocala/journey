@@ -78,7 +78,7 @@ import TechGate from './TechGate'
 import TechSettings from './TechSettings'
 // Elements · Inventory retired in favor of the native Parts Catalog module.
 // Fleet remains. (ELEMENTS_ROUTES intentionally no longer rendered.)
-import { ELEMENTS_FLEET_ROUTES } from './modules/elements-hvac'
+import { ELEMENTS_ROUTES, ELEMENTS_FLEET_ROUTES } from './modules/elements-hvac'
 import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES, MyPortal } from './modules/rewards-hvac'
 import { MARKETING_ROUTES } from './modules/marketing-hvac'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
@@ -256,8 +256,8 @@ function AuthenticatedApp() {
         <Route path="/warranty-registrations" element={<WarrantyRegistrations profile={profile} />} />
         <Route path="/new-followup-estimate" element={<NewFollowupEstimate profile={profile} />} />
         <Route path="/invoices" element={<Invoices profile={profile} />} />
-        {/* Elements-HVAC · Inventory + Fleet — gated on subscription (super admin) or entitlement */}
-        {(profile.role === 'super_admin' || profile.elementsEntitled) && [...ELEMENTS_FLEET_ROUTES].map((r) => (
+       {/* Inventory & Fleet Management — standard for all non-tech users */}
+       {profile.role !== 'tech' && [...ELEMENTS_ROUTES, ...ELEMENTS_FLEET_ROUTES].map((r) => (
           <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
         ))}
         {/* Rewards-HVAC · People (HR) + Payroll — gated on subscription (super admin) or entitlement */}
