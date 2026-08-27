@@ -6,7 +6,7 @@ import AnnouncementBanner from './AnnouncementBanner'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
 import HelpDrawer from './HelpDrawer'
-import { ELEMENTS_NAV, ELEMENTS_FLEET_NAV } from './modules/elements-hvac'
+import { ASSETS_NAV } from './modules/elements-hvac'
 import { REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV } from './modules/rewards-hvac'
 import { MARKETING_NAV } from './modules/marketing-hvac'
 
@@ -75,8 +75,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/maintenance-tiers') || pathname.startsWith('/maintenance-dashboard')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
-  if (pathname.startsWith('/elements')) return 'elements'
-  if (pathname.startsWith('/fleet')) return 'fleet'
+  if (pathname.startsWith('/assets') || pathname.startsWith('/elements') || pathname.startsWith('/fleet')) return 'assets'
   if (pathname.startsWith('/rewards/payroll')) return 'rewards-payroll'
   if (pathname.startsWith('/rewards/certified')) return 'rewards-cert'
   if (pathname.startsWith('/rewards')) return 'rewards'
@@ -94,8 +93,8 @@ export default function Layout({ profile }) {
   const showElements = profile?.role !== 'tech'
   // Rewards-HVAC (HR/Payroll) — same gating: platform owner or an entitled subscriber.
   const showRewards = profile?.role !== 'tech' && (isSuperAdmin || profile?.rewardsEntitled)
-  // Elements · Inventory retired (replaced by the native Parts Catalog); keep Fleet.
-  const withElements = showElements ? [...CATEGORIES, ELEMENTS_NAV, ELEMENTS_FLEET_NAV] : CATEGORIES
+  // Assets Management umbrella — Inventory + Fleet nested under one section.
+  const withElements = showElements ? [...CATEGORIES, ASSETS_NAV] : CATEGORIES
   const baseCategories = showRewards ? [...withElements, REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV] : withElements
   // Marketing-HVAC — platform owner or an entitled subscriber.
   const showMarketing = profile?.role !== 'tech' && (isSuperAdmin || profile?.marketingEntitled)
@@ -234,13 +233,19 @@ export default function Layout({ profile }) {
           <div className="sidebar-panel">
             <h3>{activeCategoryData.label}</h3>
             {activeCategoryData.items.filter((item) => !item.perm || isSuperAdmin || can(profile, item.perm)).map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={'sidebar-panel-link' + (location.pathname.startsWith(item.path) ? ' active' : '')}
-              >
-                {item.label}
-              </Link>
+              item.header ? (
+                <div key={item.header} style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8A93A6', fontWeight: 700, margin: '16px 0 4px' }}>
+                  {item.header}
+                </div>
+              ) : (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={'sidebar-panel-link' + (location.pathname.startsWith(item.path) ? ' active' : '')}
+                >
+                  {item.label}
+                </Link>
+              )
             ))}
           </div>
         )}
