@@ -47,11 +47,13 @@ export default function InvoiceDocument({ data, footer }) {
   const customDiscountAmt = customApplied
     ? (invoice.discount_type === 'percent' ? invoice.subtotal * (invoice.discount_amount / 100) : invoice.discount_amount)
     : 0
-  // Catalog/plan discounts are shown to the customer; a supervisor-approved custom discount is NOT — it's folded into the subtotal.
+    const discountAmtDollars =
+    invoice.discount_type === 'percent' ? invoice.subtotal * (invoice.discount_amount / 100) : invoice.discount_amount
+  // Shown to the customer as a line: catalog/plan discounts, and plain editor-entered discounts on an
+  // estimate/invoice (full charges, then a discount). The exception is a supervisor-approved custom
+  // discount (it carries a discount_status), which is folded into the subtotal rather than itemized.
   const discountDisplay =
-    (invoice.discount_amount > 0 && invoice.discount_id)
-      ? (invoice.discount_type === 'percent' ? invoice.subtotal * (invoice.discount_amount / 100) : invoice.discount_amount)
-      : 0
+    (invoice.discount_amount > 0 && (invoice.discount_id || !invoice.discount_status)) ? discountAmtDollars : 0
   const shownSubtotal = (invoice.subtotal || 0) - customDiscountAmt
 
   return (
