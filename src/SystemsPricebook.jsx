@@ -75,7 +75,7 @@ export default function SystemsPricebook({ profile }) {
   const [counts, setCounts] = useState({ total: 0, active: 0 })
 
   const [systemTypeFilter, setSystemTypeFilter] = useState('')
-  const [showInactive, setShowInactive] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('active')   // active | inactive | both
   const [brandNameFilter, setBrandNameFilter] = useState('')
   const [sortField, setSortField] = useState('system_type')
   const [sortDirection, setSortDirection] = useState('asc')
@@ -104,7 +104,8 @@ export default function SystemsPricebook({ profile }) {
     setLoading(true)
     const data = await fetchAllRows(() => {
       let query = supabase.from('equipment').select('*').eq('org_id', orgId)
-      if (!showInactive) query = query.eq('active', true)
+      if (statusFilter === 'active') query = query.eq('active', true)
+      else if (statusFilter === 'inactive') query = query.eq('active', false)
       return query.order('system_type').order('size_tons').order('seer2', { ascending: false })
     })
     const [totalRes, activeRes] = await Promise.all([
@@ -118,7 +119,7 @@ export default function SystemsPricebook({ profile }) {
 
   useEffect(() => {
     loadEquipment(selectedOrg)
-  }, [selectedOrg, showInactive])
+  }, [selectedOrg, statusFilter])
 
   useEffect(() => {
     localStorage.setItem('systems_pricebook_visible_columns', JSON.stringify(visibleColumns))
@@ -463,10 +464,14 @@ export default function SystemsPricebook({ profile }) {
             {allBrands.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
         </div>
-        <label className="nav-link" style={{ cursor: 'pointer', marginBottom: 10 }}>
-          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} style={{ marginRight: 6 }} />
-          Show inactive
-        </label>
+        <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
+          <label htmlFor="statusFilter">Status</label>
+          <select id="statusFilter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="both">Both</option>
+          </select>
+        </div>
         <div style={{ position: 'relative', marginBottom: 10 }}>
           <button className="logout-button" onClick={() => setShowColumnPicker(!showColumnPicker)}>
             Columns ▾
