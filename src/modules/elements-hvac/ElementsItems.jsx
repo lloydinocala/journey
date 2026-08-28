@@ -1,13 +1,32 @@
 // Elements-HVAC · Item catalog (SKUs) — parts and consumables
 import { useState, useEffect } from 'react'
+import Papa from 'papaparse'
 import { supabase } from '../../utils/supabase'
 import { listItems, addItem, updateItem, deleteItem, deriveSku } from './data'
+import { fetchAllRows, readFileSmart, normPrice, normalizeForMatch } from '../../utils/csvImport'
 import { useOrgSelector, OrgBar } from './shared'
 
 const blank = {
   description: '', category: '', item_class: 'part',
   base_uom: 'each', stock_uom: '', units_per_stock_uom: '', vendor_part_no: '',
   last_cost: '', barcode: '', primary_vendor_id: '',
+}
+
+// On import, a blank/absent "Active" means active. Only an explicit falsey turns it off.
+function parseActiveForImport(raw) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return true
+  const v = String(raw).trim().toLowerCase()
+  return !['false', '0', 'no', 'n', 'inactive', 'archived', 'f', 'off'].includes(v)
+}
+
+function downloadCsv(csv, filename) {
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 export default function ElementsItems({ profile }) {
@@ -22,6 +41,9 @@ export default function ElementsItems({ profile }) {
   const [editingId, setEditingId] = useState(null)   // null = adding; otherwise editing this row
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importSummary, setImportSummary] = useState('')
+  const [importProgress, setImportProgress] = useState('')
 
   async function load() {
     if (!org.selectedOrg) return
@@ -33,6 +55,130 @@ export default function ElementsItems({ profile }) {
     setVendors(vs.data || [])
   }
   useEffect(() => { load() }, [org.selectedOrg, showArchived])
+
+  const vendorName = (id) => vendors.find((v) => v.id === id)?.name || ''
+
+  // Bulk CSV import. Recognizes the standard template headers and common
+  // vendor-catalog headers (Item #, Mfg #, Source, Price per unit). Re-imports
+  // match existing parts by SKU then description and UPDATE instead of
+  // duplicating; blank rows are skipped; a blank Active defaults to active.
+  async function handleImportFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setImporting(true); setImportSummary(''); setImportProgress('')
+    const text = await readFileSmart(file)
+    Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const orgId = org.selectedOrg
+        const existing = await fetchAllRows(() =>
+          supabase.from('elements_items').select('id, sku, description').eq('org_id', orgId))
+        const bySku = new Map(), byDesc = new Map(), takenSku = new Set()
+        for (const it of existing) {
+          if (it.sku) { bySku.set(normalizeForMatch(it.sku), it.id); takenSku.add(it.sku.toLowerCase()) }
+          if (it.description) byDesc.set(normalizeForMatch(it.description), it.id)
+        }
+        const vendorByName = new Map()
+        for (const v of vendors) vendorByName.set(normalizeForMatch(v.name), v.id)
+
+        const headers = results.meta.fields || []
+        const findHeader = (aliases) => headers.find((h) => aliases.some((a) => normalizeForMatch(h) === normalizeForMatch(a)))
+        const H = {
+          id: findHeader(['ID']),
+          sku: findHeader(['SKU', 'Item #', 'Item Number']),
+          description: findHeader(['Description', 'Part', 'Name']),
+          category: findHeader(['Category', 'Source', 'Top Category']),
+          item_class: findHeader(['Class', 'Item Class']),
+          base_uom: findHeader(['Base Unit', 'Base UOM', 'Unit']),
+          stock_uom: findHeader(['Stock Unit', 'Stock UOM']),
+          units_per_stock_uom: findHeader(['Units per Stock', 'Base per Stock']),
+          vendor_part_no: findHeader(['Vendor Part #', 'Vendor Part', 'Mfg #', 'Mfg Number']),
+          last_cost: findHeader(['Last Cost', 'Cost', 'Price per unit', 'Price']),
+          barcode: findHeader(['Barcode', 'UPC']),
+          vendor: findHeader(['Vendor', 'Primary Vendor', 'Supplier']),
+          active: findHeader(['Active', 'Is Active']),
+        }
+        const get = (row, hdr) => (hdr && row[hdr] !== undefined ? String(row[hdr]).trim() : '')
+
+        const toInsert = [], toUpdate = []
+        let skipped = 0
+        for (const row of results.data) {
+          const description = get(row, H.description)
+          const skuIn = get(row, H.sku)
+          if (!description && !skuIn) { skipped++; continue }
+          const vname = get(row, H.vendor)
+          const fields = {
+            description: description || null,
+            category: get(row, H.category) || null,
+            item_class: (get(row, H.item_class) || 'part').toLowerCase() === 'consumable' ? 'consumable' : 'part',
+            base_uom: get(row, H.base_uom) || 'each',
+            stock_uom: get(row, H.stock_uom) || null,
+            units_per_stock_uom: get(row, H.units_per_stock_uom) ? normPrice(get(row, H.units_per_stock_uom)) : null,
+            vendor_part_no: get(row, H.vendor_part_no) || null,
+            last_cost: get(row, H.last_cost) ? normPrice(get(row, H.last_cost)) : null,
+            barcode: get(row, H.barcode) || null,
+            primary_vendor_id: vname ? (vendorByName.get(normalizeForMatch(vname)) || null) : null,
+            is_active: parseActiveForImport(get(row, H.active)),
+            org_id: orgId,
+          }
+          let targetId = get(row, H.id)
+          if (!targetId && skuIn) targetId = bySku.get(normalizeForMatch(skuIn))
+          if (!targetId && description) targetId = byDesc.get(normalizeForMatch(description))
+          if (targetId) {
+            toUpdate.push({ id: targetId, fields })
+          } else {
+            let sku = skuIn
+            if (!sku) sku = deriveSku(description, takenSku)
+            else takenSku.add(sku.toLowerCase())
+            toInsert.push({ sku, ...fields })
+          }
+        }
+
+        let inserted = 0, updated = 0, failed = 0
+        const failedRows = []
+        for (let i = 0; i < toInsert.length; i += 300) {
+          const batch = toInsert.slice(i, i + 300)
+          const { error: insErr } = await supabase.from('elements_items').insert(batch)
+          if (!insErr) inserted += batch.length
+          else {
+            for (const one of batch) {
+              const { error: e2 } = await supabase.from('elements_items').insert(one)
+              if (e2) { failed++; if (failedRows.length < 5) failedRows.push(`${one.sku || one.description}: ${e2.message}`) }
+              else inserted++
+            }
+          }
+          setImportProgress(`Adding parts… ${Math.min(i + 300, toInsert.length)} of ${toInsert.length}`)
+        }
+        for (let i = 0; i < toUpdate.length; i += 20) {
+          const chunk = toUpdate.slice(i, i + 20)
+          const res = await Promise.all(chunk.map(({ id, fields }) => supabase.from('elements_items').update(fields).eq('id', id)))
+          res.forEach((r) => { if (r.error) failed++; else updated++ })
+          setImportProgress(`Updating parts… ${Math.min(i + 20, toUpdate.length)} of ${toUpdate.length}`)
+        }
+        setImportSummary(`${inserted} added, ${updated} updated` + (skipped ? `, ${skipped} blank skipped` : '') + (failed ? `, ${failed} failed (e.g. ${failedRows[0] || ''})` : '') + '.')
+        setImporting(false); setImportProgress(''); e.target.value = ''
+        load()
+      },
+      error: (err) => { setImportSummary('Import failed to parse: ' + err.message); setImporting(false); e.target.value = '' },
+    })
+  }
+
+  function handleExport() {
+    const rows = filtered.map((it) => ({
+      ID: it.id, SKU: it.sku, Description: it.description || '', Category: it.category || '',
+      Class: it.item_class, 'Base Unit': it.base_uom || '', 'Stock Unit': it.stock_uom || '',
+      'Units per Stock': it.units_per_stock_uom ?? '', Vendor: vendorName(it.primary_vendor_id),
+      'Vendor Part #': it.vendor_part_no || '', 'Last Cost': it.last_cost ?? '', Barcode: it.barcode || '',
+      Active: it.is_active ? 'TRUE' : 'FALSE',
+    }))
+    downloadCsv(Papa.unparse(rows), `item-catalog-export-${new Date().toISOString().slice(0, 10)}.csv`)
+  }
+
+  function downloadTemplate() {
+    const example = { ID: '', SKU: '', Description: 'Blower Motor 1/2 HP', Category: 'PARTS', Class: 'part', 'Base Unit': 'each', 'Stock Unit': '', 'Units per Stock': '', Vendor: '', 'Vendor Part #': '', 'Last Cost': '', Barcode: '', Active: 'TRUE' }
+    downloadCsv(Papa.unparse([example]), 'item-catalog-template.csv')
+  }
 
   function buildRow() {
     return {
@@ -125,6 +271,21 @@ export default function ElementsItems({ profile }) {
         </button>
       </div>
       <OrgBar {...org} />
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, margin: '8px 0', flexWrap: 'wrap', alignItems: 'center' }}>
+        <label className="logout-button" style={{ cursor: 'pointer', margin: 0 }}>
+          {importing ? 'Importing…' : 'Import CSV'}
+          <input type="file" accept=".csv" onChange={handleImportFile} disabled={importing} style={{ display: 'none' }} />
+        </label>
+        <button className="logout-button" onClick={handleExport} type="button">Export CSV</button>
+        <button className="logout-button" onClick={downloadTemplate} type="button">Download Template</button>
+      </div>
+      {importProgress && <p style={{ textAlign: 'right', fontSize: 13, color: 'var(--mist)', margin: '0 0 8px' }}>{importProgress}</p>}
+      {importSummary && (
+        <div style={{ margin: '4px 0 12px', padding: '10px 14px', borderRadius: 8, background: '#EEF3FB', border: '1px solid #1B3A6B', color: '#1B3A6B', fontWeight: 600 }}>
+          Import complete — {importSummary}
+        </div>
+      )}
 
       {showForm && (
         <form className="inline-form" onSubmit={handleSubmit} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
