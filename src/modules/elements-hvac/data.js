@@ -49,6 +49,10 @@ export async function updateLocation(id, patch) {
   return supabase.from('elements_locations').update(patch).eq('id', id)
 }
 
+export async function deleteLocation(id) {
+  return supabase.from('elements_locations').delete().eq('id', id)
+}
+
 // ---- Items (SKU catalog) --------------------------------------------------
 export async function listItems(orgId, { includeInactive = false } = {}) {
   let q = supabase.from('elements_items').select('*').eq('org_id', orgId).order('category').order('sku')
@@ -63,6 +67,10 @@ export async function addItem(orgId, row) {
 
 export async function updateItem(id, patch) {
   return supabase.from('elements_items').update(patch).eq('id', id)
+}
+
+export async function deleteItem(id) {
+  return supabase.from('elements_items').delete().eq('id', id)
 }
 
 // ---- Core reads: services (pricebook) & technicians -----------------------
@@ -119,6 +127,10 @@ export async function mapExistingItem(orgId, serviceId, itemId, qtyPer = 1) {
 
 export async function unmap(mapId) {
   return supabase.from('elements_service_items').delete().eq('id', mapId)
+}
+
+export async function updateMap(mapId, patch) {
+  return supabase.from('elements_service_items').update(patch).eq('id', mapId)
 }
 
 // ---- Usage report (from the consumption ledger) ---------------------------
