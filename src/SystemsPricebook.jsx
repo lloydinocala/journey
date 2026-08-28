@@ -42,6 +42,26 @@ function parseBoolean(val) {
   return ['true', 'TRUE', '1', 'yes', 'Yes', 'YES'].includes(String(val ?? '').trim())
 }
 
+// On import, a blank or absent "Active" means active — a new system should show
+// by default. Only an explicit falsey value turns one off.
+function parseActiveForImport(raw) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return true
+  const v = String(raw).trim().toLowerCase()
+  return !['false', '0', 'no', 'n', 'inactive', 'f', 'off'].includes(v)
+}
+
+// Identity of a system, used to match a re-imported row that has no ID so the
+// upload updates the existing row instead of creating a duplicate. AHRI ref is
+// the reliable key; fall back to the model signature. Price is deliberately
+// excluded so a price change updates the row rather than cloning it.
+function systemKey(f) {
+  const norm = (x) => (x === null || x === undefined ? '' : String(x).trim().toLowerCase())
+  const ahri = norm(f.ahri_ref)
+  if (ahri) return 'ahri:' + ahri
+  const tons = f.size_tons === null || f.size_tons === undefined || f.size_tons === '' ? '' : String(Number(f.size_tons))
+  return 'sig:' + [norm(f.system_type), tons, norm(f.outdoor_model), norm(f.indoor_model), norm(f.furnace_model)].join('|')
+}
+
 export default function SystemsPricebook({ profile }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
@@ -52,6 +72,7 @@ export default function SystemsPricebook({ profile }) {
   const [importSummary, setImportSummary] = useState('')
   const [importProgress, setImportProgress] = useState('')
   const [importFailedRows, setImportFailedRows] = useState([])
+  const [counts, setCounts] = useState({ total: 0, active: 0 })
 
   const [systemTypeFilter, setSystemTypeFilter] = useState('')
   const [showInactive, setShowInactive] = useState(false)
@@ -86,6 +107,11 @@ export default function SystemsPricebook({ profile }) {
       if (!showInactive) query = query.eq('active', true)
       return query.order('system_type').order('size_tons').order('seer2', { ascending: false })
     })
+    const [totalRes, activeRes] = await Promise.all([
+      supabase.from('equipment').select('id', { count: 'exact', head: true }).eq('org_id', orgId),
+      supabase.from('equipment').select('id', { count: 'exact', head: true }).eq('org_id', orgId).eq('active', true),
+    ])
+    setCounts({ total: totalRes.count || 0, active: activeRes.count || 0 })
     setEquipment(data)
     setLoading(false)
   }
@@ -228,10 +254,24 @@ export default function SystemsPricebook({ profile }) {
       complete: async (results) => {
         let updated = 0
         let inserted = 0
+        let skipped = 0
         const failedRows = []
 
         const toInsert = []
         const toUpdate = []
+
+        // Existing systems for this org, keyed by identity, so a re-upload that
+        // omits the ID column updates the matching rows instead of duplicating.
+        const existing = await fetchAllRows(() =>
+          supabase.from('equipment')
+            .select('id, system_type, size_tons, outdoor_model, indoor_model, furnace_model, ahri_ref')
+            .eq('org_id', selectedOrg)
+        )
+        const existingByKey = new Map()
+        for (const ex of existing) {
+          const k = systemKey(ex)
+          if (!existingByKey.has(k)) existingByKey.set(k, ex.id)
+        }
 
         for (const row of results.data) {
           const id = (row.ID || '').trim()
@@ -240,7 +280,9 @@ export default function SystemsPricebook({ profile }) {
             if (!(label in row)) continue
             const raw = row[label]
             const type = KEY_TO_TYPE[key]
-            if (type === 'number') {
+            if (key === 'active') {
+              fields.active = parseActiveForImport(raw)
+            } else if (type === 'number') {
               fields[key] = raw === '' || raw === undefined ? null : normPrice(raw)
             } else if (type === 'boolean') {
               fields[key] = parseBoolean(raw)
@@ -248,10 +290,19 @@ export default function SystemsPricebook({ profile }) {
               fields[key] = raw === '' || raw === undefined ? null : raw
             }
           }
+          if (!('active' in fields)) fields.active = true
           fields.org_id = selectedOrg
 
+          // Ignore blank lines (no identifying info at all).
+          if (!fields.system_type && !fields.outdoor_model && !fields.ahri_ref) { skipped++; continue }
+
           const label = fields.outdoor_model || fields.ahri_ref || '(no identifying model or AHRI ref)'
-          if (id) toUpdate.push({ id, fields, label })
+          let targetId = id
+          if (!targetId) {
+            const match = existingByKey.get(systemKey(fields))
+            if (match) targetId = match
+          }
+          if (targetId) toUpdate.push({ id: targetId, fields, label })
           else toInsert.push({ fields, label })
         }
 
@@ -288,7 +339,9 @@ export default function SystemsPricebook({ profile }) {
         }
 
         setImportSummary(
-          `${updated} updated, ${inserted} added` + (failedRows.length ? `, ${failedRows.length} failed` : '') + '.'
+          `${inserted} added, ${updated} updated` +
+          (skipped ? `, ${skipped} blank row${skipped === 1 ? '' : 's'} skipped` : '') +
+          (failedRows.length ? `, ${failedRows.length} failed` : '') + '.'
         )
         setImportFailedRows(failedRows)
         setImporting(false)
@@ -347,7 +400,7 @@ export default function SystemsPricebook({ profile }) {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <h2 className="page-title" style={{ margin: 0 }}>Systems Pricebook</h2>
-        <span className="badge">{equipment.length.toLocaleString()} total</span>
+        <span className="badge">{counts.active.toLocaleString()} active · {(counts.total - counts.active).toLocaleString()} inactive · {counts.total.toLocaleString()} total</span>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -364,7 +417,9 @@ export default function SystemsPricebook({ profile }) {
         <p style={{ textAlign: 'right', fontSize: 13, color: 'var(--mist)', marginTop: 0, marginBottom: 12 }}>{importProgress}</p>
       )}
       {importSummary && (
-        <p style={{ textAlign: 'right', fontSize: 13, color: 'var(--mist)', marginTop: 0, marginBottom: 12 }}>{importSummary}</p>
+        <div style={{ margin: '4px 0 12px', padding: '10px 14px', borderRadius: 8, background: '#EEF3FB', border: '1px solid #1B3A6B', color: '#1B3A6B', fontWeight: 600 }}>
+          Import complete — {importSummary}
+        </div>
       )}
       {importFailedRows.length > 0 && (
         <p style={{ textAlign: 'right', marginTop: 0, marginBottom: 12 }}>
