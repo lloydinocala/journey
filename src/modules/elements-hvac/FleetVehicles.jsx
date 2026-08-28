@@ -1,8 +1,10 @@
 // Elements-HVAC · Fleet · Vehicles (linked to inventory trucks)
-import { useState, useEffect } from 'react'
-import { listVehicles, addVehicle, updateVehicle, listTrucks } from './fleetData'
+import { useState, useEffect, Fragment } from 'react'
+import { listVehicles, addVehicle, updateVehicle, listTrucks, listAllAssignments, reassignVehicle, openInitialAssignment } from './fleetData'
 import { listTechnicians } from './data'
 import { useOrgSelector, OrgBar } from './shared'
+
+const today = () => new Date().toISOString().slice(0, 10)
 
 const blank = {
   ownership: 'company', location_id: '', name: '', assigned_user_id: '', home_address: '', year: '', make: '', model: '',
@@ -23,17 +25,36 @@ export default function FleetVehicles({ profile }) {
   const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [assignments, setAssignments] = useState({})   // vehicle_id -> [assignment rows], newest first
+  const [reassignId, setReassignId] = useState(null)    // vehicle currently being reassigned
+  const [reassignForm, setReassignForm] = useState({ user_id: '', started_on: '' })
+  const [historyId, setHistoryId] = useState(null)      // vehicle whose history is expanded
 
   async function load() {
     if (!org.selectedOrg) return
-    const [v, t, tech] = await Promise.all([
+    const [v, t, tech, asg] = await Promise.all([
       listVehicles(org.selectedOrg, { includeInactive: showArchived }),
       listTrucks(org.selectedOrg),
       listTechnicians(org.selectedOrg),
+      listAllAssignments(org.selectedOrg),
     ])
     setVehicles(v); setTrucks(t); setTechs(tech)
+    const byVehicle = {}
+    asg.forEach((a) => { (byVehicle[a.vehicle_id] = byVehicle[a.vehicle_id] || []).push(a) })
+    setAssignments(byVehicle)
   }
   useEffect(() => { load() }, [org.selectedOrg, showArchived])
+
+  function startReassign(v) {
+    setHistoryId(null)
+    setReassignId(v.id)
+    setReassignForm({ user_id: v.assigned_user_id || '', started_on: today() })
+  }
+  async function saveReassign(v) {
+    await reassignVehicle(org.selectedOrg, v.id, reassignForm.user_id || null, reassignForm.started_on || today())
+    setReassignId(null)
+    load()
+  }
 
   const techName = (id) => techs.find((x) => x.id === id)?.full_name || '—'
   const truckName = (id) => trucks.find((x) => x.id === id)?.name || '—'
@@ -83,9 +104,17 @@ export default function FleetVehicles({ profile }) {
       expected_mpg_low: num(form.expected_mpg_low), expected_mpg_high: num(form.expected_mpg_high),
       status: form.status,
     }
-    const { error: err } = editingId
-      ? await updateVehicle(editingId, payload)
-      : await addVehicle(org.selectedOrg, payload)
+    let err
+    if (editingId) {
+      err = (await updateVehicle(editingId, payload)).error
+    } else {
+      const res = await addVehicle(org.selectedOrg, payload)
+      err = res.error
+      // Opening assignment so the responsibility timeline starts here.
+      if (!err && payload.assigned_user_id) {
+        await openInitialAssignment(org.selectedOrg, res.data.id, payload.assigned_user_id)
+      }
+    }
     setSaving(false)
     if (err) { setError(err.message); return }
     cancelForm(); load()
@@ -124,10 +153,14 @@ export default function FleetVehicles({ profile }) {
           <div className="field"><label>Name</label><input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Truck 12" required /></div>
           <div className="field" style={{ minWidth: 180 }}>
             <label>Assigned technician</label>
-            <select value={form.assigned_user_id} onChange={(e) => setForm({ ...form, assigned_user_id: e.target.value })}>
-              <option value="">— unassigned —</option>
-              {techs.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
-            </select>
+            {editingId ? (
+              <input type="text" value={form.assigned_user_id ? techName(form.assigned_user_id) : '— unassigned —'} readOnly disabled title="Use Reassign on the vehicle row to change (keeps a dated history)" />
+            ) : (
+              <select value={form.assigned_user_id} onChange={(e) => setForm({ ...form, assigned_user_id: e.target.value })}>
+                <option value="">— unassigned —</option>
+                {techs.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+              </select>
+            )}
           </div>
           <div className="field" style={{ minWidth: 240 }}>
             <label>Home base (garage / driveway)</label>
@@ -159,10 +192,15 @@ export default function FleetVehicles({ profile }) {
           <tr><th></th><th>Name</th><th>Ownership</th><th>Truck</th><th>Technician</th><th>Year / Make / Model</th><th>Tank</th><th>MPG band</th><th>Status</th></tr>
         </thead>
         <tbody>
-          {vehicles.map((v) => (
-            <tr key={v.id}>
-              <td style={{ display: 'flex', gap: 6 }}>
+          {vehicles.map((v) => {
+            const hist = assignments[v.id] || []
+            return (
+            <Fragment key={v.id}>
+            <tr>
+              <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <button className="logout-button" onClick={() => startEdit(v)}>Edit</button>
+                <button className="logout-button" onClick={() => startReassign(v)}>Reassign</button>
+                <button className="logout-button" onClick={() => { setReassignId(null); setHistoryId(historyId === v.id ? null : v.id) }}>History</button>
                 <button className="logout-button" onClick={async () => { await updateVehicle(v.id, { is_active: !v.is_active }); load() }}>{v.is_active ? 'Archive' : 'Restore'}</button>
               </td>
               <td>{v.name}</td>
@@ -181,7 +219,58 @@ export default function FleetVehicles({ profile }) {
                 </select>
               </td>
             </tr>
-          ))}
+            {reassignId === v.id && (
+              <tr>
+                <td colSpan="9" style={{ background: '#EEF3FB' }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', padding: '6px 2px' }}>
+                    <div className="field" style={{ marginBottom: 0, minWidth: 200 }}>
+                      <label>Reassign to</label>
+                      <select value={reassignForm.user_id} onChange={(e) => setReassignForm({ ...reassignForm, user_id: e.target.value })}>
+                        <option value="">— unassigned —</option>
+                        {techs.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+                      </select>
+                    </div>
+                    <div className="field" style={{ marginBottom: 0 }}>
+                      <label>Effective date</label>
+                      <input type="date" value={reassignForm.started_on} onChange={(e) => setReassignForm({ ...reassignForm, started_on: e.target.value })} />
+                    </div>
+                    <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => saveReassign(v)}>Save assignment</button>
+                    <button className="logout-button" onClick={() => setReassignId(null)}>Cancel</button>
+                    <span style={{ color: 'var(--mist)', fontSize: 12 }}>Closes the current assignment and starts a new one on this date.</span>
+                  </div>
+                </td>
+              </tr>
+            )}
+            {historyId === v.id && (
+              <tr>
+                <td colSpan="9" style={{ background: '#F7F9FC' }}>
+                  <div style={{ padding: '6px 2px' }}>
+                    <strong style={{ fontSize: 13 }}>Assignment history — {v.name}</strong>
+                    {hist.length === 0 ? (
+                      <div style={{ color: 'var(--mist)', fontSize: 13, marginTop: 4 }}>No assignment records yet. Use Reassign to start one.</div>
+                    ) : (
+                      <table style={{ width: 'auto', marginTop: 8 }}>
+                        <thead>
+                          <tr><th style={{ textAlign: 'left', paddingRight: 24 }}>Technician</th><th style={{ textAlign: 'left', paddingRight: 24 }}>From</th><th style={{ textAlign: 'left' }}>To</th></tr>
+                        </thead>
+                        <tbody>
+                          {hist.map((a) => (
+                            <tr key={a.id}>
+                              <td style={{ paddingRight: 24 }}>{techName(a.user_id)}</td>
+                              <td style={{ paddingRight: 24 }}>{a.started_on}</td>
+                              <td>{a.ended_on || <span className="badge" style={{ background: '#166534', color: '#fff' }}>current</span>}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            )}
+            </Fragment>
+            )
+          })}
           {vehicles.length === 0 && <tr><td colSpan="9" style={{ color: 'var(--mist)' }}>No vehicles yet. Add each truck here (or link the ones you set up in Inventory).</td></tr>}
         </tbody>
       </table>
