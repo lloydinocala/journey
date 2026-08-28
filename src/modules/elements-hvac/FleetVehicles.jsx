@@ -5,10 +5,12 @@ import { listTechnicians } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
 const blank = {
-  location_id: '', name: '', assigned_user_id: '', home_address: '', year: '', make: '', model: '',
+  ownership: 'company', location_id: '', name: '', assigned_user_id: '', home_address: '', year: '', make: '', model: '',
   vin: '', license_plate: '', color: '', tank_capacity_gal: '',
   expected_mpg_low: '', expected_mpg_high: '', status: 'active',
 }
+
+const OWNERSHIP_LABELS = { company: 'Company truck', employee: 'Employee (own) truck' }
 
 export default function FleetVehicles({ profile }) {
   const org = useOrgSelector(profile)
@@ -50,6 +52,7 @@ export default function FleetVehicles({ profile }) {
   function startEdit(v) {
     setEditingId(v.id)
     setForm({
+      ownership: v.ownership || 'company',
       location_id: v.location_id || '', name: v.name || '', assigned_user_id: v.assigned_user_id || '',
       home_address: v.home_address || '',
       year: v.year ?? '', make: v.make || '', model: v.model || '', vin: v.vin || '',
@@ -69,6 +72,7 @@ export default function FleetVehicles({ profile }) {
     setSaving(true)
     const num = (x) => (x === '' || x == null ? null : Number(x))
     const payload = {
+      ownership: form.ownership,
       location_id: form.location_id || null,
       name: form.name.trim(),
       assigned_user_id: form.assigned_user_id || null,
@@ -103,6 +107,13 @@ export default function FleetVehicles({ profile }) {
       {showForm && (
         <form className="inline-form" onSubmit={handleSubmit} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
           {editingId && <div style={{ flexBasis: '100%', fontWeight: 700, color: '#1B3A6B' }}>Editing {form.name || 'vehicle'}</div>}
+          <div className="field" style={{ minWidth: 190 }}>
+            <label>Ownership</label>
+            <select value={form.ownership} onChange={(e) => setForm({ ...form, ownership: e.target.value })}>
+              <option value="company">Company truck</option>
+              <option value="employee">Employee (own) truck</option>
+            </select>
+          </div>
           <div className="field" style={{ minWidth: 200 }}>
             <label>Linked truck (inventory)</label>
             <select value={form.location_id} onChange={(e) => pickTruck(e.target.value)}>
@@ -145,7 +156,7 @@ export default function FleetVehicles({ profile }) {
 
       <table className="data-table">
         <thead>
-          <tr><th></th><th>Name</th><th>Truck</th><th>Technician</th><th>Year / Make / Model</th><th>Tank</th><th>MPG band</th><th>Status</th></tr>
+          <tr><th></th><th>Name</th><th>Ownership</th><th>Truck</th><th>Technician</th><th>Year / Make / Model</th><th>Tank</th><th>MPG band</th><th>Status</th></tr>
         </thead>
         <tbody>
           {vehicles.map((v) => (
@@ -155,6 +166,7 @@ export default function FleetVehicles({ profile }) {
                 <button className="logout-button" onClick={async () => { await updateVehicle(v.id, { is_active: !v.is_active }); load() }}>{v.is_active ? 'Archive' : 'Restore'}</button>
               </td>
               <td>{v.name}</td>
+              <td style={{ color: 'var(--mist)' }}>{OWNERSHIP_LABELS[v.ownership] || 'Company truck'}</td>
               <td style={{ color: 'var(--mist)' }}>{truckName(v.location_id)}</td>
               <td>{techName(v.assigned_user_id)}</td>
               <td style={{ color: 'var(--mist)' }}>{[v.year, v.make, v.model].filter(Boolean).join(' ') || '—'}</td>
@@ -170,7 +182,7 @@ export default function FleetVehicles({ profile }) {
               </td>
             </tr>
           ))}
-          {vehicles.length === 0 && <tr><td colSpan="8" style={{ color: 'var(--mist)' }}>No vehicles yet. Add each truck here (or link the ones you set up in Inventory).</td></tr>}
+          {vehicles.length === 0 && <tr><td colSpan="9" style={{ color: 'var(--mist)' }}>No vehicles yet. Add each truck here (or link the ones you set up in Inventory).</td></tr>}
         </tbody>
       </table>
     </div>
