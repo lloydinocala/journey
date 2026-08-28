@@ -15,7 +15,7 @@ export default function Pricebook({ profile }) {
   const [services, setServices] = useState([])
   const [loadingServices, setLoadingServices] = useState(true)
   const [categoryFilter, setCategoryFilter] = useState('')
-  const [showArchived, setShowArchived] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('active')   // active | archived | both
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importProgress, setImportProgress] = useState('')
@@ -89,15 +89,15 @@ export default function Pricebook({ profile }) {
   async function loadServices(orgId) {
     if (!orgId) return
     setLoadingServices(true)
-    const data = await fetchAllRows(() =>
-      supabase
+    const data = await fetchAllRows(() => {
+      let q = supabase
         .from('services')
         .select('id, category, name, is_tax_exempt, is_active')
         .eq('org_id', orgId)
-        .eq('is_active', !showArchived)
-        .order('category')
-        .order('name')
-    )
+      if (statusFilter === 'active') q = q.eq('is_active', true)
+      else if (statusFilter === 'archived') q = q.eq('is_active', false)
+      return q.order('category').order('name')
+    })
     setServices(data)
     setLoadingServices(false)
   }
@@ -106,7 +106,7 @@ export default function Pricebook({ profile }) {
     loadServices(selectedOrg)
     setSelectedServiceId(null)
     setVariants([])
-  }, [selectedOrg, showArchived])
+  }, [selectedOrg, statusFilter])
 
   const categories = [...new Set(services.map((s) => s.category))].sort()
   const filteredServices = services.filter((s) => {
@@ -668,10 +668,14 @@ async function loadVariants(serviceId) {
               ))}
           </select>
         </div>
-        <label className="nav-link" style={{ cursor: 'pointer' }}>
-          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} style={{ marginRight: 6 }} />
-          Show archived
-        </label>
+        <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
+          <label htmlFor="svcStatusFilter">Status</label>
+          <select id="svcStatusFilter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="active">Active</option>
+            <option value="archived">Archived</option>
+            <option value="both">Both</option>
+          </select>
+        </div>
       </div>
 
       {loadingServices ? (
