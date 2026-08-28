@@ -17,6 +17,52 @@ export async function updateVehicle(id, patch) {
   return supabase.from('elements_vehicles').update(patch).eq('id', id)
 }
 
+// ---- Assignments (who is responsible for a vehicle, with dated history) ----
+// Each vehicle has at most one OPEN assignment (ended_on = null) = the current
+// technician. Reassigning closes the open one and opens a new one, so the full
+// timeline of responsibility is preserved.
+export async function listAllAssignments(orgId) {
+  const { data } = await supabase
+    .from('elements_vehicle_assignments')
+    .select('*')
+    .eq('org_id', orgId)
+    .order('started_on', { ascending: false })
+  return data || []
+}
+
+// Reassign a vehicle to `newUserId` effective `startedOn` (YYYY-MM-DD).
+// Closes the current open assignment, opens a new one, and syncs the vehicle's
+// current assignee so Locations always show who is responsible right now.
+export async function reassignVehicle(orgId, vehicleId, newUserId, startedOn) {
+  const day = startedOn || new Date().toISOString().slice(0, 10)
+  const { data: open } = await supabase
+    .from('elements_vehicle_assignments')
+    .select('id, user_id')
+    .eq('org_id', orgId).eq('vehicle_id', vehicleId).is('ended_on', null)
+    .maybeSingle()
+  // No change if the same technician is already the open assignee.
+  if (open && open.user_id === (newUserId || null)) return { data: 'nochange' }
+  if (open) {
+    await supabase.from('elements_vehicle_assignments').update({ ended_on: day }).eq('id', open.id)
+  }
+  if (newUserId) {
+    const { error } = await supabase
+      .from('elements_vehicle_assignments')
+      .insert({ org_id: orgId, vehicle_id: vehicleId, user_id: newUserId, started_on: day })
+    if (error) return { error }
+  }
+  return supabase.from('elements_vehicles').update({ assigned_user_id: newUserId || null }).eq('id', vehicleId)
+}
+
+// Open the first assignment for a brand-new vehicle created with a technician.
+export async function openInitialAssignment(orgId, vehicleId, userId, startedOn) {
+  if (!userId) return { data: null }
+  const day = startedOn || new Date().toISOString().slice(0, 10)
+  return supabase
+    .from('elements_vehicle_assignments')
+    .insert({ org_id: orgId, vehicle_id: vehicleId, user_id: userId, started_on: day })
+}
+
 // Trucks from the inventory module, to link a vehicle to its stocking location
 export async function listTrucks(orgId) {
   const { data } = await supabase
