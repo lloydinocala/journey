@@ -3,7 +3,7 @@
 // (usually 1:1). Auto-suggests SKUs for unmapped parts; labor/diagnostic
 // services are left untracked. Admin approves before anything is created.
 import { useState, useEffect, useMemo } from 'react'
-import { listServices, listMaps, listItems, createItemAndMap, mapExistingItem, unmap, deriveSku } from './data'
+import { listServices, listMaps, listItems, createItemAndMap, mapExistingItem, unmap, updateMap, deriveSku } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
 // Heuristic: services whose category/name look like labor, diagnosis, fees,
@@ -95,7 +95,18 @@ export default function ElementsServiceMap({ profile }) {
     load()
   }
 
+  async function saveQty(m, val) {
+    const q = parseFloat(val)
+    if (isNaN(q) || q <= 0 || q === Number(m.qty_per)) return
+    setBusy(true); setMsg('')
+    const { error } = await updateMap(m.id, { qty_per: q })
+    setBusy(false)
+    setMsg(error ? error.message : 'Quantity updated.')
+    load()
+  }
+
   async function removeMap(mapId) {
+    if (!window.confirm('Remove this part mapping? The part stays in the catalog; only the link to this service is removed.')) return
     setBusy(true)
     await unmap(mapId)
     setBusy(false)
@@ -119,8 +130,8 @@ export default function ElementsServiceMap({ profile }) {
 
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>
         Each parts service maps to one inventory part. Labor, diagnosis, trip, and membership services are
-        left untracked (they consume no stock). Auto-create adds a part for every unmapped parts service;
-        review and edit the results on the Item Catalog page.
+        left untracked (they consume no stock). Set the quantity used per service, unmap to change the part,
+        or auto-create a part for every unmapped parts service.
       </p>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -138,7 +149,7 @@ export default function ElementsServiceMap({ profile }) {
 
       <table className="data-table">
         <thead>
-          <tr><th>Category</th><th>Service</th><th>Mapping</th><th></th></tr>
+          <tr><th>Category</th><th>Service</th><th>Mapped part &amp; quantity</th><th>Actions</th></tr>
         </thead>
         <tbody>
           {rows.map((s) => (
@@ -148,9 +159,12 @@ export default function ElementsServiceMap({ profile }) {
               <td>
                 {s.maps.length > 0 ? (
                   s.maps.map((m) => (
-                    <span key={m.id} className="badge" style={{ marginRight: 6, background: '#1B3A6B', color: '#fff' }}>
-                      {m.item?.description || m.item?.sku} ×{m.qty_per}
-                    </span>
+                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <span className="badge" style={{ background: '#1B3A6B', color: '#fff' }}>{m.item?.description || m.item?.sku}</span>
+                      <label style={{ fontSize: 12, color: 'var(--mist)' }}>
+                        qty <input type="number" min="0" step="any" defaultValue={m.qty_per} style={{ width: 64, marginLeft: 4 }} disabled={busy} onBlur={(e) => saveQty(m, e.target.value)} />
+                      </label>
+                    </div>
                   ))
                 ) : isLikelyPart(s) ? (
                   <select defaultValue="" onChange={(e) => mapTo(s, e.target.value)} disabled={busy}>
@@ -163,7 +177,7 @@ export default function ElementsServiceMap({ profile }) {
               </td>
               <td>
                 {s.maps.length > 0 ? (
-                  s.maps.map((m) => <button key={m.id} className="logout-button" onClick={() => removeMap(m.id)} style={{ marginRight: 6 }}>Unmap</button>)
+                  s.maps.map((m) => <button key={m.id} className="logout-button" onClick={() => removeMap(m.id)} disabled={busy} style={{ marginRight: 6 }}>Unmap</button>)
                 ) : isLikelyPart(s) ? (
                   <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={busy} onClick={() => createOne(s)}>+ Create part</button>
                 ) : null}
