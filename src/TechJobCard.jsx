@@ -295,7 +295,7 @@ export default function TechJobCard({ profile }) {
       id, org_id, property_id, customer_id, job_number, segment, status, start_time, duration_hours, job_type,
       service_complaint, internal_notes, auth_diagnose_only, auth_limit_amount, service_estimate_not_needed, plan_options_sent_at, read_notes_before_job,
       tech_email_edited_at, tech_phone_edited_at, diagnosis_note, diagnosis_recorded_at, pre_photo_skip_reason, arrival_at, paused_at, paused_seconds,
-      properties ( street_address, unit, city, state, zip, expected_system_count ),
+      properties ( street_address, unit, city, state, zip, gate_code, expected_system_count ),
       customers ( display_name, spouse_name, primary_phone, secondary_phone, email_1 ),
       trip_charge:trip_charge_price_id ( location, access, hours, price, services ( name ) )
     `).eq('id', jobId).single()
@@ -1082,6 +1082,12 @@ export default function TechJobCard({ profile }) {
                           </a>
                         )}
                       </div>
+                    </div>
+                  )}
+                  {job.properties?.gate_code && (
+                    <div className="jc-gate" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '10px 0', padding: '9px 13px', background: '#EEF3FB', border: '1px solid #1B3A6B', borderRadius: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#1B3A6B', textTransform: 'uppercase', letterSpacing: 0.6 }}>Gate Code</span>
+                      <span style={{ fontSize: 17, fontWeight: 800, color: '#132A4C', letterSpacing: 1.5 }}>{job.properties.gate_code}</span>
                     </div>
                   )}
                   {phoneEntries.map((e) => (
