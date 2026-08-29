@@ -372,3 +372,38 @@ export async function listRecentInvoices(orgId, limit = 120) {
     job_number: i.job_id ? (jobById[i.job_id] || null) : null,
   }))
 }
+
+// ---- Par levels & replenishment -------------------------------------------
+// reorder_point (min) and max_level (order-up-to / par) live per item+location
+// on elements_stock_levels. Setting them upserts the level row so pars can be
+// set even before any stock has moved.
+export async function setLevelPar(orgId, itemId, locationId, patch) {
+  const { data: existing } = await supabase
+    .from('elements_stock_levels').select('id')
+    .eq('org_id', orgId).eq('item_id', itemId).eq('location_id', locationId).maybeSingle()
+  if (existing) return supabase.from('elements_stock_levels').update(patch).eq('id', existing.id)
+  return supabase.from('elements_stock_levels').insert({ org_id: orgId, item_id: itemId, location_id: locationId, ...patch })
+}
+
+// Every location's items at/below their reorder point, with a suggested top-up
+// to max_level (or back to reorder if no max is set). Newest sort by location
+// then item. Purely par-driven: rows without a positive reorder_point are skipped.
+export async function listReplenishment(orgId) {
+  const { data } = await supabase
+    .from('elements_stock_levels')
+    .select('item_id, location_id, on_hand, reorder_point, max_level, item:elements_items(id, description, category, last_cost, standard_cost), location:elements_locations(id, name, type, is_active)')
+    .eq('org_id', orgId)
+  return (data || [])
+    .filter((r) => r.location && r.location.is_active !== false)
+    .filter((r) => r.reorder_point != null && Number(r.reorder_point) > 0 && Number(r.on_hand || 0) <= Number(r.reorder_point))
+    .map((r) => {
+      const target = r.max_level != null ? Number(r.max_level) : Number(r.reorder_point)
+      return {
+        item_id: r.item_id, location_id: r.location_id, item: r.item || null, location: r.location || null,
+        on_hand: Number(r.on_hand || 0), reorder: Number(r.reorder_point),
+        max: r.max_level != null ? Number(r.max_level) : null,
+        suggest: Math.max(0, target - Number(r.on_hand || 0)),
+      }
+    })
+    .sort((a, b) => (a.location?.name || '').localeCompare(b.location?.name || '') || (a.item?.description || '').localeCompare(b.item?.description || ''))
+}
