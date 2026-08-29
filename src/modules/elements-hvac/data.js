@@ -145,3 +145,71 @@ export async function usageReport(orgId, fromIso, toIso) {
   const { data } = await q.order('created_at', { ascending: false })
   return data || []
 }
+
+// ---- Stock: ledger-backed on-hand, receiving & transfers ------------------
+// elements_stock_txns is the source of truth (one immutable row per movement);
+// elements_stock_levels caches on_hand per item+location and holds par levels.
+
+// All active stocking locations (shop/warehouse + trucks).
+export async function listAllLocations(orgId) {
+  const { data } = await supabase
+    .from('elements_locations')
+    .select('id, name, type')
+    .eq('org_id', orgId).eq('is_active', true)
+    .order('type').order('name')
+  return data || []
+}
+
+// Cached levels for a location (on_hand + par levels), keyed by item_id.
+export async function listStockLevels(orgId, locationId) {
+  let q = supabase.from('elements_stock_levels')
+    .select('item_id, location_id, on_hand, reorder_point, max_level, par_level, bin')
+    .eq('org_id', orgId)
+  if (locationId) q = q.eq('location_id', locationId)
+  const { data } = await q
+  return data || []
+}
+
+// Recompute the cached on_hand for one item+location from the ledger.
+async function recomputeLevel(orgId, itemId, locationId) {
+  const { data: txns } = await supabase
+    .from('elements_stock_txns').select('qty_delta')
+    .eq('org_id', orgId).eq('item_id', itemId).eq('location_id', locationId)
+  const onHand = (txns || []).reduce((s, t) => s + Number(t.qty_delta || 0), 0)
+  const { data: existing } = await supabase
+    .from('elements_stock_levels').select('id')
+    .eq('org_id', orgId).eq('item_id', itemId).eq('location_id', locationId).maybeSingle()
+  if (existing) return supabase.from('elements_stock_levels').update({ on_hand: onHand }).eq('id', existing.id)
+  return supabase.from('elements_stock_levels').insert({ org_id: orgId, item_id: itemId, location_id: locationId, on_hand: onHand })
+}
+
+// Receive stock into a location at a unit cost (records a receipt in the ledger).
+export async function receiveStock(orgId, { location_id, item_id, qty, unit_cost, note }) {
+  const q = Number(qty)
+  if (!location_id || !item_id || !(q > 0)) return { error: { message: 'Pick a location and item, and a quantity above zero.' } }
+  const cost = unit_cost === '' || unit_cost == null ? null : Number(unit_cost)
+  const { error } = await supabase.from('elements_stock_txns').insert({
+    org_id: orgId, item_id, location_id, txn_type: 'receipt', qty_delta: q, unit_cost: cost,
+    ref_type: 'manual', reason_code: 'receive', note: note || null,
+  })
+  if (error) return { error }
+  if (cost != null) await supabase.from('elements_items').update({ last_cost: cost }).eq('id', item_id)
+  await recomputeLevel(orgId, item_id, location_id)
+  return {}
+}
+
+// Move stock between two locations (records paired out/in ledger rows).
+export async function transferStock(orgId, { from_location_id, to_location_id, item_id, qty, unit_cost, note }) {
+  const q = Number(qty)
+  if (!from_location_id || !to_location_id || from_location_id === to_location_id || !item_id || !(q > 0))
+    return { error: { message: 'Pick different From/To locations, an item, and a quantity above zero.' } }
+  const cost = unit_cost === '' || unit_cost == null ? null : Number(unit_cost)
+  const { error } = await supabase.from('elements_stock_txns').insert([
+    { org_id: orgId, item_id, location_id: from_location_id, txn_type: 'transfer_out', qty_delta: -q, unit_cost: cost, ref_type: 'manual', reason_code: 'transfer', note: note || null },
+    { org_id: orgId, item_id, location_id: to_location_id, txn_type: 'transfer_in', qty_delta: q, unit_cost: cost, ref_type: 'manual', reason_code: 'transfer', note: note || null },
+  ])
+  if (error) return { error }
+  await recomputeLevel(orgId, item_id, from_location_id)
+  await recomputeLevel(orgId, item_id, to_location_id)
+  return {}
+}
