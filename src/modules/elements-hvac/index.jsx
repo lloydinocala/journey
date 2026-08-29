@@ -5,6 +5,7 @@ import ElementsLocations from './ElementsLocations'
 import ElementsItems from './ElementsItems'
 import ElementsStock from './ElementsStock'
 import ElementsServiceMap from './ElementsServiceMap'
+import ElementsPartsUsed from './ElementsPartsUsed'
 import ElementsUsageReport from './ElementsUsageReport'
 import ElementsSettings from './ElementsSettings'
 import FleetDashboard from './FleetDashboard'
@@ -23,6 +24,7 @@ export const ELEMENTS_ROUTES = [
   { path: '/elements/items', Component: ElementsItems },
   { path: '/elements/stock', Component: ElementsStock },
   { path: '/elements/service-map', Component: ElementsServiceMap },
+  { path: '/elements/parts-used', Component: ElementsPartsUsed },
   { path: '/elements/usage', Component: ElementsUsageReport },
   { path: '/elements/settings', Component: ElementsSettings },
 ]
@@ -37,6 +39,7 @@ export const ELEMENTS_NAV = {
     { label: 'Item Catalog', path: '/elements/items' },
     { label: 'Stock & Receiving', path: '/elements/stock' },
     { label: 'Service → Part Mapping', path: '/elements/service-map' },
+    { label: 'Record Parts Used', path: '/elements/parts-used' },
     { label: 'Parts Usage', path: '/elements/usage' },
     { label: 'Inventory Settings', path: '/elements/settings' },
   ],
