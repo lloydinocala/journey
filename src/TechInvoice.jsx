@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { IconChevronLeft, IconReceipt } from './MobileIcons'
 import RoutingSummary from './RoutingSummary'
+import ElementsPartsUsedPanel from './modules/elements-hvac/ElementsPartsUsedPanel'
 
 export default function TechInvoice({ profile }) {
   const { jobId } = useParams()
@@ -487,6 +488,13 @@ export default function TechInvoice({ profile }) {
                 ✓ Paid ${invoice.total_paid?.toFixed(2)} on {new Date(invoice.paid_at).toLocaleDateString()}
               </p>
             )}
+          </div>
+        </div>
+
+        <div className="section-card">
+          <div className="section-card-header"><span>Parts Used</span></div>
+          <div className="section-card-body">
+            <ElementsPartsUsedPanel orgId={job.org_id} invoiceId={invoice.id} embedded />
           </div>
         </div>
 
