@@ -213,3 +213,162 @@ export async function transferStock(orgId, { from_location_id, to_location_id, i
   await recomputeLevel(orgId, item_id, to_location_id)
   return {}
 }
+
+// ---- Parts Used: invoice-driven consumption -------------------------------
+// When a job's invoice is finalized, the parts actually used deplete the tech's
+// truck. Consumption rows are tagged ref_type='invoice', ref_id=<invoice id> so
+// re-recording is idempotent (we clear this invoice's rows, then rewrite).
+
+// Basic invoice header (number + job) for the panel.
+export async function getInvoiceHeader(orgId, invoiceId) {
+  const { data } = await supabase
+    .from('invoices')
+    .select('id, invoice_number, invoice_date, job_id, kind, estimating_technician_id')
+    .eq('org_id', orgId).eq('id', invoiceId).maybeSingle()
+  return data || null
+}
+
+// The truck (stocking location) for an invoice: primary job technician's truck,
+// falling back to the estimating technician. Returns a location row or null.
+export async function resolveInvoiceTruck(orgId, invoiceId) {
+  const { data: inv } = await supabase
+    .from('invoices').select('id, job_id, estimating_technician_id')
+    .eq('org_id', orgId).eq('id', invoiceId).maybeSingle()
+  if (!inv) return null
+  let userId = null
+  if (inv.job_id) {
+    const { data: jt } = await supabase
+      .from('job_technicians').select('user_id, sort_order')
+      .eq('org_id', orgId).eq('job_id', inv.job_id).order('sort_order').limit(1)
+    if (jt && jt[0]) userId = jt[0].user_id
+  }
+  if (!userId) userId = inv.estimating_technician_id || null
+  if (!userId) return null
+  const { data: locs } = await supabase
+    .from('elements_locations').select('id, name, type, assigned_user_id')
+    .eq('org_id', orgId).eq('type', 'truck').eq('assigned_user_id', userId).eq('is_active', true).limit(1)
+  return (locs && locs[0]) || null
+}
+
+// Billed service lines on an invoice (used to seed the parts list).
+export async function listInvoiceServiceLines(orgId, invoiceId) {
+  const { data } = await supabase
+    .from('invoice_line_items')
+    .select('id, description, quantity, service_id, service_price_id, is_custom, sort_order')
+    .eq('org_id', orgId).eq('invoice_id', invoiceId).order('sort_order')
+  return data || []
+}
+
+// Suggested parts for an invoice = union of the kits of every billed service,
+// each part's qty = kit qty_per × the billed line quantity. Resolves service_id
+// from service_price_id when the line didn't carry it (estimate-mirror path).
+export async function seedPartsUsed(orgId, invoiceId) {
+  const lines = await listInvoiceServiceLines(orgId, invoiceId)
+  const needPrice = lines.filter((l) => !l.service_id && l.service_price_id).map((l) => l.service_price_id)
+  const priceToService = {}
+  if (needPrice.length) {
+    const { data: sp } = await supabase.from('service_prices').select('id, service_id').in('id', needPrice)
+    ;(sp || []).forEach((r) => { priceToService[r.id] = r.service_id })
+  }
+  const svcQty = {}
+  lines.forEach((l) => {
+    const sid = l.service_id || priceToService[l.service_price_id]
+    if (!sid) return
+    svcQty[sid] = (svcQty[sid] || 0) + Number(l.quantity || 1)
+  })
+  const sids = Object.keys(svcQty)
+  if (!sids.length) return []
+  const { data: maps } = await supabase
+    .from('elements_service_items')
+    .select('service_id, item_id, qty_per, item:elements_items(id, description, category, last_cost, standard_cost)')
+    .eq('org_id', orgId).in('service_id', sids)
+  const byItem = {}
+  ;(maps || []).forEach((m) => {
+    const add = Number(m.qty_per || 0) * (svcQty[m.service_id] || 0)
+    if (!byItem[m.item_id]) byItem[m.item_id] = { item_id: m.item_id, item: m.item || null, qty: 0 }
+    byItem[m.item_id].qty += add
+  })
+  return Object.values(byItem)
+}
+
+// Parts already recorded against an invoice (the consumption ledger rows).
+export async function listPartsUsed(orgId, invoiceId) {
+  const { data } = await supabase
+    .from('elements_stock_txns')
+    .select('id, item_id, location_id, qty_delta, unit_cost, created_at, item:elements_items(id, description, category, last_cost, standard_cost)')
+    .eq('org_id', orgId).eq('ref_type', 'invoice').eq('ref_id', invoiceId).eq('txn_type', 'consumption')
+    .order('created_at')
+  return data || []
+}
+
+// Which of these invoices already have parts recorded (for list badges).
+export async function partsUsedStatus(orgId, invoiceIds) {
+  if (!invoiceIds || !invoiceIds.length) return new Set()
+  const { data } = await supabase
+    .from('elements_stock_txns').select('ref_id')
+    .eq('org_id', orgId).eq('ref_type', 'invoice').eq('txn_type', 'consumption')
+    .in('ref_id', invoiceIds)
+  return new Set((data || []).map((r) => r.ref_id))
+}
+
+// Record (or re-record) the parts used on an invoice. Idempotent: clears this
+// invoice's prior consumption, writes fresh rows against one location, and
+// recomputes on-hand for every item+location touched (old and new).
+export async function recordPartsUsed(orgId, invoiceId, { location_id, lines }) {
+  if (!location_id) return { error: { message: 'No stocking location set. Pick the truck (or warehouse) to deplete from.' } }
+  const clean = (lines || [])
+    .map((l) => ({ item_id: l.item_id, qty: Number(l.qty), unit_cost: (l.unit_cost === '' || l.unit_cost == null) ? null : Number(l.unit_cost) }))
+    .filter((l) => l.item_id && l.qty > 0)
+  const prior = await listPartsUsed(orgId, invoiceId)
+  const affected = new Set()
+  prior.forEach((r) => affected.add(`${r.item_id}|${r.location_id}`))
+  await supabase.from('elements_stock_txns').delete()
+    .eq('org_id', orgId).eq('ref_type', 'invoice').eq('ref_id', invoiceId).eq('txn_type', 'consumption')
+  if (clean.length) {
+    const rows = clean.map((l) => ({
+      org_id: orgId, item_id: l.item_id, location_id, txn_type: 'consumption',
+      qty_delta: -Math.abs(l.qty), unit_cost: l.unit_cost,
+      ref_type: 'invoice', ref_id: invoiceId, reason_code: 'parts_used',
+    }))
+    const { error } = await supabase.from('elements_stock_txns').insert(rows)
+    if (error) return { error }
+    clean.forEach((l) => affected.add(`${l.item_id}|${location_id}`))
+  }
+  for (const key of affected) {
+    const [item_id, loc] = key.split('|')
+    await recomputeLevel(orgId, item_id, loc)
+  }
+  return { count: clean.length }
+}
+
+// Recent invoices for the Parts Used screen (newest first).
+export async function listRecentInvoices(orgId, limit = 120) {
+  const { data: invs } = await supabase
+    .from('invoices')
+    .select('id, invoice_number, invoice_date, job_id, bills_to_customer_id, created_at')
+    .eq('org_id', orgId).eq('kind', 'invoice').is('deleted_at', null)
+    .order('invoice_date', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  const list = invs || []
+  const custIds = [...new Set(list.map((i) => i.bills_to_customer_id).filter(Boolean))]
+  const jobIds = [...new Set(list.map((i) => i.job_id).filter(Boolean))]
+  const custById = {}
+  if (custIds.length) {
+    const { data: cs } = await supabase.from('customers')
+      .select('id, display_name, company, first_name, last_name').in('id', custIds)
+    ;(cs || []).forEach((c) => {
+      custById[c.id] = c.display_name || c.company || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—'
+    })
+  }
+  const jobById = {}
+  if (jobIds.length) {
+    const { data: js } = await supabase.from('jobs').select('id, job_number').in('id', jobIds)
+    ;(js || []).forEach((j) => { jobById[j.id] = j.job_number })
+  }
+  return list.map((i) => ({
+    ...i,
+    customer_name: i.bills_to_customer_id ? (custById[i.bills_to_customer_id] || '—') : '—',
+    job_number: i.job_id ? (jobById[i.job_id] || null) : null,
+  }))
+}
