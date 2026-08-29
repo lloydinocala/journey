@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   listServices, listMaps, listItems, createItemAndMap, mapExistingItem,
-  unmap, updateMap, deriveSku,
+  unmap, updateMap, updateItem, deriveSku,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -31,6 +31,7 @@ export default function ElementsServiceMap({ profile }) {
   const [addTerm, setAddTerm] = useState('')
   const [addItemId, setAddItemId] = useState('')
   const [addQty, setAddQty] = useState('1')
+  const [addCost, setAddCost] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const addBoxRef = useRef(null)
 
@@ -98,19 +99,29 @@ export default function ElementsServiceMap({ profile }) {
   }, [])
 
   function selectService(id) {
-    setSelectedId(id); setMsg(''); setAddTerm(''); setAddItemId(''); setAddQty('1'); setAddOpen(false)
+    setSelectedId(id); setMsg(''); setAddTerm(''); setAddItemId(''); setAddQty('1'); setAddCost(''); setAddOpen(false)
   }
-  function chooseItem(it) { setAddItemId(it.id); setAddTerm(it.description || it.sku); setAddOpen(false) }
+  function chooseItem(it) {
+    setAddItemId(it.id); setAddTerm(it.description || it.sku)
+    const c = itemCost(it); setAddCost(c == null ? '' : String(c))
+    setAddOpen(false)
+  }
 
   async function addExisting() {
     if (!addItemId || !selectedId) return
     const q = parseFloat(addQty)
     if (isNaN(q) || q <= 0) { setMsg('Enter a quantity above zero.'); return }
     setBusy(true); setMsg('')
+    // If a cost was entered and it differs from what's on file, save it to the part.
+    const current = itemCost(itemById[addItemId])
+    const cost = addCost === '' ? null : Number(addCost)
+    if (cost != null && !isNaN(cost) && cost !== (current == null ? null : Number(current))) {
+      await updateItem(addItemId, { standard_cost: cost })
+    }
     const { error } = await mapExistingItem(org.selectedOrg, selectedId, addItemId, q)
     setBusy(false)
     setMsg(error ? error.message : 'Part added to kit.')
-    setAddTerm(''); setAddItemId(''); setAddQty('1')
+    setAddTerm(''); setAddItemId(''); setAddQty('1'); setAddCost('')
     load()
   }
 
@@ -122,14 +133,15 @@ export default function ElementsServiceMap({ profile }) {
     setBusy(true); setMsg('')
     const taken = new Set(items.map((i) => i.sku.toLowerCase()))
     const sku = deriveSku(name, taken)
+    const cost = addCost === '' ? null : Number(addCost)
     const { error } = await createItemAndMap(
       org.selectedOrg,
-      { sku, description: name, category: selected?.category || null, item_class: 'part' },
+      { sku, description: name, category: selected?.category || null, item_class: 'part', standard_cost: (cost != null && !isNaN(cost)) ? cost : null },
       selectedId, q
     )
     setBusy(false)
     setMsg(error ? error.message : `Created "${name}" and added it to the kit.`)
-    setAddTerm(''); setAddItemId(''); setAddQty('1')
+    setAddTerm(''); setAddItemId(''); setAddQty('1'); setAddCost('')
     load()
   }
 
@@ -325,6 +337,9 @@ export default function ElementsServiceMap({ profile }) {
                         )}
                       </div>
                     )}
+                  </div>
+                  <div className="field" style={{ marginBottom: 0, width: 110 }}><label>Unit cost</label>
+                    <input type="number" min="0" step="any" value={addCost} disabled={busy} onChange={(e) => setAddCost(e.target.value)} placeholder="$" />
                   </div>
                   <div className="field" style={{ marginBottom: 0, width: 90 }}><label>Qty</label>
                     <input type="number" min="0" step="any" value={addQty} disabled={busy} onChange={(e) => setAddQty(e.target.value)} />
