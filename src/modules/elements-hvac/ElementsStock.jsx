@@ -2,7 +2,7 @@
 // The ledger (elements_stock_txns) is the source of truth; this screen writes to it
 // through data.js helpers and reads the cached per-location levels.
 import { useState, useEffect } from 'react'
-import { listItems, listAllLocations, listStockLevels, receiveStock, transferStock } from './data'
+import { listItems, listAllLocations, listStockLevels, receiveStock, transferStock, setLevelPar } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
 const blankReceive = { location_id: '', item_id: '', qty: '', unit_cost: '' }
@@ -81,18 +81,34 @@ export default function ElementsStock({ profile }) {
     ))
   }
 
+  // Save a per-location par (reorder_point / max_level). Skips no-op writes.
+  async function savePar(itemId, field, val) {
+    if (!selectedLoc) return
+    if (val !== '' && isNaN(Number(val))) return
+    const v = val === '' ? null : Number(val)
+    const cur = levels[itemId]?.[field]
+    const curNum = cur == null ? null : Number(cur)
+    if (v === curNum) return
+    setSaving(true)
+    const res = await setLevelPar(org.selectedOrg, itemId, selectedLoc, { [field]: v })
+    setSaving(false)
+    if (res?.error) { setError(res.error.message); return }
+    loadLevels(selectedLoc)
+  }
+
   // Rows for the selected location: every item, with its level (default 0)
   const rows = items
     .filter((it) => !search || `${it.description} ${it.category || ''}`.toLowerCase().includes(search.toLowerCase()))
     .map((it) => {
       const lv = levels[it.id] || {}
       const onHand = Number(lv.on_hand || 0)
-      const reorder = lv.reorder_point != null ? Number(lv.reorder_point) : (it.reorder_point != null ? Number(it.reorder_point) : null)
-      const max = lv.max_level != null ? Number(lv.max_level) : null
+      const lvReorder = lv.reorder_point != null ? Number(lv.reorder_point) : null
+      const lvMax = lv.max_level != null ? Number(lv.max_level) : null
+      const reorder = lvReorder != null ? lvReorder : (it.reorder_point != null ? Number(it.reorder_point) : null)
       let status = 'ok'
       if (onHand <= 0) status = 'out'
       else if (reorder != null && onHand <= reorder) status = 'low'
-      return { it, onHand, reorder, max, status }
+      return { it, onHand, reorder, lvReorder, lvMax, status }
     })
 
   const lowCount = rows.filter((r) => r.status === 'low').length
@@ -180,18 +196,31 @@ export default function ElementsStock({ profile }) {
         <div className="field" style={{ marginBottom: 0, minWidth: 220 }}><label>Search</label><input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Part or category…" /></div>
       </div>
 
+      <p style={{ color: 'var(--mist)', fontSize: 12.5, margin: '0 0 8px' }}>
+        Reorder and Max are set per location — type a number and tab out to save. When on-hand drops to the reorder
+        point, the part shows up on the Replenishment list, which tops it back up to Max.
+      </p>
+
       <table className="data-table">
         <thead>
           <tr><th>Item</th><th>Category</th><th style={{ textAlign: 'right' }}>On hand</th><th style={{ textAlign: 'right' }}>Reorder</th><th style={{ textAlign: 'right' }}>Max</th><th>Status</th></tr>
         </thead>
         <tbody>
-          {rows.map(({ it, onHand, reorder, max, status }) => (
+          {rows.map(({ it, onHand, lvReorder, lvMax, status }) => (
             <tr key={it.id} style={status === 'out' ? { color: 'var(--mist)' } : undefined}>
               <td>{it.description}</td>
               <td style={{ color: 'var(--mist)' }}>{it.category || '—'}</td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{onHand}</td>
-              <td style={{ textAlign: 'right', color: 'var(--mist)' }}>{reorder ?? '—'}</td>
-              <td style={{ textAlign: 'right', color: 'var(--mist)' }}>{max ?? '—'}</td>
+              <td style={{ textAlign: 'right' }}>
+                <input type="number" min="0" step="any" defaultValue={lvReorder ?? ''} disabled={saving}
+                  style={{ width: 58, textAlign: 'right' }} title="Reorder point for this location"
+                  onBlur={(e) => savePar(it.id, 'reorder_point', e.target.value)} />
+              </td>
+              <td style={{ textAlign: 'right' }}>
+                <input type="number" min="0" step="any" defaultValue={lvMax ?? ''} disabled={saving}
+                  style={{ width: 58, textAlign: 'right' }} title="Max / order-up-to level for this location"
+                  onBlur={(e) => savePar(it.id, 'max_level', e.target.value)} />
+              </td>
               <td>{pill(status)}</td>
             </tr>
           ))}
