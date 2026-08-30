@@ -995,3 +995,13 @@ export async function valuation() {
   if (error) return []
   return data || []
 }
+
+// ---- Inventory variance (report) ------------------------------------------
+// Count variance (posted cycle-count adjustments vs. expected) plus purchase
+// variance (invoice lines that billed a different price/qty than their PO),
+// unified with a `kind` discriminator and each valued in dollars.
+export async function variance() {
+  const { data, error } = await supabase.rpc('elements_variance')
+  if (error) return []
+  return data || []
+}
