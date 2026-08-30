@@ -1,6 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
-import { HELP_ARTICLES, ROUTE_HELP, searchArticles } from './utils/HelpArticles'
+import { HELP_ARTICLES, ROUTE_HELP } from './utils/HelpArticles'
+import { FLEET_HELP_ARTICLES, FLEET_ROUTE_HELP } from './utils/HelpArticlesFleet'
+
+// Core articles + the Fleet section, and their route maps, merged into one set.
+// Fleet route keys are ordered specific-before-base within their file; spreading
+// them after the core map preserves that order for the startsWith match.
+const ALL_ARTICLES = [...HELP_ARTICLES, ...FLEET_HELP_ARTICLES]
+const ALL_ROUTE_HELP = { ...ROUTE_HELP, ...FLEET_ROUTE_HELP }
+
+const hay = (a) => [a.title, a.area, a.purpose, a.keywords.join(' '),
+  a.sections.map((s) => [s.h, s.body || '', (s.items || []).join(' ')].join(' ')).join(' ')].join(' ').toLowerCase()
+function searchAll(query) {
+  const q = (query || '').trim().toLowerCase()
+  if (!q) return ALL_ARTICLES
+  return ALL_ARTICLES.filter((a) => q.split(/\s+/).every((w) => hay(a).includes(w)))
+}
 
 // Floating "?" button + a right-side Help drawer. Works with zero AI (searchable docs) for users
 // who aren't comfortable with AI yet; the "Ask AI" tab is the on-ramp for those who are.
@@ -14,14 +29,14 @@ export default function HelpDrawer() {
   // On open, jump to the article that matches the current page (context-aware).
   useEffect(() => {
     if (!open) return
-    const routeKey = Object.keys(ROUTE_HELP).find((k) => location.pathname.startsWith(k))
-    setArticleId(routeKey ? ROUTE_HELP[routeKey] : null)
+    const routeKey = Object.keys(ALL_ROUTE_HELP).find((k) => location.pathname.startsWith(k))
+    setArticleId(routeKey ? ALL_ROUTE_HELP[routeKey] : null)
     setQuery('')
     setTab('docs')
   }, [open])
 
-  const article = articleId ? HELP_ARTICLES.find((a) => a.id === articleId) : null
-  const results = searchArticles(query)
+  const article = articleId ? ALL_ARTICLES.find((a) => a.id === articleId) : null
+  const results = searchAll(query)
 
   const brand = '#1F3A5F'
 
@@ -61,7 +76,7 @@ export default function HelpDrawer() {
               <div style={{ fontSize: 30, marginBottom: 10 }}>✨</div>
               <div style={{ fontWeight: 700, color: '#1F2A37', marginBottom: 6 }}>Ask Journey anything — coming soon</div>
               <p style={{ fontSize: 13.5, lineHeight: 1.5, maxWidth: 300, margin: '0 auto' }}>
-                You’ll be able to ask in plain English — “how do I send a system estimate?”, “which invoices should I chase first?” — and get an answer drawn from these same help docs and your live data. For now, browse or search the guides.
+                You'll be able to ask in plain English — "how do I send a system estimate?", "which invoices should I chase first?" — and get an answer drawn from these same help docs and your live data. For now, browse or search the guides.
               </p>
             </div>
           ) : article ? (
@@ -74,7 +89,7 @@ export default function HelpDrawer() {
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search help…" autoFocus
                 style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D5DAE1', fontSize: 14, boxSizing: 'border-box', marginBottom: 14 }} />
               {results.length === 0 ? (
-                <p style={{ color: '#64748B', fontSize: 13.5 }}>No help topics match “{query}”. Try a feature name like “estimate” or “dashboard”.</p>
+                <p style={{ color: '#64748B', fontSize: 13.5 }}>No help topics match "{query}". Try a feature name like "estimate" or "dashboard".</p>
               ) : results.map((a) => (
                 <button key={a.id} onClick={() => setArticleId(a.id)} style={{ display: 'block', width: '100%', textAlign: 'left', background: '#F7F9FB',
                   border: '1px solid #E7EBF0', borderRadius: 10, padding: '11px 13px', marginBottom: 9, cursor: 'pointer' }}>
