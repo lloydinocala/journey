@@ -3,6 +3,7 @@
 // it. Receiving flows through the same ledger as manual receiving, so on-hand
 // and costs update the moment goods land.
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   listPurchaseOrders, getPurchaseOrder, createPurchaseOrder, updatePurchaseOrder,
   deletePOLine, receivePO, adjustReceived, listVendors, listAllLocations, listItems, listReplenishment,
@@ -22,6 +23,7 @@ const pill = (s) => { const m = STATUS[s] || STATUS.draft; return <span classNam
 
 export default function ElementsPurchaseOrders({ profile }) {
   const org = useOrgSelector(profile)
+  const [sp] = useSearchParams()
   const [pos, setPos] = useState([])
   const [vendors, setVendors] = useState([])
   const [locations, setLocations] = useState([])
@@ -59,6 +61,13 @@ export default function ElementsPurchaseOrders({ profile }) {
   }
   useEffect(() => { loadList() }, [org.selectedOrg])
 
+  // Deep link from the dashboard: /elements/purchasing?po=<id> opens that PO.
+  useEffect(() => {
+    const id = sp.get('po')
+    if (id && org.selectedOrg) openPO(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sp, org.selectedOrg])
+
   async function openPO(id) {
     setMode('view'); setSelectedId(id); setMsg(''); setErr(''); setRecv({}); setEditRecv(false); setAdj({})
     const detail = await getPurchaseOrder(org.selectedOrg, id)
@@ -81,7 +90,7 @@ export default function ElementsPurchaseOrders({ profile }) {
   const rows = useMemo(() => pos.filter((p) => {
     if (statusFilter === 'open' && (p.status === 'received' || p.status === 'cancelled')) return false
     if (statusFilter !== 'open' && statusFilter !== 'all' && p.status !== statusFilter) return false
-    if (search && !(`${p.po_number || ''} ${p.vendor?.name || ''} ${p.location?.name || ''}`.toLowerCase().includes(search.toLowerCase()))) return false
+    if (search && !(`${p.po_number || ''} ${p.vendor?.name || ''} ${p.location?.name || ''} ${p.partsText || ''}`.toLowerCase().includes(search.toLowerCase()))) return false
     return true
   }), [pos, statusFilter, search])
 
@@ -207,7 +216,7 @@ export default function ElementsPurchaseOrders({ profile }) {
         <div style={{ flex: '1 1 320px', minWidth: 280, maxWidth: 420 }}>
           <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div className="field" style={{ marginBottom: 0, flex: 1, minWidth: 140 }}><label>Search</label>
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="PO#, vendor…" />
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="PO#, vendor, or part…" />
             </div>
             <div className="field" style={{ marginBottom: 0 }}><label>Show</label>
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
