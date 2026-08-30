@@ -354,7 +354,7 @@ export default function ElementsItems({ profile }) {
                 <button className="logout-button" style={{ marginRight: 6 }} onClick={() => inlineUpdate(it, { is_active: !it.is_active })}>{it.is_active ? 'Archive' : 'Restore'}</button>
                 <button className="logout-button" onClick={() => handleDelete(it)}>Delete</button>
               </td>
-              <td>{it.description || '—'}</td>
+              <td>{it.description || '—'}{it.stock_type === 'special_order' ? <span className="badge" style={{ marginLeft: 6, background: '#F8EEDD', color: '#B0600A' }}>Special order</span> : null}</td>
               <td>{it.category || '—'}</td>
               <td>
                 <select value={it.item_class} onChange={(e) => inlineUpdate(it, { item_class: e.target.value })}>
