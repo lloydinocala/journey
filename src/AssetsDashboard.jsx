@@ -91,7 +91,7 @@ export default function AssetsDashboard({ profile }) {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 14px', borderBottom: '1px solid #F1F5F9', background: '#fff' }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 700, color: '#152238', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {p.po_number || '(no #)'} <span style={{ fontWeight: 400, color: 'var(--mist)' }}>· {p.vendor?.name || 'No vendor'}{p.location?.name ? ` → ${p.location.name}` : ''}</span>
+                        {p.po_number || '(no #)'}{p.job_name ? <span style={{ fontWeight: 600, color: '#1B3A6B' }}> · {p.job_name}</span> : ''} <span style={{ fontWeight: 400, color: 'var(--mist)' }}>· {p.vendor?.name || 'No vendor'}{p.location?.name ? ` → ${p.location.name}` : ''}</span>
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--mist)' }}>{p.received}/{p.ordered} received</div>
                     </div>
