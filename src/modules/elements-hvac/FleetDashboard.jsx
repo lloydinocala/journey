@@ -53,7 +53,8 @@ export default function FleetDashboard({ profile }) {
     d.forEach((r) => {
       const st = inspectionDue(lastMap[r.vehicle.id], settings, odoMap[r.vehicle.id] ?? null)
       if (st.state === 'overdue' || st.state === 'due_soon') {
-        items.push({ color: st.state === 'overdue' ? 'red' : 'amber', label: `Inspection ${st.label.toLowerCase()} — ${r.vehicle.name}` })
+        const insLabel = st.label.startsWith('No inspection') ? `No inspection yet — ${r.vehicle.name}` : `Inspection ${st.label.toLowerCase()} — ${r.vehicle.name}`
+        items.push({ color: st.state === 'overdue' ? 'red' : 'amber', label: insLabel })
       }
     })
     // Red first
