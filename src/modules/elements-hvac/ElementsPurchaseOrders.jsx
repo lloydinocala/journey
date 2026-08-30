@@ -31,7 +31,7 @@ export default function ElementsPurchaseOrders({ profile }) {
   const [items, setItems] = useState([])
   const [selectedId, setSelectedId] = useState('')
   const [mode, setMode] = useState('view')     // view | new
-  const [statusFilter, setStatusFilter] = useState('open')
+  const [statusFilter, setStatusFilter] = useState('relevant')
   const [search, setSearch] = useState('')
   const [po, setPo] = useState(null)           // loaded detail
   const [busy, setBusy] = useState(false)
@@ -94,18 +94,38 @@ export default function ElementsPurchaseOrders({ profile }) {
     return () => document.removeEventListener('mousedown', onDoc)
   }, [])
 
-  const rows = useMemo(() => pos.filter((p) => {
+  // "Relevant" = the everyday view: in-flight POs plus receipts from the last
+  // 30 days. Cancelled and older received POs stay out until you pick their
+  // filter, so the list doesn't grow unwieldy over time. Search always runs
+  // WITHIN the chosen filter — to dig up an old receipt, switch to Received.
+  const RECEIPT_WINDOW_DAYS = 30
+  const rows = useMemo(() => {
     const term = search.trim().toLowerCase()
-    // A search finds POs of ANY status — a clerk shouldn't need to know it's
-    // received or cancelled to look it up. The status dropdown only narrows
-    // the browse view when the search box is empty.
-    if (term) {
-      return `${p.po_number || ''} ${p.job_name || ''} ${p.vendor?.name || ''} ${p.location?.name || ''} ${p.partsText || ''}`.toLowerCase().includes(term)
+    const cutoff = Date.now() - RECEIPT_WINDOW_DAYS * 24 * 60 * 60 * 1000
+    const recentlyReceived = (p) => {
+      const d = p.received_at || p.created_at
+      return d ? new Date(d).getTime() >= cutoff : false
     }
-    if (statusFilter === 'open' && (p.status === 'received' || p.status === 'cancelled')) return false
-    if (statusFilter !== 'open' && statusFilter !== 'all' && p.status !== statusFilter) return false
-    return true
-  }), [pos, statusFilter, search])
+    const inFilter = (p) => {
+      switch (statusFilter) {
+        case 'relevant':
+          if (p.status === 'cancelled') return false
+          if (p.status === 'received') return recentlyReceived(p)
+          return true // draft / ordered / partial
+        case 'open':
+          return p.status !== 'received' && p.status !== 'cancelled'
+        case 'all':
+          return true
+        default:
+          return p.status === statusFilter
+      }
+    }
+    return pos.filter((p) => {
+      if (!inFilter(p)) return false
+      if (term) return `${p.po_number || ''} ${p.job_name || ''} ${p.vendor?.name || ''} ${p.location?.name || ''} ${p.partsText || ''}`.toLowerCase().includes(term)
+      return true
+    })
+  }, [pos, statusFilter, search])
 
   // ---- new PO ----
   function startNew() {
@@ -305,17 +325,18 @@ export default function ElementsPurchaseOrders({ profile }) {
         <div style={{ flex: '1 1 320px', minWidth: 280, maxWidth: 420 }}>
           <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div className="field" style={{ marginBottom: 0, flex: 1, minWidth: 140 }}><label>Search</label>
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search all POs — number, name, vendor, or part…" />
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search — number, name, vendor, or part…" />
             </div>
             <div className="field" style={{ marginBottom: 0 }}><label>Show</label>
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="open">Open</option>
+                <option value="relevant">Relevant</option>
+                <option value="open">Open (awaiting receipt)</option>
                 <option value="draft">Draft</option>
                 <option value="ordered">Ordered</option>
                 <option value="partial">Partial</option>
-                <option value="received">Received</option>
+                <option value="received">Received (all)</option>
                 <option value="cancelled">Cancelled</option>
-                <option value="all">All</option>
+                <option value="all">Everything</option>
               </select>
             </div>
           </div>
@@ -338,7 +359,7 @@ export default function ElementsPurchaseOrders({ profile }) {
                 </div>
               )
             })}
-            {rows.length === 0 && <div style={{ padding: 16, color: 'var(--mist)' }}>No purchase orders for this filter.</div>}
+            {rows.length === 0 && <div style={{ padding: 16, color: 'var(--mist)' }}>{search.trim() ? 'No matches in this view. Try the "Received (all)" or "Everything" filter for older or cancelled POs.' : 'No purchase orders for this filter.'}</div>}
           </div>
         </div>
 
