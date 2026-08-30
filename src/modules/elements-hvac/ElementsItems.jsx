@@ -254,10 +254,14 @@ export default function ElementsItems({ profile }) {
 
   async function handleDelete(it) {
     setError('')
-    const sk = stock[it.id]
-    if ((sk && sk.onHand > 0) || mapped.has(it.id)) {
-      // Guarded: never let a part with stock or a live service mapping be deleted.
-      setError(`Can’t delete “${it.description || it.sku}” — it ${sk && sk.onHand > 0 ? 'still has stock on hand' : ''}${sk && sk.onHand > 0 && mapped.has(it.id) ? ' and ' : ''}${mapped.has(it.id) ? 'is mapped to a service' : ''}. Archive it instead — that keeps its history and mappings intact.`)
+    const onHand = stock[it.id] ? stock[it.id].onHand : 0
+    if (onHand !== 0 || mapped.has(it.id)) {
+      // Guarded: never let a part with a stock balance (positive OR negative) or a
+      // live service mapping be deleted.
+      const bits = []
+      if (onHand !== 0) bits.push(onHand < 0 ? 'has a negative on-hand balance to investigate' : 'still has stock on hand')
+      if (mapped.has(it.id)) bits.push('is mapped to a service')
+      setError(`Can’t delete “${it.description || it.sku}” — it ${bits.join(' and ')}. Archive it instead — that keeps its history and mappings intact.`)
       return
     }
     if (!window.confirm(`Permanently delete "${it.description || it.sku}"? This can only be done for an empty part with no stock or history. If it has usage history, use Archive instead.`)) return
@@ -361,7 +365,8 @@ export default function ElementsItems({ profile }) {
         <tbody>
           {filtered.map((it) => {
             const sk = stock[it.id]
-            const hasStock = !!(sk && sk.onHand > 0)
+            const raw = sk ? sk.onHand : 0
+            const hasStock = raw !== 0
             const isMapped = mapped.has(it.id)
             const delBlocked = hasStock || isMapped
             return (
@@ -370,7 +375,7 @@ export default function ElementsItems({ profile }) {
                 <button className="auth-button" style={{ width: 'auto', margin: 0, marginRight: 6, padding: '4px 10px' }} onClick={() => startEdit(it)}>Edit</button>
                 <button className="logout-button" style={{ marginRight: 6 }} onClick={() => inlineUpdate(it, { is_active: !it.is_active })}>{it.is_active ? 'Archive' : 'Restore'}</button>
                 <button className="logout-button" onClick={() => handleDelete(it)} disabled={delBlocked}
-                  title={delBlocked ? (hasStock ? 'Has stock on hand — Archive instead.' : 'Mapped to a service — Archive instead.') : 'Only for empty parts with no stock or history.'}>Delete</button>
+                  title={delBlocked ? (hasStock ? (raw < 0 ? 'Negative on hand — investigate with a count; Archive instead.' : 'Has stock on hand — Archive instead.') : 'Mapped to a service — Archive instead.') : 'Only for empty parts with no stock or history.'}>Delete</button>
               </td>
               <td>{it.description || '—'}{it.stock_type === 'special_order' ? <span className="badge" style={{ marginLeft: 6, background: '#F8EEDD', color: '#B0600A' }}>Special order</span> : null}</td>
               <td>{it.category || '—'}</td>
@@ -384,8 +389,8 @@ export default function ElementsItems({ profile }) {
               <td style={{ color: 'var(--mist)', fontSize: 13 }}>
                 {it.base_uom}{it.stock_uom ? ` · ${it.units_per_stock_uom || '?'}/${it.stock_uom}` : ''}
               </td>
-              <td style={hasStock ? { fontWeight: 600, color: '#152238' } : { color: 'var(--mist)' }}>
-                {hasStock ? sk.onHand.toLocaleString() : '—'}
+              <td style={raw < 0 ? { fontWeight: 700, color: '#B00020' } : raw > 0 ? { fontWeight: 600, color: '#152238' } : { color: 'var(--mist)' }}>
+                {raw !== 0 ? raw.toLocaleString() : '—'}
               </td>
               <td>{it.last_cost != null ? `$${Number(it.last_cost).toFixed(2)}` : '—'}</td>
             </tr>
