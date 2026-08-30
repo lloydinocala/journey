@@ -771,3 +771,118 @@ export async function listVendorAliasesDetailed(orgId, vendorId) {
 export async function deleteItemVendor(id) {
   return supabase.from('elements_item_vendors').delete().eq('id', id)
 }
+
+// ---- Cycle counts (P5a) ---------------------------------------------------
+// A count session snapshots expected on-hand for a location, captures the
+// physical count, and on posting writes 'count' ledger rows to bring on-hand
+// to the counted value. Blind counts hide the book qty until the review step.
+export async function listCycleCounts(orgId) {
+  const { data } = await supabase.from('elements_cycle_counts')
+    .select('id, status, scope, category, blind, note, created_at, posted_at, adjustments_count, net_qty_delta, location:elements_locations(name, type), lines:elements_cycle_count_lines(id, counted_qty)')
+    .eq('org_id', orgId).order('created_at', { ascending: false })
+  return (data || []).map((s) => {
+    const lines = s.lines || []
+    return { ...s, lineCount: lines.length, countedCount: lines.filter((l) => l.counted_qty != null).length }
+  })
+}
+
+// Start a count for a location. Seeds one line per item that has a stock level
+// at that location (expected = current on-hand). scope 'category' narrows to a
+// single catalog category; 'manual' seeds nothing (add items by hand).
+export async function createCycleCount(orgId, { location_id, blind = true, scope = 'all', category = null, note = null, createdBy = null }) {
+  if (!location_id) return { error: { message: 'Pick a location to count.' } }
+  const { data: session, error } = await supabase.from('elements_cycle_counts')
+    .insert({ org_id: orgId, location_id, blind: !!blind, scope, category: scope === 'category' ? category : null, note: note || null, created_by: createdBy || null, status: 'open' })
+    .select().single()
+  if (error) return { error }
+  if (scope !== 'manual') {
+    const { data: levels } = await supabase.from('elements_stock_levels')
+      .select('item_id, on_hand, item:elements_items(category, is_active)')
+      .eq('org_id', orgId).eq('location_id', location_id)
+    let rows = (levels || []).filter((l) => l.item && l.item.is_active !== false)
+    if (scope === 'category' && category) rows = rows.filter((l) => (l.item?.category || '') === category)
+    const lines = rows.map((l) => ({ org_id: orgId, count_id: session.id, item_id: l.item_id, expected_qty: Number(l.on_hand || 0) }))
+    if (lines.length) await supabase.from('elements_cycle_count_lines').insert(lines)
+  }
+  return { session }
+}
+
+// Session header + lines (with item info) + current on-hand per line, so the UI
+// can show live variance and post against the true current quantity.
+export async function getCycleCount(orgId, id) {
+  const { data: s } = await supabase.from('elements_cycle_counts')
+    .select('*, location:elements_locations(id, name, type)')
+    .eq('org_id', orgId).eq('id', id).maybeSingle()
+  if (!s) return null
+  const { data: lines } = await supabase.from('elements_cycle_count_lines')
+    .select('*, item:elements_items(id, sku, description, category)')
+    .eq('org_id', orgId).eq('count_id', id)
+  const { data: levels } = await supabase.from('elements_stock_levels')
+    .select('item_id, on_hand, bin').eq('org_id', orgId).eq('location_id', s.location_id)
+  const cur = {}; (levels || []).forEach((l) => { cur[l.item_id] = { on_hand: Number(l.on_hand || 0), bin: l.bin || null } })
+  const withCur = (lines || []).map((l) => ({ ...l, current_on_hand: cur[l.item_id]?.on_hand ?? 0, bin: cur[l.item_id]?.bin || null }))
+    .sort((a, b) => (a.item?.category || '').localeCompare(b.item?.category || '') || (a.item?.description || '').localeCompare(b.item?.description || ''))
+  return { ...s, lines: withCur }
+}
+
+export async function setCycleCountLine(orgId, lineId, countedQty) {
+  const v = (countedQty === '' || countedQty == null) ? null : Number(countedQty)
+  return supabase.from('elements_cycle_count_lines').update({ counted_qty: v }).eq('org_id', orgId).eq('id', lineId)
+}
+
+// Add an item not seeded into the session (found on the shelf/truck).
+export async function addCycleCountItem(orgId, countId, locationId, itemId) {
+  const { data: lvl } = await supabase.from('elements_stock_levels')
+    .select('on_hand').eq('org_id', orgId).eq('location_id', locationId).eq('item_id', itemId).maybeSingle()
+  return supabase.from('elements_cycle_count_lines')
+    .insert({ org_id: orgId, count_id: countId, item_id: itemId, expected_qty: Number(lvl?.on_hand || 0) })
+    .select('*, item:elements_items(id, sku, description, category)').single()
+}
+
+export async function deleteCycleCountLine(orgId, lineId) {
+  return supabase.from('elements_cycle_count_lines').delete().eq('org_id', orgId).eq('id', lineId)
+}
+
+// Post the count: for each counted line, adjust on-hand to the counted value by
+// writing a 'count' ledger row for the delta vs the CURRENT on-hand (so any
+// movement during the count is respected), then recompute the cached level.
+export async function postCycleCount(orgId, countId, postedBy = null) {
+  const { data: s } = await supabase.from('elements_cycle_counts')
+    .select('id, location_id, status').eq('org_id', orgId).eq('id', countId).maybeSingle()
+  if (!s) return { error: { message: 'Count not found.' } }
+  if (s.status !== 'open') return { error: { message: 'This count has already been ' + s.status + '.' } }
+  const { data: lines } = await supabase.from('elements_cycle_count_lines')
+    .select('id, item_id, counted_qty').eq('org_id', orgId).eq('count_id', countId)
+  const counted = (lines || []).filter((l) => l.counted_qty != null)
+  if (!counted.length) return { error: { message: 'Enter at least one counted quantity before posting.' } }
+  let adjustments = 0, net = 0
+  for (const l of counted) {
+    const { data: lvl } = await supabase.from('elements_stock_levels')
+      .select('on_hand').eq('org_id', orgId).eq('location_id', s.location_id).eq('item_id', l.item_id).maybeSingle()
+    const current = Number(lvl?.on_hand || 0)
+    const delta = Number(l.counted_qty) - current
+    if (delta !== 0) {
+      const { error } = await supabase.from('elements_stock_txns').insert({
+        org_id: orgId, item_id: l.item_id, location_id: s.location_id, txn_type: 'count',
+        qty_delta: delta, ref_type: 'cycle_count', ref_id: countId, reason_code: 'cycle_count', created_by: postedBy || null,
+      })
+      if (error) return { error }
+      await recomputeLevel(orgId, l.item_id, s.location_id)
+      adjustments += 1; net += delta
+    }
+    await supabase.from('elements_cycle_count_lines').update({ posted_delta: delta }).eq('id', l.id)
+  }
+  await supabase.from('elements_cycle_counts')
+    .update({ status: 'posted', posted_at: new Date().toISOString(), posted_by: postedBy || null, adjustments_count: adjustments, net_qty_delta: net })
+    .eq('org_id', orgId).eq('id', countId)
+  return { adjustments, net, counted: counted.length }
+}
+
+export async function cancelCycleCount(orgId, countId) {
+  return supabase.from('elements_cycle_counts').update({ status: 'cancelled' }).eq('org_id', orgId).eq('id', countId).eq('status', 'open')
+}
+
+export async function deleteCycleCount(orgId, countId) {
+  await supabase.from('elements_cycle_count_lines').delete().eq('org_id', orgId).eq('count_id', countId)
+  return supabase.from('elements_cycle_counts').delete().eq('org_id', orgId).eq('id', countId)
+}
