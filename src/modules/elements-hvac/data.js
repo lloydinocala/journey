@@ -85,6 +85,26 @@ export async function listLocationStock(orgId) {
   return map
 }
 
+// On-hand per item across all locations (non-zero), valued at item cost.
+// Used by the Item Catalog to show stock and guard Delete.
+export async function listItemStock(orgId) {
+  const { data } = await supabase
+    .from('elements_stock_levels')
+    .select('item_id, on_hand, item:elements_items(avg_cost, last_cost, standard_cost)')
+    .eq('org_id', orgId)
+  const map = {}
+  ;(data || []).forEach((r) => {
+    const oh = Number(r.on_hand || 0)
+    if (!oh) return
+    const it = r.item || {}
+    const cost = it.avg_cost != null ? it.avg_cost : (it.last_cost != null ? it.last_cost : (it.standard_cost != null ? it.standard_cost : 0))
+    const m = map[r.item_id] || (map[r.item_id] = { onHand: 0, value: 0 })
+    m.onHand += oh
+    m.value += oh * Number(cost || 0)
+  })
+  return map
+}
+
 // ---- Items (SKU catalog) --------------------------------------------------
 export async function listItems(orgId, { includeInactive = false } = {}) {
   let q = supabase.from('elements_items').select('*').eq('org_id', orgId).order('category').order('sku')
