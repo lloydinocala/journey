@@ -423,7 +423,7 @@ export async function listVendors(orgId) {
 // PO list with vendor/location names and received progress.
 export async function listPurchaseOrders(orgId) {
   const { data } = await supabase.from('elements_purchase_orders')
-    .select('id, po_number, status, notes, ordered_at, expected_at, created_at, vendor:vendors(name), location:elements_locations(name), lines:elements_po_lines(qty_ordered, qty_received, unit_cost)')
+    .select('id, po_number, status, notes, ordered_at, expected_at, created_at, vendor:vendors(name), location:elements_locations(name), lines:elements_po_lines(qty_ordered, qty_received, unit_cost, item:elements_items(description))')
     .eq('org_id', orgId).order('created_at', { ascending: false })
   return (data || []).map((po) => {
     const lines = po.lines || []
@@ -433,6 +433,7 @@ export async function listPurchaseOrders(orgId) {
       ordered: lines.reduce((s, l) => s + Number(l.qty_ordered || 0), 0),
       received: lines.reduce((s, l) => s + Number(l.qty_received || 0), 0),
       value: lines.reduce((s, l) => s + Number(l.qty_ordered || 0) * Number(l.unit_cost || 0), 0),
+      partsText: lines.map((l) => l.item?.description || '').join(' '),
     }
   })
 }
