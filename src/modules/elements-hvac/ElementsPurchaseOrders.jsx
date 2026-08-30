@@ -88,9 +88,15 @@ export default function ElementsPurchaseOrders({ profile }) {
   }, [])
 
   const rows = useMemo(() => pos.filter((p) => {
+    const term = search.trim().toLowerCase()
+    // A search finds POs of ANY status — a clerk shouldn't need to know it's
+    // received or cancelled to look it up. The status dropdown only narrows
+    // the browse view when the search box is empty.
+    if (term) {
+      return `${p.po_number || ''} ${p.vendor?.name || ''} ${p.location?.name || ''} ${p.partsText || ''}`.toLowerCase().includes(term)
+    }
     if (statusFilter === 'open' && (p.status === 'received' || p.status === 'cancelled')) return false
     if (statusFilter !== 'open' && statusFilter !== 'all' && p.status !== statusFilter) return false
-    if (search && !(`${p.po_number || ''} ${p.vendor?.name || ''} ${p.location?.name || ''} ${p.partsText || ''}`.toLowerCase().includes(search.toLowerCase()))) return false
     return true
   }), [pos, statusFilter, search])
 
@@ -216,7 +222,7 @@ export default function ElementsPurchaseOrders({ profile }) {
         <div style={{ flex: '1 1 320px', minWidth: 280, maxWidth: 420 }}>
           <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div className="field" style={{ marginBottom: 0, flex: 1, minWidth: 140 }}><label>Search</label>
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="PO#, vendor, or part…" />
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search all POs — number, vendor, or part…" />
             </div>
             <div className="field" style={{ marginBottom: 0 }}><label>Show</label>
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
