@@ -371,16 +371,28 @@ export const HELP_ARTICLES = [
     id: 'inv-locations',
     title: 'Locations (Warehouses & Trucks)',
     area: 'Inventory',
-    keywords: ['location', 'locations', 'warehouse', 'shop', 'truck', 'vehicle', 'fleet', 'assigned technician', 'archive'],
-    purpose: 'Your stocking locations: warehouses / shops and service trucks. On-hand is tracked per location, so you always know what is where.',
+    keywords: ['locations', 'warehouse', 'shop', 'truck', 'vehicle', 'fleet', 'assigned', 'available', 'archive', 'retire', 'delete', 'transfer', 'spare', 'status'],
+    purpose: 'Your stocking locations: warehouses / shops and service trucks. On-hand is tracked per location, so you always know what is where. Trucks carry a lifecycle status so stock and history are never lost when a vehicle changes hands or leaves service.',
     sections: [
       { h: 'How to use it', items: [
         'Add a Warehouse / Shop with a name and address.',
         'Add a Truck by picking a vehicle from Fleet — its name and assigned technician come straight from the Fleet record, so the two never drift apart.',
-        'Edit, Archive, or Delete from the row. Archive hides a location but keeps its history; Delete is only allowed when it holds no stock or usage.',
-        'Turn on "Show archived" to see archived locations.',
+        'The Stock column shows what each location is currently carrying (parts and value).',
       ]},
-      { h: 'Good to know', body: 'Trucks must be recorded in Fleet → Vehicles first. A truck’s assigned technician is read-only here — change it on the Fleet vehicle and it follows automatically.' },
+      { h: 'Truck status (set automatically)', items: [
+        'Assigned — an active truck with a driver assigned in Fleet.',
+        'Available — an active truck with no driver right now. It is still live and can hold stock; a truck between drivers belongs here, not in Archive. This follows Fleet automatically — assign a driver and it becomes Assigned again.',
+        'Archived — benched or surplus, kept for future use. History is preserved and it can be restored.',
+        'Retired — permanently out of the fleet. History is kept forever, and it can still be restored if the vehicle ever returns.',
+      ]},
+      { h: 'Archive, Retire, and Delete', items: [
+        'Archive or Retire is blocked while a location still holds stock — transfer the stock to another location first (Stock & Receiving → Transfer), so inventory is never hidden.',
+        'Archive is for a vehicle temporarily out of rotation (surplus, or off the road for now) that stays in the fleet.',
+        'Retire is for a vehicle permanently out of fleet service. It keeps all history — nothing is destroyed.',
+        'Delete is only for empty records created by mistake — it is disabled the moment a location holds stock, and the database blocks it if any history exists. Use Retire, not Delete, for a real vehicle.',
+        'Turn on "Show archived & retired" to see inactive locations and Restore them.',
+      ]},
+      { h: 'Good to know', body: 'Trucks must be recorded in Fleet → Vehicles first. A truck’s assigned technician is read-only here — change it on the Fleet vehicle and it follows automatically, including whether the truck shows as Assigned or Available.' },
     ],
   },
   {
