@@ -53,6 +53,38 @@ export async function deleteLocation(id) {
   return supabase.from('elements_locations').delete().eq('id', id)
 }
 
+// Retire = permanent removal that KEEPS history. Sets retired_at and deactivates;
+// the row and all its stock/usage history stay in the database forever.
+export async function retireLocation(id) {
+  return supabase.from('elements_locations').update({ retired_at: new Date().toISOString(), is_active: false }).eq('id', id)
+}
+
+// Bring an archived or retired location back into active service.
+export async function restoreLocation(id) {
+  return supabase.from('elements_locations').update({ is_active: true, retired_at: null }).eq('id', id)
+}
+
+// Current stock on hand per location (non-zero only), valued at item cost.
+// Used to guard Archive / Retire / Delete so stock is never hidden or orphaned.
+export async function listLocationStock(orgId) {
+  const { data } = await supabase
+    .from('elements_stock_levels')
+    .select('location_id, on_hand, item:elements_items(avg_cost, last_cost, standard_cost)')
+    .eq('org_id', orgId)
+  const map = {}
+  ;(data || []).forEach((r) => {
+    const oh = Number(r.on_hand || 0)
+    if (!oh) return
+    const it = r.item || {}
+    const cost = it.avg_cost != null ? it.avg_cost : (it.last_cost != null ? it.last_cost : (it.standard_cost != null ? it.standard_cost : 0))
+    const m = map[r.location_id] || (map[r.location_id] = { parts: 0, units: 0, value: 0 })
+    m.parts += 1
+    m.units += oh
+    m.value += oh * Number(cost || 0)
+  })
+  return map
+}
+
 // ---- Items (SKU catalog) --------------------------------------------------
 export async function listItems(orgId, { includeInactive = false } = {}) {
   let q = supabase.from('elements_items').select('*').eq('org_id', orgId).order('category').order('sku')
