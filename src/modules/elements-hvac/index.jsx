@@ -4,6 +4,7 @@ import ElementsInventory from './ElementsInventory'
 import ElementsLocations from './ElementsLocations'
 import ElementsItems from './ElementsItems'
 import ElementsStock from './ElementsStock'
+import ElementsCycleCounts from './ElementsCycleCounts'
 import ElementsReplenishment from './ElementsReplenishment'
 import ElementsPurchaseOrders from './ElementsPurchaseOrders'
 import ElementsVendorInvoices from './ElementsVendorInvoices'
@@ -27,6 +28,7 @@ export const ELEMENTS_ROUTES = [
   { path: '/elements/locations', Component: ElementsLocations },
   { path: '/elements/items', Component: ElementsItems },
   { path: '/elements/stock', Component: ElementsStock },
+  { path: '/elements/cycle-counts', Component: ElementsCycleCounts },
   { path: '/elements/replenishment', Component: ElementsReplenishment },
   { path: '/elements/purchasing', Component: ElementsPurchaseOrders },
   { path: '/elements/ap', Component: ElementsVendorInvoices },
@@ -46,6 +48,7 @@ export const ELEMENTS_NAV = {
     { label: 'Locations', path: '/elements/locations' },
     { label: 'Item Catalog', path: '/elements/items' },
     { label: 'Stock & Receiving', path: '/elements/stock' },
+    { label: 'Cycle Counts', path: '/elements/cycle-counts' },
     { label: 'Replenishment', path: '/elements/replenishment' },
     { label: 'Purchase Orders', path: '/elements/purchasing' },
     { label: 'Vendor Invoices (A/P)', path: '/elements/ap' },
