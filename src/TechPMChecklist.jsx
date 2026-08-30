@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import QuincyDock from './QuincyDock'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 
@@ -173,6 +174,7 @@ export default function TechPMChecklist({ profile }) {
           </button>
         )}
       </div>
+    <QuincyDock profile={profile} />
     </div>
   )
 }

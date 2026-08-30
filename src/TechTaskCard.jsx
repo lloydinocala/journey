@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import QuincyDock from './QuincyDock'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { IconChevronLeft, IconPin, IconNavigation, IconList, IconPhone, IconMessage } from './MobileIcons'
@@ -355,6 +356,7 @@ export default function TechTaskCard({ profile }) {
           </div>
         </div>
       )}
+    <QuincyDock profile={profile} />
     </div>
   )
 }

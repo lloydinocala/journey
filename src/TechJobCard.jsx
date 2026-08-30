@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
+import QuincyDock from './QuincyDock'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import SignaturePad from './SignaturePad'
@@ -1627,6 +1628,7 @@ export default function TechJobCard({ profile }) {
       )}
 
       {lockHint && <div className="jc-lock-hint">Tap STOP MY TIME before leaving this job.</div>}
+    <QuincyDock profile={profile} />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import QuincyDock from './QuincyDock'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { IconChevronLeft, IconCalculator } from './MobileIcons'
@@ -490,6 +491,7 @@ export default function TechSystemEstimate({ profile }) {
           </div>
         </div>
       </div>
+    <QuincyDock profile={profile} />
     </div>
   )
 }
