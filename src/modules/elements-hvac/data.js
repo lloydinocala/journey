@@ -967,3 +967,12 @@ export async function listAnomalies() {
   if (error) return []
   return data || []
 }
+
+// ---- Job costing (P5d) ----------------------------------------------------
+// Per-invoice actual material cost (from recorded parts-used consumption) vs the
+// billed amount. Labor is not included — this is material spend and margin.
+export async function jobCosting(days = 180) {
+  const { data, error } = await supabase.rpc('elements_job_costing', { p_days: days })
+  if (error) return []
+  return data || []
+}
