@@ -426,10 +426,17 @@ export const HELP_ARTICLES = [
       { h: 'How to use it', items: [
         'Pick a location to see its on-hand for every part.',
         'Receive adds stock at a unit cost (e.g. a delivery straight to the shop) — this updates the part’s last cost.',
-        'Transfer moves stock from one location to another (e.g. shop → truck).',
+        'Transfer moves stock from one location to another (e.g. shop → truck). You can’t transfer more than the From location holds — receive it there first.',
         'Set a Reorder point and a Max (par) per part per location — these drive Replenishment.',
       ]},
-      { h: 'Good to know', body: 'Receiving against a purchase order is done from Purchase Orders (not here), so PO progress and costs stay in sync. Use this screen for manual receipts and transfers.' },
+      { h: 'What the Status column means', items: [
+        'In stock (green) — above the reorder point.',
+        'Low (amber) — at or below the reorder point; it will show up on Replenishment.',
+        'Out (red) — a part you carry here (a reorder point is set) has hit zero.',
+        'Check (red) — on-hand is negative, which should never happen; fix it with a cycle count. A negative on-hand also shows the number in red.',
+        'Not stocked / Special order (grey) — this location does not carry the part, or it is a special-order part bought per job; neither is a shortage.',
+      ]},
+      { h: 'Good to know', body: 'Receiving against a purchase order is done from Purchase Orders (not here), so PO progress and costs stay in sync. Use this screen for manual receipts and transfers. Every change writes to the stock ledger — nothing is overwritten.' },
     ],
   },
   {
