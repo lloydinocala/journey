@@ -147,7 +147,7 @@ export default function TechCycleCounts({ profile }) {
             return (
               <div key={l.id} className="cc-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 4px', borderBottom: '1px solid var(--line, #E2E8F0)' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, color: 'var(--ink, #152238)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.item?.description || 'Item'}</div>
+                  <div style={{ fontWeight: 600, color: '#152238', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.item?.description || 'Item'}</div>
                   <div style={{ fontSize: 12, color: 'var(--mist)' }}>
                     {l.item?.category || 'Uncategorized'}
                     {revealed ? ` · expected ${expected}` : ''}
@@ -242,7 +242,7 @@ export default function TechCycleCounts({ profile }) {
               <button key={c.id} className="cc-list-item" onClick={() => openCount(c.id)}
                 style={{ display: 'flex', width: '100%', textAlign: 'left', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '14px 12px', marginBottom: 8, borderRadius: 12, border: '1px solid var(--line, #E2E8F0)', background: 'var(--card, #fff)' }}>
                 <div>
-                  <div style={{ fontWeight: 700, color: 'var(--ink, #152238)' }}>{c.location?.name || 'Location'}</div>
+                  <div style={{ fontWeight: 700, color: '#152238' }}>{c.location?.name || 'Location'}</div>
                   <div style={{ fontSize: 12.5, color: 'var(--mist)' }}>{fmt(c.created_at)} · {c.countedCount}/{c.lineCount} counted{c.blind ? ' · blind' : ''}</div>
                 </div>
                 <span className="badge" style={{ background: '#F8EEDD', color: '#B0600A' }}>In progress</span>
@@ -255,7 +255,7 @@ export default function TechCycleCounts({ profile }) {
                 {done.map((c) => (
                   <div key={c.id} style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px', marginBottom: 8, borderRadius: 12, border: '1px solid var(--line, #E2E8F0)' }}>
                     <div>
-                      <div style={{ fontWeight: 600, color: 'var(--ink, #152238)' }}>{c.location?.name || 'Location'}</div>
+                      <div style={{ fontWeight: 600, color: '#152238' }}>{c.location?.name || 'Location'}</div>
                       <div style={{ fontSize: 12.5, color: 'var(--mist)' }}>
                         {fmt(c.posted_at || c.created_at)}
                         {c.status === 'posted' ? ` · ${c.adjustments_count ?? 0} adj · net ${c.net_qty_delta > 0 ? '+' : ''}${c.net_qty_delta ?? 0}` : ' · cancelled'}
