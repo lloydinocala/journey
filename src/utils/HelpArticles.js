@@ -349,15 +349,21 @@ export const HELP_ARTICLES = [
   },
   {
     id: 'inv-overview',
-    title: 'Inventory Overview',
+    title: 'Inventory Dashboard',
     area: 'Inventory',
-    keywords: ['inventory', 'overview', 'module', 'landing', 'elements', 'enabled', 'trucks', 'warehouses', 'parts', 'mapped'],
-    purpose: 'The landing page for Inventory Management — a quick pulse of the module (trucks, warehouses, parts, mapped services) and shortcuts into each area.',
+    keywords: ['inventory', 'overview', 'dashboard', 'module', 'landing', 'elements', 'enabled', 'trucks', 'warehouses', 'parts', 'mapped', 'low stock', 'open pos', 'at a glance'],
+    purpose: 'The landing page for Inventory Management — an at-a-glance dashboard of the four things worth watching (low stock, open POs, recent variance, and inventory value), plus module stats and shortcuts into each area.',
     sections: [
-      { h: 'How to use it', items: [
-        'The tiles across the top count your trucks, warehouses, catalog parts, and the services that have a parts kit mapped.',
-        'The cards below link into Locations, Item Catalog, Service → Part Mapping, Parts Usage, and Inventory Settings.',
-        'The pill by the title shows whether the module is enabled. If it is off, turn it on in Inventory Settings once your items, trucks, and mappings are ready.',
+      { h: 'At a glance', items: [
+        'Low stock — how many stock lines are at or under their reorder point; click through to Replenishment. It turns amber when anything needs reordering.',
+        'Open purchase orders — POs that are ordered or partially received, with the next expected delivery date and the dollar value on order; click through to Purchase Orders.',
+        'Variance (90 days) — the net dollar impact of posted count adjustments and matched-invoice price/qty differences over the last 90 days; click through to Inventory Variance.',
+        'Inventory value — what stock on hand is worth right now at cost; click through to Inventory Valuation.',
+      ]},
+      { h: 'The rest of the page', items: [
+        'Below the cards, the stat tiles count your trucks, warehouses, catalog parts, and services with a parts kit mapped.',
+        'The navigation cards link into Locations, Item Catalog, Stock & Receiving, Cycle Counts, Purchase Orders, Service → Part Mapping, and Inventory Settings.',
+        'The pill by the title shows whether the module is enabled; turn it on in Inventory Settings once your items, trucks, and mappings are ready. Use Refresh to repull the live numbers.',
       ]},
     ],
   },
