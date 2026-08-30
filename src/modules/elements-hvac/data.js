@@ -740,3 +740,34 @@ export async function adjustReceived(orgId, poId, adjustments) {
   }
   return { count: changed, status }
 }
+
+// ---- Alias suggestion tool (seed the crosswalk from purchase history) ------
+// Vendors we have historical offerings for, with how many aliases are already
+// learned. Drives the vendor picker on the Vendor Cross-Reference screen.
+export async function listAliasVendorStats() {
+  const { data, error } = await supabase.rpc('elements_alias_vendor_stats')
+  if (error) return []
+  return data || []
+}
+
+// Ask Quincy to propose vendor part -> catalog item matches from purchase
+// history. Returns { items: [{ item_*, candidates[], ai_pick, confidence,
+// reason }], stats }. The user confirms picks before anything is saved.
+export async function suggestAliases(vendorId) {
+  const { data, error } = await supabase.functions.invoke('suggest-aliases', { body: { vendorId } })
+  if (error) return { error }
+  if (data?.error) return { error: { message: data.error } }
+  return { data }
+}
+
+// Existing learned aliases for a vendor, with the catalog item they map to.
+export async function listVendorAliasesDetailed(orgId, vendorId) {
+  const { data } = await supabase.from('elements_item_vendors')
+    .select('id, item_id, vendor_sku, vendor_description, last_cost, item:elements_items(description, sku, category)')
+    .eq('org_id', orgId).eq('vendor_id', vendorId).order('created_at', { ascending: false })
+  return data || []
+}
+
+export async function deleteItemVendor(id) {
+  return supabase.from('elements_item_vendors').delete().eq('id', id)
+}
