@@ -257,9 +257,9 @@ export default function ElementsLocations({ profile }) {
       </label>
 
       <div style={{ overflowX: 'auto' }}>
-        <table className="data-table">
+        <table className="data-table" style={{ minWidth: 1040 }}>
           <thead>
-            <tr><th>Actions</th><th>Type</th><th>Name</th><th>Status</th><th>Assigned technician</th><th>Stock</th><th>Address</th></tr>
+            <tr><th style={{ minWidth: 300 }}>Actions</th><th>Type</th><th>Name</th><th>Status</th><th>Assigned technician</th><th>Stock</th><th>Address</th></tr>
           </thead>
           <tbody>
             {locations.map((loc) => {
@@ -270,16 +270,16 @@ export default function ElementsLocations({ profile }) {
               return (
                 <tr key={loc.id} style={editingId === loc.id ? { background: '#EEF3FB' } : undefined}>
                   <td style={{ whiteSpace: 'nowrap' }}>
-                    <button className="auth-button" style={{ width: 'auto', margin: 0, marginRight: 6, padding: '4px 10px' }} onClick={() => startEdit(loc)}>Edit</button>
+                    <button className="auth-button" style={{ width: 'auto', margin: 0, marginRight: 5, padding: '4px 9px', fontSize: 12 }} onClick={() => startEdit(loc)}>Edit</button>
                     {inactive ? (
-                      <button className="logout-button" style={{ marginRight: 6 }} onClick={() => restoreLoc(loc)}>Restore</button>
+                      <button className="logout-button" style={{ marginRight: 5, padding: '4px 9px', fontSize: 12 }} onClick={() => restoreLoc(loc)}>Restore</button>
                     ) : (
-                      <button className="logout-button" style={{ marginRight: 6 }} onClick={() => archiveLoc(loc)}>Archive</button>
+                      <button className="logout-button" style={{ marginRight: 5, padding: '4px 9px', fontSize: 12 }} onClick={() => archiveLoc(loc)}>Archive</button>
                     )}
                     {st !== 'retired' && (
-                      <button className="logout-button" style={{ marginRight: 6 }} onClick={() => retireLoc(loc)}>Retire</button>
+                      <button className="logout-button" style={{ marginRight: 5, padding: '4px 9px', fontSize: 12 }} onClick={() => retireLoc(loc)}>Retire</button>
                     )}
-                    <button className="logout-button" onClick={() => handleDelete(loc)} disabled={hasStock}
+                    <button className="logout-button" style={{ padding: '4px 9px', fontSize: 12 }} onClick={() => handleDelete(loc)} disabled={hasStock}
                       title={hasStock ? 'Carrying stock — transfer it off, then Archive or Retire.' : 'Only for empty records with no stock or history.'}>Delete</button>
                   </td>
                   <td>{loc.type === 'truck' ? 'Truck' : 'Warehouse / Shop'}</td>
