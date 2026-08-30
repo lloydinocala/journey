@@ -14,6 +14,7 @@ import ElementsVendorCrossref from './ElementsVendorCrossref'
 import ElementsServiceMap from './ElementsServiceMap'
 import ElementsPartsUsed from './ElementsPartsUsed'
 import ElementsUsageReport from './ElementsUsageReport'
+import ElementsValuation from './ElementsValuation'
 import ElementsJobCosting from './ElementsJobCosting'
 import ElementsForecast from './ElementsForecast'
 import ElementsSettings from './ElementsSettings'
@@ -42,6 +43,7 @@ export const ELEMENTS_ROUTES = [
   { path: '/elements/service-map', Component: ElementsServiceMap },
   { path: '/elements/parts-used', Component: ElementsPartsUsed },
   { path: '/elements/usage', Component: ElementsUsageReport },
+  { path: '/elements/valuation', Component: ElementsValuation },
   { path: '/elements/job-costing', Component: ElementsJobCosting },
   { path: '/elements/forecast', Component: ElementsForecast },
   { path: '/elements/settings', Component: ElementsSettings },
@@ -66,6 +68,7 @@ export const ELEMENTS_NAV = {
     { label: 'Service → Part Mapping', path: '/elements/service-map' },
     { label: 'Record Parts Used', path: '/elements/parts-used' },
     { label: 'Parts Usage', path: '/elements/usage' },
+    { label: 'Inventory Valuation', path: '/elements/valuation' },
     { label: 'Job Costing', path: '/elements/job-costing' },
     { label: 'Demand Forecast', path: '/elements/forecast' },
     { label: 'Inventory Settings', path: '/elements/settings' },
