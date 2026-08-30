@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Papa from 'papaparse'
 import { supabase } from '../../utils/supabase'
-import { listItems, addItem, updateItem, deleteItem, deriveSku } from './data'
+import { listItems, addItem, updateItem, deleteItem, deriveSku, listItemStock, listMaps } from './data'
 import { fetchAllRows, readFileSmart, normPrice, normalizeForMatch } from '../../utils/csvImport'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -44,15 +44,21 @@ export default function ElementsItems({ profile }) {
   const [importing, setImporting] = useState(false)
   const [importSummary, setImportSummary] = useState('')
   const [importProgress, setImportProgress] = useState('')
+  const [stock, setStock] = useState({})
+  const [mapped, setMapped] = useState(new Set())
 
   async function load() {
     if (!org.selectedOrg) return
-    const [its, vs] = await Promise.all([
+    const [its, vs, sk, maps] = await Promise.all([
       listItems(org.selectedOrg, { includeInactive: showArchived }),
       supabase.from('vendors').select('id, name').eq('org_id', org.selectedOrg).eq('is_active', true).order('name'),
+      listItemStock(org.selectedOrg).catch(() => ({})),
+      listMaps(org.selectedOrg).catch(() => []),
     ])
     setItems(its)
     setVendors(vs.data || [])
+    setStock(sk || {})
+    setMapped(new Set((maps || []).map((m) => m.item_id)))
   }
   useEffect(() => { load() }, [org.selectedOrg, showArchived])
 
@@ -247,10 +253,16 @@ export default function ElementsItems({ profile }) {
   }
 
   async function handleDelete(it) {
-    if (!window.confirm(`Permanently delete "${it.description || it.sku}"? This can't be undone. If it's mapped to a service or has stock history, use Archive instead.`)) return
     setError('')
+    const sk = stock[it.id]
+    if ((sk && sk.onHand > 0) || mapped.has(it.id)) {
+      // Guarded: never let a part with stock or a live service mapping be deleted.
+      setError(`Can’t delete “${it.description || it.sku}” — it ${sk && sk.onHand > 0 ? 'still has stock on hand' : ''}${sk && sk.onHand > 0 && mapped.has(it.id) ? ' and ' : ''}${mapped.has(it.id) ? 'is mapped to a service' : ''}. Archive it instead — that keeps its history and mappings intact.`)
+      return
+    }
+    if (!window.confirm(`Permanently delete "${it.description || it.sku}"? This can only be done for an empty part with no stock or history. If it has usage history, use Archive instead.`)) return
     const { error: err } = await deleteItem(it.id)
-    if (err) { setError(`Couldn't delete "${it.description || it.sku}" — it may be mapped or have stock. Try Archive instead. (${err.message})`); return }
+    if (err) { setError(`Couldn’t delete “${it.description || it.sku}” — it has usage history. Archive it instead to keep its history. (${err.message})`); return }
     if (editingId === it.id) closeForm()
     load()
   }
@@ -344,15 +356,21 @@ export default function ElementsItems({ profile }) {
 
       <table className="data-table">
         <thead>
-          <tr><th>Actions</th><th>Part</th><th>Category</th><th>Class</th><th>Vendor part #</th><th>Units</th><th>Last cost</th></tr>
+          <tr><th>Actions</th><th>Part</th><th>Category</th><th>Class</th><th>Vendor part #</th><th>Units</th><th>On hand</th><th>Last cost</th></tr>
         </thead>
         <tbody>
-          {filtered.map((it) => (
+          {filtered.map((it) => {
+            const sk = stock[it.id]
+            const hasStock = !!(sk && sk.onHand > 0)
+            const isMapped = mapped.has(it.id)
+            const delBlocked = hasStock || isMapped
+            return (
             <tr key={it.id} style={editingId === it.id ? { background: '#EEF3FB' } : undefined}>
               <td style={{ whiteSpace: 'nowrap' }}>
                 <button className="auth-button" style={{ width: 'auto', margin: 0, marginRight: 6, padding: '4px 10px' }} onClick={() => startEdit(it)}>Edit</button>
                 <button className="logout-button" style={{ marginRight: 6 }} onClick={() => inlineUpdate(it, { is_active: !it.is_active })}>{it.is_active ? 'Archive' : 'Restore'}</button>
-                <button className="logout-button" onClick={() => handleDelete(it)}>Delete</button>
+                <button className="logout-button" onClick={() => handleDelete(it)} disabled={delBlocked}
+                  title={delBlocked ? (hasStock ? 'Has stock on hand — Archive instead.' : 'Mapped to a service — Archive instead.') : 'Only for empty parts with no stock or history.'}>Delete</button>
               </td>
               <td>{it.description || '—'}{it.stock_type === 'special_order' ? <span className="badge" style={{ marginLeft: 6, background: '#F8EEDD', color: '#B0600A' }}>Special order</span> : null}</td>
               <td>{it.category || '—'}</td>
@@ -366,11 +384,15 @@ export default function ElementsItems({ profile }) {
               <td style={{ color: 'var(--mist)', fontSize: 13 }}>
                 {it.base_uom}{it.stock_uom ? ` · ${it.units_per_stock_uom || '?'}/${it.stock_uom}` : ''}
               </td>
+              <td style={hasStock ? { fontWeight: 600, color: '#152238' } : { color: 'var(--mist)' }}>
+                {hasStock ? sk.onHand.toLocaleString() : '—'}
+              </td>
               <td>{it.last_cost != null ? `$${Number(it.last_cost).toFixed(2)}` : '—'}</td>
             </tr>
-          ))}
+            )
+          })}
           {filtered.length === 0 && (
-            <tr><td colSpan="7" style={{ color: 'var(--mist)' }}>No parts yet. Add them here, or use Service Mapping to auto-create them from your pricebook.</td></tr>
+            <tr><td colSpan="8" style={{ color: 'var(--mist)' }}>No parts yet. Add them here, or use Service Mapping to auto-create them from your pricebook.</td></tr>
           )}
         </tbody>
       </table>
