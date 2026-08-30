@@ -102,8 +102,8 @@ export default function ElementsInventory({ profile }) {
   const Metric = ({ to, label, value, sub, accent, alert }) => (
     <Link to={to} style={{ textDecoration: 'none' }}>
       <div style={{
-        border: `1px solid ${alert ? '#E4B36B' : 'var(--line, #E2E8F0)'}`,
-        background: alert ? '#FCF6EA' : '#FBFCFE',
+        border: `1px solid ${alert ? '#E3B0B0' : 'var(--line, #E2E8F0)'}`,
+        background: alert ? '#FCEFEF' : '#FBFCFE',
         borderRadius: 12, padding: '14px 16px', height: '100%',
       }}>
         <div style={{ fontSize: 12, color: 'var(--mist)', fontWeight: 600 }}>{label}</div>
@@ -137,7 +137,7 @@ export default function ElementsInventory({ profile }) {
           label="Low stock"
           value={loading && !m ? '…' : String(m ? m.lowStock : 0)}
           sub={m && m.lowStock > 0 ? 'at or under reorder point' : 'everything above reorder'}
-          accent={lowAlert ? '#B0600A' : '#0B7A3B'}
+          accent={lowAlert ? '#B00020' : '#0B7A3B'}
           alert={lowAlert}
         />
         <Metric
