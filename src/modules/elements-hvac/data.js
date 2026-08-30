@@ -510,6 +510,109 @@ export async function deletePurchaseOrder(orgId, poId) {
   return supabase.from('elements_purchase_orders').delete().eq('org_id', orgId).eq('id', poId)
 }
 
+// ============================================================================
+// P4 · Vendor invoices (Accounts Payable) — capture a vendor bill, 3-way match
+// it against its PO + receipts, stage it for payment, and (optionally) receive
+// the matched goods into stock. The AI extraction reuses the invoice-extract
+// edge function; the original file is kept in the private 'vendor-invoices'
+// Storage bucket for the record.
+// ============================================================================
+const numOrNull = (v) => (v === '' || v == null || isNaN(Number(v)) ? null : Number(v))
+
+// Run a vendor document (PDF/photo, base64) through the AI extractor.
+export async function extractInvoiceFile(fileBase64, mediaType) {
+  const { data, error } = await supabase.functions.invoke('invoice-extract', { body: { fileBase64, mediaType } })
+  if (error) return { error }
+  if (data?.error) return { error: { message: data.error } }
+  return { data }
+}
+
+export async function createVendor(orgId, name) {
+  return supabase.from('vendors').insert({ org_id: orgId, name: (name || '').trim(), is_active: true }).select('id, name').single()
+}
+
+// Store the original invoice file under {org_id}/{invoice_id}/... and return its path.
+export async function uploadInvoiceFile(orgId, invoiceId, file) {
+  const safe = (file.name || 'invoice').replace(/[^a-zA-Z0-9._-]/g, '_')
+  const path = `${orgId}/${invoiceId}/${Date.now()}_${safe}`
+  const { error } = await supabase.storage.from('vendor-invoices')
+    .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: true })
+  if (error) return { error }
+  return { path }
+}
+export async function getInvoiceFileUrl(path) {
+  if (!path) return null
+  const { data } = await supabase.storage.from('vendor-invoices').createSignedUrl(path, 3600)
+  return data?.signedUrl || null
+}
+
+export async function listVendorInvoices(orgId) {
+  const { data } = await supabase.from('elements_vendor_invoices')
+    .select('id, vendor_id, po_id, doc_type, invoice_number, invoice_date, due_date, total, status, match_status, created_at, vendor:vendors(name), po:elements_purchase_orders(po_number, job_name)')
+    .eq('org_id', orgId).order('created_at', { ascending: false })
+  return data || []
+}
+
+export async function getVendorInvoice(orgId, id) {
+  const { data: inv } = await supabase.from('elements_vendor_invoices')
+    .select('*, vendor:vendors(id, name), po:elements_purchase_orders(id, po_number, job_name, status, location_id)')
+    .eq('org_id', orgId).eq('id', id).maybeSingle()
+  if (!inv) return null
+  const { data: lines } = await supabase.from('elements_vendor_invoice_lines')
+    .select('*, item:elements_items(id, description, sku)').eq('org_id', orgId).eq('invoice_id', id).order('created_at')
+  let poLines = []
+  if (inv.po_id) {
+    const { data: pl } = await supabase.from('elements_po_lines')
+      .select('id, item_id, description, qty_ordered, qty_received, unit_cost, item:elements_items(description, sku)')
+      .eq('po_id', inv.po_id)
+    poLines = pl || []
+  }
+  return { ...inv, lines: lines || [], poLines }
+}
+
+// Candidate POs to match a bill to: this vendor's, most recent first.
+export async function findPurchaseOrdersForVendor(orgId, vendorId) {
+  let q = supabase.from('elements_purchase_orders')
+    .select('id, po_number, job_name, status, vendor_id, created_at')
+    .eq('org_id', orgId).in('status', ['ordered', 'partial', 'received', 'draft'])
+  if (vendorId) q = q.eq('vendor_id', vendorId)
+  const { data } = await q.order('created_at', { ascending: false })
+  return data || []
+}
+
+export async function createVendorInvoice(orgId, header, lines) {
+  const { data: inv, error } = await supabase.from('elements_vendor_invoices')
+    .insert({ org_id: orgId, ...header }).select().single()
+  if (error) return { error }
+  const clean = (lines || []).map((l) => ({
+    org_id: orgId, invoice_id: inv.id, po_line_id: l.po_line_id || null, item_id: l.item_id || null,
+    sku: l.sku || null, description: l.description || null, quantity: numOrNull(l.quantity),
+    unit_of_measure: l.unit_of_measure || null, unit_cost: numOrNull(l.unit_cost),
+    extended_cost: numOrNull(l.extended_cost), match_state: l.match_state || 'unmatched',
+  }))
+  if (clean.length) {
+    const { error: le } = await supabase.from('elements_vendor_invoice_lines').insert(clean)
+    if (le) return { error: le, invoice: inv }
+  }
+  return { invoice: inv }
+}
+
+export async function updateVendorInvoice(orgId, id, patch) {
+  return supabase.from('elements_vendor_invoices').update(patch).eq('org_id', orgId).eq('id', id)
+}
+export async function updateVendorInvoiceLine(orgId, lineId, patch) {
+  return supabase.from('elements_vendor_invoice_lines').update(patch).eq('org_id', orgId).eq('id', lineId)
+}
+export async function setVendorInvoiceStatus(orgId, id, status) {
+  const patch = { status }
+  if (status === 'staged') patch.staged_at = new Date().toISOString()
+  return supabase.from('elements_vendor_invoices').update(patch).eq('org_id', orgId).eq('id', id)
+}
+export async function deleteVendorInvoice(orgId, id) {
+  await supabase.from('elements_vendor_invoice_lines').delete().eq('org_id', orgId).eq('invoice_id', id)
+  return supabase.from('elements_vendor_invoices').delete().eq('org_id', orgId).eq('id', id)
+}
+
 // Weighted moving average across all locations, refreshed on each receipt.
 async function updateItemCostOnReceipt(orgId, itemId, qty, unitCost) {
   const { data: it } = await supabase.from('elements_items').select('avg_cost').eq('id', itemId).maybeSingle()
