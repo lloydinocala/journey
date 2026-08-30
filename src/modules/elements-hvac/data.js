@@ -407,3 +407,118 @@ export async function listReplenishment(orgId) {
     })
     .sort((a, b) => (a.location?.name || '').localeCompare(b.location?.name || '') || (a.item?.description || '').localeCompare(b.item?.description || ''))
 }
+
+// ---- Purchasing: vendors, purchase orders & receiving ---------------------
+// Reuses the shared `vendors` master. A PO is drafted, marked ordered, then
+// received against — receiving writes normal receipt rows into the ledger
+// (ref_type='po'), so on-hand and costs flow through the same path as manual
+// receiving. Cost updates keep both last_cost and a weighted avg_cost.
+
+export async function listVendors(orgId) {
+  const { data } = await supabase.from('vendors')
+    .select('id, name').eq('org_id', orgId).eq('is_active', true).order('name')
+  return data || []
+}
+
+// PO list with vendor/location names and received progress.
+export async function listPurchaseOrders(orgId) {
+  const { data } = await supabase.from('elements_purchase_orders')
+    .select('id, po_number, status, notes, ordered_at, expected_at, created_at, vendor:vendors(name), location:elements_locations(name), lines:elements_po_lines(qty_ordered, qty_received, unit_cost)')
+    .eq('org_id', orgId).order('created_at', { ascending: false })
+  return (data || []).map((po) => {
+    const lines = po.lines || []
+    return {
+      ...po,
+      lineCount: lines.length,
+      ordered: lines.reduce((s, l) => s + Number(l.qty_ordered || 0), 0),
+      received: lines.reduce((s, l) => s + Number(l.qty_received || 0), 0),
+      value: lines.reduce((s, l) => s + Number(l.qty_ordered || 0) * Number(l.unit_cost || 0), 0),
+    }
+  })
+}
+
+export async function getPurchaseOrder(orgId, poId) {
+  const { data: po } = await supabase.from('elements_purchase_orders')
+    .select('*, vendor:vendors(id, name), location:elements_locations(id, name, type)')
+    .eq('org_id', orgId).eq('id', poId).maybeSingle()
+  if (!po) return null
+  const { data: lines } = await supabase.from('elements_po_lines')
+    .select('*, item:elements_items(id, description, category, last_cost, standard_cost)')
+    .eq('org_id', orgId).eq('po_id', poId).order('created_at')
+  return { ...po, lines: lines || [] }
+}
+
+export async function createPurchaseOrder(orgId, { vendor_id, location_id, notes, expected_at, po_number, lines }) {
+  const num = (po_number && po_number.trim()) || `PO-${Date.now().toString().slice(-6)}`
+  const { data: po, error } = await supabase.from('elements_purchase_orders')
+    .insert({ org_id: orgId, vendor_id: vendor_id || null, location_id: location_id || null, notes: notes || null, expected_at: expected_at || null, po_number: num, status: 'draft' })
+    .select().single()
+  if (error) return { error }
+  const clean = (lines || [])
+    .map((l) => ({ item_id: l.item_id, description: l.description || null, qty_ordered: Number(l.qty_ordered) || 0, unit_cost: (l.unit_cost === '' || l.unit_cost == null) ? null : Number(l.unit_cost) }))
+    .filter((l) => l.item_id && l.qty_ordered > 0)
+  if (clean.length) {
+    const { error: le } = await supabase.from('elements_po_lines').insert(clean.map((l) => ({ org_id: orgId, po_id: po.id, ...l })))
+    if (le) return { error: le, po }
+  }
+  return { po }
+}
+
+export async function updatePurchaseOrder(orgId, poId, patch) {
+  return supabase.from('elements_purchase_orders').update(patch).eq('org_id', orgId).eq('id', poId)
+}
+
+export async function addPOLine(orgId, poId, line) {
+  return supabase.from('elements_po_lines').insert({
+    org_id: orgId, po_id: poId, item_id: line.item_id, description: line.description || null,
+    qty_ordered: Number(line.qty_ordered) || 0, unit_cost: (line.unit_cost === '' || line.unit_cost == null) ? null : Number(line.unit_cost),
+  }).select().single()
+}
+
+export async function deletePOLine(lineId) {
+  return supabase.from('elements_po_lines').delete().eq('id', lineId)
+}
+
+// Weighted moving average across all locations, refreshed on each receipt.
+async function updateItemCostOnReceipt(orgId, itemId, qty, unitCost) {
+  const { data: it } = await supabase.from('elements_items').select('avg_cost').eq('id', itemId).maybeSingle()
+  const { data: levels } = await supabase.from('elements_stock_levels').select('on_hand').eq('org_id', orgId).eq('item_id', itemId)
+  const prevQty = Math.max(0, (levels || []).reduce((s, l) => s + Number(l.on_hand || 0), 0))
+  const prevAvg = it && it.avg_cost != null ? Number(it.avg_cost) : unitCost
+  const newAvg = (prevQty + qty) > 0 ? ((prevQty * prevAvg) + qty * unitCost) / (prevQty + qty) : unitCost
+  await supabase.from('elements_items').update({ last_cost: unitCost, avg_cost: Number(newAvg.toFixed(4)) }).eq('id', itemId)
+}
+
+// Receive quantities against a PO. receipts: [{ line_id, item_id, qty, unit_cost }].
+// Writes receipt rows into the PO's deliver-to location, bumps each line's
+// qty_received, updates item costs, recomputes on-hand, and advances PO status.
+export async function receivePO(orgId, poId, receipts) {
+  const { data: po } = await supabase.from('elements_purchase_orders')
+    .select('id, location_id').eq('org_id', orgId).eq('id', poId).maybeSingle()
+  if (!po) return { error: { message: 'Purchase order not found.' } }
+  if (!po.location_id) return { error: { message: 'Set a deliver-to location on this PO before receiving.' } }
+  const clean = (receipts || [])
+    .map((r) => ({ line_id: r.line_id, item_id: r.item_id, qty: Number(r.qty), unit_cost: (r.unit_cost === '' || r.unit_cost == null) ? null : Number(r.unit_cost) }))
+    .filter((r) => r.item_id && r.qty > 0)
+  if (!clean.length) return { error: { message: 'Enter a quantity to receive.' } }
+  for (const r of clean) {
+    const { error } = await supabase.from('elements_stock_txns').insert({
+      org_id: orgId, item_id: r.item_id, location_id: po.location_id, txn_type: 'receipt', qty_delta: r.qty,
+      unit_cost: r.unit_cost, ref_type: 'po', ref_id: poId, reason_code: 'po_receipt',
+    })
+    if (error) return { error }
+    if (r.unit_cost != null) await updateItemCostOnReceipt(orgId, r.item_id, r.qty, r.unit_cost)
+    await recomputeLevel(orgId, r.item_id, po.location_id)
+    if (r.line_id) {
+      const { data: ln } = await supabase.from('elements_po_lines').select('qty_received').eq('id', r.line_id).maybeSingle()
+      await supabase.from('elements_po_lines').update({ qty_received: (ln ? Number(ln.qty_received || 0) : 0) + r.qty }).eq('id', r.line_id)
+    }
+  }
+  const { data: lines } = await supabase.from('elements_po_lines').select('qty_ordered, qty_received').eq('po_id', poId)
+  const rows = lines || []
+  const allDone = rows.length > 0 && rows.every((l) => Number(l.qty_received || 0) >= Number(l.qty_ordered || 0))
+  const anyRecv = rows.some((l) => Number(l.qty_received || 0) > 0)
+  const status = allDone ? 'received' : (anyRecv ? 'partial' : null)
+  if (status) await supabase.from('elements_purchase_orders').update({ status }).eq('id', poId)
+  return { count: clean.length, status }
+}
