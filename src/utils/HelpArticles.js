@@ -355,7 +355,7 @@ export const HELP_ARTICLES = [
     purpose: 'The landing page for Inventory Management — an at-a-glance dashboard of the four things worth watching (low stock, open POs, recent variance, and inventory value), plus module stats and shortcuts into each area.',
     sections: [
       { h: 'At a glance', items: [
-        'Low stock — how many stock lines are at or under their reorder point; click through to Replenishment. It turns amber when anything needs reordering.',
+        'Low stock — how many stock lines are at or under their reorder point; click through to Replenishment. It turns red when anything needs reordering.',
         'Open purchase orders — POs that are ordered or partially received, with the next expected delivery date and the dollar value on order; click through to Purchase Orders.',
         'Variance (90 days) — the net dollar impact of posted count adjustments and matched-invoice price/qty differences over the last 90 days; click through to Inventory Variance.',
         'Inventory value — what stock on hand is worth right now at cost; click through to Inventory Valuation.',
