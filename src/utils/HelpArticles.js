@@ -498,6 +498,7 @@ export const HELP_ARTICLES = [
       { h: 'How to use it', items: [
         'Create a PO, pick the vendor and deliver-to location, add parts, and (optionally) a job name so you know what the order is for.',
         'Add catalog parts by searching, or type a part that isn’t in your catalog yet and create it on the spot (it defaults to special-order).',
+        'Use "Pull low items" to auto-fill the PO with everything below its reorder point at the deliver-to location — the quick way to turn a Replenishment shortfall into an order.',
         'When goods arrive, open the PO and receive against it — on-hand and costs update, and the PO advances to Partial or Received.',
         'Search by number, job name, vendor, or part. The default "Relevant" view shows in-flight POs plus anything received in the last 30 days; switch the filter to see all, cancelled, or older receipts.',
       ]},
