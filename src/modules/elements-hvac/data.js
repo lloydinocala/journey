@@ -976,3 +976,12 @@ export async function jobCosting(days = 180) {
   if (error) return []
   return data || []
 }
+
+// ---- Demand forecast (P5e) ------------------------------------------------
+// Trailing consumption per item; the UI derives usage rate, days of cover, a
+// projected run-out, and a suggested order qty. used_30 flags rising demand.
+export async function forecast(days = 90) {
+  const { data, error } = await supabase.rpc('elements_forecast', { p_days: days })
+  if (error) return []
+  return data || []
+}
