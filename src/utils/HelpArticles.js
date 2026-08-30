@@ -561,6 +561,7 @@ export const HELP_ARTICLES = [
     sections: [
       { h: 'How to use it', items: [
         'Pick a service on the left, then build its parts list on the right — add catalog parts with a quantity each.',
+        'Use "Auto-create kits" to bulk-seed a single-part kit for every unmapped parts service at once (labor and diagnostic services are skipped) — then refine any kit by hand.',
         'Services that read as labor, fees, or memberships are filtered out of the default view, since they consume no parts; switch the view to see kitted, empty, or all services.',
       ]},
       { h: 'Good to know', body: 'A well-built kit is what makes "Record Parts Used" one click — the parts are already suggested from the services on the invoice.' },
