@@ -7,7 +7,7 @@ import { useSearchParams } from 'react-router-dom'
 import {
   listPurchaseOrders, getPurchaseOrder, createPurchaseOrder, updatePurchaseOrder,
   deletePOLine, receivePO, adjustReceived, listVendors, listAllLocations, listItems, listReplenishment,
-  getPoSettings, setPoNextNumber, addItem, deriveSku,
+  getPoSettings, setPoNextNumber, addItem, deriveSku, deletePurchaseOrder,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -129,7 +129,7 @@ export default function ElementsPurchaseOrders({ profile }) {
   function addNewLine() {
     const name = addTerm.trim()
     if (!name) return
-    setNpLines((ls) => [...ls, { item_id: null, isNew: true, _k: `new-${Date.now()}-${ls.length}`, name, category: '', qty: '1', cost: '' }])
+    setNpLines((ls) => [...ls, { item_id: null, isNew: true, _k: `new-${Date.now()}-${ls.length}`, name, category: '', qty: '1', cost: '', stock_type: 'special_order' }])
     setAddTerm(''); setAddOpen(false)
   }
   const exactMatch = useMemo(() => {
@@ -173,6 +173,7 @@ export default function ElementsPurchaseOrders({ profile }) {
         const cost = (l.cost === '' || l.cost == null) ? null : Number(l.cost)
         const { data: item, error: ie } = await addItem(org.selectedOrg, {
           sku, description: l.name, item_class: 'part',
+          stock_type: l.stock_type || 'special_order',
           standard_cost: (cost != null && !isNaN(cost)) ? cost : null,
         })
         if (ie) { setBusy(false); setErr(`Could not create part "${l.name}": ${ie.message}`); return }
@@ -219,6 +220,15 @@ export default function ElementsPurchaseOrders({ profile }) {
     setBusy(true)
     await updatePurchaseOrder(org.selectedOrg, po.id, { status: 'cancelled' })
     setBusy(false); await loadList(); openPO(po.id)
+  }
+  async function deleteDraft() {
+    if (!window.confirm('Delete this draft purchase order? It will be removed entirely — this cannot be undone.')) return
+    setBusy(true); setErr(''); setMsg('')
+    const { error } = await deletePurchaseOrder(org.selectedOrg, po.id)
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    setPo(null); setSelectedId(''); setMode('view'); setMsg('Draft deleted.')
+    await loadList()
   }
   async function removeLine(lineId) {
     setBusy(true); await deletePOLine(lineId); setBusy(false); openPO(po.id)
@@ -395,7 +405,16 @@ export default function ElementsPurchaseOrders({ profile }) {
                 <tbody>
                   {npLines.map((l, idx) => (
                     <tr key={l.item_id || l._k}>
-                      <td>{l.name}{l.category ? <span style={{ color: 'var(--mist)', fontSize: 12 }}> · {l.category}</span> : null}{l.isNew ? <span className="badge" style={{ marginLeft: 6, background: '#E3F1E8', color: '#166534' }}>New part</span> : null}</td>
+                      <td>{l.name}{l.category ? <span style={{ color: 'var(--mist)', fontSize: 12 }}> · {l.category}</span> : null}
+                        {l.isNew ? (
+                          <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span className="badge" style={{ background: '#E3F1E8', color: '#166534' }}>New part</span>
+                            <select value={l.stock_type} onChange={(e) => setLine(idx, 'stock_type', e.target.value)} style={{ fontSize: 12, padding: '1px 4px' }}>
+                              <option value="special_order">Special order</option>
+                              <option value="stock">Stock</option>
+                            </select>
+                          </div>
+                        ) : null}</td>
                       <td style={{ textAlign: 'right' }}><input type="number" min="0" step="any" value={l.qty} onChange={(e) => setLine(idx, 'qty', e.target.value)} style={{ width: 64, textAlign: 'right' }} /></td>
                       <td style={{ textAlign: 'right' }}><input type="number" min="0" step="any" value={l.cost} onChange={(e) => setLine(idx, 'cost', e.target.value)} style={{ width: 78, textAlign: 'right' }} placeholder="$" /></td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{money((Number(l.qty) || 0) * (Number(l.cost) || 0))}</td>
@@ -432,7 +451,8 @@ export default function ElementsPurchaseOrders({ profile }) {
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {po.status === 'draft' && <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={busy} onClick={markOrdered}>Mark ordered</button>}
                   {(po.status === 'ordered' || po.status === 'partial' || po.status === 'received') && !editRecv && <button className="logout-button" disabled={busy} onClick={startEditRecv}>Edit received</button>}
-                  {(po.status === 'draft' || po.status === 'ordered' || po.status === 'partial') && !editRecv && <button className="logout-button" disabled={busy} onClick={cancelPO}>Cancel PO</button>}
+                  {(po.status === 'ordered' || po.status === 'partial') && !editRecv && <button className="logout-button" disabled={busy} onClick={cancelPO}>Cancel PO</button>}
+                  {po.status === 'draft' && !editRecv && <button className="logout-button" style={{ color: '#B00020', borderColor: '#F0B4B4' }} disabled={busy} onClick={deleteDraft}>Delete draft</button>}
                 </div>
               </div>
 
