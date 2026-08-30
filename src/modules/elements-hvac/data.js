@@ -423,7 +423,7 @@ export async function listVendors(orgId) {
 // PO list with vendor/location names and received progress.
 export async function listPurchaseOrders(orgId) {
   const { data } = await supabase.from('elements_purchase_orders')
-    .select('id, po_number, status, notes, ordered_at, expected_at, created_at, vendor:vendors(name), location:elements_locations(name), lines:elements_po_lines(qty_ordered, qty_received, unit_cost, item:elements_items(description))')
+    .select('id, po_number, job_name, status, notes, ordered_at, expected_at, created_at, vendor:vendors(name), location:elements_locations(name), lines:elements_po_lines(qty_ordered, qty_received, unit_cost, item:elements_items(description))')
     .eq('org_id', orgId).order('created_at', { ascending: false })
   return (data || []).map((po) => {
     const lines = po.lines || []
@@ -449,10 +449,15 @@ export async function getPurchaseOrder(orgId, poId) {
   return { ...po, lines: lines || [] }
 }
 
-export async function createPurchaseOrder(orgId, { vendor_id, location_id, notes, expected_at, po_number, lines }) {
-  const num = (po_number && po_number.trim()) || `PO-${Date.now().toString().slice(-6)}`
+export async function createPurchaseOrder(orgId, { vendor_id, location_id, notes, expected_at, job_name, lines }) {
+  // Every PO gets the next sequential number from the per-org counter
+  // (elements_alloc_po_number is atomic, so numbers never collide).
+  let num = null
+  const { data: alloc } = await supabase.rpc('elements_alloc_po_number', { p_org: orgId })
+  if (alloc) num = alloc
+  if (!num) num = `PO-${Date.now().toString().slice(-6)}` // fallback if the counter is somehow unavailable
   const { data: po, error } = await supabase.from('elements_purchase_orders')
-    .insert({ org_id: orgId, vendor_id: vendor_id || null, location_id: location_id || null, notes: notes || null, expected_at: expected_at || null, po_number: num, status: 'draft' })
+    .insert({ org_id: orgId, vendor_id: vendor_id || null, location_id: location_id || null, notes: notes || null, expected_at: expected_at || null, po_number: num, job_name: (job_name && job_name.trim()) || null, status: 'draft' })
     .select().single()
   if (error) return { error }
   const clean = (lines || [])
@@ -467,6 +472,21 @@ export async function createPurchaseOrder(orgId, { vendor_id, location_id, notes
 
 export async function updatePurchaseOrder(orgId, poId, patch) {
   return supabase.from('elements_purchase_orders').update(patch).eq('org_id', orgId).eq('id', poId)
+}
+
+// PO numbering settings — the next number the counter will assign. New
+// subscribers importing history from another system can set this forward so
+// their sequence continues where the old system left off.
+export async function getPoSettings(orgId) {
+  const { data } = await supabase.from('elements_po_counters')
+    .select('next_number, prefix').eq('org_id', orgId).maybeSingle()
+  return data || { next_number: 1001, prefix: 'PO-' }
+}
+
+export async function setPoNextNumber(orgId, nextNumber) {
+  const n = Math.max(1, parseInt(nextNumber, 10) || 1)
+  return supabase.from('elements_po_counters')
+    .upsert({ org_id: orgId, next_number: n, updated_at: new Date().toISOString() }, { onConflict: 'org_id' })
 }
 
 export async function addPOLine(orgId, poId, line) {
