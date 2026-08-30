@@ -349,7 +349,7 @@ export default function ElementsVendorInvoices({ profile }) {
 
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>
         Snap or upload a vendor bill — Quincy reads it, matches it to its PO, and checks ordered vs. received vs. billed.
-        Approve it to stage it for payment; the Bookkeeping module picks up staged bills.
+        Approve it to stage it for payment; the future Bookkeeping module will pick up staged bills.
       </p>
 
       {msg && <div style={{ marginBottom: 12, background: '#E3F1E8', border: '1px solid #166534', color: '#166534', padding: '8px 12px', borderRadius: 8, fontWeight: 600, fontSize: 13 }}>{msg}</div>}
@@ -459,7 +459,7 @@ export default function ElementsVendorInvoices({ profile }) {
                         <td>
                           {st === 'matched' && <span className="badge" style={{ background: '#E3F1E8', color: '#166534' }}>OK</span>}
                           {st === 'price_variance' && <span className="badge" style={{ background: '#FBE7E7', color: '#B00020' }}>Price ≠ PO {money(pl?.unit_cost)}</span>}
-                          {st === 'qty_variance' && <span className="badge" style={{ background: '#F8EEDD', color: '#B0600A' }}>Billed &gt; received</span>}
+                          {st === 'qty_variance' && <span className="badge" style={{ background: '#FBE7E7', color: '#B00020' }}>Billed &gt; received</span>}
                           {st === 'unmatched' && <span className="badge" style={{ background: '#EEF1F6', color: '#475569' }}>No PO line</span>}
                         </td>
                       </tr>
