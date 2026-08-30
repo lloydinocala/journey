@@ -6,6 +6,7 @@ import ElementsItems from './ElementsItems'
 import ElementsStock from './ElementsStock'
 import ElementsReplenishment from './ElementsReplenishment'
 import ElementsPurchaseOrders from './ElementsPurchaseOrders'
+import ElementsVendorInvoices from './ElementsVendorInvoices'
 import ElementsServiceMap from './ElementsServiceMap'
 import ElementsPartsUsed from './ElementsPartsUsed'
 import ElementsUsageReport from './ElementsUsageReport'
@@ -27,6 +28,7 @@ export const ELEMENTS_ROUTES = [
   { path: '/elements/stock', Component: ElementsStock },
   { path: '/elements/replenishment', Component: ElementsReplenishment },
   { path: '/elements/purchasing', Component: ElementsPurchaseOrders },
+  { path: '/elements/ap', Component: ElementsVendorInvoices },
   { path: '/elements/service-map', Component: ElementsServiceMap },
   { path: '/elements/parts-used', Component: ElementsPartsUsed },
   { path: '/elements/usage', Component: ElementsUsageReport },
@@ -44,6 +46,7 @@ export const ELEMENTS_NAV = {
     { label: 'Stock & Receiving', path: '/elements/stock' },
     { label: 'Replenishment', path: '/elements/replenishment' },
     { label: 'Purchase Orders', path: '/elements/purchasing' },
+    { label: 'Vendor Invoices (A/P)', path: '/elements/ap' },
     { label: 'Service → Part Mapping', path: '/elements/service-map' },
     { label: 'Record Parts Used', path: '/elements/parts-used' },
     { label: 'Parts Usage', path: '/elements/usage' },
