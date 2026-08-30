@@ -208,7 +208,7 @@ export default function ElementsStock({ profile }) {
         <tbody>
           {rows.map(({ it, onHand, lvReorder, lvMax, status }) => (
             <tr key={it.id} style={status === 'out' ? { color: 'var(--mist)' } : undefined}>
-              <td>{it.description}</td>
+              <td>{it.description}{it.stock_type === 'special_order' ? <span className="badge" style={{ marginLeft: 6, background: '#F8EEDD', color: '#B0600A' }}>Special order</span> : null}</td>
               <td style={{ color: 'var(--mist)' }}>{it.category || '—'}</td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{onHand}</td>
               <td style={{ textAlign: 'right' }}>
