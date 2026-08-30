@@ -78,6 +78,7 @@ import TextArchive from './TextArchive'
 import TechGate from './TechGate'
 import TechSettings from './TechSettings'
 import TechCycleCounts from './TechCycleCounts'
+import TechManual from './TechManual'
 // Elements · Inventory retired in favor of the native Parts Catalog module.
 // Fleet remains. (ELEMENTS_ROUTES intentionally no longer rendered.)
 import { ELEMENTS_ROUTES, ELEMENTS_FLEET_ROUTES } from './modules/elements-hvac'
@@ -183,6 +184,7 @@ function AuthenticatedApp() {
         <Route path="/tech" element={<TechJobs profile={profile} />} />
         <Route path="/tech/tower" element={<TheTower profile={profile} />} />
         <Route path="/tech/cycle-counts" element={<TechCycleCounts profile={profile} />} />
+        <Route path="/tech/manual" element={<TechManual profile={profile} />} />
         <Route path="/tech/settings" element={<TechSettings profile={profile} />} />
         <Route path="/tech/task/:taskId" element={<TechTaskCard profile={profile} />} />
         <Route path="/tech/:jobId" element={<TechJobCard profile={profile} />} />
