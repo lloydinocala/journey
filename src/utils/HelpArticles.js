@@ -566,6 +566,21 @@ export const HELP_ARTICLES = [
     ],
   },
   {
+    id: 'inv-valuation',
+    title: 'Inventory Valuation',
+    area: 'Inventory',
+    keywords: ['valuation', 'value', 'worth', 'inventory value', 'cost', 'on hand value', 'by location', 'by category', 'asset'],
+    purpose: 'What your stock on hand is worth right now, valued at cost — broken down by location and by category. A live, current-value snapshot you can pull any time.',
+    sections: [
+      { h: 'How to use it', items: [
+        'The tiles show total value, how many parts are in stock, and across how many locations.',
+        'Switch the breakdown between By location and By category to see where the value sits.',
+        'The detail table lists every stocked part, its on-hand, unit cost, and value — highest value first.',
+      ]},
+      { h: 'Good to know', body: 'Each part is valued at its average cost, falling back to last cost, then standard cost. Parts with no cost on record are flagged "not valued" and excluded from the total — set a cost in the Item Catalog to include them. This is current value only; it is not stored as a weekly history.' },
+    ],
+  },
+  {
     id: 'inv-job-costing',
     title: 'Job Costing',
     area: 'Inventory',
@@ -664,6 +679,7 @@ export const ROUTE_HELP = {
   '/elements/service-map': 'inv-service-map',
   '/elements/parts-used': 'inv-parts-used',
   '/elements/usage': 'inv-usage',
+  '/elements/valuation': 'inv-valuation',
   '/elements/job-costing': 'inv-job-costing',
   '/elements/forecast': 'inv-forecast',
   '/elements/settings': 'inv-settings',
