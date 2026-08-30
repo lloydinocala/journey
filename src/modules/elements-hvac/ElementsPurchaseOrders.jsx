@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   listPurchaseOrders, getPurchaseOrder, createPurchaseOrder, updatePurchaseOrder,
-  deletePOLine, receivePO, listVendors, listAllLocations, listItems, listReplenishment,
+  deletePOLine, receivePO, adjustReceived, listVendors, listAllLocations, listItems, listReplenishment,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -45,6 +45,9 @@ export default function ElementsPurchaseOrders({ profile }) {
 
   // receive inputs on detail: line_id -> {qty,cost}
   const [recv, setRecv] = useState({})
+  // edit-received mode: line_id -> corrected total received
+  const [editRecv, setEditRecv] = useState(false)
+  const [adj, setAdj] = useState({})
 
   async function loadList() {
     if (!org.selectedOrg) return
@@ -57,7 +60,7 @@ export default function ElementsPurchaseOrders({ profile }) {
   useEffect(() => { loadList() }, [org.selectedOrg])
 
   async function openPO(id) {
-    setMode('view'); setSelectedId(id); setMsg(''); setErr(''); setRecv({})
+    setMode('view'); setSelectedId(id); setMsg(''); setErr(''); setRecv({}); setEditRecv(false); setAdj({})
     const detail = await getPurchaseOrder(org.selectedOrg, id)
     setPo(detail)
     // default receive inputs = remaining qty, line cost or item cost
@@ -161,6 +164,22 @@ export default function ElementsPurchaseOrders({ profile }) {
     setBusy(false)
     if (error) { setErr(error.message); return }
     setMsg(`Received ${count} line${count === 1 ? '' : 's'} into ${po.location?.name || 'stock'}.`)
+    await loadList(); openPO(po.id)
+  }
+
+  function startEditRecv() {
+    const a = {}
+    ;(po.lines || []).forEach((l) => { a[l.id] = String(Number(l.qty_received || 0)) })
+    setAdj(a); setEditRecv(true); setMsg(''); setErr('')
+  }
+  async function saveAdjust() {
+    const adjustments = (po.lines || []).map((l) => ({ line_id: l.id, item_id: l.item_id, new_received: adj[l.id] }))
+    setBusy(true); setErr(''); setMsg('')
+    const { error, count } = await adjustReceived(org.selectedOrg, po.id, adjustments)
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    setEditRecv(false)
+    setMsg(count ? `Corrected received on ${count} line${count === 1 ? '' : 's'}. Stock adjusted by the difference.` : 'No changes to received quantities.')
     await loadList(); openPO(po.id)
   }
 
@@ -307,7 +326,8 @@ export default function ElementsPurchaseOrders({ profile }) {
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {po.status === 'draft' && <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={busy} onClick={markOrdered}>Mark ordered</button>}
-                  {(po.status === 'draft' || po.status === 'ordered' || po.status === 'partial') && <button className="logout-button" disabled={busy} onClick={cancelPO}>Cancel PO</button>}
+                  {(po.status === 'ordered' || po.status === 'partial' || po.status === 'received') && !editRecv && <button className="logout-button" disabled={busy} onClick={startEditRecv}>Edit received</button>}
+                  {(po.status === 'draft' || po.status === 'ordered' || po.status === 'partial') && !editRecv && <button className="logout-button" disabled={busy} onClick={cancelPO}>Cancel PO</button>}
                 </div>
               </div>
 
@@ -326,12 +346,19 @@ export default function ElementsPurchaseOrders({ profile }) {
                   {(po.lines || []).map((l) => {
                     const remaining = Math.max(0, Number(l.qty_ordered || 0) - Number(l.qty_received || 0))
                     const full = remaining <= 0
-                    const canReceive = po.status === 'ordered' || po.status === 'partial'
+                    const canReceive = (po.status === 'ordered' || po.status === 'partial') && !editRecv
                     return (
                       <tr key={l.id}>
                         <td>{l.item?.description || l.description || '(part)'}{l.item?.category ? <span style={{ color: 'var(--mist)', fontSize: 12 }}> · {l.item.category}</span> : null}</td>
                         <td style={{ textAlign: 'right' }}>{Number(l.qty_ordered || 0)}</td>
-                        <td style={{ textAlign: 'right', color: full ? '#166534' : 'var(--mist)', fontWeight: full ? 600 : 400 }}>{Number(l.qty_received || 0)}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          {editRecv ? (
+                            <input type="number" min="0" step="any" value={adj[l.id] ?? ''} style={{ width: 70, textAlign: 'right' }}
+                              onChange={(e) => setAdj((s) => ({ ...s, [l.id]: e.target.value }))} />
+                          ) : (
+                            <span style={{ color: full ? '#166534' : 'var(--mist)', fontWeight: full ? 600 : 400 }}>{Number(l.qty_received || 0)}</span>
+                          )}
+                        </td>
                         <td style={{ textAlign: 'right' }}>
                           {canReceive && !full ? (
                             <input type="number" min="0" step="any" value={recv[l.id]?.qty ?? ''} style={{ width: 70, textAlign: 'right' }}
@@ -352,11 +379,19 @@ export default function ElementsPurchaseOrders({ profile }) {
                 </tbody>
               </table>
 
-              {(po.status === 'ordered' || po.status === 'partial') && (
+              {editRecv ? (
+                <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>Correcting a received number adjusts stock by the difference — lowering it backs stock out.</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="logout-button" disabled={busy} onClick={() => { setEditRecv(false); setErr('') }}>Cancel</button>
+                    <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={busy} onClick={saveAdjust}>{busy ? 'Saving…' : 'Save received'}</button>
+                  </div>
+                </div>
+              ) : (po.status === 'ordered' || po.status === 'partial') ? (
                 <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
                   <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={busy} onClick={doReceive}>{busy ? 'Receiving…' : 'Receive entered quantities'}</button>
                 </div>
-              )}
+              ) : null}
               {po.status === 'draft' && (
                 <p style={{ color: 'var(--mist)', fontSize: 12.5, marginTop: 12 }}>This PO is still a draft. Press <strong>Mark ordered</strong> once it's placed with the vendor, then you can receive against it as parts arrive.</p>
               )}
