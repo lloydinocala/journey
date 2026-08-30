@@ -985,3 +985,13 @@ export async function forecast(days = 90) {
   if (error) return []
   return data || []
 }
+
+// ---- Inventory valuation (report) -----------------------------------------
+// Current value of stock on hand, one row per item+location, valued at the
+// item's cost (average, else last, else standard). Rows with no cost come back
+// with a null value so the UI can flag them as "not valued".
+export async function valuation() {
+  const { data, error } = await supabase.rpc('elements_valuation')
+  if (error) return []
+  return data || []
+}
