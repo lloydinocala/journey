@@ -886,3 +886,75 @@ export async function deleteCycleCount(orgId, countId) {
   await supabase.from('elements_cycle_count_lines').delete().eq('org_id', orgId).eq('count_id', countId)
   return supabase.from('elements_cycle_counts').delete().eq('org_id', orgId).eq('id', countId)
 }
+
+// ---- Special orders (P5b) -------------------------------------------------
+// A tracking board for per-job parts that aren't stocked. Fully decoupled from
+// the stock ledger — these go straight to the customer's job, never into on-hand.
+// Lifecycle: requested -> ordered -> received -> ready -> closed (+ cancelled).
+export async function listSpecialOrders(orgId) {
+  const { data } = await supabase.from('elements_special_orders')
+    .select('*, customer:customers(id, display_name, company, first_name, last_name), item:elements_items(id, description), vendor:vendors(id, name)')
+    .eq('org_id', orgId).order('created_at', { ascending: false })
+  return (data || []).map((o) => ({
+    ...o,
+    customer_label: o.customer_name || (o.customer ? (o.customer.display_name || o.customer.company || [o.customer.first_name, o.customer.last_name].filter(Boolean).join(' ')) : '') || '',
+    vendor_label: o.vendor_name || o.vendor?.name || '',
+  }))
+}
+
+// Typeahead over the customer book (1000s of rows) for linking a special order.
+export async function searchCustomers(orgId, term) {
+  const t = (term || '').trim()
+  if (t.length < 2) return []
+  const like = `%${t}%`
+  const { data } = await supabase.from('customers')
+    .select('id, display_name, company, first_name, last_name')
+    .eq('org_id', orgId)
+    .or(`display_name.ilike.${like},company.ilike.${like},first_name.ilike.${like},last_name.ilike.${like}`)
+    .limit(20)
+  return (data || []).map((c) => ({ id: c.id, name: c.display_name || c.company || [c.first_name, c.last_name].filter(Boolean).join(' ') || '(unnamed)' }))
+}
+
+export async function createSpecialOrder(orgId, payload) {
+  const row = {
+    org_id: orgId,
+    status: 'requested',
+    customer_id: payload.customer_id || null,
+    customer_name: (payload.customer_name || '').trim() || null,
+    job_ref: (payload.job_ref || '').trim() || null,
+    item_id: payload.item_id || null,
+    description: (payload.description || '').trim(),
+    quantity: payload.quantity === '' || payload.quantity == null ? 1 : Number(payload.quantity),
+    unit_cost: payload.unit_cost === '' || payload.unit_cost == null ? null : Number(payload.unit_cost),
+    vendor_id: payload.vendor_id || null,
+    vendor_name: (payload.vendor_name || '').trim() || null,
+    po_ref: (payload.po_ref || '').trim() || null,
+    needed_by: payload.needed_by || null,
+    notes: (payload.notes || '').trim() || null,
+    created_by: payload.created_by || null,
+  }
+  if (!row.description) return { error: { message: 'Describe the part being ordered.' } }
+  return supabase.from('elements_special_orders').insert(row).select().single()
+}
+
+export async function updateSpecialOrder(orgId, id, patch) {
+  const clean = { ...patch }
+  if ('quantity' in clean) clean.quantity = clean.quantity === '' || clean.quantity == null ? 1 : Number(clean.quantity)
+  if ('unit_cost' in clean) clean.unit_cost = clean.unit_cost === '' || clean.unit_cost == null ? null : Number(clean.unit_cost)
+  return supabase.from('elements_special_orders').update(clean).eq('org_id', orgId).eq('id', id)
+}
+
+// Advance the lifecycle and stamp the matching timestamp.
+export async function setSpecialOrderStatus(orgId, id, status) {
+  const patch = { status }
+  const now = new Date().toISOString()
+  if (status === 'ordered') patch.ordered_at = now
+  else if (status === 'received') patch.received_at = now
+  else if (status === 'ready') patch.ready_at = now
+  else if (status === 'closed') patch.closed_at = now
+  return supabase.from('elements_special_orders').update(patch).eq('org_id', orgId).eq('id', id)
+}
+
+export async function deleteSpecialOrder(orgId, id) {
+  return supabase.from('elements_special_orders').delete().eq('org_id', orgId).eq('id', id)
+}
