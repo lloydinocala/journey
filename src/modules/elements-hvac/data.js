@@ -425,7 +425,7 @@ export async function listVendors(orgId) {
 // PO list with vendor/location names and received progress.
 export async function listPurchaseOrders(orgId) {
   const { data } = await supabase.from('elements_purchase_orders')
-    .select('id, po_number, job_name, status, notes, ordered_at, expected_at, created_at, vendor:vendors(name), location:elements_locations(name), lines:elements_po_lines(qty_ordered, qty_received, unit_cost, item:elements_items(description))')
+    .select('id, po_number, job_name, status, notes, ordered_at, expected_at, created_at, received_at, vendor:vendors(name), location:elements_locations(name), lines:elements_po_lines(qty_ordered, qty_received, unit_cost, item:elements_items(description))')
     .eq('org_id', orgId).order('created_at', { ascending: false })
   return (data || []).map((po) => {
     const lines = po.lines || []
@@ -550,7 +550,11 @@ export async function receivePO(orgId, poId, receipts) {
   const allDone = rows.length > 0 && rows.every((l) => Number(l.qty_received || 0) >= Number(l.qty_ordered || 0))
   const anyRecv = rows.some((l) => Number(l.qty_received || 0) > 0)
   const status = allDone ? 'received' : (anyRecv ? 'partial' : null)
-  if (status) await supabase.from('elements_purchase_orders').update({ status }).eq('id', poId)
+  if (status) {
+    const patch = { status }
+    if (status === 'received') patch.received_at = new Date().toISOString()
+    await supabase.from('elements_purchase_orders').update(patch).eq('id', poId)
+  }
   return { count: clean.length, status }
 }
 
