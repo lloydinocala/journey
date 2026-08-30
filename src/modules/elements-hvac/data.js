@@ -391,10 +391,12 @@ export async function setLevelPar(orgId, itemId, locationId, patch) {
 export async function listReplenishment(orgId) {
   const { data } = await supabase
     .from('elements_stock_levels')
-    .select('item_id, location_id, on_hand, reorder_point, max_level, item:elements_items(id, description, category, last_cost, standard_cost), location:elements_locations(id, name, type, is_active)')
+    .select('item_id, location_id, on_hand, reorder_point, max_level, item:elements_items(id, description, category, last_cost, standard_cost, stock_type), location:elements_locations(id, name, type, is_active)')
     .eq('org_id', orgId)
   return (data || [])
     .filter((r) => r.location && r.location.is_active !== false)
+    // Special-order parts are bought per-job, not stocked — keep them out of reorder suggestions.
+    .filter((r) => (r.item?.stock_type || 'stock') !== 'special_order')
     .filter((r) => r.reorder_point != null && Number(r.reorder_point) > 0 && Number(r.on_hand || 0) <= Number(r.reorder_point))
     .map((r) => {
       const target = r.max_level != null ? Number(r.max_level) : Number(r.reorder_point)
