@@ -7,6 +7,7 @@ import { useSearchParams } from 'react-router-dom'
 import {
   listPurchaseOrders, getPurchaseOrder, createPurchaseOrder, updatePurchaseOrder,
   deletePOLine, receivePO, adjustReceived, listVendors, listAllLocations, listItems, listReplenishment,
+  getPoSettings, setPoNextNumber,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -38,12 +39,18 @@ export default function ElementsPurchaseOrders({ profile }) {
   const [err, setErr] = useState('')
 
   // new-PO form
-  const blankNew = { vendor_id: '', location_id: '', expected_at: '', notes: '', po_number: '' }
+  const blankNew = { vendor_id: '', location_id: '', expected_at: '', notes: '', job_name: '' }
   const [np, setNp] = useState(blankNew)
   const [npLines, setNpLines] = useState([])   // [{item_id,name,category,qty,cost}]
   const [addTerm, setAddTerm] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const addRef = useRef(null)
+
+  // PO-number settings (the next number the counter will assign)
+  const [poSettings, setPoSettings] = useState({ next_number: 1001, prefix: 'PO-' })
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [startInput, setStartInput] = useState('')
+  const nextPoLabel = `${poSettings.prefix || 'PO-'}${poSettings.next_number}`
 
   // receive inputs on detail: line_id -> {qty,cost}
   const [recv, setRecv] = useState({})
@@ -53,11 +60,11 @@ export default function ElementsPurchaseOrders({ profile }) {
 
   async function loadList() {
     if (!org.selectedOrg) return
-    const [p, v, locs, its] = await Promise.all([
+    const [p, v, locs, its, settings] = await Promise.all([
       listPurchaseOrders(org.selectedOrg), listVendors(org.selectedOrg),
-      listAllLocations(org.selectedOrg), listItems(org.selectedOrg),
+      listAllLocations(org.selectedOrg), listItems(org.selectedOrg), getPoSettings(org.selectedOrg),
     ])
-    setPos(p); setVendors(v); setLocations(locs); setItems(its)
+    setPos(p); setVendors(v); setLocations(locs); setItems(its); setPoSettings(settings)
   }
   useEffect(() => { loadList() }, [org.selectedOrg])
 
@@ -93,7 +100,7 @@ export default function ElementsPurchaseOrders({ profile }) {
     // received or cancelled to look it up. The status dropdown only narrows
     // the browse view when the search box is empty.
     if (term) {
-      return `${p.po_number || ''} ${p.vendor?.name || ''} ${p.location?.name || ''} ${p.partsText || ''}`.toLowerCase().includes(term)
+      return `${p.po_number || ''} ${p.job_name || ''} ${p.vendor?.name || ''} ${p.location?.name || ''} ${p.partsText || ''}`.toLowerCase().includes(term)
     }
     if (statusFilter === 'open' && (p.status === 'received' || p.status === 'cancelled')) return false
     if (statusFilter !== 'open' && statusFilter !== 'all' && p.status !== statusFilter) return false
@@ -146,13 +153,29 @@ export default function ElementsPurchaseOrders({ profile }) {
     setBusy(true); setErr(''); setMsg('')
     const { po: created, error } = await createPurchaseOrder(org.selectedOrg, {
       vendor_id: np.vendor_id, location_id: np.location_id, expected_at: np.expected_at || null,
-      notes: np.notes, po_number: np.po_number,
+      notes: np.notes, job_name: np.job_name,
       lines: lines.map((l) => ({ item_id: l.item_id, qty_ordered: l.qty, unit_cost: l.cost })),
     })
     setBusy(false)
     if (error) { setErr(error.message); return }
     await loadList()
     openPO(created.id)
+  }
+
+  // ---- PO number settings ----
+  function openSettings() {
+    setStartInput(String(poSettings.next_number)); setSettingsOpen(true); setMsg(''); setErr('')
+  }
+  async function saveSettings() {
+    const n = parseInt(startInput, 10)
+    if (!n || n < 1) { setErr('Enter a whole number of 1 or more.'); return }
+    setBusy(true); setErr(''); setMsg('')
+    const { error } = await setPoNextNumber(org.selectedOrg, n)
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    setSettingsOpen(false)
+    setPoSettings((s) => ({ ...s, next_number: n }))
+    setMsg(`Next PO number set to ${poSettings.prefix || 'PO-'}${n}.`)
   }
 
   // ---- detail actions ----
@@ -205,9 +228,29 @@ export default function ElementsPurchaseOrders({ profile }) {
           <h2>Purchase Orders</h2>
           <span className="badge">{pos.filter((p) => p.status !== 'received' && p.status !== 'cancelled').length} open</span>
         </div>
-        <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={startNew}>+ New PO</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="logout-button" onClick={openSettings} title="Set the next PO number">⚙ Numbering</button>
+          <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={startNew}>+ New PO</button>
+        </div>
       </div>
       <OrgBar {...org} />
+
+      {settingsOpen && (
+        <div style={{ border: '1px solid #CBD5E1', borderRadius: 12, padding: 16, marginBottom: 14, background: '#F8FAFC', maxWidth: 520 }}>
+          <div style={{ fontWeight: 700, color: '#132A4C', marginBottom: 6 }}>PO numbering</div>
+          <p style={{ color: 'var(--mist)', fontSize: 12.5, marginTop: 0, marginBottom: 10 }}>
+            POs are numbered automatically in sequence. The next one will be <strong>{nextPoLabel}</strong>.
+            If you're carrying over history from another system, set the next number so your sequence continues where it left off.
+          </p>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div className="field" style={{ marginBottom: 0, width: 160 }}><label>Next number</label>
+              <input type="number" min="1" step="1" value={startInput} onChange={(e) => setStartInput(e.target.value)} />
+            </div>
+            <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={busy} onClick={saveSettings}>{busy ? 'Saving…' : 'Save'}</button>
+            <button className="logout-button" disabled={busy} onClick={() => setSettingsOpen(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>
         Order parts from a vendor, then receive them in as they arrive. Start a PO from scratch or pull in whatever's
@@ -222,7 +265,7 @@ export default function ElementsPurchaseOrders({ profile }) {
         <div style={{ flex: '1 1 320px', minWidth: 280, maxWidth: 420 }}>
           <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div className="field" style={{ marginBottom: 0, flex: 1, minWidth: 140 }}><label>Search</label>
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search all POs — number, vendor, or part…" />
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search all POs — number, name, vendor, or part…" />
             </div>
             <div className="field" style={{ marginBottom: 0 }}><label>Show</label>
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -243,7 +286,10 @@ export default function ElementsPurchaseOrders({ profile }) {
                 <div key={p.id} onClick={() => openPO(p.id)}
                   style={{ padding: '10px 13px', cursor: 'pointer', borderBottom: '1px solid #EEF1F6', background: active ? '#EEF3FB' : '#fff', borderLeft: active ? '3px solid #1B3A6B' : '3px solid transparent' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                    <div style={{ fontWeight: 600, color: '#132A4C' }}>{p.po_number || '(no #)'}</div>
+                    <div style={{ fontWeight: 600, color: '#132A4C' }}>
+                      {p.po_number || '(no #)'}
+                      {p.job_name ? <span style={{ fontWeight: 400, color: '#1B3A6B' }}> · {p.job_name}</span> : null}
+                    </div>
                     {pill(p.status)}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--mist)' }}>
@@ -260,7 +306,10 @@ export default function ElementsPurchaseOrders({ profile }) {
         <div style={{ flex: '2 1 460px', minWidth: 320 }}>
           {mode === 'new' ? (
             <div style={{ border: '1px solid var(--line, #E2E8F0)', borderRadius: 12, padding: 18 }}>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#132A4C', marginBottom: 12 }}>New purchase order</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+                <div style={{ fontSize: 17, fontWeight: 700, color: '#132A4C' }}>New purchase order</div>
+                <div style={{ fontSize: 12.5, color: 'var(--mist)' }}>Will be numbered <strong style={{ color: '#1B3A6B' }}>{nextPoLabel}</strong></div>
+              </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <div className="field" style={{ minWidth: 200, flex: 1 }}><label>Vendor</label>
                   <select value={np.vendor_id} onChange={(e) => setNp({ ...np, vendor_id: e.target.value })}>
@@ -277,6 +326,9 @@ export default function ElementsPurchaseOrders({ profile }) {
                 <div className="field" style={{ width: 150 }}><label>Expected</label>
                   <input type="date" value={np.expected_at} onChange={(e) => setNp({ ...np, expected_at: e.target.value })} />
                 </div>
+              </div>
+              <div className="field" style={{ marginTop: 4 }}><label>Job / customer name (optional)</label>
+                <input type="text" value={np.job_name} onChange={(e) => setNp({ ...np, job_name: e.target.value })} placeholder="e.g. Smith install, Building B rooftop units…" />
               </div>
               <div className="field" style={{ marginTop: 4 }}><label>Notes (optional)</label>
                 <input type="text" value={np.notes} onChange={(e) => setNp({ ...np, notes: e.target.value })} placeholder="Anything the vendor should know…" />
@@ -334,6 +386,7 @@ export default function ElementsPurchaseOrders({ profile }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: '#132A4C', display: 'flex', gap: 10, alignItems: 'center' }}>{po.po_number || '(no #)'} {pill(po.status)}</div>
+                  {po.job_name && <div style={{ fontSize: 14, fontWeight: 600, color: '#1B3A6B', marginTop: 2 }}>{po.job_name}</div>}
                   <div style={{ fontSize: 13, color: 'var(--mist)', marginTop: 2 }}>
                     {po.vendor?.name || 'No vendor'} → {po.location?.name || 'no location'}{po.expected_at ? ` · expected ${new Date(po.expected_at).toLocaleDateString()}` : ''}
                   </div>
