@@ -105,21 +105,29 @@ export default function ElementsStock({ profile }) {
       const lvReorder = lv.reorder_point != null ? Number(lv.reorder_point) : null
       const lvMax = lv.max_level != null ? Number(lv.max_level) : null
       const reorder = lvReorder != null ? lvReorder : (it.reorder_point != null ? Number(it.reorder_point) : null)
-      let status = 'ok'
-      if (onHand <= 0) status = 'out'
-      else if (reorder != null && onHand <= reorder) status = 'low'
+      let status
+      if (onHand < 0) status = 'negative'
+      else if (it.stock_type === 'special_order') status = 'special'
+      else if (reorder == null) status = onHand > 0 ? 'ok' : 'none'
+      else if (onHand <= 0) status = 'out'
+      else if (onHand <= reorder) status = 'low'
+      else status = 'ok'
       return { it, onHand, reorder, lvReorder, lvMax, status }
     })
 
   const lowCount = rows.filter((r) => r.status === 'low').length
   const outCount = rows.filter((r) => r.status === 'out').length
   const stockedCount = rows.filter((r) => r.onHand > 0).length
+  const negCount = rows.filter((r) => r.status === 'negative').length
 
   const pill = (status) => {
     const map = {
       ok: { t: 'In stock', bg: '#E3F1E8', c: '#166534' },
       low: { t: 'Low', bg: '#F8EEDD', c: '#B0600A' },
       out: { t: 'Out', bg: '#FBE7E7', c: '#B00020' },
+      negative: { t: 'Check', bg: '#FBE7E7', c: '#B00020' },
+      special: { t: 'Special order', bg: '#F8EEDD', c: '#B0600A' },
+      none: { t: 'Not stocked', bg: '#EEF1F5', c: '#64748B' },
     }[status]
     return <span className="badge" style={{ background: map.bg, color: map.c }}>{map.t}</span>
   }
@@ -129,7 +137,7 @@ export default function ElementsStock({ profile }) {
       <div className="page-header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <h2>Stock &amp; Receiving</h2>
-          <span className="badge">{stockedCount} stocked · {lowCount} low · {outCount} out</span>
+          <span className="badge">{stockedCount} stocked · {lowCount} low · {outCount} out{negCount > 0 ? ` · ${negCount} to check` : ''}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={openReceive}>+ Receive</button>
@@ -207,10 +215,10 @@ export default function ElementsStock({ profile }) {
         </thead>
         <tbody>
           {rows.map(({ it, onHand, lvReorder, lvMax, status }) => (
-            <tr key={it.id} style={status === 'out' ? { color: 'var(--mist)' } : undefined}>
+            <tr key={it.id} style={(status === 'none' || status === 'special') ? { color: 'var(--mist)' } : undefined}>
               <td>{it.description}{it.stock_type === 'special_order' ? <span className="badge" style={{ marginLeft: 6, background: '#F8EEDD', color: '#B0600A' }}>Special order</span> : null}</td>
               <td style={{ color: 'var(--mist)' }}>{it.category || '—'}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600 }}>{onHand}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: onHand < 0 ? '#B00020' : undefined }}>{onHand}</td>
               <td style={{ textAlign: 'right' }}>
                 <input type="number" min="0" step="any" defaultValue={lvReorder ?? ''} disabled={saving}
                   style={{ width: 58, textAlign: 'right' }} title="Reorder point for this location"

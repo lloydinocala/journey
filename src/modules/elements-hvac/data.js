@@ -85,26 +85,6 @@ export async function listLocationStock(orgId) {
   return map
 }
 
-// On-hand per item across all locations (non-zero), valued at item cost.
-// Used by the Item Catalog to show stock and guard Delete.
-export async function listItemStock(orgId) {
-  const { data } = await supabase
-    .from('elements_stock_levels')
-    .select('item_id, on_hand, item:elements_items(avg_cost, last_cost, standard_cost)')
-    .eq('org_id', orgId)
-  const map = {}
-  ;(data || []).forEach((r) => {
-    const oh = Number(r.on_hand || 0)
-    if (!oh) return
-    const it = r.item || {}
-    const cost = it.avg_cost != null ? it.avg_cost : (it.last_cost != null ? it.last_cost : (it.standard_cost != null ? it.standard_cost : 0))
-    const m = map[r.item_id] || (map[r.item_id] = { onHand: 0, value: 0 })
-    m.onHand += oh
-    m.value += oh * Number(cost || 0)
-  })
-  return map
-}
-
 // ---- Items (SKU catalog) --------------------------------------------------
 export async function listItems(orgId, { includeInactive = false } = {}) {
   let q = supabase.from('elements_items').select('*').eq('org_id', orgId).order('category').order('sku')
@@ -255,6 +235,12 @@ export async function transferStock(orgId, { from_location_id, to_location_id, i
   const q = Number(qty)
   if (!from_location_id || !to_location_id || from_location_id === to_location_id || !item_id || !(q > 0))
     return { error: { message: 'Pick different From/To locations, an item, and a quantity above zero.' } }
+
+  // Data integrity: never let a manual transfer drive the From location negative.
+  const { data: fromLvl } = await supabase.from('elements_stock_levels')
+    .select('on_hand').eq('org_id', orgId).eq('item_id', item_id).eq('location_id', from_location_id).maybeSingle()
+  const avail = Number(fromLvl?.on_hand || 0)
+  if (q > avail) return { error: { message: `Only ${avail} on hand at the From location — can’t transfer ${q}. Receive stock there first, or move ${avail} or fewer.` } }
   const cost = unit_cost === '' || unit_cost == null ? null : Number(unit_cost)
   const { error } = await supabase.from('elements_stock_txns').insert([
     { org_id: orgId, item_id, location_id: from_location_id, txn_type: 'transfer_out', qty_delta: -q, unit_cost: cost, ref_type: 'manual', reason_code: 'transfer', note: note || null },
