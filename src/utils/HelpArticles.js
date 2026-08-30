@@ -581,6 +581,22 @@ export const HELP_ARTICLES = [
     ],
   },
   {
+    id: 'inv-variance',
+    title: 'Inventory Variance',
+    area: 'Inventory',
+    keywords: ['variance', 'shrink', 'shrinkage', 'count variance', 'purchase variance', 'price variance', 'overbilled', 'adjustment', 'discrepancy', 'loss', 'exception'],
+    purpose: 'Where reality did not match the plan — in dollars. Count variance is what a posted cycle count changed versus the expected quantity; purchase variance is where a vendor invoice billed a different price or quantity than its purchase order.',
+    sections: [
+      { h: 'How to use it', items: [
+        'The tiles show net variance, count adjustments, purchase variance, and how many exceptions are in view.',
+        'Filter by All, Count, or Purchase, and choose a time window (last 30 / 90 days, last year, or all time).',
+        'The table lists each exception, largest dollar impact first — date, type, item, where (location for counts, vendor for purchases), expected vs. actual, quantity change, and the dollar impact.',
+      ]},
+      { h: 'What the numbers mean', body: 'Count value impact = adjusted quantity times item cost (average, else last, else standard). Purchase value impact = (invoiced unit price minus PO unit price) times invoiced quantity. For counts, a negative number is shrink — inventory was worth less than the books said. For purchases, a positive number means the invoice cost more than the PO.' },
+      { h: 'Good to know', body: 'Count variance appears once you post a cycle count that had adjustments; purchase variance appears once a vendor invoice is matched to a PO line with a price or quantity difference. It is computed live — refresh any time.' },
+    ],
+  },
+  {
     id: 'inv-job-costing',
     title: 'Job Costing',
     area: 'Inventory',
@@ -680,6 +696,7 @@ export const ROUTE_HELP = {
   '/elements/parts-used': 'inv-parts-used',
   '/elements/usage': 'inv-usage',
   '/elements/valuation': 'inv-valuation',
+  '/elements/variance': 'inv-variance',
   '/elements/job-costing': 'inv-job-costing',
   '/elements/forecast': 'inv-forecast',
   '/elements/settings': 'inv-settings',
