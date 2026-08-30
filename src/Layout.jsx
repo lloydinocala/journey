@@ -25,7 +25,6 @@ const CATEGORIES = [
     { label: 'Maintenance Due', path: '/maintenance-due' },
     { label: 'Warranty Registrations', path: '/warranty-registrations' },
     { label: 'Vendors', path: '/vendors' },
-    { label: 'Parts Catalog', path: '/parts-catalog' },
     { label: 'Text Archive', path: '/text-archive' },
   ]},
   { key: 'financials', label: 'Financials', items: [
@@ -53,7 +52,6 @@ const CATEGORIES = [
     { label: 'Import Customers', path: '/import/customers' },
     { label: 'Import Properties', path: '/import/properties' },
     { label: 'Import Jobs', path: '/import/jobs' },
-    { label: 'Import Parts Catalog', path: '/import/parts-catalog' },
     { label: 'Import Services Pricebook', path: '/import/services-pricebook' },
     { label: 'Import Systems Pricebook', path: '/import/systems-pricebook' },
     { label: 'Import Vendor Price File', path: '/import/vendor-prices' },
