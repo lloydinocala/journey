@@ -7,7 +7,7 @@ import { fetchAllRows, readFileSmart, normPrice, normalizeForMatch } from '../..
 import { useOrgSelector, OrgBar } from './shared'
 
 const blank = {
-  description: '', category: '', item_class: 'part',
+  description: '', category: '', item_class: 'part', stock_type: 'stock',
   base_uom: 'each', stock_uom: '', units_per_stock_uom: '', vendor_part_no: '',
   last_cost: '', barcode: '', primary_vendor_id: '',
 }
@@ -185,6 +185,7 @@ export default function ElementsItems({ profile }) {
       description: form.description.trim(),
       category: form.category.trim() || null,
       item_class: form.item_class,
+      stock_type: form.stock_type || 'stock',
       base_uom: form.base_uom.trim() || 'each',
       stock_uom: form.stock_uom.trim() || null,
       units_per_stock_uom: form.units_per_stock_uom ? parseFloat(form.units_per_stock_uom) : null,
@@ -209,6 +210,7 @@ export default function ElementsItems({ profile }) {
       description: it.description || '',
       category: it.category || '',
       item_class: it.item_class || 'part',
+      stock_type: it.stock_type || 'stock',
       base_uom: it.base_uom || 'each',
       stock_uom: it.stock_uom || '',
       units_per_stock_uom: it.units_per_stock_uom != null ? String(it.units_per_stock_uom) : '',
@@ -297,6 +299,13 @@ export default function ElementsItems({ profile }) {
             <select value={form.item_class} onChange={(e) => setForm({ ...form, item_class: e.target.value })}>
               <option value="part">Part (invoice-tracked)</option>
               <option value="consumable">Consumable (not invoiced)</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>Type</label>
+            <select value={form.stock_type} onChange={(e) => setForm({ ...form, stock_type: e.target.value })}>
+              <option value="stock">Stock (reordered)</option>
+              <option value="special_order">Special order</option>
             </select>
           </div>
           <div className="field" style={{ width: 90 }}><label>Base unit</label><input type="text" value={form.base_uom} onChange={(e) => setForm({ ...form, base_uom: e.target.value })} placeholder="each / oz" /></div>
