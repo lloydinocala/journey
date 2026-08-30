@@ -500,6 +500,14 @@ export async function deletePOLine(lineId) {
   return supabase.from('elements_po_lines').delete().eq('id', lineId)
 }
 
+// Permanently delete a purchase order and its lines. Only safe for a PO that
+// has never received stock (drafts) — receiving writes ledger rows that would
+// be orphaned otherwise, so the UI restricts this to draft POs.
+export async function deletePurchaseOrder(orgId, poId) {
+  await supabase.from('elements_po_lines').delete().eq('org_id', orgId).eq('po_id', poId)
+  return supabase.from('elements_purchase_orders').delete().eq('org_id', orgId).eq('id', poId)
+}
+
 // Weighted moving average across all locations, refreshed on each receipt.
 async function updateItemCostOnReceipt(orgId, itemId, qty, unitCost) {
   const { data: it } = await supabase.from('elements_items').select('avg_cost').eq('id', itemId).maybeSingle()
