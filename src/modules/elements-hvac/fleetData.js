@@ -193,23 +193,6 @@ export async function completePm(orgId, sch, { odometer, date, description, cost
   return updatePmSchedule(sch.id, { last_done_meter: odometer ?? sch.last_done_meter, last_done_date: date })
 }
 
-// ---- Renewals -------------------------------------------------------------
-export async function listRenewals(orgId, vehicleId = null) {
-  let q = supabase.from('elements_renewals').select('*').eq('org_id', orgId)
-  if (vehicleId) q = q.eq('vehicle_id', vehicleId)
-  const { data } = await q.eq('is_active', true).order('due_date')
-  return data || []
-}
-export async function addRenewal(orgId, row) {
-  return supabase.from('elements_renewals').insert({ org_id: orgId, ...row }).select().single()
-}
-export async function updateRenewal(id, patch) {
-  return supabase.from('elements_renewals').update(patch).eq('id', id)
-}
-export async function archiveRenewal(id) {
-  return supabase.from('elements_renewals').update({ is_active: false }).eq('id', id)
-}
-
 // ---- Date + status helpers ------------------------------------------------
 export function todayStr() { return new Date().toISOString().slice(0, 10) }
 function parseDay(s) { return new Date(s + 'T00:00:00') }
@@ -250,17 +233,6 @@ export function pmStatus(sch, currentMeter, today = todayStr()) {
   if (remaining <= soon) return { state: 'due_soon', color: 'amber', label: `Due in ${Math.round(remaining).toLocaleString()} ${unit}`, dueAt }
   return { state: 'ok', color: null, label: `Due at ${Math.round(dueAt).toLocaleString()} ${unit}`, dueAt }
 }
-
-export function renewalStatus(r, today = todayStr()) {
-  const remaining = daysBetween(today, r.due_date)
-  const soon = Number(r.due_soon_days ?? 30)
-  if (remaining < 0) return { state: 'overdue', color: 'red', label: `Overdue ${Math.abs(remaining)}d` }
-  if (remaining <= soon) return { state: 'due_soon', color: 'amber', label: `Due in ${remaining}d` }
-  return { state: 'ok', color: null, label: `Due ${r.due_date}` }
-}
-
-const RENEWAL_LABELS = { registration: 'Registration', insurance: 'Insurance', inspection: 'Inspection', other: 'Other' }
-export const renewalName = (r) => (r.renewal_type === 'other' ? (r.label || 'Other') : RENEWAL_LABELS[r.renewal_type] || r.renewal_type)
 
 // ---- Repairs / issues (2c) ------------------------------------------------
 export async function listIssues(orgId, vehicleId = null, { openOnly = false } = {}) {
@@ -389,15 +361,14 @@ export async function createInspection(orgId, header, items) {
 
 // Roll everything up per vehicle for the Fleet Dashboard.
 export async function dashboardData(orgId) {
-  const [vehicles, fuel, meters, pms, renewals, issues] = await Promise.all([
-    listVehicles(orgId), listFuel(orgId), listMeters(orgId), listPmSchedules(orgId), listRenewals(orgId),
+  const [vehicles, fuel, meters, pms, issues] = await Promise.all([
+    listVehicles(orgId), listFuel(orgId), listMeters(orgId), listPmSchedules(orgId),
     listIssues(orgId, null, { openOnly: true }),
   ])
-  const fuelBy = {}, meterBy = {}, pmBy = {}, renBy = {}, issueBy = {}
+  const fuelBy = {}, meterBy = {}, pmBy = {}, issueBy = {}
   fuel.forEach((f) => { (fuelBy[f.vehicle_id] = fuelBy[f.vehicle_id] || []).push(f) })
   meters.forEach((m) => { (meterBy[m.vehicle_id] = meterBy[m.vehicle_id] || []).push(m) })
   pms.forEach((p) => { (pmBy[p.vehicle_id] = pmBy[p.vehicle_id] || []).push(p) })
-  renewals.forEach((r) => { (renBy[r.vehicle_id] = renBy[r.vehicle_id] || []).push(r) })
   issues.forEach((i) => { (issueBy[i.vehicle_id] = issueBy[i.vehicle_id] || []).push(i) })
   const latestOdo = computeLatestOdometers(fuel, meters)
   const today = todayStr()
@@ -410,16 +381,11 @@ export async function dashboardData(orgId) {
     const avgCpg = cpgVals.length ? cpgVals.reduce((s, x) => s + x, 0) / cpgVals.length : null
     const flags = [...fm.flatMap((x) => x.flags), ...mm.flatMap((x) => x.flags)]
 
-    // maintenance + renewal flags
+    // maintenance flags
     ;(pmBy[v.id] || []).forEach((p) => {
       const st = pmStatus(p, latestOdo[v.id] ?? null, today)
       if (st.state === 'overdue') flags.push({ code: 'pm_overdue', color: 'red', label: `${p.task_name}: overdue` })
       else if (st.state === 'due_soon') flags.push({ code: 'pm_due', color: 'amber', label: `${p.task_name}: ${st.label.toLowerCase()}` })
-    })
-    ;(renBy[v.id] || []).forEach((r) => {
-      const st = renewalStatus(r, today)
-      if (st.state === 'overdue') flags.push({ code: 'renewal_overdue', color: 'red', label: `${renewalName(r)}: overdue` })
-      else if (st.state === 'due_soon') flags.push({ code: 'renewal_due', color: 'amber', label: `${renewalName(r)}: ${st.label.toLowerCase()}` })
     })
     ;(issueBy[v.id] || []).forEach((i) => {
       flags.push({ code: 'open_issue', color: SEVERITY_COLOR[i.severity] || 'amber', label: `Open issue: ${(i.description || '').slice(0, 40)}` })

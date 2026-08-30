@@ -23,7 +23,6 @@ import FleetDashboard from './FleetDashboard'
 import FleetVehicles from './FleetVehicles'
 import FleetFuel from './FleetFuel'
 import FleetMaintenance from './FleetMaintenance'
-import FleetRenewals from './FleetRenewals'
 import FleetRepairs from './FleetRepairs'
 import FleetRoutes from './FleetRoutes'
 import FleetInspections from './FleetInspections'
@@ -85,7 +84,6 @@ export const ELEMENTS_FLEET_ROUTES = [
   { path: '/fleet/vehicles', Component: FleetVehicles },
   { path: '/fleet/fuel', Component: FleetFuel },
   { path: '/fleet/maintenance', Component: FleetMaintenance },
-  { path: '/fleet/renewals', Component: FleetRenewals },
   { path: '/fleet/repairs', Component: FleetRepairs },
   { path: '/fleet/routes', Component: FleetRoutes },
   { path: '/fleet/inspections', Component: FleetInspections },
@@ -100,7 +98,6 @@ export const ELEMENTS_FLEET_NAV = {
     { label: 'Vehicles', path: '/fleet/vehicles' },
     { label: 'Fuel Log', path: '/fleet/fuel' },
     { label: 'Maintenance', path: '/fleet/maintenance' },
-    { label: 'Renewals', path: '/fleet/renewals' },
     { label: 'Repairs & Cost', path: '/fleet/repairs' },
     { label: 'Routes & GPS', path: '/fleet/routes' },
     { label: 'Inspections', path: '/fleet/inspections' },
