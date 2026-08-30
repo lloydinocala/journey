@@ -613,6 +613,47 @@ export async function deleteVendorInvoice(orgId, id) {
   return supabase.from('elements_vendor_invoices').delete().eq('org_id', orgId).eq('id', id)
 }
 
+// ---- Vendor cross-reference (alias crosswalk) -----------------------------
+// Each vendor's own SKU / description / brand for a part maps to ONE generic
+// catalog item. Matching checks these aliases first (exact vendor SKU is a
+// certain hit), and every confirmed capture writes them back — so the second
+// invoice from a vendor auto-matches without guessing.
+const skuNorm = (s) => (s || '').toString().toLowerCase().replace(/[^a-z0-9]+/g, '')
+
+export async function listItemVendors(orgId, vendorId) {
+  if (!vendorId) return []
+  const { data } = await supabase.from('elements_item_vendors')
+    .select('item_id, vendor_sku, sku_norm, vendor_description, last_cost')
+    .eq('org_id', orgId).eq('vendor_id', vendorId)
+  return data || []
+}
+
+// Remember confirmed line→item mappings for this vendor. lines: [{ item_id,
+// vendor_sku, vendor_description, last_cost }]. Exact-SKU aliases upsert on
+// (org, vendor, sku_norm); description-only aliases dedupe by vendor+item+desc.
+export async function learnAliases(orgId, vendorId, lines) {
+  if (!vendorId || vendorId === '__new__') return
+  for (const l of lines || []) {
+    if (!l.item_id) continue
+    const sn = skuNorm(l.vendor_sku)
+    const payload = {
+      org_id: orgId, vendor_id: vendorId, item_id: l.item_id,
+      vendor_sku: l.vendor_sku || null, sku_norm: sn || null,
+      vendor_description: l.vendor_description || null,
+      last_cost: numOrNull(l.last_cost), last_seen_at: new Date().toISOString(),
+    }
+    if (sn) {
+      await supabase.from('elements_item_vendors').upsert(payload, { onConflict: 'org_id,vendor_id,sku_norm' })
+    } else if (l.vendor_description) {
+      const { data: ex } = await supabase.from('elements_item_vendors').select('id')
+        .eq('org_id', orgId).eq('vendor_id', vendorId).eq('item_id', l.item_id).is('sku_norm', null)
+        .ilike('vendor_description', l.vendor_description).limit(1)
+      if (ex && ex[0]) await supabase.from('elements_item_vendors').update(payload).eq('id', ex[0].id)
+      else await supabase.from('elements_item_vendors').insert(payload)
+    }
+  }
+}
+
 // Weighted moving average across all locations, refreshed on each receipt.
 async function updateItemCostOnReceipt(orgId, itemId, qty, unitCost) {
   const { data: it } = await supabase.from('elements_items').select('avg_cost').eq('id', itemId).maybeSingle()
