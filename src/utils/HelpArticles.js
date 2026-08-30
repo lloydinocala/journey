@@ -410,7 +410,8 @@ export const HELP_ARTICLES = [
       { h: 'How to use it', items: [
         'Add a part with "+ New", or bulk-load your whole catalog from a spreadsheet with Import (and Export for a template or a backup).',
         'Search, filter by class, and toggle "Show archived" to see retired parts.',
-        'Archive a part you no longer use instead of deleting it, so its history stays intact.',
+        'The On hand column shows current stock across all locations; parts carrying stock read in bold.',
+        'Archive a part you no longer use instead of deleting it, so its history stays intact — Delete is disabled for any part that still has stock or is mapped to a service, and is reserved for empty records created by mistake.',
       ]},
       { h: 'Good to know', body: 'Special-order parts show a tag and are deliberately kept out of replenishment and demand forecast — since nothing stays the same forever, you can flip a part between stock and special order whenever it changes.' },
     ],
