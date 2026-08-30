@@ -14,6 +14,7 @@ import ElementsVendorCrossref from './ElementsVendorCrossref'
 import ElementsServiceMap from './ElementsServiceMap'
 import ElementsPartsUsed from './ElementsPartsUsed'
 import ElementsUsageReport from './ElementsUsageReport'
+import ElementsJobCosting from './ElementsJobCosting'
 import ElementsSettings from './ElementsSettings'
 import FleetDashboard from './FleetDashboard'
 import FleetVehicles from './FleetVehicles'
@@ -40,6 +41,7 @@ export const ELEMENTS_ROUTES = [
   { path: '/elements/service-map', Component: ElementsServiceMap },
   { path: '/elements/parts-used', Component: ElementsPartsUsed },
   { path: '/elements/usage', Component: ElementsUsageReport },
+  { path: '/elements/job-costing', Component: ElementsJobCosting },
   { path: '/elements/settings', Component: ElementsSettings },
 ]
 
@@ -62,6 +64,7 @@ export const ELEMENTS_NAV = {
     { label: 'Service → Part Mapping', path: '/elements/service-map' },
     { label: 'Record Parts Used', path: '/elements/parts-used' },
     { label: 'Parts Usage', path: '/elements/usage' },
+    { label: 'Job Costing', path: '/elements/job-costing' },
     { label: 'Inventory Settings', path: '/elements/settings' },
   ],
 }
