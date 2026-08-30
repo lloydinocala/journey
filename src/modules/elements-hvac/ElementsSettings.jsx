@@ -137,7 +137,7 @@ export default function ElementsSettings({ profile }) {
         </form>
         <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 8 }}>
           Lead time is per-vendor on the vendor record; this is the fallback when a vendor has none.
-          Safety-stock default is 7 days (revisit later).
+          Safety-stock default is 7 days.
         </p>
         {msg && <div style={{ marginTop: 12, color: msg === 'Saved.' ? '#166534' : '#B00020' }}>{msg}</div>}
       </div>
