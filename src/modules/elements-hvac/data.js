@@ -958,3 +958,12 @@ export async function setSpecialOrderStatus(orgId, id, status) {
 export async function deleteSpecialOrder(orgId, id) {
   return supabase.from('elements_special_orders').delete().eq('org_id', orgId).eq('id', id)
 }
+
+// ---- Anomaly detection (P5c) ----------------------------------------------
+// Live diagnostic over the ledger, levels, costs and cycle counts. Returns
+// structured flags; the UI composes the sentence. Flags clear when fixed.
+export async function listAnomalies() {
+  const { data, error } = await supabase.rpc('elements_anomalies')
+  if (error) return []
+  return data || []
+}
