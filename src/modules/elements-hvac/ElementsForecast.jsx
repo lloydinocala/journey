@@ -64,7 +64,7 @@ export default function ElementsForecast({ profile }) {
 
   function Trend({ t }) {
     if (t == null) return <span style={{ color: '#CBD5E1' }}>—</span>
-    if (t >= 1.3) return <span style={{ color: '#B00020', fontWeight: 600 }}>↑ rising</span>
+    if (t >= 1.3) return <span style={{ color: '#B0600A', fontWeight: 600 }}>↑ rising</span>
     if (t <= 0.7) return <span style={{ color: '#166534', fontWeight: 600 }}>↓ easing</span>
     return <span style={{ color: '#64748B' }}>→ steady</span>
   }
