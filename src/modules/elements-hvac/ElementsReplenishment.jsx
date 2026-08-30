@@ -1,6 +1,6 @@
 // Elements-HVAC · Replenishment — everything sitting at or below its reorder
 // point, with a suggested top-up to Max. Trucks can be refilled from a warehouse
-// in one click; warehouse shortfalls are flagged for purchasing (POs land in P3).
+// in one click; warehouse shortfalls are flagged for purchasing (create a PO in Purchase Orders).
 import { useState, useEffect, useMemo } from 'react'
 import { listReplenishment, listAllLocations, listStockLevels, transferStock } from './data'
 import { useOrgSelector, OrgBar } from './shared'
@@ -145,7 +145,7 @@ export default function ElementsReplenishment({ profile }) {
                       <span style={{ color: '#B0600A', fontSize: 12.5 }}>Warehouse is out — purchase needed</span>
                     )
                   ) : (
-                    <span style={{ color: 'var(--mist)', fontSize: 12.5 }}>Purchase {r.suggest} (PO coming in P3)</span>
+                    <span style={{ color: 'var(--mist)', fontSize: 12.5 }}>Purchase {r.suggest} needed</span>
                   )}
                   {canXfer && xferQty > 0 && xferQty < r.suggest && (
                     <span style={{ color: 'var(--mist)', fontSize: 12, marginLeft: 8 }}>(warehouse has {avail})</span>
