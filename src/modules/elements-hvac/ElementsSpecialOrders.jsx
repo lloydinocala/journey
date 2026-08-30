@@ -180,7 +180,7 @@ export default function ElementsSpecialOrders({ profile }) {
                   <div style={{ fontSize: 12.5, color: '#152238', marginTop: 1 }}>{o.quantity > 1 ? `${o.quantity}× ` : ''}{o.description}</div>
                   <div style={{ fontSize: 11, color: 'var(--mist)' }}>
                     {o.job_ref ? `${o.job_ref} · ` : ''}{o.vendor_label ? `${o.vendor_label} · ` : ''}{o.needed_by ? `need by ${fmtDate(o.needed_by)}` : `opened ${fmtDate(o.created_at)}`}
-                    {overdue(o) ? ' · ⚠ overdue' : ''}
+                    {overdue(o) ? <span style={{ color: '#B00020', fontWeight: 700 }}> · ⚠ overdue</span> : ''}
                   </div>
                 </div>
               )
