@@ -7,7 +7,7 @@ import { useSearchParams } from 'react-router-dom'
 import {
   listPurchaseOrders, getPurchaseOrder, createPurchaseOrder, updatePurchaseOrder,
   deletePOLine, receivePO, adjustReceived, listVendors, listAllLocations, listItems, listReplenishment,
-  getPoSettings, setPoNextNumber,
+  getPoSettings, setPoNextNumber, addItem, deriveSku,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -124,6 +124,18 @@ export default function ElementsPurchaseOrders({ profile }) {
     setNpLines((ls) => [...ls, { item_id: it.id, name: it.description || it.sku, category: it.category || '', qty: '1', cost: costOf(it) != null ? String(costOf(it)) : '' }])
     setAddTerm(''); setAddOpen(false)
   }
+  // Add a specialty part that isn't in the catalog yet. It's created as a real
+  // (receivable, reusable) item when the PO is saved.
+  function addNewLine() {
+    const name = addTerm.trim()
+    if (!name) return
+    setNpLines((ls) => [...ls, { item_id: null, isNew: true, _k: `new-${Date.now()}-${ls.length}`, name, category: '', qty: '1', cost: '' }])
+    setAddTerm(''); setAddOpen(false)
+  }
+  const exactMatch = useMemo(() => {
+    const t = addTerm.trim().toLowerCase()
+    return !!t && items.some((it) => (it.description || '').toLowerCase() === t)
+  }, [items, addTerm])
   function setLine(idx, k, v) { setNpLines((ls) => ls.map((l, i) => (i === idx ? { ...l, [k]: v } : l))) }
   function rmLine(idx) { setNpLines((ls) => ls.filter((_, i) => i !== idx)) }
 
@@ -151,10 +163,28 @@ export default function ElementsPurchaseOrders({ profile }) {
     const lines = npLines.filter((l) => (Number(l.qty) || 0) > 0)
     if (!lines.length) { setErr('Add at least one line with a quantity.'); return }
     setBusy(true); setErr(''); setMsg('')
+    // Create any specialty parts that aren't in the catalog yet, so they become
+    // real, receivable, reusable items before the PO line references them.
+    const taken = new Set(items.map((i) => (i.sku || '').toLowerCase()))
+    const resolved = []
+    for (const l of lines) {
+      if (l.isNew && !l.item_id) {
+        const sku = deriveSku(l.name, taken); taken.add(sku.toLowerCase())
+        const cost = (l.cost === '' || l.cost == null) ? null : Number(l.cost)
+        const { data: item, error: ie } = await addItem(org.selectedOrg, {
+          sku, description: l.name, item_class: 'part',
+          standard_cost: (cost != null && !isNaN(cost)) ? cost : null,
+        })
+        if (ie) { setBusy(false); setErr(`Could not create part "${l.name}": ${ie.message}`); return }
+        resolved.push({ ...l, item_id: item.id })
+      } else {
+        resolved.push(l)
+      }
+    }
     const { po: created, error } = await createPurchaseOrder(org.selectedOrg, {
       vendor_id: np.vendor_id, location_id: np.location_id, expected_at: np.expected_at || null,
       notes: np.notes, job_name: np.job_name,
-      lines: lines.map((l) => ({ item_id: l.item_id, qty_ordered: l.qty, unit_cost: l.cost })),
+      lines: resolved.map((l) => ({ item_id: l.item_id, qty_ordered: l.qty, unit_cost: l.cost })),
     })
     setBusy(false)
     if (error) { setErr(error.message); return }
@@ -337,8 +367,8 @@ export default function ElementsPurchaseOrders({ profile }) {
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', margin: '10px 0', flexWrap: 'wrap' }}>
                 <div className="field" style={{ marginBottom: 0, flex: 1, minWidth: 220, position: 'relative' }} ref={addRef}>
                   <label>Add a part</label>
-                  <input type="text" value={addTerm} onChange={(e) => { setAddTerm(e.target.value); setAddOpen(true) }} onFocus={() => setAddOpen(true)} placeholder="Search your catalog…" autoComplete="off" />
-                  {addOpen && matches.length > 0 && (
+                  <input type="text" value={addTerm} onChange={(e) => { setAddTerm(e.target.value); setAddOpen(true) }} onFocus={() => setAddOpen(true)} placeholder="Search your catalog, or type a new part…" autoComplete="off" />
+                  {addOpen && (matches.length > 0 || addTerm.trim()) && (
                     <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, background: '#fff', border: '1px solid #CBD5E1', borderRadius: 8, marginTop: 4, maxHeight: 240, overflowY: 'auto', boxShadow: '0 6px 20px rgba(0,0,0,0.10)' }}>
                       {matches.map((it) => (
                         <div key={it.id} onMouseDown={() => addLine(it)} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #F1F5F9' }}
@@ -347,6 +377,13 @@ export default function ElementsPurchaseOrders({ profile }) {
                           <div style={{ fontSize: 12, color: 'var(--mist)' }}>{it.category || '—'}{costOf(it) != null ? ` · ${money(costOf(it))}` : ''}</div>
                         </div>
                       ))}
+                      {addTerm.trim() && !exactMatch && (
+                        <div onMouseDown={addNewLine} style={{ padding: '8px 12px', cursor: 'pointer', borderTop: matches.length ? '1px solid #E2E8F0' : 'none', background: '#F8FAFC' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = '#EEF3FB')} onMouseLeave={(e) => (e.currentTarget.style.background = '#F8FAFC')}>
+                          <div style={{ fontWeight: 700, color: '#1B3A6B' }}>+ Create “{addTerm.trim()}”</div>
+                          <div style={{ fontSize: 12, color: 'var(--mist)' }}>Add a specialty part that isn't in your catalog yet</div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -357,8 +394,8 @@ export default function ElementsPurchaseOrders({ profile }) {
                 <thead><tr><th>Part</th><th style={{ textAlign: 'right', width: 80 }}>Qty</th><th style={{ textAlign: 'right', width: 90 }}>Unit cost</th><th style={{ textAlign: 'right', width: 90 }}>Line</th><th style={{ width: 60 }}></th></tr></thead>
                 <tbody>
                   {npLines.map((l, idx) => (
-                    <tr key={l.item_id}>
-                      <td>{l.name}{l.category ? <span style={{ color: 'var(--mist)', fontSize: 12 }}> · {l.category}</span> : null}</td>
+                    <tr key={l.item_id || l._k}>
+                      <td>{l.name}{l.category ? <span style={{ color: 'var(--mist)', fontSize: 12 }}> · {l.category}</span> : null}{l.isNew ? <span className="badge" style={{ marginLeft: 6, background: '#E3F1E8', color: '#166534' }}>New part</span> : null}</td>
                       <td style={{ textAlign: 'right' }}><input type="number" min="0" step="any" value={l.qty} onChange={(e) => setLine(idx, 'qty', e.target.value)} style={{ width: 64, textAlign: 'right' }} /></td>
                       <td style={{ textAlign: 'right' }}><input type="number" min="0" step="any" value={l.cost} onChange={(e) => setLine(idx, 'cost', e.target.value)} style={{ width: 78, textAlign: 'right' }} placeholder="$" /></td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{money((Number(l.qty) || 0) * (Number(l.cost) || 0))}</td>
