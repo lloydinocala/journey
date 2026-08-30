@@ -8,7 +8,7 @@ import {
   listVendorInvoices, getVendorInvoice, createVendorInvoice, updateVendorInvoice,
   setVendorInvoiceStatus, deleteVendorInvoice, extractInvoiceFile, uploadInvoiceFile,
   getInvoiceFileUrl, createVendor, findPurchaseOrdersForVendor, updateVendorInvoiceLine,
-  getPurchaseOrder, listVendors, listItems, receivePO,
+  getPurchaseOrder, listVendors, listItems, receivePO, listItemVendors, learnAliases,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -92,6 +92,7 @@ export default function ElementsVendorInvoices({ profile }) {
   const [capErr, setCapErr] = useState('')
   const [cap, setCap] = useState(null)               // { docType, vendorId, newVendorName, invoiceNumber, invoiceDate, dueDate, poId, lines, file, extracted }
   const [candPOs, setCandPOs] = useState([])
+  const [vendorAliases, setVendorAliases] = useState([])   // this vendor's learned SKU/description → item aliases
 
   async function loadList() {
     if (!org.selectedOrg) return
@@ -130,7 +131,16 @@ export default function ElementsVendorInvoices({ profile }) {
     setCap(null); setCapErr(''); setCapStep('upload'); setCapOpen(true); setCandPOs([])
   }
 
-  function matchItem(line) {
+  // Match a vendor line to a catalog item, best signal first:
+  //  1) this vendor's learned SKU alias (exact, certain)
+  //  2) this vendor's learned description alias
+  //  3) catalog SKU equality  4) fuzzy description overlap
+  function matchItem(line, aliases) {
+    const al = aliases || vendorAliases
+    const sn = (line.sku || '').toString().toLowerCase().replace(/[^a-z0-9]+/g, '')
+    if (sn) { const a = al.find((x) => x.sku_norm && x.sku_norm === sn); if (a) return a.item_id }
+    const dn = norm(line.description)
+    if (dn) { const a = al.find((x) => norm(x.vendor_description) === dn); if (a) return a.item_id }
     const sku = norm(line.sku)
     if (sku) { const bySku = items.find((it) => norm(it.sku) === sku); if (bySku) return bySku.id }
     let best = null, score = 0
@@ -155,6 +165,9 @@ export default function ElementsVendorInvoices({ profile }) {
       // candidate POs + auto-pick by customer_po ↔ po_number / job_name
       const pos = await findPurchaseOrdersForVendor(org.selectedOrg, vId === '__new__' ? null : vId)
       setCandPOs(pos)
+      // this vendor's learned aliases drive SKU-first line matching
+      const aliases = await listItemVendors(org.selectedOrg, vId === '__new__' ? null : vId)
+      setVendorAliases(aliases)
       const ref = norm(data.customer_po)
       let poId = ''
       if (ref) {
@@ -172,7 +185,7 @@ export default function ElementsVendorInvoices({ profile }) {
           sku: ln.sku || '', description: ln.description || '', quantity: ln.quantity != null ? String(ln.quantity) : '1',
           unit_of_measure: ln.unit_of_measure || '', unit_cost: unit != null ? String(unit) : '',
           extended_cost: ln.extended_cost != null ? String(ln.extended_cost) : (unit != null ? String(unit * q) : ''),
-          item_id: matchItem(ln) || '', po_line_id: '',
+          item_id: matchItem(ln, aliases) || '', po_line_id: '',
         }
       })
       setCap({
@@ -189,9 +202,11 @@ export default function ElementsVendorInvoices({ profile }) {
 
   // when vendor changes in review, refresh candidate POs
   async function onCapVendor(vId) {
-    setCap((c) => ({ ...c, vendorId: vId }))
     const pos = await findPurchaseOrdersForVendor(org.selectedOrg, vId === '__new__' ? null : vId)
     setCandPOs(pos)
+    const aliases = await listItemVendors(org.selectedOrg, vId === '__new__' ? null : vId)
+    setVendorAliases(aliases)
+    setCap((c) => (c ? { ...c, vendorId: vId, lines: c.lines.map((l) => ({ ...l, item_id: matchItem(l, aliases) || l.item_id })) } : c))
   }
   function setCapLine(i, patch) { setCap((c) => ({ ...c, lines: c.lines.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) })) }
 
@@ -243,6 +258,11 @@ export default function ElementsVendorInvoices({ profile }) {
         const up = await uploadInvoiceFile(org.selectedOrg, invoice.id, c.file)
         if (!up.error && up.path) await updateVendorInvoice(org.selectedOrg, invoice.id, { file_path: up.path })
       }
+      // Remember each confirmed line→item mapping for this vendor so the next
+      // invoice from them auto-matches by SKU without guessing.
+      await learnAliases(org.selectedOrg, vId, linked
+        .filter((l) => l.item_id)
+        .map((l) => ({ item_id: l.item_id, vendor_sku: l.sku, vendor_description: l.description, last_cost: l.unit_cost })))
       setCapOpen(false); setCapBusy(false)
       await loadList()
       openInvoice(invoice.id)
@@ -470,7 +490,7 @@ export default function ElementsVendorInvoices({ profile }) {
       {capOpen && (
         <CaptureModal
           cap={cap} capStep={capStep} capBusy={capBusy} capErr={capErr} candPOs={candPOs}
-          vendors={vendors}
+          vendors={vendors} items={items}
           onFile={handleFile} onVendor={onCapVendor} setCap={setCap} setCapLine={setCapLine}
           onSave={saveCapture} onClose={() => setCapOpen(false)}
         />
@@ -479,7 +499,7 @@ export default function ElementsVendorInvoices({ profile }) {
   )
 }
 
-function CaptureModal({ cap, capStep, capBusy, capErr, candPOs, vendors, onFile, onVendor, setCap, setCapLine, onSave, onClose }) {
+function CaptureModal({ cap, capStep, capBusy, capErr, candPOs, vendors, items, onFile, onVendor, setCap, setCapLine, onSave, onClose }) {
   const backdrop = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 2vw', overflowY: 'auto', zIndex: 1100 }
   const card = { background: '#fff', borderRadius: 12, padding: 24, maxWidth: 1100, width: '96vw', boxShadow: '0 12px 40px rgba(0,0,0,0.25)' }
   return (
@@ -538,13 +558,20 @@ function CaptureModal({ cap, capStep, capBusy, capErr, candPOs, vendors, onFile,
 
             <div style={{ overflowX: 'auto', border: '1px solid var(--line, #E2E8F0)', borderRadius: 8 }}>
               <table className="data-table" style={{ width: '100%' }}>
-                <thead><tr><th>Vendor line</th><th style={{ textAlign: 'right', width: 70 }}>Qty</th><th style={{ width: 70 }}>Unit</th><th style={{ textAlign: 'right', width: 90 }}>Unit cost</th><th style={{ textAlign: 'right', width: 90 }}>Extended</th></tr></thead>
+                <thead><tr><th>Vendor line</th><th style={{ minWidth: 190 }}>Maps to catalog item</th><th style={{ textAlign: 'right', width: 70 }}>Qty</th><th style={{ width: 70 }}>Unit</th><th style={{ textAlign: 'right', width: 90 }}>Unit cost</th><th style={{ textAlign: 'right', width: 90 }}>Extended</th></tr></thead>
                 <tbody>
                   {cap.lines.map((l, i) => (
                     <tr key={i}>
                       <td>
                         <div style={{ fontWeight: 600 }}>{l.sku ? `${l.sku} · ` : ''}{l.description}</div>
-                        {!l.item_id && <div style={{ fontSize: 11, color: '#B0600A' }}>↳ no catalog match — will save as text only</div>}
+                      </td>
+                      <td style={{ minWidth: 190 }}>
+                        <select value={l.item_id || ''} onChange={(e) => setCapLine(i, { item_id: e.target.value })}
+                          style={{ width: '100%', border: l.item_id ? undefined : '1px solid #E4B36B' }}>
+                          <option value="">— text only (no catalog item) —</option>
+                          {items.map((it) => <option key={it.id} value={it.id}>{it.description}</option>)}
+                        </select>
+                        {!l.item_id && <div style={{ fontSize: 11, color: '#B0600A', marginTop: 2 }}>Pick the part so Quincy remembers this vendor's name for it</div>}
                       </td>
                       <td style={{ textAlign: 'right' }}><input type="number" step="any" value={l.quantity} onChange={(e) => setCapLine(i, { quantity: e.target.value })} style={{ width: 60, textAlign: 'right' }} /></td>
                       <td style={{ fontSize: 12, color: 'var(--mist)' }}>{l.unit_of_measure || '—'}</td>
@@ -552,7 +579,7 @@ function CaptureModal({ cap, capStep, capBusy, capErr, candPOs, vendors, onFile,
                       <td style={{ textAlign: 'right' }}><input type="number" step="any" value={l.extended_cost} onChange={(e) => setCapLine(i, { extended_cost: e.target.value })} style={{ width: 78, textAlign: 'right' }} placeholder="$" /></td>
                     </tr>
                   ))}
-                  {cap.lines.length === 0 && <tr><td colSpan="5" style={{ color: 'var(--mist)' }}>No line items were read from this document.</td></tr>}
+                  {cap.lines.length === 0 && <tr><td colSpan="6" style={{ color: 'var(--mist)' }}>No line items were read from this document.</td></tr>}
                 </tbody>
               </table>
             </div>
