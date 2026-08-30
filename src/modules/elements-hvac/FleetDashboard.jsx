@@ -1,27 +1,73 @@
 // Elements-HVAC · Fleet · Dashboard — the weekly monitor with color flags
+// Adds a Compliance panel: insurance & document expirations and inspection-due
+// flags, computed from the insurance/legal + inspection-config data layers.
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { dashboardData, FLAG_COLORS } from './fleetData'
+import { dashboardData, latestOdometersByVehicle, FLAG_COLORS } from './fleetData'
 import { listTechnicians } from './data'
 import { useOrgSelector, OrgBar } from './shared'
+import { listPolicies, listDocuments, expiryStatus, docTypeLabel } from './fleetLegalData'
+import { getSettings, lastInspectionsByVehicle, inspectionDue } from './fleetInspectData'
+
+const pillColor = (state) => (state === 'overdue' ? FLAG_COLORS.red : state === 'due_soon' ? FLAG_COLORS.amber : '#16A34A')
 
 export default function FleetDashboard({ profile }) {
   const org = useOrgSelector(profile)
   const [rows, setRows] = useState([])
   const [techs, setTechs] = useState([])
+  const [compliance, setCompliance] = useState([])   // [{color:'red'|'amber', label}]
   const [loading, setLoading] = useState(false)
 
   async function load() {
     if (!org.selectedOrg) return
     setLoading(true)
-    const [d, t] = await Promise.all([dashboardData(org.selectedOrg), listTechnicians(org.selectedOrg)])
-    setRows(d); setTechs(t); setLoading(false)
+    const [d, t, policies, docs, settings, lastMap, odoMap] = await Promise.all([
+      dashboardData(org.selectedOrg), listTechnicians(org.selectedOrg),
+      listPolicies(org.selectedOrg), listDocuments(org.selectedOrg),
+      getSettings(org.selectedOrg), lastInspectionsByVehicle(org.selectedOrg),
+      latestOdometersByVehicle(org.selectedOrg),
+    ])
+    setRows(d); setTechs(t)
+
+    const nameById = {}
+    d.forEach((r) => { nameById[r.vehicle.id] = r.vehicle.name })
+    const items = []
+
+    // Insurance policies
+    policies.forEach((p) => {
+      const st = expiryStatus(p.expiration_date, p.due_soon_days)
+      if (st.state === 'overdue' || st.state === 'due_soon') {
+        const covers = p.scope === 'fleet' ? 'whole fleet' : p.vehicle_ids.map((id) => nameById[id] || 'vehicle').join(', ') || 'listed vehicles'
+        items.push({ color: st.state === 'overdue' ? 'red' : 'amber', label: `Insurance ${st.state === 'overdue' ? 'expired' : 'expires soon'} — ${p.carrier || 'policy'} (${covers})` })
+      }
+    })
+    // Legal documents
+    docs.forEach((dc) => {
+      const st = expiryStatus(dc.expiration_date, dc.due_soon_days)
+      if (st.state === 'overdue' || st.state === 'due_soon') {
+        const who = dc.vehicle_id ? (nameById[dc.vehicle_id] || 'vehicle') : 'whole fleet'
+        items.push({ color: st.state === 'overdue' ? 'red' : 'amber', label: `${docTypeLabel(dc.doc_type)} ${st.state === 'overdue' ? 'expired' : 'expires soon'} — ${who}` })
+      }
+    })
+    // Inspections due (per vehicle)
+    d.forEach((r) => {
+      const st = inspectionDue(lastMap[r.vehicle.id], settings, odoMap[r.vehicle.id] ?? null)
+      if (st.state === 'overdue' || st.state === 'due_soon') {
+        items.push({ color: st.state === 'overdue' ? 'red' : 'amber', label: `Inspection ${st.label.toLowerCase()} — ${r.vehicle.name}` })
+      }
+    })
+    // Red first
+    items.sort((a, b) => (a.color === b.color ? 0 : a.color === 'red' ? -1 : 1))
+    setCompliance(items)
+    setLoading(false)
   }
-  useEffect(() => { load() }, [org.selectedOrg])
+  useEffect(() => { load() }, [org.selectedOrg]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const techName = (id) => techs.find((x) => x.id === id)?.full_name || '—'
   const totalRed = rows.reduce((s, r) => s + r.redFlags, 0)
   const totalAmber = rows.reduce((s, r) => s + r.amberFlags, 0)
+  const compRed = compliance.filter((c) => c.color === 'red').length
+  const compAmber = compliance.filter((c) => c.color === 'amber').length
 
   return (
     <div>
@@ -36,13 +82,35 @@ export default function FleetDashboard({ profile }) {
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '12px 18px' }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: FLAG_COLORS.red }}>{totalRed}</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: FLAG_COLORS.red }}>{totalRed + compRed}</div>
           <div style={{ fontSize: 12, color: 'var(--mist)' }}>Red flags — act now</div>
         </div>
         <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '12px 18px' }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: FLAG_COLORS.amber }}>{totalAmber}</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: FLAG_COLORS.amber }}>{totalAmber + compAmber}</div>
           <div style={{ fontSize: 12, color: 'var(--mist)' }}>Amber flags — worth a look</div>
         </div>
+      </div>
+
+      {/* Compliance: insurance, documents, inspections */}
+      <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: compliance.length ? 10 : 0, flexWrap: 'wrap', gap: 8 }}>
+          <h3 style={{ margin: 0 }}>Compliance</h3>
+          <span style={{ fontSize: 12, color: 'var(--mist)' }}>
+            <Link to="/fleet/insurance">Insurance &amp; Documents</Link> · <Link to="/fleet/inspections">Inspections</Link>
+          </span>
+        </div>
+        {compliance.length === 0 ? (
+          <div style={{ color: '#166534', fontWeight: 600, fontSize: 14 }}>All insurance, documents, and inspections are current.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {compliance.map((c, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 999, background: pillColor(c.color === 'red' ? 'overdue' : 'due_soon'), flex: '0 0 auto' }} />
+                <span style={{ fontSize: 14 }}>{c.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {rows.length === 0 ? (
