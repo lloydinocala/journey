@@ -522,3 +522,42 @@ export async function receivePO(orgId, poId, receipts) {
   if (status) await supabase.from('elements_purchase_orders').update({ status }).eq('id', poId)
   return { count: clean.length, status }
 }
+
+// Correct the received quantity on PO lines after the fact. For each changed
+// line, writes an adjustment to the ledger for the difference (positive or
+// negative), sets the line's qty_received to the corrected total, recomputes
+// on-hand, and re-evaluates PO status. Costs are left as-is — this is a quantity
+// correction, not a new purchase.
+export async function adjustReceived(orgId, poId, adjustments) {
+  const { data: po } = await supabase.from('elements_purchase_orders')
+    .select('id, location_id, status').eq('org_id', orgId).eq('id', poId).maybeSingle()
+  if (!po) return { error: { message: 'Purchase order not found.' } }
+  if (!po.location_id) return { error: { message: 'This PO has no deliver-to location.' } }
+  const clean = (adjustments || [])
+    .map((a) => ({ line_id: a.line_id, item_id: a.item_id, new_received: Number(a.new_received) }))
+    .filter((a) => a.line_id && a.item_id && !isNaN(a.new_received) && a.new_received >= 0)
+  let changed = 0
+  for (const a of clean) {
+    const { data: ln } = await supabase.from('elements_po_lines').select('qty_received, unit_cost').eq('id', a.line_id).maybeSingle()
+    const cur = ln ? Number(ln.qty_received || 0) : 0
+    const delta = a.new_received - cur
+    if (delta === 0) continue
+    const { error } = await supabase.from('elements_stock_txns').insert({
+      org_id: orgId, item_id: a.item_id, location_id: po.location_id, txn_type: 'adjustment',
+      qty_delta: delta, unit_cost: ln?.unit_cost ?? null, ref_type: 'po', ref_id: poId, reason_code: 'po_adjust',
+    })
+    if (error) return { error }
+    await recomputeLevel(orgId, a.item_id, po.location_id)
+    await supabase.from('elements_po_lines').update({ qty_received: a.new_received }).eq('id', a.line_id)
+    changed += 1
+  }
+  const { data: lines } = await supabase.from('elements_po_lines').select('qty_ordered, qty_received').eq('po_id', poId)
+  const rows = lines || []
+  const allDone = rows.length > 0 && rows.every((l) => Number(l.qty_received || 0) >= Number(l.qty_ordered || 0))
+  const anyRecv = rows.some((l) => Number(l.qty_received || 0) > 0)
+  const status = allDone ? 'received' : (anyRecv ? 'partial' : 'ordered')
+  if (po.status !== 'draft' && po.status !== 'cancelled') {
+    await supabase.from('elements_purchase_orders').update({ status }).eq('id', poId)
+  }
+  return { count: changed, status }
+}
