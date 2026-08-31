@@ -5,6 +5,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { forecast } from './data'
 import { useOrgSelector, OrgBar } from './shared'
+import AiAssist from '../../AiAssist'
+
+const FORECAST_SYS = 'You are helping an HVAC inventory manager read a parts demand forecast. Using only the rows provided, give a short narrative: which parts are about to run out and when, which need ordering now and roughly how much, and any patterns worth noting. Be specific with part names and numbers. Under 8 short lines. No headers.'
 
 const money = (n) => (n == null || isNaN(n) ? '—' : `$${Number(n).toFixed(2)}`)
 const HISTORY = [[90, 'last 90 days'], [180, 'last 6 months'], [365, 'last year'], [3650, 'all history']]
@@ -86,6 +89,13 @@ export default function ElementsForecast({ profile }) {
         </div>
       </div>
       <OrgBar {...org} />
+
+      <div style={{ marginBottom: 16 }}>
+        <AiAssist inline title="Forecast summary" label="✨ AI: explain this forecast"
+          system={FORECAST_SYS}
+          prompt="Summarize what this demand forecast is telling me and what to order now."
+          context={{ rows: rows.slice(0, 40) }} />
+      </div>
 
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0, maxWidth: 820 }}>
         Projected from how fast each part has actually been used (via Record Parts Used). "Days of cover" is how long today's

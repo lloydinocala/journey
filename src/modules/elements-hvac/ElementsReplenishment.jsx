@@ -4,6 +4,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { listReplenishment, listAllLocations, listStockLevels, transferStock } from './data'
 import { useOrgSelector, OrgBar } from './shared'
+import AiAssist from '../../AiAssist'
+
+const REPL_SYS = 'You are helping an HVAC inventory manager with truck replenishment. Using only the rows provided (items below par per location and quantities needed), give a short prioritized plan: which trucks/items to restock first and why, and anything that looks unusual. Be specific with names and numbers. Under 8 short lines. No headers.'
 
 const money = (n) => (n == null || n === '' || isNaN(n) ? '—' : `$${Number(n).toFixed(2)}`)
 const costOf = (it) => (it ? (it.last_cost ?? it.standard_cost ?? null) : null)
@@ -81,6 +84,13 @@ export default function ElementsReplenishment({ profile }) {
         </div>
       </div>
       <OrgBar {...org} />
+
+      <div style={{ marginBottom: 16 }}>
+        <AiAssist inline title="Replenishment plan" label="✨ AI: prioritize restocking"
+          system={REPL_SYS}
+          prompt="Give me a short prioritized restocking plan from this replenishment list."
+          context={{ rows: rows.slice(0, 40) }} />
+      </div>
 
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>
         Everything at or below its reorder point, with how much to bring it back up to Max. Refill a truck from the
