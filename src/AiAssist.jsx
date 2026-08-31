@@ -93,7 +93,7 @@ function Panel({ title, system, prompt, context, onInsert, insertLabel, onClose,
   )
 }
 
-export default function AiAssist({ title, system, prompt, context, onInsert, insertLabel, label = 'Ask AI', inline = false, compact = false }) {
+export default function AiAssist({ title, system, prompt, context, onInsert, insertLabel, label = 'Ask AI', inline = false, compact = false, iconOnly = false }) {
   const [open, setOpen] = useState(false)
 
   if (inline) {
@@ -103,11 +103,21 @@ export default function AiAssist({ title, system, prompt, context, onInsert, ins
 
   return (
     <>
-      <button onClick={() => setOpen(true)} title="AI draft"
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: compact ? '4px 9px' : '6px 12px', borderRadius: 8,
-          border: `1px solid ${BRAND}`, background: '#fff', color: BRAND, fontWeight: 600, fontSize: compact ? 12 : 13, cursor: 'pointer' }}>
-        <Spark size={compact ? 12 : 14} /> {label}
-      </button>
+      {iconOnly ? (
+        <button onClick={() => setOpen(true)} title={label} aria-label={label}
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 6,
+            border: 'none', background: 'none', color: '#94A3B8', cursor: 'pointer', padding: 0 }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = BRAND }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = '#94A3B8' }}>
+          <Spark size={15} />
+        </button>
+      ) : (
+        <button onClick={() => setOpen(true)} title="AI draft"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: compact ? '4px 9px' : '6px 12px', borderRadius: 8,
+            border: `1px solid ${BRAND}`, background: '#fff', color: BRAND, fontWeight: 600, fontSize: compact ? 12 : 13, cursor: 'pointer' }}>
+          <Spark size={compact ? 12 : 14} /> {label}
+        </button>
+      )}
       {open && (
         <Panel title={title} system={system} prompt={prompt} context={context} onInsert={onInsert} insertLabel={insertLabel} onClose={() => setOpen(false)} />
       )}
