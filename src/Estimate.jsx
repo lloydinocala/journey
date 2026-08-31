@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import AiAssist from './AiAssist'
+
+const EST_SCOPE_SYS = 'Write a short, customer-facing scope-of-work summary for an HVAC estimate, based only on the line items provided. 2 to 4 plain-language sentences a homeowner understands, describing what the work covers. Do not invent items or prices. Ready to paste into the estimate.'
 
 export default function Estimate({ profile }) {
   const { jobId } = useParams()
@@ -370,6 +373,12 @@ export default function Estimate({ profile }) {
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.display_name}</p>
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.street_address}</p>
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.primary_phone} · {job.properties?.customers?.email_1}</p>
+              <div style={{ marginTop: 10 }}>
+                <AiAssist title="Draft scope of work" label="✨ AI: draft scope"
+                  system={EST_SCOPE_SYS}
+                  prompt="Write a short customer-facing scope-of-work summary for this estimate, based on its line items."
+                  context={{ estimate: estimate.invoice_number, job: job.job_number, customer: job.properties?.customers?.display_name, line_items: lineItems.map((li) => ({ description: li.description, qty: li.quantity ?? li.qty, unit_price: li.unit_price })) }} />
+              </div>
             </div>
             <div style={{ textAlign: 'right' }}>
               {job.trip_charge ? (
