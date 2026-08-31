@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import AiAssist from './AiAssist'
 
 // A WORKING dashboard for office staff — a queue of what needs doing, not a report.
 // Every number links to the thing to resolve. Goal: clear the board to zero.
@@ -13,6 +14,8 @@ const C = {
   over: '#B0472B', overBg: '#F7E2DA',
   good: '#15803D', goodBg: '#E7F5EC',
 }
+
+const BRIEF_SYS = 'Write a concise daily operations briefing for the owner/office of an HVAC company, using only the provided live dashboard numbers. Lead with the most urgent money and deadlines (overdue A/R, estimates to chase, completed-but-not-invoiced work), then scheduling and maintenance. Be specific with the actual counts and dollar amounts. 3 to 6 short lines, most urgent first. No greeting, no sign-off, no headers.'
 
 const money = (n) => '$' + Math.round(Number(n || 0)).toLocaleString()
 const daysSince = (d) => (d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : null)
@@ -165,6 +168,13 @@ export default function OperationsDashboard({ profile }) {
         <span style={{ fontSize: 11.5, color: C.mist }}>Live · updated {lastUpdated ? lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
       </div>
       <p style={{ color: C.mist, fontSize: 13, marginTop: 0, marginBottom: 18 }}>What needs doing today. Click anything to go resolve it.</p>
+
+      <div style={{ marginBottom: 18 }}>
+        <AiAssist inline title="Today's briefing" label="✨ AI: brief me on today"
+          system={BRIEF_SYS}
+          prompt="Using the live numbers, write my prioritized briefing for today: what to tackle first and why. Reference the actual counts and dollar amounts."
+          context={{ outstandingAR: d.outstanding, unpaidInvoices: d.unpaid.length, estimatesOutValue: d.pendEstTotal, estimatesAwaitingReply: d.pendEst.length, jobsToSchedule: d.toSchedule.length, maintenanceDueIn30d: d.maintDue.length, completedNotInvoiced: d.completedNotInvoiced.length, warrantyToRegister: d.warranty.length, estimatesDrafted: d.draftEst.length, estimatesDraftedValue: d.draftEstTotal, collectedThisWeek: d.collected, estimatesWonThisWeek: d.wonAmt, jobsCompletedThisWeek: d.completedWeek, closeRatePct: d.closeRate, onCallCoverageShort: d.onCallShort }} />
+      </div>
 
       {isSuperAdmin && <div style={{ maxWidth: 320, marginBottom: 18 }}><OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} /></div>}
 
