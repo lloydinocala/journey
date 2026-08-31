@@ -13,6 +13,8 @@ import { MEASURES, DIMENSIONS, DEFAULT_TEMPLATE } from './catalog'
 import { fetchMeasure, queryKpi, getLayout, saveLayout, resetLayout, periodRange, PERIODS } from './dashboardData'
 import Widget from './charts'
 import KpiBuilder from './KpiBuilder'
+import AiAssist from '../../AiAssist'
+import { investigateProps } from './investigate'
 
 const SECTIONS = [
   ['Operations', '/operations'], ['Financials', '/financials'], ['Admin', '/admin'],
@@ -128,6 +130,7 @@ export default function CommandDashboard({ profile }) {
   }
 
   const periodLabel = (PERIODS.find((p) => p[0] === period) || [])[1]
+  const orgName = (orgs.find((o) => o.id === selectedOrg) || {}).name || null
 
   const cards = widgets.map((w) => w.kind === 'measure'
     ? { id: uid(w), def: MEASURES[w.key], w: w.w, rows: data[uid(w)], drill: MEASURES[w.key].drill, sliceTo: MEASURES[w.key].sliceTo || null, widget: w }
@@ -202,6 +205,11 @@ export default function CommandDashboard({ profile }) {
                     <button title="Larger" disabled={(it.w || 1) >= maxWFor(it.widget)} onClick={() => resizeWidget(i, 1)} style={{ border: 'none', background: 'none', cursor: (it.w || 1) >= maxWFor(it.widget) ? 'default' : 'pointer', color: (it.w || 1) >= maxWFor(it.widget) ? 'var(--border)' : 'var(--route-blue,#1B3A6B)', fontSize: 15, lineHeight: 1, padding: '0 3px', fontWeight: 700 }}>+</button>
                   </span>
                 )}
+                {!arranging && (
+                  <span onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex' }}>
+                    <AiAssist iconOnly label={'Investigate ' + it.def.label} {...investigateProps(it, { period: periodLabel, orgName })} />
+                  </span>
+                )}
                 {!arranging && it.drill && <span aria-hidden style={{ color: 'var(--mist)', fontSize: 13 }}>↗</span>}
                 {canCustomize && <button title="Remove" onClick={(e) => { e.stopPropagation(); removeWidget(it.widget) }} style={{ border: 'none', background: 'none', color: 'var(--mist)', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: 0 }}>×</button>}
               </div>
@@ -228,9 +236,10 @@ export default function CommandDashboard({ profile }) {
           ))}
         </div>
         <div style={{ color: 'var(--mist)', fontSize: 12, marginTop: 14 }}>
+          Click the ✦ on any tile to <strong>Investigate</strong> — an AI read of what the number is saying, likely drivers, and what to do next.{' '}
           {canCustomize
             ? 'Use “+ Add KPI” to compose your own — pick a measure, a breakdown, and it picks the right chart. “Arrange” lets you drag tiles into any order and size them S/M/L. Remove any tile with ×; “Reset to default” restores the standard board at any time.'
-            : 'This is your company’s dashboard. Ask an administrator to customize which KPIs appear.'}
+            : 'Ask an administrator to change which KPIs appear.'}
         </div>
       </div>
     </div>
