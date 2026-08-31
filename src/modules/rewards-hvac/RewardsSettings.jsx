@@ -50,7 +50,7 @@ export default function RewardsSettings({ profile }) {
     <div>
       <div className="page-header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <h2>Rewards Settings</h2>
+          <h2>HR &amp; Payroll Settings</h2>
           <EnabledPill enabled={s.enabled} />
         </div>
       </div>
@@ -113,7 +113,7 @@ export default function RewardsSettings({ profile }) {
         <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 10 }}>
           Work state drives withholding &amp; labor rules. Florida has no state income tax, so a Florida org needs
           federal withholding only. The set-aside account label is the contractor's own account where withheld
-          taxes are quarantined each payroll — Rewards never holds the money.
+          taxes are quarantined each payroll — the system never holds the money.
         </p>
         {msg && <div style={{ marginTop: 12, color: msg === 'Saved.' ? '#166534' : '#B00020' }}>{msg}</div>}
       </div>

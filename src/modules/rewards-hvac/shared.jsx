@@ -47,10 +47,10 @@ export function SetupNotice({ enabled }) {
       background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412',
       padding: '10px 14px', borderRadius: 10, marginBottom: 18, fontSize: 14,
     }}>
-      Rewards is in <strong>setup mode</strong> for this organization. You can build out people,
+      Payroll is in <strong>setup mode</strong> for this organization. You can build out people,
       job descriptions, onboarding, and certifications now. Live paychecks and tax filing turn on in{' '}
-      <Link to="/rewards/settings" style={{ color: '#9A3412', fontWeight: 700 }}>Rewards Settings</Link>{' '}
-      once payroll (Phase R2) is ready.
+      <Link to="/rewards/settings" style={{ color: '#9A3412', fontWeight: 700 }}>HR Settings</Link>{' '}
+      once payroll is ready.
     </div>
   )
 }

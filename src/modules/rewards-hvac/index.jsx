@@ -55,7 +55,7 @@ export const REWARDS_PAYROLL_ROUTES = [
 // Sidebar category (Layout.jsx). Office roles only (hidden from techs), gated on entitlement.
 export const REWARDS_HR_NAV = {
   key: 'rewards',
-  label: 'Rewards · People',
+  label: 'Human Resources',
   items: [
     { label: 'HR Dashboard', path: '/rewards' },
     { label: 'Employees', path: '/rewards/employees' },
@@ -66,7 +66,7 @@ export const REWARDS_HR_NAV = {
     { label: 'Certifications & Licenses', path: '/rewards/certifications' },
     { label: 'Documents', path: '/rewards/documents' },
     { label: 'Time Off', path: '/rewards/time-off' },
-    { label: 'Rewards Settings', path: '/rewards/settings' },
+    { label: 'HR Settings', path: '/rewards/settings' },
   ],
 }
 
@@ -79,7 +79,7 @@ export const REWARDS_CERT_ROUTES = [
 
 export const REWARDS_CERT_NAV = {
   key: 'rewards-cert',
-  label: 'Rewards · Certified Payroll',
+  label: 'Certified Payroll',
   items: [
     { label: 'Projects', path: '/rewards/certified/projects' },
     { label: 'Prevailing Wage', path: '/rewards/certified/wage-rates' },
@@ -89,7 +89,7 @@ export const REWARDS_CERT_NAV = {
 
 export const REWARDS_PAYROLL_NAV = {
   key: 'rewards-payroll',
-  label: 'Rewards · Payroll',
+  label: 'Payroll',
   items: [
     { label: 'Payroll Dashboard', path: '/rewards/payroll' },
     { label: 'Prepare Payroll', path: '/rewards/payroll/prepare' },

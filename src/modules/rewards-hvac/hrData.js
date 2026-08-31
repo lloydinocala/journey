@@ -222,24 +222,59 @@ const HEADCOUNT_THRESHOLDS = [
 ]
 
 export async function dashboardData(orgId) {
-  const [employees, certs] = await Promise.all([
+  const [employees, certs, hrRows, discipline, documents] = await Promise.all([
     listEmployees(orgId, { includeInactive: false }),
     listCertifications(orgId),
+    supabase.from('rewards_employee_hr').select('employee_id, i9_status, i9_reverify_due').eq('org_id', orgId).then((r) => r.data || []),
+    listDiscipline(orgId),
+    listDocuments(orgId),
   ])
   const headcount = employees.length
   const flags = []
 
-  // Cert expiry (expired = red, within 60 days = amber)
   const today = new Date(); today.setHours(0, 0, 0, 0)
+  const daysTo = (dateStr) => Math.round((new Date(dateStr + 'T00:00:00') - today) / 86400000)
   const empName = (id) => (employees.find((e) => e.id === id) || {}).full_name || 'Employee'
+  const activeId = new Set(employees.map((e) => e.id))
+
+  // Cert expiry (expired = red, within 60 days = amber)
   certs.forEach((c) => {
     if (!c.expires_date) return
-    const d = new Date(c.expires_date + 'T00:00:00')
-    const days = Math.round((d - today) / 86400000)
+    const days = daysTo(c.expires_date)
     if (days < 0) {
       flags.push({ flag_type: 'cert_expiring', severity: 'red', subject_label: empName(c.employee_id), message: `${certLabel(c.cert_type)} expired ${Math.abs(days)} days ago` })
     } else if (days <= 60) {
       flags.push({ flag_type: 'cert_expiring', severity: 'amber', subject_label: empName(c.employee_id), message: `${certLabel(c.cert_type)} expires in ${days} days` })
+    }
+  })
+
+  // I-9 reverification due (only for active employees; a stored date we were not surfacing)
+  hrRows.forEach((h) => {
+    if (!h.i9_reverify_due || !activeId.has(h.employee_id)) return
+    const days = daysTo(h.i9_reverify_due)
+    if (days < 0) {
+      flags.push({ flag_type: 'i9_reverify', severity: 'red', subject_label: empName(h.employee_id), message: `I-9 reverification overdue by ${Math.abs(days)} days` })
+    } else if (days <= 60) {
+      flags.push({ flag_type: 'i9_reverify', severity: 'amber', subject_label: empName(h.employee_id), message: `I-9 reverification due in ${days} days` })
+    }
+  })
+
+  // Discipline follow-ups coming due (a stored follow_up_date we were not surfacing)
+  discipline.forEach((d) => {
+    if (!d.follow_up_date) return
+    const days = daysTo(d.follow_up_date)
+    if (days < 0) {
+      flags.push({ flag_type: 'discipline_followup', severity: 'red', subject_label: empName(d.employee_id), message: `Discipline follow-up overdue by ${Math.abs(days)} days` })
+    } else if (days <= 14) {
+      flags.push({ flag_type: 'discipline_followup', severity: 'amber', subject_label: empName(d.employee_id), message: `Discipline follow-up due in ${days} days` })
+    }
+  })
+
+  // Documents past their retention date — safe to purge (informational, amber)
+  documents.forEach((doc) => {
+    if (!doc.retain_until) return
+    if (daysTo(doc.retain_until) < 0) {
+      flags.push({ flag_type: 'doc_purgeable', severity: 'amber', subject_label: doc.title || 'Document', message: 'Past retention date — safe to purge' })
     }
   })
 

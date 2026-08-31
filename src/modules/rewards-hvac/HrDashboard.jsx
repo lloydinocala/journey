@@ -30,7 +30,7 @@ export default function HrDashboard({ profile }) {
   return (
     <div>
       <div className="page-header-bar">
-        <h2>Rewards · People</h2>
+        <h2>Human Resources</h2>
       </div>
       <OrgBar {...org} />
       <SetupNotice enabled={enabled} />
@@ -73,6 +73,7 @@ export default function HrDashboard({ profile }) {
               ['Discipline', '/rewards/discipline'],
               ['Certifications', '/rewards/certifications'],
               ['Documents', '/rewards/documents'],
+              ['Time Off', '/rewards/time-off'],
             ].map(([label, to]) => (
               <Link key={to} to={to} className="nav-link" style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '8px 14px' }}>{label}</Link>
             ))}
