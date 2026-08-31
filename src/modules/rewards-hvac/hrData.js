@@ -211,6 +211,32 @@ export async function addDocument(orgId, row) {
   return supabase.from('rewards_documents').insert({ org_id: orgId, ...row }).select().single()
 }
 
+// ---- Separations / terminations --------------------------------------------
+// Behavior-only reason codes. Intentionally NO competency reasons (e.g. "poor
+// performance" — supports unemployment claims) and NO accusatory reasons (e.g.
+// "theft" without an arrest — lawsuit exposure). Keep this list conservative.
+export const SEPARATION_REASONS = [
+  { key: 'voluntary_resignation', label: 'Voluntary resignation' },
+  { key: 'no_call_no_show', label: 'No-call / no-show' },
+  { key: 'attendance', label: 'Attendance' },
+  { key: 'insubordination', label: 'Insubordination' },
+  { key: 'policy_violation', label: 'Policy violation' },
+  { key: 'job_abandonment', label: 'Job abandonment' },
+  { key: 'layoff', label: 'Layoff / lack of work' },
+  { key: 'not_specified', label: 'Not specified' },
+]
+export function separationReasonLabel(key) {
+  return (SEPARATION_REASONS.find((r) => r.key === key) || {}).label || key
+}
+
+export async function listSeparations(orgId) {
+  const { data } = await supabase.from('rewards_separations').select('*').eq('org_id', orgId).order('effective_date', { ascending: false })
+  return data || []
+}
+export async function addSeparation(orgId, row) {
+  return supabase.from('rewards_separations').insert({ org_id: orgId, ...row }).select().single()
+}
+
 // ---- Dashboard: derive live compliance flags -------------------------------
 // Cert-expiry + federal headcount-threshold flags, computed on read so the
 // dashboard is always current without a cron. (Persisted flags arrive in R4.)

@@ -71,6 +71,7 @@ export default function HrDashboard({ profile }) {
               ['Onboarding', '/rewards/onboarding'],
               ['Job Descriptions', '/rewards/job-descriptions'],
               ['Discipline', '/rewards/discipline'],
+              ['Separations', '/rewards/separations'],
               ['Certifications', '/rewards/certifications'],
               ['Documents', '/rewards/documents'],
               ['Time Off', '/rewards/time-off'],
