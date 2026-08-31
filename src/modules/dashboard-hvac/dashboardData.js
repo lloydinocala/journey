@@ -1,11 +1,26 @@
 // Dashboard-HVAC · data layer. Thin wrappers over the aggregation RPCs, which
 // return tidy [{ bucket, value }] rows and enforce org access server-side.
 import { supabase } from '../../utils/supabase'
+import { dashboardData as fleetBoard } from '../elements-hvac/fleetData'
 
 export async function rpc(name, args) {
   const { data, error } = await supabase.rpc(name, args)
   if (error) { console.warn('[dashboard] rpc', name, error.message); return [] }
   return data || []
+}
+
+// Fuel/mileage flags reuse the Fleet Dashboard's per-vehicle flag computation
+// (MPG out of range, price spike, tank overfill, odometer anomalies).
+const FUEL_CODES = new Set(['exceeds_tank', 'low_mpg', 'high_mpg', 'no_odometer', 'price_spike', 'reading_dropped', 'big_jump'])
+export async function fetchFuelFlags(org) {
+  if (!org) return []
+  let rows = []
+  try { rows = await fleetBoard(org) } catch (e) { return [] }
+  const out = []
+  rows.forEach((r) => (r.flags || []).forEach((f) => {
+    if (FUEL_CODES.has(f.code)) out.push({ bucket: `${r.vehicle?.name || 'Vehicle'}: ${f.label}`, value: f.color === 'red' ? 2 : 1 })
+  }))
+  return out.sort((a, b) => b.value - a.value)
 }
 
 // Date helpers -------------------------------------------------------------
@@ -26,6 +41,7 @@ export const PERIODS = [['mtd', 'This month'], ['last30', 'Last 30 days'], ['qua
 // Fetch one measure's rows for an org + range, per its catalog entry.
 export async function fetchMeasure(def, org, range) {
   if (!org) return []
+  if (def.custom === 'fuel_flags') return fetchFuelFlags(org)
   const args = def.dated ? { p_org: org, p_start: range.start, p_end: range.end } : { p_org: org }
   return rpc(def.rpc, args)
 }

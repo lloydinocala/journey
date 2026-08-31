@@ -97,6 +97,51 @@ function Estimates({ rows }) {
   )
 }
 
+function Column({ def, rows }) {
+  const data = (rows || []).map((r) => ({ label: r.bucket, v: r.value == null ? null : Number(r.value) }))
+  const vals = data.map((d) => d.v).filter((v) => v != null)
+  if (!vals.length) return <Empty />
+  const target = def.target ?? null
+  const max = (Math.max(target ? target * 1.35 : 0, ...vals) || 1) * 1.08
+  const ok = (v) => target == null ? true : (def.targetDir === 'ceiling' ? v <= target : v >= target)
+  return (
+    <div>
+      <div style={{ position: 'relative', height: 132, display: 'flex', alignItems: 'flex-end', gap: 6 }}>
+        {data.map((d, i) => (
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', height: '100%' }}>
+            {d.v != null && <span style={{ fontSize: 10.5, color: MIST, marginBottom: 2, fontVariantNumeric: 'tabular-nums' }}>{Math.round(d.v)}{def.unit === 'percent' ? '%' : ''}</span>}
+            <div style={{ width: '68%', height: d.v == null ? 0 : `${Math.max(2, (d.v / max) * 100)}%`, background: d.v == null ? 'transparent' : (ok(d.v) ? OK : BAD), borderRadius: '4px 4px 0 0' }} />
+          </div>
+        ))}
+        {target != null && (
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: `${(target / max) * 100}%`, borderTop: `2px dashed ${NAVY}` }}>
+            <span style={{ position: 'absolute', right: 0, top: -15, fontSize: 10, color: NAVY, background: 'var(--surface,#fff)', padding: '0 3px' }}>target {target}%</span>
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 6, marginTop: 5 }}>
+        {data.map((d, i) => <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: 10.5, color: MIST }}>{d.label}</div>)}
+      </div>
+    </div>
+  )
+}
+
+function Flags({ rows }) {
+  const data = rows || []
+  if (!data.length) return <div style={{ color: OK, fontWeight: 600, fontSize: 13.5 }}>All fuel &amp; mileage readings normal.</div>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+      {data.slice(0, 8).map((r, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 12.5 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 999, background: r.value >= 2 ? BAD : '#B0600A', flex: '0 0 auto' }} />
+          <span>{r.bucket}</span>
+        </div>
+      ))}
+      {data.length > 8 && <div style={{ fontSize: 11.5, color: MIST }}>+{data.length - 8} more</div>}
+    </div>
+  )
+}
+
 function Empty() {
   return <div style={{ color: MIST, fontSize: 13, padding: '10px 0' }}>Not enough data yet.</div>
 }
@@ -106,5 +151,7 @@ export default function Widget({ def, rows }) {
   if (def.viz === 'gauge') return <Gauge def={def} rows={rows} />
   if (def.viz === 'bars') return <BarList def={def} rows={rows} />
   if (def.viz === 'estimates') return <Estimates rows={rows} />
+  if (def.viz === 'column') return <Column def={def} rows={rows} />
+  if (def.viz === 'flags') return <Flags rows={rows} />
   return <Empty />
 }

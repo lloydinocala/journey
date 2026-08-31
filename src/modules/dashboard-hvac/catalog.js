@@ -11,6 +11,10 @@ export const MEASURES = {
   revenue_by_tech: { label: 'Revenue by tech', sub: 'Performing tech', unit: 'currency', rpc: 'dash_revenue_by_tech', dated: true, viz: 'bars', drill: '/jobs-management' },
   revenue_by_type: { label: 'Revenue by job type', sub: 'Service / install / maintenance', unit: 'currency', rpc: 'dash_revenue_by_job_type', dated: true, viz: 'bars', drill: '/jobs-management' },
   est_presented_sold: { label: 'Estimates: presented vs. sold', sub: 'This period', unit: 'currency', rpc: 'dash_estimates_presented_sold', dated: true, viz: 'estimates', drill: '/estimates' },
+  on_time: { label: 'On-time arrival', sub: 'Within 15 min of schedule', unit: 'percent', rpc: 'dash_on_time_arrival', dated: true, viz: 'gauge', target: 90, targetDir: 'floor', drill: '/jobs-management' },
+  payroll_pct: { label: 'Payroll % of sales', sub: 'Last 6 months · ceiling 20%', unit: 'percent', rpc: 'dash_payroll_pct_by_month', dated: false, viz: 'column', target: 20, targetDir: 'ceiling', drill: '/rewards/payroll' },
+  variance_by_holder: { label: 'Inventory variance $ by truck holder', sub: 'Posted count adjustments', unit: 'currency', rpc: 'dash_variance_by_holder', dated: true, viz: 'bars', drill: '/elements/variance' },
+  fuel_flags: { label: 'Unusual fuel / mileage flags', sub: 'Across the fleet', unit: 'number', custom: 'fuel_flags', dated: false, viz: 'flags', drill: '/fleet' },
 }
 
 // The immutable default board: order + tile size (1 or 2 grid columns).
@@ -20,7 +24,11 @@ export const DEFAULT_TEMPLATE = [
   { key: 'outstanding_est', w: 1 },
   { key: 'jobs_per_tech_day', w: 1 },
   { key: 'gross_margin', w: 1 },
+  { key: 'on_time', w: 1 },
   { key: 'revenue_by_tech', w: 2 },
   { key: 'revenue_by_type', w: 2 },
+  { key: 'payroll_pct', w: 2 },
   { key: 'est_presented_sold', w: 2 },
+  { key: 'variance_by_holder', w: 2 },
+  { key: 'fuel_flags', w: 2 },
 ]
