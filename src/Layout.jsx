@@ -111,15 +111,19 @@ export default function Layout({ profile }) {
   const isSuperAdmin = profile?.role === 'super_admin'
   // Elements-HVAC appears only for the platform owner or an entitled subscriber.
   const showElements = profile?.role !== 'tech'
-  // Rewards-HVAC (HR/Payroll) — same gating: platform owner or an entitled subscriber.
-  const showRewards = profile?.role !== 'tech' && (isSuperAdmin || profile?.rewardsEntitled)
+  // HR and Payroll are two separately-sold modules. HR is the fuller module and
+  // implies payroll access; Payroll can stand alone for smaller orgs.
+  const notTech = profile?.role !== 'tech'
+  const showHR = notTech && (isSuperAdmin || profile?.hrEntitled)
+  const showPayroll = notTech && (isSuperAdmin || profile?.payrollEntitled || profile?.hrEntitled)
   // Assets Management umbrella — Inventory + Fleet nested under one section.
   const withElements = showElements ? [...CATEGORIES, ASSETS_NAV] : CATEGORIES
-  const baseCategories = showRewards ? [...withElements, REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV] : withElements
+  const withHR = showHR ? [...withElements, REWARDS_HR_NAV] : withElements
+  const baseCategories = showPayroll ? [...withHR, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV] : withHR
   // Marketing-HVAC — platform owner or an entitled subscriber.
   const showMarketing = profile?.role !== 'tech' && (isSuperAdmin || profile?.marketingEntitled)
   const withMarketing = showMarketing ? [...baseCategories, MARKETING_NAV] : baseCategories
-  const withPersonal = showRewards ? [...withMarketing, PERSONAL_CATEGORY] : withMarketing
+  const withPersonal = (showHR || showPayroll) ? [...withMarketing, PERSONAL_CATEGORY] : withMarketing
   const allCategories = isSuperAdmin ? [...withPersonal, PLATFORM_CATEGORY] : withPersonal
 
   const [expandedCategory, setExpandedCategory] = useState(getCategoryForPath(location.pathname))

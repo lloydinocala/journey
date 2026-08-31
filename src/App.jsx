@@ -150,7 +150,7 @@ function AuthenticatedApp() {
             ? supabase.from('elements_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
             : Promise.resolve({ data: null }),
           userRes.data.org_id
-            ? supabase.from('rewards_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
+            ? supabase.from('rewards_settings').select('entitled, hr_entitled, payroll_entitled').eq('org_id', userRes.data.org_id).maybeSingle()
             : Promise.resolve({ data: null }),
           userRes.data.org_id
             ? supabase.from('marketing_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
@@ -167,7 +167,11 @@ function AuthenticatedApp() {
           permKeys: effPerms.keys,   // resolved effective permissions (tags + live on-call elevation)
           onCall: effPerms.onCall,   // { until, as } while on-call now, else null
           elementsEntitled: !!elemRes?.data?.entitled,   // Elements-HVAC subscription gate
-          rewardsEntitled: !!rewardsRes?.data?.entitled,  // Rewards-HVAC subscription gate
+          // HR and Payroll are two separately-sold modules. Payroll is the smaller
+          // standalone offering; HR is the fuller module and implies payroll access.
+          // Fall back to the legacy `entitled` flag if the split columns are null.
+          hrEntitled: !!(rewardsRes?.data?.hr_entitled ?? rewardsRes?.data?.entitled),
+          payrollEntitled: !!(rewardsRes?.data?.payroll_entitled ?? rewardsRes?.data?.entitled),
           marketingEntitled: !!mktRes?.data?.entitled,   // Marketing-HVAC subscription gate
         })
       })
@@ -270,8 +274,12 @@ function AuthenticatedApp() {
        {profile.role !== 'tech' && [...ELEMENTS_ROUTES, ...ELEMENTS_FLEET_ROUTES].map((r) => (
           <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
         ))}
-        {/* Rewards-HVAC · People (HR) + Payroll — gated on subscription (super admin) or entitlement */}
-        {(profile.role === 'super_admin' || profile.rewardsEntitled) && [...REWARDS_HR_ROUTES, ...REWARDS_PAYROLL_ROUTES, ...REWARDS_CERT_ROUTES].map((r) => (
+        {/* Human Resources — full module. HR implies payroll access (superset). */}
+        {(profile.role === 'super_admin' || profile.hrEntitled) && REWARDS_HR_ROUTES.map((r) => (
+          <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
+        ))}
+        {/* Payroll (+ Certified Payroll) — standalone module for smaller orgs, also included with HR. */}
+        {(profile.role === 'super_admin' || profile.payrollEntitled || profile.hrEntitled) && [...REWARDS_PAYROLL_ROUTES, ...REWARDS_CERT_ROUTES].map((r) => (
           <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
         ))}
         {/* Marketing-HVAC · AI marketing — gated on subscription (super admin) or entitlement */}
