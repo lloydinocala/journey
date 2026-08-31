@@ -53,7 +53,8 @@ import SystemEstimate from './SystemEstimate'
 import NewSystemEstimate from './NewSystemEstimate'
 import SystemEstimates from './SystemEstimates'
 import OperationsDashboard from './OperationsDashboard'
-import { HomeDash, FinancialsDash, AdminDash } from './SectionDashboards'
+import { FinancialsDash, AdminDash } from './SectionDashboards'
+import { CommandDashboard } from './modules/dashboard-hvac'
 import OrgHome from './OrgHome'
 import WarrantyRegistrations from './WarrantyRegistrations'
 import SessionLog from './SessionLog'
@@ -262,7 +263,7 @@ function AuthenticatedApp() {
         <Route path="/new-system-estimate" element={<NewSystemEstimate profile={profile} />} />
         <Route path="/estimates" element={<Estimates profile={profile} />} />
         <Route path="/system-estimates" element={<SystemEstimates profile={profile} />} />
-        <Route path="/home" element={<HomeDash profile={profile} />} />
+        <Route path="/home" element={<CommandDashboard profile={profile} />} />
         <Route path="/financials" element={<FinancialsDash profile={profile} />} />
         <Route path="/admin" element={<AdminDash profile={profile} />} />
         <Route path="/operations" element={<OperationsDashboard profile={profile} />} />

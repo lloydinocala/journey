@@ -47,32 +47,8 @@ function SectionDash({ title, subtitle, intro, links, planned, tone = NAVY }) {
   )
 }
 
-export function HomeDash() {
-  return (
-    <SectionDash
-      title="Home"
-      subtitle="Your company at a glance — summaries and trends, not a to-do list"
-      intro="This is the knowledge hub: the high-level picture of the whole business pulled together in one place. It is for understanding how things are going, not for working a queue — each section below has its own workflow dashboard for that."
-      links={[
-        { label: 'Operations Dashboard', path: '/operations', desc: 'What needs doing today' },
-        { label: 'Financials Dashboard', path: '/financials', desc: 'Money in and out' },
-        { label: 'Admin Dashboard', path: '/admin', desc: 'Team, time & settings' },
-        { label: 'Assets Dashboard', path: '/assets', desc: 'Inventory + fleet overview' },
-        { label: 'Inventory Dashboard', path: '/elements', desc: 'Stock health' },
-        { label: 'Fleet Dashboard', path: '/fleet', desc: 'Vehicle health & compliance' },
-        { label: 'Marketing', path: '/marketing', desc: 'Campaigns & reviews' },
-        { label: 'HR Dashboard', path: '/rewards', desc: 'People & certifications' },
-        { label: 'Payroll Dashboard', path: '/rewards/payroll', desc: 'Pay runs & taxes' },
-      ]}
-      planned={[
-        'Company-wide KPI tiles: revenue this month, cash collected, open A/R, jobs completed, close rate.',
-        'Trend graphs: revenue and collections by month, estimate conversion over time, job volume.',
-        'Cross-section highlights: the one or two things worth knowing from Operations, Financials, Fleet, and Inventory.',
-        'An AI “state of the business” briefing that reads the live numbers and tells you the story.',
-      ]}
-    />
-  )
-}
+// HomeDash retired — the Home route now renders the live CommandDashboard
+// (modules/dashboard-hvac). FinancialsDash / AdminDash remain for their sections.
 
 export function FinancialsDash() {
   return (
