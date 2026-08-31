@@ -15,6 +15,12 @@ const DICT = {
     pay_period: 'Pay period', gross_pay: 'Gross pay', fed_tax: 'Federal income tax',
     ss: 'Social Security', medicare: 'Medicare', state_tax: 'State income tax',
     deductions: 'Deductions', total_withheld: 'Total withheld', net_pay: 'Net pay',
+    // time-off requests
+    req_title: 'Request time off', req_policy: 'Type', req_start: 'Start date', req_end: 'End date',
+    req_hours: 'Hours', req_note: 'Note (optional)', req_submit: 'Submit request',
+    req_submitted: 'Request submitted for approval.', req_mine: 'My requests',
+    req_none: 'No requests yet.', req_pending: 'Pending', req_approved: 'Approved',
+    req_denied: 'Denied', req_cancel: 'Withdraw', req_dates: 'Dates', req_status: 'Status',
   },
   es: {
     title: 'Mi Pago y Beneficios', back: 'Atrás',
@@ -29,6 +35,12 @@ const DICT = {
     pay_period: 'Período de pago', gross_pay: 'Pago bruto', fed_tax: 'Impuesto federal',
     ss: 'Seguro Social', medicare: 'Medicare', state_tax: 'Impuesto estatal',
     deductions: 'Deducciones', total_withheld: 'Total retenido', net_pay: 'Pago neto',
+    // solicitudes de tiempo libre
+    req_title: 'Solicitar tiempo libre', req_policy: 'Tipo', req_start: 'Fecha de inicio', req_end: 'Fecha de fin',
+    req_hours: 'Horas', req_note: 'Nota (opcional)', req_submit: 'Enviar solicitud',
+    req_submitted: 'Solicitud enviada para aprobación.', req_mine: 'Mis solicitudes',
+    req_none: 'Aún no hay solicitudes.', req_pending: 'Pendiente', req_approved: 'Aprobada',
+    req_denied: 'Rechazada', req_cancel: 'Retirar', req_dates: 'Fechas', req_status: 'Estado',
   },
 }
 

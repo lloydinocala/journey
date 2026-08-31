@@ -1,7 +1,7 @@
 // Rewards-HVAC · Time Off — PTO/sick/vacation policies, balances, accrual & usage.
 import { useState, useEffect } from 'react'
 import { listEmployees } from './hrData'
-import { listPtoPolicies, addPtoPolicy, updatePtoPolicy, listPtoBalances, addPtoTransaction, listPtoTransactions } from './r4Data'
+import { listPtoPolicies, addPtoPolicy, updatePtoPolicy, listPtoBalances, addPtoTransaction, listPtoTransactions, listPtoRequests, approvePtoRequest, denyPtoRequest } from './r4Data'
 import { useOrgSelector, OrgBar } from './shared'
 
 const METHOD_LABEL = { per_hour: 'Per hour worked', per_period: 'Per pay period', frontload: 'Front-loaded (annual)' }
@@ -17,16 +17,30 @@ export default function TimeOff({ profile }) {
   const [pform, setPform] = useState(blankPolicy)
   const [showPform, setShowPform] = useState(false)
   const [txForm, setTxForm] = useState({ policy_id: '', kind: 'accrual', hours: '', note: '' })
+  const [requests, setRequests] = useState([])
+  const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [saving, setSaving] = useState(false)
 
   async function load() {
     if (!org.selectedOrg) return
-    const [pol, emps, bal] = await Promise.all([
+    const [pol, emps, bal, reqs] = await Promise.all([
       listPtoPolicies(org.selectedOrg), listEmployees(org.selectedOrg), listPtoBalances(org.selectedOrg),
+      listPtoRequests(org.selectedOrg),
     ])
-    setPolicies(pol); setEmployees(emps); setBalances(bal)
+    setPolicies(pol); setEmployees(emps); setBalances(bal); setRequests(reqs)
     if (!empId && emps[0]) setEmpId(emps[0].id)
     if (!txForm.policy_id && pol[0]) setTxForm((f) => ({ ...f, policy_id: pol[0].id }))
+  }
+
+  async function decide(req, ok) {
+    setSaving(true)
+    if (ok) {
+      const pol = policies.find((p) => p.id === req.policy_id)
+      await approvePtoRequest(org.selectedOrg, req, profile.id, { cap: pol?.hours_cap ?? null })
+    } else {
+      await denyPtoRequest(req, profile.id, null)
+    }
+    setSaving(false); load()
   }
   useEffect(() => { load() }, [org.selectedOrg])
   useEffect(() => { if (empId && org.selectedOrg) listPtoTransactions(org.selectedOrg, empId).then(setTxns) }, [empId, org.selectedOrg])
@@ -66,6 +80,90 @@ export default function TimeOff({ profile }) {
         <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => setShowPform(!showPform)}>{showPform ? 'Cancel' : '+ New Policy'}</button>
       </div>
       <OrgBar {...org} />
+
+      {(() => {
+        const empName = (id) => (employees.find((e) => e.id === id) || {}).full_name || 'Employee'
+        const polName = (id) => (policies.find((p) => p.id === id) || {}).name || 'Time off'
+        const pending = requests.filter((r) => r.status === 'pending')
+        const approved = requests.filter((r) => r.status === 'approved')
+
+        // Month calendar of who's off (approved requests overlapping each day).
+        const y = calMonth.getFullYear(), m = calMonth.getMonth()
+        const first = new Date(y, m, 1), startDow = first.getDay()
+        const daysInMonth = new Date(y, m + 1, 0).getDate()
+        const iso = (dt) => dt.toISOString().slice(0, 10)
+        const offOn = (dt) => {
+          const d = iso(dt)
+          return approved.filter((r) => r.start_date <= d && r.end_date >= d)
+        }
+        const cells = []
+        for (let i = 0; i < startDow; i++) cells.push(null)
+        for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(y, m, d))
+        const monthLabel = calMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+        const todayIso = iso(new Date())
+
+        return (
+          <>
+            {pending.length > 0 && (
+              <div style={{ border: '1px solid #FDE68A', background: '#FFFBEB', borderRadius: 12, padding: 16, marginBottom: 22 }}>
+                <h3 style={{ margin: '0 0 10px' }}>Pending requests <span className="badge" style={{ background: '#B0600A', color: '#fff' }}>{pending.length}</span></h3>
+                <table className="data-table">
+                  <thead><tr><th>Employee</th><th>Dates</th><th>Policy</th><th style={{ textAlign: 'right' }}>Hours</th><th>Note</th><th></th></tr></thead>
+                  <tbody>
+                    {pending.map((r) => (
+                      <tr key={r.id}>
+                        <td>{empName(r.employee_id)}</td>
+                        <td>{r.start_date}{r.end_date !== r.start_date ? ` – ${r.end_date}` : ''}</td>
+                        <td>{polName(r.policy_id)}</td>
+                        <td style={{ textAlign: 'right' }}>{Number(r.hours || 0)}</td>
+                        <td>{r.note || '—'}</td>
+                        <td style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                          <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={saving} onClick={() => decide(r, true)}>Approve</button>
+                          <button className="logout-button" disabled={saving} onClick={() => decide(r, false)}>Deny</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 8 }}>Approving posts the hours as usage against the employee's balance automatically.</p>
+              </div>
+            )}
+
+            <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 16, marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                <h3 style={{ margin: 0 }}>Who's out</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button className="logout-button" onClick={() => setCalMonth(new Date(y, m - 1, 1))}>‹</button>
+                  <span style={{ fontWeight: 700, minWidth: 150, textAlign: 'center' }}>{monthLabel}</span>
+                  <button className="logout-button" onClick={() => setCalMonth(new Date(y, m + 1, 1))}>›</button>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+                  <div key={d} style={{ fontSize: 11, fontWeight: 700, color: 'var(--mist)', textAlign: 'center', padding: '2px 0' }}>{d}</div>
+                ))}
+                {cells.map((dt, i) => {
+                  if (!dt) return <div key={`e${i}`} />
+                  const off = offOn(dt)
+                  const isToday = iso(dt) === todayIso
+                  return (
+                    <div key={i} style={{ minHeight: 62, border: '1px solid var(--border)', borderRadius: 8, padding: 4, background: isToday ? '#EEF4FF' : '#fff' }}>
+                      <div style={{ fontSize: 11, color: 'var(--mist)', fontWeight: isToday ? 800 : 400 }}>{dt.getDate()}</div>
+                      {off.slice(0, 3).map((r) => (
+                        <div key={r.id} title={empName(r.employee_id)} style={{ fontSize: 10.5, background: '#1B3A6B', color: '#fff', borderRadius: 4, padding: '1px 4px', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {empName(r.employee_id).split(' ')[0]}
+                        </div>
+                      ))}
+                      {off.length > 3 && <div style={{ fontSize: 10, color: 'var(--mist)', marginTop: 2 }}>+{off.length - 3} more</div>}
+                    </div>
+                  )
+                })}
+              </div>
+              {approved.length === 0 && <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 10 }}>Approved time off appears here. Employees request time off from their My Pay &amp; Benefits portal.</p>}
+            </div>
+          </>
+        )
+      })()}
 
       {showPform && (
         <form className="inline-form" onSubmit={addPolicy} style={{ marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>

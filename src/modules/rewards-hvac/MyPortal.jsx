@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import { buildW2s } from './yearEndData'
+import { addPtoRequest, listPtoRequests, cancelPtoRequest } from './r4Data'
 import { getLang, setLang, makeT } from './i18n'
 
 const money = (n) => (n == null || isNaN(n) ? '—' : '$' + Number(n).toFixed(2))
@@ -19,26 +20,58 @@ export default function MyPortal({ profile }) {
   const [hr, setHr] = useState({})
   const [year, setYear] = useState(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
+  const [myEmpId, setMyEmpId] = useState('')
+  const [policyList, setPolicyList] = useState([])
+  const [requests, setRequests] = useState([])
+  const [reqForm, setReqForm] = useState({ policy_id: '', start_date: '', end_date: '', hours: '', note: '' })
+  const [reqMsg, setReqMsg] = useState('')
+  const [reqSaving, setReqSaving] = useState(false)
+
+  async function loadRequests(empId) {
+    if (!empId || !profile.org_id) { setRequests([]); return }
+    setRequests(await listPtoRequests(profile.org_id, { employeeId: empId }))
+  }
 
   useEffect(() => {
     let alive = true
     ;(async () => {
       setLoading(true)
-      const [c, b, pol, h] = await Promise.all([
+      const [c, b, pol, h, emp] = await Promise.all([
         supabase.from('rewards_payroll_calcs').select('*').order('week_start', { ascending: false }),
         supabase.from('rewards_pto_balances').select('*'),
         supabase.from('rewards_pto_policies').select('id, name, leave_type'),
         supabase.from('rewards_employee_hr').select('ssn_last4, work_state').maybeSingle(),
+        supabase.from('employees').select('id').eq('user_id', profile.id).maybeSingle(),
       ])
       if (!alive) return
       setCalcs(c.data || [])
       setBalances(b.data || [])
       const pm = {}; (pol.data || []).forEach((p) => { pm[p.id] = p }); setPolicies(pm)
+      setPolicyList(pol.data || [])
+      setReqForm((f) => ({ ...f, policy_id: f.policy_id || (pol.data && pol.data[0] ? pol.data[0].id : '') }))
       setHr(h.data || {})
+      const empId = emp.data?.id || ''
+      setMyEmpId(empId)
+      await loadRequests(empId)
       setLoading(false)
     })()
     return () => { alive = false }
   }, [])
+
+  async function submitRequest(e) {
+    e.preventDefault(); setReqMsg('')
+    if (!myEmpId || !reqForm.start_date || !reqForm.end_date || !reqForm.hours) return
+    setReqSaving(true)
+    const { error } = await addPtoRequest(profile.org_id, { employee_id: myEmpId, ...reqForm })
+    setReqSaving(false)
+    if (error) { setReqMsg(error.message); return }
+    setReqForm((f) => ({ ...f, start_date: '', end_date: '', hours: '', note: '' }))
+    setReqMsg(t('req_submitted'))
+    loadRequests(myEmpId)
+  }
+  async function withdraw(id) {
+    await cancelPtoRequest(id); loadRequests(myEmpId)
+  }
 
   const yearCalcs = calcs.filter((c) => (c.week_start || '').startsWith(String(year)))
   const w2 = buildW2s(yearCalcs, { [profile.id]: { full_name: profile.full_name, user_id: profile.id, hr } })[0]
@@ -82,16 +115,64 @@ export default function MyPortal({ profile }) {
           )}
 
           {tab === 'pto' && (
-            balances.length === 0 ? <p style={{ color: 'var(--mist)' }}>{t('no_pto')}</p> : (
-              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                {balances.map((b) => (
-                  <div key={b.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '16px 22px', minWidth: 160 }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--route-blue, #1B3A6B)' }}>{Number(b.balance_hours || 0).toFixed(1)}<span style={{ fontSize: 13, color: 'var(--mist)' }}> {t('hrs')}</span></div>
-                    <div style={{ color: 'var(--mist)', fontSize: 13 }}>{policies[b.policy_id]?.name || 'Time off'}</div>
-                  </div>
-                ))}
-              </div>
-            )
+            <>
+              {balances.length === 0 ? <p style={{ color: 'var(--mist)' }}>{t('no_pto')}</p> : (
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 22 }}>
+                  {balances.map((b) => (
+                    <div key={b.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '16px 22px', minWidth: 160 }}>
+                      <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--route-blue, #1B3A6B)' }}>{Number(b.balance_hours || 0).toFixed(1)}<span style={{ fontSize: 13, color: 'var(--mist)' }}> {t('hrs')}</span></div>
+                      <div style={{ color: 'var(--mist)', fontSize: 13 }}>{policies[b.policy_id]?.name || 'Time off'}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {myEmpId && (
+                <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 18, marginBottom: 22 }}>
+                  <h3 style={{ margin: '0 0 12px' }}>{t('req_title')}</h3>
+                  <form onSubmit={submitRequest} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                    {policyList.length > 0 && (
+                      <div className="field" style={{ marginBottom: 0 }}><label>{t('req_policy')}</label>
+                        <select value={reqForm.policy_id} onChange={(e) => setReqForm({ ...reqForm, policy_id: e.target.value })}>
+                          {policyList.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select></div>
+                    )}
+                    <div className="field" style={{ marginBottom: 0 }}><label>{t('req_start')}</label>
+                      <input type="date" value={reqForm.start_date} onChange={(e) => setReqForm({ ...reqForm, start_date: e.target.value })} required /></div>
+                    <div className="field" style={{ marginBottom: 0 }}><label>{t('req_end')}</label>
+                      <input type="date" value={reqForm.end_date} min={reqForm.start_date || undefined} onChange={(e) => setReqForm({ ...reqForm, end_date: e.target.value })} required /></div>
+                    <div className="field" style={{ marginBottom: 0, maxWidth: 90 }}><label>{t('req_hours')}</label>
+                      <input type="number" step="0.25" min="0" value={reqForm.hours} onChange={(e) => setReqForm({ ...reqForm, hours: e.target.value })} required /></div>
+                    <div className="field" style={{ marginBottom: 0, minWidth: 180 }}><label>{t('req_note')}</label>
+                      <input value={reqForm.note} onChange={(e) => setReqForm({ ...reqForm, note: e.target.value })} /></div>
+                    <button className="auth-button" type="submit" style={{ width: 'auto' }} disabled={reqSaving}>{t('req_submit')}</button>
+                  </form>
+                  {reqMsg && <div style={{ marginTop: 10, color: '#166534', fontSize: 13 }}>{reqMsg}</div>}
+                </div>
+              )}
+
+              <h3 style={{ margin: '0 0 8px' }}>{t('req_mine')}</h3>
+              {requests.length === 0 ? <p style={{ color: 'var(--mist)' }}>{t('req_none')}</p> : (
+                <table className="data-table">
+                  <thead><tr><th>{t('req_dates')}</th><th>{t('req_policy')}</th><th style={{ textAlign: 'right' }}>{t('req_hours')}</th><th>{t('req_status')}</th><th></th></tr></thead>
+                  <tbody>
+                    {requests.map((r) => {
+                      const label = r.status === 'approved' ? t('req_approved') : r.status === 'denied' ? t('req_denied') : t('req_pending')
+                      const color = r.status === 'approved' ? '#166534' : r.status === 'denied' ? '#B00020' : '#B0600A'
+                      return (
+                        <tr key={r.id}>
+                          <td>{r.start_date}{r.end_date !== r.start_date ? ` – ${r.end_date}` : ''}</td>
+                          <td>{policies[r.policy_id]?.name || 'Time off'}</td>
+                          <td style={{ textAlign: 'right' }}>{Number(r.hours || 0)}</td>
+                          <td style={{ color, fontWeight: 600 }}>{label}</td>
+                          <td style={{ textAlign: 'right' }}>{r.status === 'pending' && <button className="logout-button" onClick={() => withdraw(r.id)}>{t('req_cancel')}</button>}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </>
           )}
 
           {tab === 'w2' && (

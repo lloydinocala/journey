@@ -64,6 +64,49 @@ export async function addPtoTransaction(orgId, { employee_id, policy_id, kind, h
   )
 }
 
+// ---- PTO requests (employee self-service → office approval) -----------------
+export async function listPtoRequests(orgId, { status, employeeId } = {}) {
+  let q = supabase.from('rewards_pto_requests').select('*').eq('org_id', orgId).order('start_date', { ascending: true })
+  if (status) q = q.eq('status', status)
+  if (employeeId) q = q.eq('employee_id', employeeId)
+  const { data } = await q
+  return data || []
+}
+
+// Employee submits a request for their own record (RLS enforces ownership).
+export async function addPtoRequest(orgId, { employee_id, policy_id, start_date, end_date, hours, note }) {
+  return supabase.from('rewards_pto_requests').insert({
+    org_id: orgId, employee_id, policy_id: policy_id || null,
+    start_date, end_date, hours: Number(hours) || 0, note: note || null, status: 'pending',
+  }).select().single()
+}
+
+// Office approves: mark approved and post a usage transaction against the balance.
+export async function approvePtoRequest(orgId, req, deciderId, { cap } = {}) {
+  await supabase.from('rewards_pto_requests').update({
+    status: 'approved', decided_by: deciderId || null, decided_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  }).eq('id', req.id).eq('status', 'pending')   // guard: only act on a still-pending row
+  await addPtoTransaction(orgId, {
+    employee_id: req.employee_id, policy_id: req.policy_id, kind: 'usage',
+    hours: -Math.abs(Number(req.hours) || 0),
+    note: `Time-off ${req.start_date}–${req.end_date}${req.note ? ' · ' + req.note : ''}`,
+    cap: cap ?? null,
+  })
+  return { ok: true }
+}
+
+export async function denyPtoRequest(req, deciderId, note) {
+  return supabase.from('rewards_pto_requests').update({
+    status: 'denied', decided_by: deciderId || null, decided_at: new Date().toISOString(),
+    decision_note: note || null, updated_at: new Date().toISOString(),
+  }).eq('id', req.id).eq('status', 'pending')
+}
+
+// Employee withdraws their own pending request.
+export async function cancelPtoRequest(id) {
+  return supabase.from('rewards_pto_requests').delete().eq('id', id).eq('status', 'pending')
+}
+
 // ---- Workers' comp ---------------------------------------------------------
 export async function listWcClasses(orgId, { includeInactive = false } = {}) {
   let q = supabase.from('rewards_wc_classes').select('*').eq('org_id', orgId).order('code')
