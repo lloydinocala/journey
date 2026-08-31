@@ -119,9 +119,10 @@ export default function Layout({ profile }) {
   // Assets Management umbrella — Inventory + Fleet nested under one section.
   const withElements = showElements ? [...CATEGORIES, ASSETS_NAV] : CATEGORIES
   const withHR = showHR ? [...withElements, REWARDS_HR_NAV] : withElements
-  // Payroll-only orgs (no HR) still need the employee pay/tax profile, so surface
-  // Employees at the top of the Payroll section for them.
-  const payrollNav = (showPayroll && !showHR)
+  // Payroll staff work the employee pay/tax profile too, so surface Employees at
+  // the top of the Payroll section whenever Payroll is shown (essential for
+  // Payroll-only orgs, convenient for everyone else).
+  const payrollNav = showPayroll
     ? { ...REWARDS_PAYROLL_NAV, items: [{ label: 'Employees', path: '/rewards/employees' }, ...REWARDS_PAYROLL_NAV.items] }
     : REWARDS_PAYROLL_NAV
   const baseCategories = showPayroll ? [...withHR, payrollNav, REWARDS_CERT_NAV] : withHR
