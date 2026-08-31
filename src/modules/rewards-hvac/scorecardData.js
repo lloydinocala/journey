@@ -85,3 +85,15 @@ export async function upsertEntry(orgId, { employee_id, metric_id, period_label,
     { onConflict: 'employee_id,metric_id,period_label' }
   )
 }
+
+// ---- Reviews (manager narrative + goals per period) ----
+export async function listReviews(orgId, employeeId) {
+  const { data } = await supabase.from('rewards_scorecard_reviews').select('*').eq('org_id', orgId).eq('employee_id', employeeId)
+  return data || []
+}
+export async function upsertReview(orgId, { employee_id, period_label, period_date, summary, goals, reviewed_by }) {
+  return supabase.from('rewards_scorecard_reviews').upsert(
+    { org_id: orgId, employee_id, period_label, period_date, summary: summary || null, goals: goals || null, reviewed_by: reviewed_by || null, reviewed_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { onConflict: 'employee_id,period_label' }
+  )
+}

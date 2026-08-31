@@ -5,7 +5,8 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import { buildW2s } from './yearEndData'
 import { addPtoRequest, listPtoRequests, cancelPtoRequest } from './r4Data'
-import { listMetrics, listEntries, currentQuarter } from './scorecardData'
+import { listCertifications, listOnboarding, listDocuments, certLabel } from './hrData'
+import { listMetrics, listEntries, listReviews, currentQuarter } from './scorecardData'
 import { ScorecardTable } from './HrScorecards'
 import { getLang, setLang, makeT } from './i18n'
 
@@ -30,6 +31,10 @@ export default function MyPortal({ profile }) {
   const [reqSaving, setReqSaving] = useState(false)
   const [scMetrics, setScMetrics] = useState([])
   const [scEntries, setScEntries] = useState([])
+  const [scReviews, setScReviews] = useState([])
+  const [myCerts, setMyCerts] = useState([])
+  const [myOnboarding, setMyOnboarding] = useState([])
+  const [myDocs, setMyDocs] = useState([])
 
   async function loadRequests(empId) {
     if (!empId || !profile.org_id) { setRequests([]); return }
@@ -59,7 +64,15 @@ export default function MyPortal({ profile }) {
       const empId = emp.data?.id || ''
       setMyEmpId(empId)
       await loadRequests(empId)
-      if (empId && profile.org_id) setScEntries(await listEntries(profile.org_id, empId))
+      if (empId && profile.org_id) {
+        const [se, sr, ce, ob, dc] = await Promise.all([
+          listEntries(profile.org_id, empId), listReviews(profile.org_id, empId),
+          listCertifications(profile.org_id, { employeeId: empId }),
+          listOnboarding(profile.org_id, empId),
+          listDocuments(profile.org_id, { employeeId: empId }),
+        ])
+        setScEntries(se); setScReviews(sr); setMyCerts(ce); setMyOnboarding(ob); setMyDocs(dc)
+      }
       setLoading(false)
     })()
     return () => { alive = false }
@@ -103,7 +116,7 @@ export default function MyPortal({ profile }) {
       <div style={{ color: 'var(--mist)', marginBottom: 18 }}>{profile.full_name}</div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-        {[['pay', t('tab_pay')], ['pto', t('tab_pto')], ['w2', t('tab_w2')], ...(scMetrics.length ? [['scorecard', t('tab_scorecard')]] : [])].map(([k, l]) => (
+        {[['pay', t('tab_pay')], ['pto', t('tab_pto')], ['w2', t('tab_w2')], ...(scMetrics.length ? [['scorecard', t('tab_scorecard')]] : []), ['certs', t('tab_certs')], ['onboarding', t('tab_onboarding')], ['docs', t('tab_docs')]].map(([k, l]) => (
           <button key={k} className="logout-button" style={tab === k ? { background: '#1B3A6B', color: '#fff' } : undefined} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
@@ -216,7 +229,58 @@ export default function MyPortal({ profile }) {
               <>
                 <p style={{ color: 'var(--mist)', fontSize: 13, marginBottom: 12 }}>{t('sc_intro')}</p>
                 <ScorecardTable metrics={scMetrics} valueOf={scValueOf} curLabel={scCur} lastLabel={scLast} />
+                {(() => {
+                  const rv = scReviews.find((r) => r.period_label === scCur)
+                  if (!rv || (!rv.summary && !rv.goals)) return null
+                  return (
+                    <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 16, marginTop: 16 }}>
+                      {rv.summary && <><div style={{ fontWeight: 700, marginBottom: 4 }}>{scCur} — {t('tab_scorecard')}</div><p style={{ margin: '0 0 12px', whiteSpace: 'pre-wrap' }}>{rv.summary}</p></>}
+                      {rv.goals && <><div style={{ fontWeight: 700, marginBottom: 4 }}>{t('sc_goals')}</div><p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{rv.goals}</p></>}
+                    </div>
+                  )
+                })()}
               </>
+            )
+          )}
+
+          {tab === 'certs' && (
+            myCerts.length === 0 ? <p style={{ color: 'var(--mist)' }}>{t('certs_none')}</p> : (
+              <table className="data-table">
+                <thead><tr><th>{t('col_type')}</th><th>{t('col_id')}</th><th>{t('col_expires')}</th><th>{t('col_status')}</th></tr></thead>
+                <tbody>
+                  {myCerts.map((c) => {
+                    const exp = c.expires_date ? Math.round((new Date(c.expires_date + 'T00:00:00') - new Date().setHours(0, 0, 0, 0)) / 86400000) : null
+                    const status = exp == null ? '—' : exp < 0 ? 'Expired' : exp <= 60 ? `${exp}d left` : 'Valid'
+                    const color = exp == null ? 'var(--mist)' : exp < 0 ? '#B00020' : exp <= 60 ? '#B0600A' : '#166534'
+                    return <tr key={c.id}><td>{certLabel(c.cert_type)}</td><td>{c.identifier || '—'}</td><td>{c.expires_date || '—'}</td><td style={{ color, fontWeight: 600 }}>{status}</td></tr>
+                  })}
+                </tbody>
+              </table>
+            )
+          )}
+
+          {tab === 'onboarding' && (
+            myOnboarding.length === 0 ? <p style={{ color: 'var(--mist)' }}>{t('onb_none')}</p> : (
+              <table className="data-table">
+                <thead><tr><th>{t('col_task')}</th><th>{t('col_status')}</th></tr></thead>
+                <tbody>
+                  {myOnboarding.map((o) => (
+                    <tr key={o.id}><td>{o.label || o.task}</td>
+                      <td style={{ textTransform: 'capitalize', color: o.status === 'complete' ? '#166534' : 'var(--mist)', fontWeight: 600 }}>{o.status}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            )
+          )}
+
+          {tab === 'docs' && (
+            myDocs.length === 0 ? <p style={{ color: 'var(--mist)' }}>{t('docs_none')}</p> : (
+              <table className="data-table">
+                <thead><tr><th>{t('col_title')}</th><th>{t('col_category')}</th></tr></thead>
+                <tbody>
+                  {myDocs.map((d) => <tr key={d.id}><td>{d.title || '—'}</td><td style={{ textTransform: 'capitalize' }}>{(d.category || '').replace('_', ' ')}</td></tr>)}
+                </tbody>
+              </table>
             )
           )}
         </>

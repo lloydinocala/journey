@@ -2,8 +2,11 @@
 // Spanish support is a top adoption driver for field crews.
 const DICT = {
   en: {
-    title: 'My Pay & Benefits', back: 'Back',
+    title: 'My Records', back: 'Back',
     tab_pay: 'Pay Stubs', tab_pto: 'Time Off', tab_w2: 'W-2',
+    tab_certs: 'Certifications', tab_onboarding: 'Onboarding', tab_docs: 'Documents',
+    certs_none: 'No certifications on file.', onb_none: 'No onboarding tasks.', docs_none: 'No documents on file.',
+    col_type: 'Type', col_id: 'Identifier', col_expires: 'Expires', col_status: 'Status', col_task: 'Task', col_title: 'Title', col_category: 'Category',
     pay_week: 'Pay week', gross: 'Gross', taxes: 'Taxes', net: 'Net', stub: 'Stub',
     no_pay: 'No pay records yet.', no_pto: 'No time-off balances.', hrs: 'hrs',
     tax_year: 'Tax year', no_w2: 'No W-2 data for',
@@ -24,10 +27,14 @@ const DICT = {
     // scorecard
     tab_scorecard: 'Scorecard', sc_none: 'No scorecard on file yet.',
     sc_intro: 'Your quarterly performance record. Highlighted cells are below the accepted minimum.',
+    sc_goals: 'Goals for next quarter',
   },
   es: {
-    title: 'Mi Pago y Beneficios', back: 'Atrás',
+    title: 'Mis Registros', back: 'Atrás',
     tab_pay: 'Talones de Pago', tab_pto: 'Tiempo Libre', tab_w2: 'W-2',
+    tab_certs: 'Certificaciones', tab_onboarding: 'Incorporación', tab_docs: 'Documentos',
+    certs_none: 'No hay certificaciones.', onb_none: 'No hay tareas de incorporación.', docs_none: 'No hay documentos.',
+    col_type: 'Tipo', col_id: 'Identificador', col_expires: 'Vence', col_status: 'Estado', col_task: 'Tarea', col_title: 'Título', col_category: 'Categoría',
     pay_week: 'Semana de pago', gross: 'Bruto', taxes: 'Impuestos', net: 'Neto', stub: 'Talón',
     no_pay: 'Aún no hay registros de pago.', no_pto: 'Sin saldos de tiempo libre.', hrs: 'hrs',
     tax_year: 'Año fiscal', no_w2: 'Sin datos de W-2 para',
@@ -47,6 +54,7 @@ const DICT = {
     // boleta de calificaciones
     tab_scorecard: 'Boleta', sc_none: 'Aún no hay boleta.',
     sc_intro: 'Su registro trimestral de desempeño. Las celdas resaltadas están por debajo del mínimo aceptado.',
+    sc_goals: 'Metas para el próximo trimestre',
   },
 }
 

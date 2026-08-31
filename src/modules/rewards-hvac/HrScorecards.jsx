@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { listEmployees, getSettings } from './hrData'
 import {
   listMetrics, addMetric, updateMetric, seedDefaultMetrics, listEntries, upsertEntry,
+  listReviews, upsertReview,
   CATEGORY_ORDER, UNITS, DIRECTIONS, fmtValue, fmtMinimum, isFail, currentQuarter,
 } from './scorecardData'
 import { useOrgSelector, OrgBar } from './shared'
@@ -69,6 +70,10 @@ export default function HrScorecards({ profile }) {
   const [employees, setEmployees] = useState([])
   const [empId, setEmpId] = useState('')
   const [entries, setEntries] = useState([])
+  const [reviews, setReviews] = useState([])
+  const [reviewDraft, setReviewDraft] = useState({ summary: '', goals: '' })
+  const [savingReview, setSavingReview] = useState(false)
+  const [reviewMsg, setReviewMsg] = useState('')
   const cq = currentQuarter()
   const [year, setYear] = useState(Number(cq.label.slice(0, 4)))
   const [quarter, setQuarter] = useState(Number(cq.label.slice(-1)))
@@ -89,14 +94,26 @@ export default function HrScorecards({ profile }) {
   useEffect(() => { loadBase() }, [org.selectedOrg]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadEntries() {
-    if (!org.selectedOrg || !empId) { setEntries([]); return }
-    setEntries(await listEntries(org.selectedOrg, empId))
+    if (!org.selectedOrg || !empId) { setEntries([]); setReviews([]); return }
+    const [en, rv] = await Promise.all([listEntries(org.selectedOrg, empId), listReviews(org.selectedOrg, empId)])
+    setEntries(en); setReviews(rv)
   }
   useEffect(() => { loadEntries() }, [empId, org.selectedOrg]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const curLabel = `${year}-Q${quarter}`
   const pq = priorQuarter(year, quarter)
   const lastLabel = `${pq.y}-Q${pq.q}`
+  const curReview = reviews.find((r) => r.period_label === curLabel) || null
+  useEffect(() => {
+    setReviewDraft({ summary: curReview?.summary || '', goals: curReview?.goals || '' }); setReviewMsg('')
+  }, [curLabel, empId, reviews.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function saveReview() {
+    setSavingReview(true); setReviewMsg('')
+    const date = `${year}-${String((quarter - 1) * 3 + 1).padStart(2, '0')}-01`
+    await upsertReview(org.selectedOrg, { employee_id: empId, period_label: curLabel, period_date: date, summary: reviewDraft.summary, goals: reviewDraft.goals, reviewed_by: profile.id })
+    setSavingReview(false); setReviewMsg('Saved.'); loadEntries()
+  }
   const valueOf = useMemo(() => {
     const map = {}; entries.forEach((e) => { map[e.metric_id + '|' + e.period_label] = e.value })
     return (mid, label) => map[mid + '|' + label]
@@ -204,6 +221,17 @@ export default function HrScorecards({ profile }) {
           <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>{empName(empId)}</div>
           <ScorecardTable metrics={metrics} valueOf={valueOf} curLabel={curLabel} lastLabel={lastLabel} editing={editing} draft={draft} onDraft={(id, v) => setDraft((d) => ({ ...d, [id]: v }))} />
           <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 10 }}>Highlighted cells miss the minimum accepted rating. Every quarter is retained as a permanent record; use the quarter/year selectors to review history.</p>
+
+          <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 18, marginTop: 18, maxWidth: 820 }}>
+            <h3 style={{ margin: '0 0 4px' }}>Manager notes &amp; goals — {curLabel}</h3>
+            <div style={{ color: 'var(--mist)', fontSize: 12.5, marginBottom: 12 }}>The written half of the review. The employee sees this on their scorecard. Keep it factual and behavior-based.</div>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 4 }}>Summary of this quarter</label>
+            <textarea rows="3" value={reviewDraft.summary} onChange={(e) => setReviewDraft({ ...reviewDraft, summary: e.target.value })} style={{ width: '100%', marginBottom: 12 }} />
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 4 }}>Goals for next quarter</label>
+            <textarea rows="3" value={reviewDraft.goals} onChange={(e) => setReviewDraft({ ...reviewDraft, goals: e.target.value })} style={{ width: '100%', marginBottom: 12 }} />
+            <button className="auth-button" style={{ width: 'auto' }} disabled={savingReview} onClick={saveReview}>{savingReview ? 'Saving…' : 'Save notes & goals'}</button>
+            {reviewMsg && <span style={{ marginLeft: 12, color: '#166534', fontSize: 13 }}>{reviewMsg}</span>}
+          </div>
         </>
       )}
     </div>
