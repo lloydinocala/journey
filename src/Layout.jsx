@@ -119,19 +119,31 @@ export default function Layout({ profile }) {
   // Assets Management umbrella — Inventory + Fleet nested under one section.
   const withElements = showElements ? [...CATEGORIES, ASSETS_NAV] : CATEGORIES
   const withHR = showHR ? [...withElements, REWARDS_HR_NAV] : withElements
-  const baseCategories = showPayroll ? [...withHR, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV] : withHR
+  // Payroll-only orgs (no HR) still need the employee pay/tax profile, so surface
+  // Employees at the top of the Payroll section for them.
+  const payrollNav = (showPayroll && !showHR)
+    ? { ...REWARDS_PAYROLL_NAV, items: [{ label: 'Employees', path: '/rewards/employees' }, ...REWARDS_PAYROLL_NAV.items] }
+    : REWARDS_PAYROLL_NAV
+  const baseCategories = showPayroll ? [...withHR, payrollNav, REWARDS_CERT_NAV] : withHR
   // Marketing-HVAC — platform owner or an entitled subscriber.
   const showMarketing = profile?.role !== 'tech' && (isSuperAdmin || profile?.marketingEntitled)
   const withMarketing = showMarketing ? [...baseCategories, MARKETING_NAV] : baseCategories
   const withPersonal = (showHR || showPayroll) ? [...withMarketing, PERSONAL_CATEGORY] : withMarketing
   const allCategories = isSuperAdmin ? [...withPersonal, PLATFORM_CATEGORY] : withPersonal
 
-  const [expandedCategory, setExpandedCategory] = useState(getCategoryForPath(location.pathname))
+  // Employees maps to the HR category by default; for a payroll-only org (no HR
+  // section) keep the Payroll panel open when they're on that shared screen.
+  const resolveCat = (path) => {
+    const c = getCategoryForPath(path)
+    if (c === 'rewards' && !showHR && showPayroll) return 'rewards-payroll'
+    return c
+  }
+  const [expandedCategory, setExpandedCategory] = useState(resolveCat(location.pathname))
   const [logoutShiftId, setLogoutShiftId] = useState(null)  // open shift id when logging out
   const [loggingOut, setLoggingOut] = useState(false)
 
   useEffect(() => {
-    const cat = getCategoryForPath(location.pathname)
+    const cat = resolveCat(location.pathname)
     if (cat) setExpandedCategory(cat)
   }, [location.pathname])
 

@@ -83,7 +83,7 @@ import TechManual from './TechManual'
 // Elements · Inventory retired in favor of the native Parts Catalog module.
 // Fleet remains. (ELEMENTS_ROUTES intentionally no longer rendered.)
 import { ELEMENTS_ROUTES, ELEMENTS_FLEET_ROUTES } from './modules/elements-hvac'
-import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES, MyPortal } from './modules/rewards-hvac'
+import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES, MyPortal, HrEmployees } from './modules/rewards-hvac'
 import { MARKETING_ROUTES } from './modules/marketing-hvac'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
 
@@ -282,6 +282,11 @@ function AuthenticatedApp() {
         {(profile.role === 'super_admin' || profile.payrollEntitled || profile.hrEntitled) && [...REWARDS_PAYROLL_ROUTES, ...REWARDS_CERT_ROUTES].map((r) => (
           <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
         ))}
+        {/* Payroll-only orgs (no HR) still need the employee pay/tax/direct-deposit
+            profile to run payroll, so mount the Employees record for them too. */}
+        {(profile.payrollEntitled && !profile.hrEntitled && profile.role !== 'super_admin') && (
+          <Route path="/rewards/employees" element={<HrEmployees profile={profile} />} />
+        )}
         {/* Marketing-HVAC · AI marketing — gated on subscription (super admin) or entitlement */}
         {(profile.role === 'super_admin' || profile.marketingEntitled) && MARKETING_ROUTES.map((r) => (
           <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
