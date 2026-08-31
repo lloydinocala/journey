@@ -82,6 +82,7 @@ export default function HrScorecards({ profile }) {
   const [saving, setSaving] = useState(false)
   const [showSetup, setShowSetup] = useState(false)
   const [mForm, setMForm] = useState(blankMetric)
+  const [editingMetricId, setEditingMetricId] = useState(null)
 
   async function loadBase() {
     if (!org.selectedOrg) return
@@ -134,16 +135,23 @@ export default function HrScorecards({ profile }) {
     setSaving(false); setEditing(false); loadEntries()
   }
 
-  async function addNewMetric(e) {
+  async function saveMetric(e) {
     e.preventDefault()
     if (!mForm.name.trim()) return
-    await addMetric(org.selectedOrg, {
+    const patch = {
       category: mForm.category, name: mForm.name.trim(), description: mForm.description || null,
       unit: mForm.unit, minimum: mForm.direction === 'actual' || mForm.minimum === '' ? null : Number(mForm.minimum),
-      direction: mForm.direction, sort: metrics.length,
-    })
-    setMForm(blankMetric); loadBase()
+      direction: mForm.direction,
+    }
+    if (editingMetricId) await updateMetric(editingMetricId, patch)
+    else await addMetric(org.selectedOrg, { ...patch, sort: metrics.length })
+    setMForm(blankMetric); setEditingMetricId(null); loadBase()
   }
+  function editMetric(m) {
+    setEditingMetricId(m.id)
+    setMForm({ category: m.category, name: m.name, description: m.description || '', unit: m.unit, minimum: m.minimum == null ? '' : m.minimum, direction: m.direction })
+  }
+  function cancelEditMetric() { setEditingMetricId(null); setMForm(blankMetric) }
   async function loadStarter() { await seedDefaultMetrics(org.selectedOrg); loadBase() }
 
   const empName = (id) => (employees.find((e) => e.id === id) || {}).full_name || ''
@@ -168,7 +176,7 @@ export default function HrScorecards({ profile }) {
             <h3 style={{ margin: 0 }}>Scorecard metrics</h3>
             {metrics.length === 0 && <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={loadStarter}>Load starter metrics</button>}
           </div>
-          <form className="inline-form" onSubmit={addNewMetric} style={{ flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+          <form className="inline-form" onSubmit={saveMetric} style={{ flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
             <div className="field"><label>Category</label>
               <input list="sc-cats" value={mForm.category} onChange={(e) => setMForm({ ...mForm, category: e.target.value })} />
               <datalist id="sc-cats">{CATEGORY_ORDER.map((c) => <option key={c} value={c} />)}</datalist></div>
@@ -177,7 +185,8 @@ export default function HrScorecards({ profile }) {
             <div className="field"><label>Unit</label><select value={mForm.unit} onChange={(e) => setMForm({ ...mForm, unit: e.target.value })}>{UNITS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
             <div className="field"><label>Goal direction</label><select value={mForm.direction} onChange={(e) => setMForm({ ...mForm, direction: e.target.value })}>{DIRECTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
             {mForm.direction !== 'actual' && <div className="field" style={{ maxWidth: 110 }}><label>Minimum</label><input type="number" step="0.01" value={mForm.minimum} onChange={(e) => setMForm({ ...mForm, minimum: e.target.value })} /></div>}
-            <button className="auth-button" type="submit" style={{ width: 'auto' }}>Add metric</button>
+            <button className="auth-button" type="submit" style={{ width: 'auto' }}>{editingMetricId ? 'Update metric' : 'Add metric'}</button>
+            {editingMetricId && <button type="button" className="logout-button" onClick={cancelEditMetric}>Cancel</button>}
           </form>
           <table className="data-table">
             <thead><tr><th>Category</th><th>Metric</th><th>Minimum</th><th>Direction</th><th></th></tr></thead>
@@ -186,7 +195,10 @@ export default function HrScorecards({ profile }) {
                 <tr key={m.id}>
                   <td>{m.category}</td><td>{m.name}</td><td>{fmtMinimum(m)}</td>
                   <td style={{ textTransform: 'capitalize' }}>{m.direction}</td>
-                  <td style={{ textAlign: 'right' }}><button className="logout-button" onClick={() => { if (confirm(`Archive "${m.name}"?`)) updateMetric(m.id, { active: false }).then(loadBase) }}>Archive</button></td>
+                  <td style={{ textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                    <button className="logout-button" onClick={() => editMetric(m)}>Edit</button>
+                    <button className="logout-button" onClick={() => { if (confirm(`Archive "${m.name}"?`)) updateMetric(m.id, { active: false }).then(loadBase) }}>Archive</button>
+                  </td>
                 </tr>
               ))}
               {metrics.length === 0 && <tr><td colSpan="5" style={{ color: 'var(--mist)' }}>No metrics yet. Load the starter set or add your own.</td></tr>}
