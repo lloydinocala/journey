@@ -85,7 +85,12 @@ export default function Jobs({ profile }) {
     return statuses
   })
   const [showStatusPicker, setShowStatusPicker] = useState(false)
-  const [searchText, setSearchText] = useState('')
+  // Drill-through from the Home dashboard: a bar click lands here pre-filtered.
+  //   ?tech=Name / ?customer=Name  → seed the search box (it matches both).
+  //   ?type=JobType                → seed the job-type filter (exact match).
+  const [drillParams] = useSearchParams()
+  const [searchText, setSearchText] = useState(() => drillParams.get('tech') || drillParams.get('customer') || '')
+  const [drillType, setDrillType] = useState(() => drillParams.get('type') || '')
   const [sortField, setSortField] = useState('job_date')
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
@@ -524,11 +529,13 @@ export default function Jobs({ profile }) {
 
   const filtered = jobs.filter((j) => {
     if (!visibleStatuses.includes(j.status)) return false
+    if (drillType && (j.job_type || '') !== drillType) return false
     if (!searchText) return true
     const q = searchText.toLowerCase()
     return (
       j.job_number?.toLowerCase().includes(q) ||
       j.properties?.street_address?.toLowerCase().includes(q) ||
+      j.properties?.customers?.display_name?.toLowerCase().includes(q) ||
       j.service_complaint?.toLowerCase().includes(q) ||
       techNames(j).toLowerCase().includes(q)
     )
@@ -736,9 +743,17 @@ export default function Jobs({ profile }) {
             type="text"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Job #, address, issue, tech…"
+            placeholder="Job #, address, customer, issue, tech…"
           />
         </div>
+        {drillType && (
+          <div className="field" style={{ marginBottom: 0, alignSelf: 'flex-end' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--route-blue, #1B3A6B)', color: '#fff', borderRadius: 999, padding: '6px 12px', fontSize: 13 }}>
+              Job type: <strong>{drillType}</strong>
+              <button onClick={() => setDrillType('')} title="Clear filter" style={{ border: 'none', background: 'rgba(255,255,255,.25)', color: '#fff', borderRadius: 999, width: 18, height: 18, lineHeight: '16px', cursor: 'pointer', padding: 0 }}>×</button>
+            </span>
+          </div>
+        )}
         <div style={{ position: 'relative', marginBottom: 10 }}>
           <button className="logout-button" onClick={() => setShowColumnPicker(!showColumnPicker)}>
             Columns ▾
