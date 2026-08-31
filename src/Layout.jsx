@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
@@ -67,8 +67,29 @@ const PERSONAL_CATEGORY = { key: 'personal', label: 'Personal', items: [
   { label: 'My Pay & Benefits', path: '/my' },
 ]}
 
+// Clicking a section title in the rail opens that section's dashboard (and
+// still expands its panel). Sections whose key is absent here just expand.
+const DASH_BY_KEY = {
+  operations: '/operations',
+  financials: '/financials',
+  admin: '/admin',
+  assets: '/assets',
+  elements: '/elements',
+  rewards: '/rewards',
+  'rewards-payroll': '/rewards/payroll',
+  marketing: '/marketing',
+}
+// Sub-section headers inside a panel that have their own dashboard, so the
+// Inventory and Fleet titles under Assets Management are clickable too.
+const HEADER_DASH = {
+  'Inventory Management': '/elements',
+  'Fleet Management': '/fleet',
+}
+
 function getCategoryForPath(pathname) {
-  if (pathname === '/') return null
+  if (pathname === '/' || pathname === '/home') return null
+  if (pathname.startsWith('/financials')) return 'financials'
+  if (pathname.startsWith('/admin')) return 'admin'
   if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/text-archive') || pathname.startsWith('/maintenance-agreements')) return 'operations'
   if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/maintenance-tiers') || pathname.startsWith('/maintenance-dashboard')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
@@ -86,6 +107,7 @@ function getCategoryForPath(pathname) {
 
 export default function Layout({ profile }) {
   const location = useLocation()
+  const navigate = useNavigate()
   const isSuperAdmin = profile?.role === 'super_admin'
   // Elements-HVAC appears only for the platform owner or an entitled subscriber.
   const showElements = profile?.role !== 'tech'
@@ -204,14 +226,17 @@ export default function Layout({ profile }) {
       <div className="shell-body">
         <div className="sidebar-rail">
           <div className="rail-brand">Journey<br />HVAC</div>
-          <Link to="/" className={'rail-item' + (location.pathname === '/' ? ' active' : '')}>
+          <Link to="/home" className={'rail-item' + (location.pathname === '/home' ? ' active' : '')}>
             Home
           </Link>
           {allCategories.map((cat) => (
             <button
               key={cat.key}
               className={'rail-item' + (expandedCategory === cat.key ? ' active' : '')}
-              onClick={() => setExpandedCategory(cat.key)}
+              onClick={() => {
+                setExpandedCategory(cat.key)
+                if (DASH_BY_KEY[cat.key]) navigate(DASH_BY_KEY[cat.key])
+              }}
             >
               {cat.label}
             </button>
@@ -232,9 +257,19 @@ export default function Layout({ profile }) {
             <h3>{activeCategoryData.label}</h3>
             {activeCategoryData.items.filter((item) => !item.perm || isSuperAdmin || can(profile, item.perm)).map((item) => (
               item.header ? (
-                <div key={item.header} style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8A93A6', fontWeight: 700, margin: '16px 0 4px' }}>
-                  {item.header}
-                </div>
+                HEADER_DASH[item.header] ? (
+                  <Link
+                    key={item.header}
+                    to={HEADER_DASH[item.header]}
+                    style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8A93A6', fontWeight: 700, margin: '16px 0 4px', textDecoration: 'none', cursor: 'pointer' }}
+                  >
+                    {item.header}
+                  </Link>
+                ) : (
+                  <div key={item.header} style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8A93A6', fontWeight: 700, margin: '16px 0 4px' }}>
+                    {item.header}
+                  </div>
+                )
               ) : (
                 <Link
                   key={item.path}
