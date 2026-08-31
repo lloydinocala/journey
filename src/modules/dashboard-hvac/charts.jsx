@@ -110,7 +110,7 @@ function Column({ def, rows }) {
         {data.map((d, i) => (
           <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', height: '100%' }}>
             {d.v != null && <span style={{ fontSize: 10.5, color: MIST, marginBottom: 2, fontVariantNumeric: 'tabular-nums' }}>{Math.round(d.v)}{def.unit === 'percent' ? '%' : ''}</span>}
-            <div style={{ width: '68%', height: d.v == null ? 0 : `${Math.max(2, (d.v / max) * 100)}%`, background: d.v == null ? 'transparent' : (ok(d.v) ? OK : BAD), borderRadius: '4px 4px 0 0' }} />
+            <div style={{ width: '68%', height: d.v == null ? 0 : `${Math.max(2, (d.v / max) * 100)}%`, background: d.v == null ? 'transparent' : (target == null ? NAVY : (ok(d.v) ? OK : BAD)), borderRadius: '4px 4px 0 0' }} />
           </div>
         ))}
         {target != null && (

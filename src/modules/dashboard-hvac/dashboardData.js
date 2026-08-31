@@ -38,6 +38,10 @@ export function periodRange(key, base = new Date()) {
 }
 export const PERIODS = [['mtd', 'This month'], ['last30', 'Last 30 days'], ['quarter', 'This quarter'], ['ytd', 'Year to date']]
 
+// Composable query for the builder: any base measure × breakdown.
+export const queryKpi = (org, measure, dim, range) =>
+  rpc('dash_query', { p_org: org, p_measure: measure, p_dimension: dim, p_start: range.start, p_end: range.end })
+
 // Fetch one measure's rows for an org + range, per its catalog entry.
 export async function fetchMeasure(def, org, range) {
   if (!org) return []

@@ -17,6 +17,26 @@ export const MEASURES = {
   fuel_flags: { label: 'Unusual fuel / mileage flags', sub: 'Across the fleet', unit: 'number', custom: 'fuel_flags', dated: false, viz: 'flags', drill: '/fleet' },
 }
 
+// ---- Composable builder catalog (P1) ------------------------------------
+// Base measures the subscriber can compose, each declaring its compatible
+// breakdowns. The generic dash_query RPC computes any measure × breakdown.
+export const BASE_MEASURES = {
+  revenue: { label: 'Revenue', unit: 'currency', dims: ['none', 'tech', 'job_type', 'customer', 'month'] },
+  gross_profit: { label: 'Gross profit $', unit: 'currency', dims: ['none', 'job_type', 'tech', 'month'] },
+  estimate_value: { label: 'Estimate value $', unit: 'currency', dims: ['none', 'status', 'month'] },
+  jobs_completed: { label: 'Jobs completed', unit: 'number', dims: ['none', 'tech', 'job_type', 'customer', 'month'] },
+}
+export const DIMENSIONS = {
+  none: { label: 'Total (single number)', short: '', shape: 'scalar' },
+  tech: { label: 'By tech', short: 'by tech', shape: 'category' },
+  job_type: { label: 'By job type', short: 'by job type', shape: 'category' },
+  customer: { label: 'By customer', short: 'by customer', shape: 'category' },
+  status: { label: 'By status', short: 'by status', shape: 'category' },
+  month: { label: 'By month', short: 'by month', shape: 'time' },
+}
+// Guardrail: which visualization fits each result shape.
+export const VIZ_FOR_SHAPE = { scalar: 'tile', category: 'bars', time: 'column' }
+
 // The immutable default board: order + tile size (1 or 2 grid columns).
 export const DEFAULT_TEMPLATE = [
   { key: 'sales', w: 1 },
