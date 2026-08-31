@@ -237,6 +237,32 @@ export async function addSeparation(orgId, row) {
   return supabase.from('rewards_separations').insert({ org_id: orgId, ...row }).select().single()
 }
 
+// ---- Skills / training matrix ----------------------------------------------
+export const SKILL_LEVELS = ['—', 'Learning', 'Proficient', 'Expert']
+
+export async function listSkills(orgId, { includeInactive = false } = {}) {
+  let q = supabase.from('rewards_skills').select('*').eq('org_id', orgId).order('sort').order('name')
+  if (!includeInactive) q = q.eq('active', true)
+  const { data } = await q
+  return data || []
+}
+export async function addSkill(orgId, row) {
+  return supabase.from('rewards_skills').insert({ org_id: orgId, ...row }).select().single()
+}
+export async function updateSkill(id, patch) {
+  return supabase.from('rewards_skills').update(patch).eq('id', id)
+}
+export async function listEmployeeSkills(orgId) {
+  const { data } = await supabase.from('rewards_employee_skills').select('*').eq('org_id', orgId)
+  const map = {}; (data || []).forEach((r) => { map[r.employee_id + ':' + r.skill_id] = r.level }); return map
+}
+export async function setEmployeeSkill(orgId, employeeId, skillId, level) {
+  return supabase.from('rewards_employee_skills').upsert(
+    { org_id: orgId, employee_id: employeeId, skill_id: skillId, level, updated_at: new Date().toISOString() },
+    { onConflict: 'employee_id,skill_id' }
+  )
+}
+
 // ---- Dashboard: derive live compliance flags -------------------------------
 // Cert-expiry + federal headcount-threshold flags, computed on read so the
 // dashboard is always current without a cron. (Persisted flags arrive in R4.)
