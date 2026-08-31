@@ -1,0 +1,40 @@
+// Dashboard-HVAC · data layer. Thin wrappers over the aggregation RPCs, which
+// return tidy [{ bucket, value }] rows and enforce org access server-side.
+import { supabase } from '../../utils/supabase'
+
+export async function rpc(name, args) {
+  const { data, error } = await supabase.rpc(name, args)
+  if (error) { console.warn('[dashboard] rpc', name, error.message); return [] }
+  return data || []
+}
+
+// Date helpers -------------------------------------------------------------
+const iso = (d) => {
+  const t = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+  return t.toISOString().slice(0, 10)
+}
+export function periodRange(key, base = new Date()) {
+  const y = base.getFullYear(), m = base.getMonth()
+  if (key === 'last30') { const s = new Date(base); s.setDate(s.getDate() - 29); return { start: iso(s), end: iso(base) } }
+  if (key === 'quarter') { const qs = Math.floor(m / 3) * 3; return { start: iso(new Date(y, qs, 1)), end: iso(base) } }
+  if (key === 'ytd') return { start: iso(new Date(y, 0, 1)), end: iso(base) }
+  // default: month to date
+  return { start: iso(new Date(y, m, 1)), end: iso(base) }
+}
+export const PERIODS = [['mtd', 'This month'], ['last30', 'Last 30 days'], ['quarter', 'This quarter'], ['ytd', 'Year to date']]
+
+// Fetch one measure's rows for an org + range, per its catalog entry.
+export async function fetchMeasure(def, org, range) {
+  if (!org) return []
+  const args = def.dated ? { p_org: org, p_start: range.start, p_end: range.end } : { p_org: org }
+  return rpc(def.rpc, args)
+}
+
+// Value formatting ---------------------------------------------------------
+export function fmt(unit, v) {
+  const n = Number(v)
+  if (v == null || isNaN(n)) return '—'
+  if (unit === 'currency') return '$' + Math.round(n).toLocaleString('en-US')
+  if (unit === 'percent') return (Math.round(n * 10) / 10) + '%'
+  return (Math.round(n * 100) / 100).toLocaleString('en-US')
+}
