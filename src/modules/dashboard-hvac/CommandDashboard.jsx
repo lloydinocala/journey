@@ -1,12 +1,16 @@
-// Dashboard-HVAC · the live default board (P0). Renders the default template's
-// KPIs from the aggregation RPCs. Read-only for now; per-widget customization
-// (the builder + template model) lands in a later phase.
+// Dashboard-HVAC · the live Home board (P2). Renders a per-org working copy of
+// the board. The code default (DEFAULT_TEMPLATE) is the immutable template: an
+// org with no saved layout gets it, and "Reset to default" restores it, so the
+// default can never be lost. Subscribers with the customize_dashboard permission
+// (and the platform owner) can replace widgets and add composed KPIs; those
+// changes persist per-org. Everyone else sees the board read-only.
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
+import { can } from '../../utils/permissions'
 import OrgPicker from '../../OrgPicker'
 import { MEASURES, DEFAULT_TEMPLATE } from './catalog'
-import { fetchMeasure, queryKpi, periodRange, PERIODS } from './dashboardData'
+import { fetchMeasure, queryKpi, getLayout, saveLayout, resetLayout, periodRange, PERIODS } from './dashboardData'
 import Widget from './charts'
 import KpiBuilder from './KpiBuilder'
 
@@ -16,19 +20,23 @@ const SECTIONS = [
   ['Marketing', '/marketing'], ['HR', '/rewards'], ['Payroll', '/rewards/payroll'],
 ]
 
+// The immutable default as a normalized working copy.
+const defaultWidgets = () => DEFAULT_TEMPLATE.map((w) => ({ kind: 'measure', key: w.key, w: w.w }))
+// A stable per-widget id (measure key or the composed KPI's id).
+const uid = (w) => (w.kind === 'measure' ? 'm:' + w.key : 'c:' + w.id)
+
 export default function CommandDashboard({ profile }) {
   const isSuperAdmin = profile?.role === 'super_admin'
+  const canCustomize = isSuperAdmin || can(profile, 'customize_dashboard')
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
   const [period, setPeriod] = useState('mtd')
+  const [widgets, setWidgets] = useState(defaultWidgets)
+  const [customized, setCustomized] = useState(false)   // org has a saved layout row
   const [data, setData] = useState({})
   const [loading, setLoading] = useState(true)
-  const [extras, setExtras] = useState([])   // session-added KPIs (persistence = P2)
   const [builderOpen, setBuilderOpen] = useState(false)
   const navigate = useNavigate()
-  // Designing the board is a subscriber privilege. The formal customize_dashboard
-  // permission arrives in P2; for now the platform owner can build KPIs.
-  const canCustomize = isSuperAdmin
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -39,27 +47,64 @@ export default function CommandDashboard({ profile }) {
     }
   }, [isSuperAdmin])
 
+  // Load the org's saved layout (or the code default) whenever the org changes.
+  useEffect(() => {
+    let alive = true
+    if (!selectedOrg) return
+    getLayout(selectedOrg).then((saved) => {
+      if (!alive) return
+      if (Array.isArray(saved) && saved.length) { setWidgets(saved); setCustomized(true) }
+      else { setWidgets(defaultWidgets()); setCustomized(false) }
+    })
+    return () => { alive = false }
+  }, [selectedOrg])
+
+  // Fetch each widget's rows for the org + period.
   useEffect(() => {
     let alive = true
     async function load() {
       if (!selectedOrg) { setLoading(false); return }
       setLoading(true)
       const range = periodRange(period)
-      const tpl = await Promise.all(
-        DEFAULT_TEMPLATE.map(async (w) => [w.key, await fetchMeasure(MEASURES[w.key], selectedOrg, range)])
-      )
-      const ext = await Promise.all(
-        extras.map(async (x) => [x.id, await queryKpi(selectedOrg, x.measure, x.dim, range)])
-      )
+      const pairs = await Promise.all(widgets.map(async (w) => {
+        const rows = w.kind === 'measure'
+          ? await fetchMeasure(MEASURES[w.key], selectedOrg, range)
+          : await queryKpi(selectedOrg, w.measure, w.dim, range)
+        return [uid(w), rows]
+      }))
       if (!alive) return
-      setData(Object.fromEntries([...tpl, ...ext]))
+      setData(Object.fromEntries(pairs))
       setLoading(false)
     }
     load()
     return () => { alive = false }
-  }, [selectedOrg, period, extras])
+  }, [selectedOrg, period, widgets])
+
+  // Persist the working copy (designers only). Marks the org as customized.
+  function persist(next) {
+    setWidgets(next)
+    setCustomized(true)
+    saveLayout(selectedOrg, next)
+  }
+  function addKpi(cfg) {
+    persist([...widgets, { kind: 'custom', id: cfg.id, measure: cfg.measure, dim: cfg.dim, viz: cfg.viz, unit: cfg.unit, label: cfg.label, w: cfg.w }])
+    setBuilderOpen(false)
+  }
+  function removeWidget(w) {
+    persist(widgets.filter((x) => uid(x) !== uid(w)))
+  }
+  function resetToDefault() {
+    const def = defaultWidgets()
+    setWidgets(def)
+    setCustomized(false)
+    resetLayout(selectedOrg)
+  }
 
   const periodLabel = (PERIODS.find((p) => p[0] === period) || [])[1]
+
+  const cards = widgets.map((w) => w.kind === 'measure'
+    ? { id: uid(w), def: MEASURES[w.key], w: w.w, rows: data[uid(w)], drill: MEASURES[w.key].drill, widget: w }
+    : { id: uid(w), def: { label: w.label, unit: w.unit, viz: w.viz, sub: '' }, w: w.w, rows: data[uid(w)], drill: null, widget: w })
 
   return (
     <div>
@@ -76,6 +121,7 @@ export default function CommandDashboard({ profile }) {
             </select>
           </div>
           {canCustomize && <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => setBuilderOpen(true)}>+ Add KPI</button>}
+          {canCustomize && customized && <button className="logout-button" style={{ margin: 0 }} onClick={resetToDefault}>Reset to default</button>}
         </div>
       </div>
 
@@ -87,10 +133,7 @@ export default function CommandDashboard({ profile }) {
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(244px, 1fr))', gap: 14, marginBottom: 26 }}>
-        {[
-          ...DEFAULT_TEMPLATE.map((w) => ({ id: w.key, def: MEASURES[w.key], w: w.w, rows: data[w.key], drill: MEASURES[w.key].drill })),
-          ...extras.map((x) => ({ id: x.id, def: { label: x.label, unit: x.unit, viz: x.viz, sub: '' }, w: x.w, rows: data[x.id], removable: true })),
-        ].map((it) => (
+        {cards.map((it) => (
           <div key={it.id}
             onClick={() => it.drill && navigate(it.drill)}
             style={{
@@ -104,9 +147,10 @@ export default function CommandDashboard({ profile }) {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
               <div style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: '.02em', textTransform: 'uppercase', color: 'var(--mist)' }}>{it.def.label}</div>
-              {it.removable
-                ? <button title="Remove" onClick={(e) => { e.stopPropagation(); setExtras((xs) => xs.filter((x) => x.id !== it.id)) }} style={{ border: 'none', background: 'none', color: 'var(--mist)', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: 0 }}>×</button>
-                : (it.drill && <span aria-hidden style={{ color: 'var(--mist)', fontSize: 13 }}>↗</span>)}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {it.drill && <span aria-hidden style={{ color: 'var(--mist)', fontSize: 13 }}>↗</span>}
+                {canCustomize && <button title="Remove" onClick={(e) => { e.stopPropagation(); removeWidget(it.widget) }} style={{ border: 'none', background: 'none', color: 'var(--mist)', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: 0 }}>×</button>}
+              </div>
             </div>
             {loading ? <div style={{ color: 'var(--mist)', fontSize: 13 }}>Loading…</div> : <Widget def={it.def} rows={it.rows} />}
           </div>
@@ -115,7 +159,7 @@ export default function CommandDashboard({ profile }) {
 
       {builderOpen && (
         <KpiBuilder org={selectedOrg} range={periodRange(period)}
-          onAdd={(cfg) => { setExtras((xs) => [...xs, cfg]); setBuilderOpen(false) }}
+          onAdd={addKpi}
           onClose={() => setBuilderOpen(false)} />
       )}
 
@@ -127,7 +171,9 @@ export default function CommandDashboard({ profile }) {
           ))}
         </div>
         <div style={{ color: 'var(--mist)', fontSize: 12, marginTop: 14 }}>
-          This is the default board.{canCustomize ? ' Use “+ Add KPI” to compose your own — pick a measure, a breakdown, and it picks the right chart.' : ''} Saving your customizations across sessions (and rearranging) arrives next.
+          {canCustomize
+            ? 'Use “+ Add KPI” to compose your own — pick a measure, a breakdown, and it picks the right chart. Remove any tile with ×; “Reset to default” restores the standard board at any time.'
+            : 'This is your company’s dashboard. Ask an administrator to customize which KPIs appear.'}
         </div>
       </div>
     </div>

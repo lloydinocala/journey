@@ -42,6 +42,32 @@ export const PERIODS = [['mtd', 'This month'], ['last30', 'Last 30 days'], ['qua
 export const queryKpi = (org, measure, dim, range) =>
   rpc('dash_query', { p_org: org, p_measure: measure, p_dimension: dim, p_start: range.start, p_end: range.end })
 
+// Saved layout (P2). A per-org working copy of the board's widget list. No row
+// means the org is on the code default (DEFAULT_TEMPLATE); resetting deletes the
+// row so the org falls back to the default again. RLS keeps writes to designers.
+export async function getLayout(org) {
+  if (!org) return null
+  const { data, error } = await supabase
+    .from('dashboard_layouts')
+    .select('widgets')
+    .eq('org_id', org)
+    .maybeSingle()
+  if (error) { console.warn('[dashboard] getLayout', error.message); return null }
+  return data?.widgets || null
+}
+export async function saveLayout(org, widgets) {
+  if (!org) return
+  const { error } = await supabase
+    .from('dashboard_layouts')
+    .upsert({ org_id: org, widgets, updated_at: new Date().toISOString() }, { onConflict: 'org_id' })
+  if (error) console.warn('[dashboard] saveLayout', error.message)
+}
+export async function resetLayout(org) {
+  if (!org) return
+  const { error } = await supabase.from('dashboard_layouts').delete().eq('org_id', org)
+  if (error) console.warn('[dashboard] resetLayout', error.message)
+}
+
 // Fetch one measure's rows for an org + range, per its catalog entry.
 export async function fetchMeasure(def, org, range) {
   if (!org) return []
