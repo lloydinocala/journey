@@ -189,6 +189,7 @@ export default function TechJobs({ profile }) {
             {isFieldAdmin(profile) && (
               <button className="mobile-header-action-btn" onClick={() => navigate('/')}>Desktop</button>
             )}
+            <button className="mobile-header-action-btn" onClick={() => navigate('/my')}>My Records</button>
             <button className="mobile-header-action-btn" onClick={() => navigate('/tech/settings')}>Settings</button>
             <button className="mobile-header-action-btn" onClick={() => signOutMobile(profile)}>Sign Out</button>
           </div>
