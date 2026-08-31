@@ -8,8 +8,8 @@ export const MEASURES = {
   outstanding_est: { label: 'Outstanding estimates', sub: 'Unsold pipeline', unit: 'currency', rpc: 'dash_outstanding_estimates', dated: false, viz: 'tile', drill: '/estimates' },
   jobs_per_tech_day: { label: 'Jobs / tech / day', sub: 'Completed, working days', unit: 'number', rpc: 'dash_jobs_per_tech_day', dated: true, viz: 'tile', drill: '/jobs-management' },
   gross_margin: { label: 'Gross margin', sub: 'Floor 60%', unit: 'percent', rpc: 'dash_gross_margin', dated: true, viz: 'gauge', target: 60, targetDir: 'floor', drill: '/invoices' },
-  revenue_by_tech: { label: 'Revenue by tech', sub: 'Performing tech', unit: 'currency', rpc: 'dash_revenue_by_tech', dated: true, viz: 'bars', drill: '/jobs-management' },
-  revenue_by_type: { label: 'Revenue by job type', sub: 'Service / install / maintenance', unit: 'currency', rpc: 'dash_revenue_by_job_type', dated: true, viz: 'bars', drill: '/jobs-management' },
+  revenue_by_tech: { label: 'Revenue by tech', sub: 'Performing tech', unit: 'currency', rpc: 'dash_revenue_by_tech', dated: true, viz: 'bars', drill: '/jobs', sliceTo: { path: '/jobs', param: 'tech' } },
+  revenue_by_type: { label: 'Revenue by job type', sub: 'Service / install / maintenance', unit: 'currency', rpc: 'dash_revenue_by_job_type', dated: true, viz: 'bars', drill: '/jobs', sliceTo: { path: '/jobs', param: 'type' } },
   est_presented_sold: { label: 'Estimates: presented vs. sold', sub: 'This period', unit: 'currency', rpc: 'dash_estimates_presented_sold', dated: true, viz: 'estimates', drill: '/estimates' },
   on_time: { label: 'On-time arrival', sub: 'Within 15 min of schedule', unit: 'percent', rpc: 'dash_on_time_arrival', dated: true, viz: 'gauge', target: 90, targetDir: 'floor', drill: '/jobs-management' },
   payroll_pct: { label: 'Payroll % of sales', sub: 'Last 6 months · ceiling 20%', unit: 'percent', rpc: 'dash_payroll_pct_by_month', dated: false, viz: 'column', target: 20, targetDir: 'ceiling', drill: '/rewards/payroll' },
@@ -28,9 +28,9 @@ export const BASE_MEASURES = {
 }
 export const DIMENSIONS = {
   none: { label: 'Total (single number)', short: '', shape: 'scalar' },
-  tech: { label: 'By tech', short: 'by tech', shape: 'category' },
-  job_type: { label: 'By job type', short: 'by job type', shape: 'category' },
-  customer: { label: 'By customer', short: 'by customer', shape: 'category' },
+  tech: { label: 'By tech', short: 'by tech', shape: 'category', sliceTo: { path: '/jobs', param: 'tech' } },
+  job_type: { label: 'By job type', short: 'by job type', shape: 'category', sliceTo: { path: '/jobs', param: 'type' } },
+  customer: { label: 'By customer', short: 'by customer', shape: 'category', sliceTo: { path: '/jobs', param: 'customer' } },
   status: { label: 'By status', short: 'by status', shape: 'category' },
   month: { label: 'By month', short: 'by month', shape: 'time' },
 }

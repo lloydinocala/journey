@@ -42,7 +42,7 @@ function Gauge({ def, rows }) {
   )
 }
 
-function BarList({ def, rows }) {
+function BarList({ def, rows, onSlice }) {
   let data = (rows || []).filter((r) => Number(r.value) > 0)
   if (data.length > 8) {
     const top = data.slice(0, 7)
@@ -51,12 +51,19 @@ function BarList({ def, rows }) {
   }
   const max = Math.max(1, ...data.map((r) => Number(r.value)))
   if (!data.length) return <Empty />
+  // A row is drillable when a slice handler is wired and the bucket is a real
+  // category (not the aggregated "Other" roll-up, which isn't a single filter).
+  const canSlice = (r) => !!onSlice && r.bucket !== 'Other'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
       {data.map((r) => (
-        <div key={r.bucket}>
+        <div key={r.bucket}
+          onClick={canSlice(r) ? ((e) => { e.stopPropagation(); onSlice(r.bucket) }) : undefined}
+          title={canSlice(r) ? `See ${r.bucket}` : undefined}
+          style={{ cursor: canSlice(r) ? 'pointer' : 'default', borderRadius: 6 }}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 3 }}>
-            <span style={{ color: 'var(--ink, #1F2A37)', fontWeight: 600 }}>{r.bucket}</span>
+            <span style={{ color: canSlice(r) ? 'var(--route-blue, #1B3A6B)' : 'var(--ink, #1F2A37)', fontWeight: 600, textDecoration: canSlice(r) ? 'underline dotted' : 'none', textUnderlineOffset: 2 }}>{r.bucket}</span>
             <span style={{ color: MIST, fontVariantNumeric: 'tabular-nums' }}>{fmt(def.unit, r.value)}</span>
           </div>
           <div style={{ height: 8, background: 'var(--border, #EEF1F6)', borderRadius: 999 }}>
@@ -146,10 +153,10 @@ function Empty() {
   return <div style={{ color: MIST, fontSize: 13, padding: '10px 0' }}>Not enough data yet.</div>
 }
 
-export default function Widget({ def, rows }) {
+export default function Widget({ def, rows, onSlice }) {
   if (def.viz === 'tile') return <StatTile def={def} rows={rows} />
   if (def.viz === 'gauge') return <Gauge def={def} rows={rows} />
-  if (def.viz === 'bars') return <BarList def={def} rows={rows} />
+  if (def.viz === 'bars') return <BarList def={def} rows={rows} onSlice={onSlice} />
   if (def.viz === 'estimates') return <Estimates rows={rows} />
   if (def.viz === 'column') return <Column def={def} rows={rows} />
   if (def.viz === 'flags') return <Flags rows={rows} />

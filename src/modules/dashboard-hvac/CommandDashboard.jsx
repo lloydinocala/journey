@@ -9,7 +9,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import { can } from '../../utils/permissions'
 import OrgPicker from '../../OrgPicker'
-import { MEASURES, DEFAULT_TEMPLATE } from './catalog'
+import { MEASURES, DIMENSIONS, DEFAULT_TEMPLATE } from './catalog'
 import { fetchMeasure, queryKpi, getLayout, saveLayout, resetLayout, periodRange, PERIODS } from './dashboardData'
 import Widget from './charts'
 import KpiBuilder from './KpiBuilder'
@@ -130,8 +130,8 @@ export default function CommandDashboard({ profile }) {
   const periodLabel = (PERIODS.find((p) => p[0] === period) || [])[1]
 
   const cards = widgets.map((w) => w.kind === 'measure'
-    ? { id: uid(w), def: MEASURES[w.key], w: w.w, rows: data[uid(w)], drill: MEASURES[w.key].drill, widget: w }
-    : { id: uid(w), def: { label: w.label, unit: w.unit, viz: w.viz, sub: '' }, w: w.w, rows: data[uid(w)], drill: null, widget: w })
+    ? { id: uid(w), def: MEASURES[w.key], w: w.w, rows: data[uid(w)], drill: MEASURES[w.key].drill, sliceTo: MEASURES[w.key].sliceTo || null, widget: w }
+    : { id: uid(w), def: { label: w.label, unit: w.unit, viz: w.viz, sub: '' }, w: w.w, rows: data[uid(w)], drill: (DIMENSIONS[w.dim]?.sliceTo?.path) || null, sliceTo: DIMENSIONS[w.dim]?.sliceTo || null, widget: w })
 
   return (
     <div>
@@ -206,7 +206,10 @@ export default function CommandDashboard({ profile }) {
                 {canCustomize && <button title="Remove" onClick={(e) => { e.stopPropagation(); removeWidget(it.widget) }} style={{ border: 'none', background: 'none', color: 'var(--mist)', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: 0 }}>×</button>}
               </div>
             </div>
-            {loading ? <div style={{ color: 'var(--mist)', fontSize: 13 }}>Loading…</div> : <Widget def={it.def} rows={it.rows} />}
+            {loading ? <div style={{ color: 'var(--mist)', fontSize: 13 }}>Loading…</div> : (
+              <Widget def={it.def} rows={it.rows}
+                onSlice={(!arranging && it.sliceTo) ? ((bucket) => navigate(it.sliceTo.path + '?' + it.sliceTo.param + '=' + encodeURIComponent(bucket))) : undefined} />
+            )}
           </div>
         ))}
       </div>
