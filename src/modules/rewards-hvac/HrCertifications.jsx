@@ -1,7 +1,9 @@
 // Rewards-HVAC · Certifications & Licenses — with expiry status (EPA 608, NATE, licenses…)
 import { useState, useEffect } from 'react'
-import { listEmployees, listCertifications, addCertification, updateCertification, deleteCertification, CERT_TYPES, certLabel } from './hrData'
+import { listEmployees, listCertifications, addCertification, updateCertification, deleteCertification, CERT_TYPES, certLabel, uploadHrFile, signedHrUrl } from './hrData'
 import { useOrgSelector, OrgBar, FlagChip, daysUntil } from './shared'
+
+async function openFile(path) { const u = await signedHrUrl(path); if (u) window.open(u, '_blank') }
 
 const blank = { employee_id: '', cert_type: 'epa_608', identifier: '', issued_date: '', expires_date: '' }
 
@@ -19,6 +21,7 @@ export default function HrCertifications({ profile }) {
   const [rows, setRows] = useState([])
   const [filterEmp, setFilterEmp] = useState('')
   const [form, setForm] = useState(blank)
+  const [file, setFile] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -38,11 +41,17 @@ export default function HrCertifications({ profile }) {
     e.preventDefault()
     if (!form.employee_id || !form.cert_type) return
     setSaving(true)
+    let storage_path = null, file_name = null
+    if (file) {
+      const up = await uploadHrFile(org.selectedOrg, form.employee_id, file)
+      if (up.error) { setSaving(false); alert('Upload failed: ' + up.error.message); return }
+      storage_path = up.path; file_name = up.name
+    }
     await addCertification(org.selectedOrg, {
       employee_id: form.employee_id, cert_type: form.cert_type, identifier: form.identifier || null,
-      issued_date: form.issued_date || null, expires_date: form.expires_date || null,
+      issued_date: form.issued_date || null, expires_date: form.expires_date || null, storage_path, file_name,
     })
-    setSaving(false); setForm(blank); setShowForm(false); load()
+    setSaving(false); setForm(blank); setFile(null); setShowForm(false); load()
   }
 
   return (
@@ -64,6 +73,7 @@ export default function HrCertifications({ profile }) {
           <div className="field"><label>Identifier / #</label><input value={form.identifier} onChange={(e) => setForm({ ...form, identifier: e.target.value })} /></div>
           <div className="field"><label>Issued</label><input type="date" value={form.issued_date} onChange={(e) => setForm({ ...form, issued_date: e.target.value })} /></div>
           <div className="field"><label>Expires</label><input type="date" value={form.expires_date} onChange={(e) => setForm({ ...form, expires_date: e.target.value })} /></div>
+          <div className="field"><label>Card scan / photo (optional)</label><input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
           <button className="auth-button" type="submit" style={{ width: 'auto' }} disabled={saving}>{saving ? 'Saving…' : 'Add'}</button>
         </form>
       )}
@@ -86,7 +96,10 @@ export default function HrCertifications({ profile }) {
                 <td>{r.identifier || '—'}</td>
                 <td>{r.expires_date || '—'}</td>
                 <td>{st.tone === 'ok' ? <span style={{ color: '#166534' }}>{st.label}</span> : <FlagChip severity={st.tone}>{st.label}</FlagChip>}</td>
-                <td><button className="logout-button" onClick={() => { if (confirm('Delete this certification?')) deleteCertification(r.id).then(load) }}>Delete</button></td>
+                <td style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                  {r.storage_path && <button className="logout-button" onClick={() => openFile(r.storage_path)}>View</button>}
+                  <button className="logout-button" onClick={() => { if (confirm('Delete this certification?')) deleteCertification(r.id).then(load) }}>Delete</button>
+                </td>
               </tr>
             )
           })}

@@ -1,7 +1,9 @@
 // Rewards-HVAC · Documents — record store with a retention clock
 import { useState, useEffect } from 'react'
-import { listEmployees, listDocuments, addDocument } from './hrData'
+import { listEmployees, listDocuments, addDocument, uploadHrFile, signedHrUrl } from './hrData'
 import { useOrgSelector, OrgBar, daysUntil } from './shared'
+
+async function openFile(path) { const u = await signedHrUrl(path); if (u) window.open(u, '_blank') }
 
 const CATEGORIES = [
   { key: 'i9', label: 'Form I-9', anchor: 'termination', note: '3 yrs after hire OR 1 yr after termination, whichever is later' },
@@ -19,6 +21,7 @@ export default function HrDocuments({ profile }) {
   const [employees, setEmployees] = useState([])
   const [rows, setRows] = useState([])
   const [form, setForm] = useState(blank)
+  const [file, setFile] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -37,11 +40,17 @@ export default function HrDocuments({ profile }) {
     if (!form.title.trim()) return
     setSaving(true)
     const c = cat(form.category)
+    let storage_path = null, file_name = null
+    if (file) {
+      const up = await uploadHrFile(org.selectedOrg, form.employee_id || 'org', file)
+      if (up.error) { setSaving(false); alert('Upload failed: ' + up.error.message); return }
+      storage_path = up.path; file_name = up.name
+    }
     await addDocument(org.selectedOrg, {
       title: form.title.trim(), category: form.category, employee_id: form.employee_id || null,
-      retention_anchor: c.anchor, retain_until: form.retain_until || null,
+      retention_anchor: c.anchor, retain_until: form.retain_until || null, storage_path, file_name,
     })
-    setSaving(false); setForm(blank); setShowForm(false); load()
+    setSaving(false); setForm(blank); setFile(null); setShowForm(false); load()
   }
 
   return (
@@ -62,16 +71,17 @@ export default function HrDocuments({ profile }) {
             <select value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })}>
               <option value="">— org-level —</option>{employees.map((e) => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select></div>
           <div className="field"><label>Retain until</label><input type="date" value={form.retain_until} onChange={(e) => setForm({ ...form, retain_until: e.target.value })} /></div>
+          <div className="field"><label>Attach scan / photo (optional)</label><input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
           <button className="auth-button" type="submit" style={{ width: 'auto' }} disabled={saving}>{saving ? 'Saving…' : 'Add'}</button>
         </form>
       )}
       <p style={{ color: 'var(--mist)', fontSize: 12, marginBottom: 16 }}>
-        Retention guide — {cat(form.category).note || 'see federal/state rules'}. File upload/attachment is added in a later pass;
-        for now this tracks what exists and when it can be purged.
+        Retention guide — {cat(form.category).note || 'see federal/state rules'}. Attach the actual scan or photo when adding a
+        document; it is stored securely and openable with View. Employees can view their own documents in their portal.
       </p>
 
       <table className="data-table">
-        <thead><tr><th>Title</th><th>Category</th><th>Belongs to</th><th>Retain until</th><th>Status</th></tr></thead>
+        <thead><tr><th>Title</th><th>Category</th><th>Belongs to</th><th>Retain until</th><th>Status</th><th>File</th></tr></thead>
         <tbody>
           {rows.map((r) => {
             const d = daysUntil(r.retain_until)
@@ -83,10 +93,11 @@ export default function HrDocuments({ profile }) {
                 <td>{empName(r.employee_id)}</td>
                 <td>{r.retain_until || '—'}</td>
                 <td style={{ color: purgeable ? '#166534' : 'var(--mist)' }}>{r.retain_until ? (purgeable ? 'Safe to purge' : 'Must retain') : '—'}</td>
+                <td>{r.storage_path ? <button className="logout-button" onClick={() => openFile(r.storage_path)}>View</button> : '—'}</td>
               </tr>
             )
           })}
-          {rows.length === 0 && <tr><td colSpan="5" style={{ color: 'var(--mist)' }}>No documents tracked yet.</td></tr>}
+          {rows.length === 0 && <tr><td colSpan="6" style={{ color: 'var(--mist)' }}>No documents tracked yet.</td></tr>}
         </tbody>
       </table>
     </div>

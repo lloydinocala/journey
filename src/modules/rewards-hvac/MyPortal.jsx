@@ -5,12 +5,13 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import { buildW2s } from './yearEndData'
 import { addPtoRequest, listPtoRequests, cancelPtoRequest } from './r4Data'
-import { listCertifications, listOnboarding, listDocuments, certLabel } from './hrData'
+import { listCertifications, listOnboarding, listDocuments, certLabel, signedHrUrl } from './hrData'
 import { listMetrics, listEntries, listReviews, currentQuarter } from './scorecardData'
 import { ScorecardTable } from './HrScorecards'
 import { getLang, setLang, makeT } from './i18n'
 
 const money = (n) => (n == null || isNaN(n) ? '—' : '$' + Number(n).toFixed(2))
+async function openFile(path) { const u = await signedHrUrl(path); if (u) window.open(u, '_blank') }
 
 export default function MyPortal({ profile }) {
   const [tab, setTab] = useState('pay')
@@ -246,13 +247,13 @@ export default function MyPortal({ profile }) {
           {tab === 'certs' && (
             myCerts.length === 0 ? <p style={{ color: 'var(--mist)' }}>{t('certs_none')}</p> : (
               <table className="data-table">
-                <thead><tr><th>{t('col_type')}</th><th>{t('col_id')}</th><th>{t('col_expires')}</th><th>{t('col_status')}</th></tr></thead>
+                <thead><tr><th>{t('col_type')}</th><th>{t('col_id')}</th><th>{t('col_expires')}</th><th>{t('col_status')}</th><th></th></tr></thead>
                 <tbody>
                   {myCerts.map((c) => {
                     const exp = c.expires_date ? Math.round((new Date(c.expires_date + 'T00:00:00') - new Date().setHours(0, 0, 0, 0)) / 86400000) : null
                     const status = exp == null ? '—' : exp < 0 ? 'Expired' : exp <= 60 ? `${exp}d left` : 'Valid'
                     const color = exp == null ? 'var(--mist)' : exp < 0 ? '#B00020' : exp <= 60 ? '#B0600A' : '#166534'
-                    return <tr key={c.id}><td>{certLabel(c.cert_type)}</td><td>{c.identifier || '—'}</td><td>{c.expires_date || '—'}</td><td style={{ color, fontWeight: 600 }}>{status}</td></tr>
+                    return <tr key={c.id}><td>{certLabel(c.cert_type)}</td><td>{c.identifier || '—'}</td><td>{c.expires_date || '—'}</td><td style={{ color, fontWeight: 600 }}>{status}</td><td style={{ textAlign: 'right' }}>{c.storage_path ? <button className="logout-button" onClick={() => openFile(c.storage_path)}>View</button> : ''}</td></tr>
                   })}
                 </tbody>
               </table>
@@ -276,9 +277,9 @@ export default function MyPortal({ profile }) {
           {tab === 'docs' && (
             myDocs.length === 0 ? <p style={{ color: 'var(--mist)' }}>{t('docs_none')}</p> : (
               <table className="data-table">
-                <thead><tr><th>{t('col_title')}</th><th>{t('col_category')}</th></tr></thead>
+                <thead><tr><th>{t('col_title')}</th><th>{t('col_category')}</th><th></th></tr></thead>
                 <tbody>
-                  {myDocs.map((d) => <tr key={d.id}><td>{d.title || '—'}</td><td style={{ textTransform: 'capitalize' }}>{(d.category || '').replace('_', ' ')}</td></tr>)}
+                  {myDocs.map((d) => <tr key={d.id}><td>{d.title || '—'}</td><td style={{ textTransform: 'capitalize' }}>{(d.category || '').replace('_', ' ')}</td><td style={{ textAlign: 'right' }}>{d.storage_path ? <button className="logout-button" onClick={() => openFile(d.storage_path)}>View</button> : ''}</td></tr>)}
                 </tbody>
               </table>
             )

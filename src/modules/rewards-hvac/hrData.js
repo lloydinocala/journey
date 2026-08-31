@@ -237,6 +237,20 @@ export async function addSeparation(orgId, row) {
   return supabase.from('rewards_separations').insert({ org_id: orgId, ...row }).select().single()
 }
 
+// ---- HR document/scan storage (bucket: hr-docs, org-foldered) ---------------
+export async function uploadHrFile(orgId, scope, file) {
+  const safe = (file.name || 'file').replace(/[^\w.\-]+/g, '_')
+  const path = `${orgId}/${scope || 'org'}/${Date.now()}-${safe}`
+  const { error } = await supabase.storage.from('hr-docs').upload(path, file, { upsert: false, contentType: file.type || undefined })
+  if (error) return { error }
+  return { path, name: file.name || safe }
+}
+export async function signedHrUrl(path) {
+  if (!path) return null
+  const { data } = await supabase.storage.from('hr-docs').createSignedUrl(path, 120)
+  return data?.signedUrl || null
+}
+
 // ---- Skills / training matrix ----------------------------------------------
 export const SKILL_LEVELS = ['—', 'Learning', 'Proficient', 'Expert']
 
