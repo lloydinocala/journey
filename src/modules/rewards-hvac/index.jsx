@@ -27,6 +27,9 @@ import PrevailingWage from './PrevailingWage'
 import CertifiedPayroll from './CertifiedPayroll'
 import YearEnd from './YearEnd'
 export { default as MyPortal } from './MyPortal'
+// Re-export so App.jsx can mount the employee record for Payroll-only orgs
+// (they still need the pay/tax/direct-deposit profile to run payroll).
+export { HrEmployees }
 
 // Each entry rendered in App.jsx as <Route path element={<Component profile={profile} />} />
 export const REWARDS_HR_ROUTES = [
