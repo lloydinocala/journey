@@ -74,6 +74,7 @@ export default function HrDashboard({ profile }) {
               ['Separations', '/rewards/separations'],
               ['Certifications', '/rewards/certifications'],
               ['Skills Matrix', '/rewards/skills'],
+              ['Scorecards', '/rewards/scorecards'],
               ['Documents', '/rewards/documents'],
               ['Time Off', '/rewards/time-off'],
             ].map(([label, to]) => (

@@ -3,11 +3,11 @@ import { useState, useEffect } from 'react'
 import {
   listEmployees, addEmployee, updateEmployee, listUsers,
   getEmployeeHr, upsertEmployeeHr, seedOnboarding,
-  setEmployeeSsn, setEmployeeBank, revealEmployeeSsn,
+  setEmployeeSsn, setEmployeeBank, revealEmployeeSsn, getSettings,
 } from './hrData'
 import { useOrgSelector, OrgBar } from './shared'
 
-const blankNew = { full_name: '', role: '', pay_type: 'hourly', hourly_rate: '', annual_salary: '', hire_date: '', user_id: '' }
+const blankNew = { full_name: '', role: '', pay_type: 'hourly', hourly_rate: '', annual_salary: '', hire_date: '', user_id: '', manager_id: '', department: '' }
 
 export default function HrEmployees({ profile }) {
   const org = useOrgSelector(profile)
@@ -20,14 +20,16 @@ export default function HrEmployees({ profile }) {
   const [error, setError] = useState('')
   const [selected, setSelected] = useState(null)   // { emp, hr }
   const [reveal, setReveal] = useState('')
+  const [structureOn, setStructureOn] = useState(false)
 
   async function load() {
     if (!org.selectedOrg) return
-    const [emps, us] = await Promise.all([
+    const [emps, us, settings] = await Promise.all([
       listEmployees(org.selectedOrg, { includeInactive: showInactive }),
       listUsers(org.selectedOrg),
+      getSettings(org.selectedOrg),
     ])
-    setEmployees(emps); setUsers(us)
+    setEmployees(emps); setUsers(us); setStructureOn(!!settings?.structure_enabled)
   }
   useEffect(() => { load() }, [org.selectedOrg, showInactive])
 
@@ -43,6 +45,8 @@ export default function HrEmployees({ profile }) {
       annual_salary: form.pay_type === 'salary' ? parseFloat(form.annual_salary) || null : null,
       hire_date: form.hire_date || null,
       user_id: form.user_id || null,
+      manager_id: form.manager_id || null,
+      department: form.department || null,
       is_active: true,
     })
     setSaving(false)
@@ -63,6 +67,7 @@ export default function HrEmployees({ profile }) {
       full_name: emp.full_name, role: emp.role, pay_type: emp.pay_type,
       hourly_rate: emp.hourly_rate, annual_salary: emp.annual_salary,
       hire_date: emp.hire_date, is_active: emp.is_active,
+      manager_id: emp.manager_id || null, department: emp.department || null,
     })
     await upsertEmployeeHr(org.selectedOrg, emp.id, {
       dob: hr.dob || null, ssn_last4: hr.ssn_last4 || null, filing_status: hr.filing_status || null,
@@ -116,6 +121,17 @@ export default function HrEmployees({ profile }) {
               <option value="">— none —</option>
               {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </select></div>
+          {structureOn && (
+            <>
+              <div className="field" style={{ minWidth: 180 }}><label>Reports to</label>
+                <select value={form.manager_id} onChange={(e) => setForm({ ...form, manager_id: e.target.value })}>
+                  <option value="">— none —</option>
+                  {employees.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+                </select></div>
+              <div className="field"><label>Department / crew</label>
+                <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="Service" /></div>
+            </>
+          )}
           <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto' }}>{saving ? 'Adding…' : 'Add'}</button>
         </form>
       )}
@@ -162,6 +178,17 @@ export default function HrEmployees({ profile }) {
               <div className="field"><label>Active</label>
                 <select value={selected.emp.is_active ? '1' : '0'} onChange={(e) => setEmp({ is_active: e.target.value === '1' })}>
                   <option value="1">Active</option><option value="0">Inactive</option></select></div>
+              {structureOn && (
+                <>
+                  <div className="field"><label>Reports to</label>
+                    <select value={selected.emp.manager_id || ''} onChange={(e) => setEmp({ manager_id: e.target.value })}>
+                      <option value="">— none —</option>
+                      {employees.filter((m) => m.id !== selected.emp.id).map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+                    </select></div>
+                  <div className="field"><label>Department / crew</label>
+                    <input value={selected.emp.department || ''} onChange={(e) => setEmp({ department: e.target.value })} /></div>
+                </>
+              )}
             </div>
 
             <h3 style={{ marginTop: 18 }}>HR &amp; tax profile</h3>

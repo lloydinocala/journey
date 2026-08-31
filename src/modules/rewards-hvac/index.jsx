@@ -10,6 +10,7 @@ import HrDiscipline from './HrDiscipline'
 import HrSeparations from './HrSeparations'
 import HrCertifications from './HrCertifications'
 import HrSkills from './HrSkills'
+import HrScorecards from './HrScorecards'
 import HrDocuments from './HrDocuments'
 import RewardsSettings from './RewardsSettings'
 import PayrollDashboard from './PayrollDashboard'
@@ -38,6 +39,7 @@ export const REWARDS_HR_ROUTES = [
   { path: '/rewards/separations', Component: HrSeparations },
   { path: '/rewards/certifications', Component: HrCertifications },
   { path: '/rewards/skills', Component: HrSkills },
+  { path: '/rewards/scorecards', Component: HrScorecards },
   { path: '/rewards/documents', Component: HrDocuments },
   { path: '/rewards/time-off', Component: TimeOff },
   { path: '/rewards/settings', Component: RewardsSettings },
@@ -70,6 +72,7 @@ export const REWARDS_HR_NAV = {
     { label: 'Separations', path: '/rewards/separations' },
     { label: 'Certifications & Licenses', path: '/rewards/certifications' },
     { label: 'Skills Matrix', path: '/rewards/skills' },
+    { label: 'Scorecards', path: '/rewards/scorecards' },
     { label: 'Documents', path: '/rewards/documents' },
     { label: 'Time Off', path: '/rewards/time-off' },
     { label: 'HR Settings', path: '/rewards/settings' },

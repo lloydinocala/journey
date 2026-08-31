@@ -22,7 +22,7 @@ export default function RewardsSettings({ profile }) {
     setS(data || {
       enabled: false, pay_frequency: 'weekly', work_state: 'FL',
       default_deposit_schedule: 'monthly', tax_setaside_account_label: '', fein: '',
-      reporting_agent_enabled: false,
+      reporting_agent_enabled: false, structure_enabled: false, scorecards_enabled: false,
     })
   }
   useEffect(() => { load() }, [org.selectedOrg])
@@ -39,6 +39,8 @@ export default function RewardsSettings({ profile }) {
       tax_setaside_account_label: next.tax_setaside_account_label || null,
       fein: next.fein || null,
       reporting_agent_enabled: next.reporting_agent_enabled,
+      structure_enabled: next.structure_enabled,
+      scorecards_enabled: next.scorecards_enabled,
     })
     setSaving(false)
     setMsg(error ? error.message : 'Saved.')
@@ -76,6 +78,25 @@ export default function RewardsSettings({ profile }) {
           >
             {s.enabled ? 'Turn Off' : 'Turn On'}
           </button>
+        </div>
+
+        <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Optional HR features</div>
+          <div style={{ color: 'var(--mist)', fontSize: 13, marginBottom: 14 }}>Turn on only what this company wants to use. Everything here is off by default.</div>
+          {[
+            ['structure_enabled', 'Employee structure', 'Adds an optional reporting manager and department/crew to each employee — enables approval routing and simple org grouping.'],
+            ['scorecards_enabled', 'Employee scorecards', 'A quarterly, metrics-based performance record kept in each employee’s permanent file, visible to them in their portal.'],
+          ].map(([key, title, desc]) => (
+            <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, padding: '10px 0', borderTop: '1px solid var(--border)' }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{title}</div>
+                <div style={{ color: 'var(--mist)', fontSize: 12.5, maxWidth: 460 }}>{desc}</div>
+              </div>
+              <button className="auth-button" style={{ width: 'auto', margin: 0, background: s[key] ? 'var(--alert-orange)' : '#1B3A6B' }} disabled={saving} onClick={() => save({ [key]: !s[key] })}>
+                {s[key] ? 'Turn Off' : 'Turn On'}
+              </button>
+            </div>
+          ))}
         </div>
 
         <form className="inline-form" style={{ flexWrap: 'wrap', gap: 16 }} onSubmit={(e) => { e.preventDefault(); save({}) }}>

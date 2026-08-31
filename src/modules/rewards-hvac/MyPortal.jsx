@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import { buildW2s } from './yearEndData'
 import { addPtoRequest, listPtoRequests, cancelPtoRequest } from './r4Data'
+import { listMetrics, listEntries, currentQuarter } from './scorecardData'
+import { ScorecardTable } from './HrScorecards'
 import { getLang, setLang, makeT } from './i18n'
 
 const money = (n) => (n == null || isNaN(n) ? '—' : '$' + Number(n).toFixed(2))
@@ -26,6 +28,8 @@ export default function MyPortal({ profile }) {
   const [reqForm, setReqForm] = useState({ policy_id: '', start_date: '', end_date: '', hours: '', note: '' })
   const [reqMsg, setReqMsg] = useState('')
   const [reqSaving, setReqSaving] = useState(false)
+  const [scMetrics, setScMetrics] = useState([])
+  const [scEntries, setScEntries] = useState([])
 
   async function loadRequests(empId) {
     if (!empId || !profile.org_id) { setRequests([]); return }
@@ -36,12 +40,13 @@ export default function MyPortal({ profile }) {
     let alive = true
     ;(async () => {
       setLoading(true)
-      const [c, b, pol, h, emp] = await Promise.all([
+      const [c, b, pol, h, emp, mx] = await Promise.all([
         supabase.from('rewards_payroll_calcs').select('*').order('week_start', { ascending: false }),
         supabase.from('rewards_pto_balances').select('*'),
         supabase.from('rewards_pto_policies').select('id, name, leave_type'),
         supabase.from('rewards_employee_hr').select('ssn_last4, work_state').maybeSingle(),
         supabase.from('employees').select('id').eq('user_id', profile.id).maybeSingle(),
+        profile.org_id ? listMetrics(profile.org_id) : Promise.resolve([]),
       ])
       if (!alive) return
       setCalcs(c.data || [])
@@ -50,9 +55,11 @@ export default function MyPortal({ profile }) {
       setPolicyList(pol.data || [])
       setReqForm((f) => ({ ...f, policy_id: f.policy_id || (pol.data && pol.data[0] ? pol.data[0].id : '') }))
       setHr(h.data || {})
+      setScMetrics(mx || [])
       const empId = emp.data?.id || ''
       setMyEmpId(empId)
       await loadRequests(empId)
+      if (empId && profile.org_id) setScEntries(await listEntries(profile.org_id, empId))
       setLoading(false)
     })()
     return () => { alive = false }
@@ -76,6 +83,14 @@ export default function MyPortal({ profile }) {
   const yearCalcs = calcs.filter((c) => (c.week_start || '').startsWith(String(year)))
   const w2 = buildW2s(yearCalcs, { [profile.id]: { full_name: profile.full_name, user_id: profile.id, hr } })[0]
 
+  // Scorecard periods — most recent with data is "Current", the one before is "Last".
+  const scPeriods = [...new Set(scEntries.map((e) => e.period_label))]
+    .map((l) => ({ l, d: (scEntries.find((e) => e.period_label === l) || {}).period_date || '' }))
+    .sort((a, b) => (a.d < b.d ? 1 : -1))
+  const scCur = scPeriods[0]?.l || currentQuarter().label
+  const scLast = scPeriods[1]?.l || '—'
+  const scValueOf = (mid, label) => (scEntries.find((e) => e.metric_id === mid && e.period_label === label) || {}).value
+
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
@@ -88,7 +103,7 @@ export default function MyPortal({ profile }) {
       <div style={{ color: 'var(--mist)', marginBottom: 18 }}>{profile.full_name}</div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-        {[['pay', t('tab_pay')], ['pto', t('tab_pto')], ['w2', t('tab_w2')]].map(([k, l]) => (
+        {[['pay', t('tab_pay')], ['pto', t('tab_pto')], ['w2', t('tab_w2')], ...(scMetrics.length ? [['scorecard', t('tab_scorecard')]] : [])].map(([k, l]) => (
           <button key={k} className="logout-button" style={tab === k ? { background: '#1B3A6B', color: '#fff' } : undefined} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
@@ -194,6 +209,15 @@ export default function MyPortal({ profile }) {
               )}
               <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 8 }}>{t('w2_note')}</p>
             </>
+          )}
+
+          {tab === 'scorecard' && (
+            scEntries.length === 0 ? <p style={{ color: 'var(--mist)' }}>{t('sc_none')}</p> : (
+              <>
+                <p style={{ color: 'var(--mist)', fontSize: 13, marginBottom: 12 }}>{t('sc_intro')}</p>
+                <ScorecardTable metrics={scMetrics} valueOf={scValueOf} curLabel={scCur} lastLabel={scLast} />
+              </>
+            )
           )}
         </>
       )}

@@ -21,6 +21,9 @@ const DICT = {
     req_submitted: 'Request submitted for approval.', req_mine: 'My requests',
     req_none: 'No requests yet.', req_pending: 'Pending', req_approved: 'Approved',
     req_denied: 'Denied', req_cancel: 'Withdraw', req_dates: 'Dates', req_status: 'Status',
+    // scorecard
+    tab_scorecard: 'Scorecard', sc_none: 'No scorecard on file yet.',
+    sc_intro: 'Your quarterly performance record. Highlighted cells are below the accepted minimum.',
   },
   es: {
     title: 'Mi Pago y Beneficios', back: 'Atrás',
@@ -41,6 +44,9 @@ const DICT = {
     req_submitted: 'Solicitud enviada para aprobación.', req_mine: 'Mis solicitudes',
     req_none: 'Aún no hay solicitudes.', req_pending: 'Pendiente', req_approved: 'Aprobada',
     req_denied: 'Rechazada', req_cancel: 'Retirar', req_dates: 'Fechas', req_status: 'Estado',
+    // boleta de calificaciones
+    tab_scorecard: 'Boleta', sc_none: 'Aún no hay boleta.',
+    sc_intro: 'Su registro trimestral de desempeño. Las celdas resaltadas están por debajo del mínimo aceptado.',
   },
 }
 
