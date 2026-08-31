@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import AiAssist from './AiAssist'
 
 function dateDisplay(val) {
   if (!val) return '—'
@@ -12,6 +13,8 @@ function daysBetween(later, earlier) {
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
+
+const MAINT_OUTREACH_SYS = 'Draft a short, friendly outreach message from an HVAC company to a customer, offering to schedule their maintenance visit that is coming due or overdue. Mention their plan by name if given. 2-3 sentences, warm and helpful, ready to review and send. No subject line.'
 
 export default function MaintenanceDue({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
@@ -117,7 +120,13 @@ export default function MaintenanceDue({ profile }) {
               <button className="logout-button" disabled={busy} onClick={() => setBookingId(null)}>Cancel</button>
             </span>
           ) : (
-            <button className="auth-button" onClick={() => startBooking(v)}>Schedule</button>
+            <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end' }}>
+              <AiAssist compact label="AI outreach" title={'Outreach · ' + (v.customers?.display_name || 'Customer')}
+                system={MAINT_OUTREACH_SYS}
+                prompt="Draft a short, friendly message offering to schedule this customer's maintenance visit, ready to review and send."
+                context={{ customer: v.customers?.display_name, plan: tierName(v), due_date: v.due_date, status: kind }} />
+              <button className="auth-button" onClick={() => startBooking(v)}>Schedule</button>
+            </span>
           )}
         </div>
       </div>

@@ -1628,7 +1628,7 @@ export default function TechJobCard({ profile }) {
       )}
 
       {lockHint && <div className="jc-lock-hint">Tap STOP MY TIME before leaving this job.</div>}
-    <QuincyDock profile={profile} />
+    <QuincyDock profile={profile} context={job ? { label: 'Job ' + (job.job_number || ''), jobId: job.id, jobNumber: job.job_number, status: job.status, jobType: job.job_type, customer: job.customers?.display_name } : null} />
     </div>
   )
 }

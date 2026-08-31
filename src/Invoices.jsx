@@ -5,6 +5,9 @@ import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import { exportToCSV } from './utils/csvExport'
+import AiAssist from './AiAssist'
+
+const INV_REMINDER_SYS = 'Draft a brief, friendly, professional payment reminder for an HVAC company to send a customer about an unpaid invoice. Reference the invoice number and the outstanding balance. 2 to 3 sentences, courteous and not aggressive. No subject line.'
 
 const LINE_ITEM_COUNT = 9
 
@@ -522,6 +525,12 @@ export default function Invoices({ profile }) {
                   <button className="logout-button" disabled={sendingId === inv.id} title={sentTitle(inv)} onClick={() => sendInvoice(inv)}>
                     {sendingId === inv.id ? 'Sending…' : inv.sent_at ? 'Resend' : 'Send'}
                   </button>
+                  {inv.sent_at && Number(inv.balance || 0) > 0.5 && (
+                    <AiAssist compact label="AI reminder" title={'Payment reminder · ' + inv.invoice_number}
+                      system={INV_REMINDER_SYS}
+                      prompt="Draft a short, friendly payment reminder for this overdue invoice, ready to review and send."
+                      context={{ invoice_number: inv.invoice_number, customer: inv.jobs?.properties?.customers?.display_name, outstanding_balance: inv.balance, invoice_date: inv.invoice_date }} />
+                  )}
                   {inv.paid_at ? (
                     <button className="logout-button" onClick={() => setPaid(inv, false)}>Unmark Paid</button>
                   ) : Number(inv.balance || 0) > 0 ? (

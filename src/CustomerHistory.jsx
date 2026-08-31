@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
+import AiAssist from './AiAssist'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+
+const CUST_SUMMARY_SYS = 'Summarize an HVAC customer account for office staff, using only the provided facts. Start with a 2-3 line snapshot (who they are, how long a customer, property/job/invoice volume), then flag opportunities and risks: overdue balances, a missing or expiring maintenance agreement, aging estimates, upcoming maintenance. Be specific with numbers. Under 8 short lines. No headers.'
 
 export default function CustomerHistory({ profile }) {
   const { customerId } = useParams()
@@ -275,6 +278,20 @@ export default function CustomerHistory({ profile }) {
         {customer.is_banned && customer.banned_reason && (
           <p style={{ color: '#a33', marginTop: -8 }}>Reason: {customer.banned_reason}</p>
         )}
+
+        <div style={{ margin: '10px 0 18px' }}>
+          <AiAssist inline title="AI account summary" label="✨ AI: summarize this customer"
+            system={CUST_SUMMARY_SYS}
+            prompt="Give a quick account summary and flag any opportunities or risks for this customer, using the facts provided."
+            context={{
+              customer: { name: customer.display_name, company: customer.company, customer_since: customer.acquire_date, notes: customer.notes },
+              properties: properties.length,
+              jobs: jobs.slice(0, 25).map((j) => ({ number: j.job_number, status: j.status, date: j.job_date })),
+              invoices: invoices.slice(0, 25).map((i) => ({ number: i.invoice_number, total: i.job_total, balance: i.balance, paid: !!i.paid_at, sent: i.sent_at })),
+              maintenance_agreements: agreements.map((a) => ({ status: a.status, next_visit_due: a.next_visit_due_date })),
+              warranties: warranties.length,
+            }} />
+        </div>
 
         <div style={{ display: 'flex', gap: 40, flexWrap: 'wrap', margin: '16px 0 28px' }}>
           <div>
