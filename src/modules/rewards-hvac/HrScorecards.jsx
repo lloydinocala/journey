@@ -215,7 +215,11 @@ export default function HrScorecards({ profile }) {
       {!empId ? (
         <p style={{ color: 'var(--mist)' }}>Select an employee to view their scorecard.</p>
       ) : metrics.length === 0 ? (
-        <p style={{ color: 'var(--mist)' }}>No metrics defined yet. Use <strong>Manage metrics</strong> above to load the starter set.</p>
+        <div>
+          <p style={{ color: 'var(--mist)', marginBottom: 12 }}>No scorecard metrics defined yet.</p>
+          <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={loadStarter}>Load starter metrics</button>
+          <span style={{ marginLeft: 12, color: 'var(--mist)', fontSize: 13 }}>drops in the standard 11 — or build your own with “Manage metrics” above.</span>
+        </div>
       ) : (
         <>
           <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>{empName(empId)}</div>
