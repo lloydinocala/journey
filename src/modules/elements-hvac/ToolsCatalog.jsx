@@ -34,7 +34,7 @@ export default function ToolsCatalog({ profile }) {
   const [rowMode, setRowMode] = useState({ id: null, mode: null }) // mode: assign | inspect | maint | history
   const [assignForm, setAssignForm] = useState({ holder_type: 'shop', holder_id: '', note: '' })
   const [inspectForm, setInspectForm] = useState({ condition: 'good', needs_maintenance: false, notes: '' })
-  const [maintForm, setMaintForm] = useState({ description: '' })
+  const [maintForm, setMaintForm] = useState({ description: '', expectedReturn: '' })
   const [hist, setHist] = useState({ assignments: [], inspections: [] })
   const [busy, setBusy] = useState(false)
 
@@ -98,7 +98,7 @@ export default function ToolsCatalog({ profile }) {
     setRowMode({ id: t.id, mode })
     if (mode === 'assign') setAssignForm({ holder_type: t.holder_type || 'shop', holder_id: t.holder_id || '', note: '' })
     if (mode === 'inspect') setInspectForm({ condition: 'good', needs_maintenance: false, notes: '' })
-    if (mode === 'maint') setMaintForm({ description: '' })
+    if (mode === 'maint') setMaintForm({ description: '', expectedReturn: '' })
     if (mode === 'history') loadHistory(t.id)
   }
   const closeRow = () => setRowMode({ id: null, mode: null })
@@ -125,7 +125,7 @@ export default function ToolsCatalog({ profile }) {
   }
   async function saveMaint(t) {
     setBusy(true)
-    await sendToMaintenance(org.selectedOrg, t.id, maintForm.description.trim() || null)
+    await sendToMaintenance(org.selectedOrg, t.id, maintForm.description.trim() || null, maintForm.expectedReturn || null)
     setBusy(false); closeRow(); load()
   }
 
@@ -292,9 +292,13 @@ export default function ToolsCatalog({ profile }) {
                 {open === 'maint' && (
                   <tr><td colSpan="8" style={{ background: '#FFF7ED' }}>
                     <div style={{ padding: '6px 2px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                      <div className="field" style={{ marginBottom: 0, minWidth: 300, flex: 1 }}>
+                      <div className="field" style={{ marginBottom: 0, minWidth: 260, flex: 1 }}>
                         <label>Send to shop for maintenance — what&apos;s needed?</label>
-                        <input type="text" value={maintForm.description} onChange={(e) => setMaintForm({ description: e.target.value })} placeholder="Describe the repair needed" />
+                        <input type="text" value={maintForm.description} onChange={(e) => setMaintForm({ ...maintForm, description: e.target.value })} placeholder="Describe the repair needed" />
+                      </div>
+                      <div className="field" style={{ marginBottom: 0, width: 160 }}>
+                        <label>Anticipated return</label>
+                        <input type="date" value={maintForm.expectedReturn} onChange={(e) => setMaintForm({ ...maintForm, expectedReturn: e.target.value })} />
                       </div>
                       <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={busy} onClick={() => saveMaint(t)}>Send to shop</button>
                       <button className="logout-button" onClick={closeRow}>Cancel</button>
