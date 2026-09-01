@@ -1,0 +1,112 @@
+/* Customer Portal — scoped (.cp-*). Sky theme: light, airy, high-retention.
+   Palette from Lloyd's mockup: sky #4E95D9, bright #00B0F0, go-green #70AD47. */
+.cp-root{--sky:#4E95D9;--sky-d:#2F79C4;--bright:#00B0F0;--go:#70AD47;--go-d:#5B9439;
+  --ink:#123449;--muted:#5A6B7A;--line:#DCE7F1;--card:rgba(255,255,255,.86);
+  --amber:#B26A00;--danger:#C0392B;
+  position:relative;min-height:100dvh;color:var(--ink);
+  background:#BFE0F5 url("/portal-sky.jpg") center top/cover fixed no-repeat;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;}
+/* soft white scrim so cards stay readable over the photo */
+.cp-root::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.10) 0%,rgba(244,249,253,.55) 55%,rgba(244,249,253,.9) 100%)}
+.cp-root>*{position:relative;z-index:1}
+.cp-head{position:sticky;top:0;z-index:5;color:#fff;
+  background:linear-gradient(135deg,var(--sky) 0%,var(--bright) 100%);
+  padding:14px 18px;display:flex;align-items:center;gap:12px;
+  box-shadow:0 4px 18px rgba(47,121,196,.28);
+  padding-top:calc(14px + env(safe-area-inset-top));}
+.cp-head h1{font-size:17px;font-weight:800;margin:0;letter-spacing:.2px}
+.cp-head .cp-sub{font-size:12px;opacity:.9;margin-top:1px}
+.cp-head .cp-signout{margin-left:auto;background:rgba(255,255,255,.2);border:0;color:#fff;
+  font-size:13px;font-weight:700;padding:8px 12px;border-radius:11px}
+.cp-wrap{max-width:640px;margin:0 auto;padding:18px 16px 44px}
+.cp-back{background:none;border:0;color:var(--sky-d);font-weight:700;font-size:15px;padding:4px 0;margin-bottom:6px;display:inline-flex;gap:6px;align-items:center}
+.cp-h2{font-size:23px;font-weight:800;margin:6px 0 2px;letter-spacing:-.2px}
+.cp-lead{color:var(--muted);font-size:15px;margin:0 0 18px}
+/* hero greeting */
+.cp-hero{margin:2px 0 16px}
+.cp-hero .cp-hi{font-size:24px;font-weight:800;letter-spacing:-.3px}
+.cp-hero .cp-tag{font-size:13.5px;color:var(--sky-d);font-weight:700;margin-top:2px}
+/* action tiles */
+.cp-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.cp-tile{background:var(--card);border:1px solid rgba(255,255,255,.7);border-radius:20px;
+  padding:16px 15px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:10px;
+  min-height:104px;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+  box-shadow:0 6px 20px rgba(47,121,196,.14);transition:transform .07s ease,box-shadow .15s ease}
+.cp-tile:active{transform:scale(.975)}
+.cp-tile .cp-ic{width:42px;height:42px;display:flex;align-items:center;justify-content:center;
+  border-radius:13px;color:#fff;background:linear-gradient(135deg,var(--sky),var(--bright))}
+.cp-tile .cp-ic svg{width:23px;height:23px}
+.cp-tile b{font-size:15px;font-weight:800;color:var(--ink);line-height:1.15}
+.cp-tile span{font-size:12.5px;color:var(--muted);line-height:1.3}
+.cp-tile.cp-wide{grid-column:1/-1;flex-direction:row;align-items:center;min-height:0}
+.cp-tile.cp-wide .cp-ic{width:38px;height:38px}
+.cp-tile.cp-pay .cp-ic{background:linear-gradient(135deg,var(--go),var(--go-d))}
+.cp-tile.cp-review .cp-ic{background:linear-gradient(135deg,#F5B301,#F08C00)}
+/* notification banners */
+.cp-alerts{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+.cp-alert{display:flex;align-items:center;gap:12px;background:var(--card);
+  border:1px solid rgba(255,255,255,.7);border-left:4px solid var(--sky);border-radius:14px;
+  padding:12px 14px;cursor:pointer;text-align:left;backdrop-filter:blur(9px);
+  box-shadow:0 5px 16px rgba(47,121,196,.13)}
+.cp-alert.amber{border-left-color:var(--amber)}
+.cp-alert.pay{border-left-color:var(--go)}
+.cp-alert .cp-ai{width:22px;height:22px;color:var(--sky);flex:none}
+.cp-alert.amber .cp-ai{color:var(--amber)} .cp-alert.pay .cp-ai{color:var(--go-d)}
+.cp-alert b{font-size:14px;display:block} .cp-alert span{font-size:12.5px;color:var(--muted)}
+.cp-alert .cp-chev{margin-left:auto;color:var(--muted)}
+/* cards / lists */
+.cp-card{background:var(--card);border:1px solid rgba(255,255,255,.7);border-radius:18px;padding:16px;margin-bottom:13px;
+  backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);box-shadow:0 6px 18px rgba(47,121,196,.12)}
+.cp-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.cp-row:last-child{border-bottom:0}
+.cp-row .cp-main{flex:1;min-width:0}
+.cp-row .cp-main b{font-size:14.5px;display:block}
+.cp-row .cp-main span{font-size:12.5px;color:var(--muted)}
+.cp-amt{font-weight:800;font-size:14.5px;white-space:nowrap}
+.cp-pill{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.cp-pill.due{background:#FDECEA;color:var(--danger)}
+.cp-pill.paid{background:#E7F5EC;color:var(--go-d)}
+.cp-pill.pend{background:#FFF3E0;color:var(--amber)}
+.cp-pill.ok{background:#E7F5EC;color:var(--go-d)}
+.cp-tabs{display:flex;gap:8px;overflow:auto;margin-bottom:14px;-webkit-overflow-scrolling:touch}
+.cp-tab{border:1px solid rgba(255,255,255,.8);background:var(--card);color:var(--muted);
+  font-weight:700;font-size:13.5px;padding:8px 14px;border-radius:999px;white-space:nowrap;cursor:pointer;backdrop-filter:blur(6px)}
+.cp-tab.on{background:linear-gradient(135deg,var(--sky),var(--bright));color:#fff;border-color:transparent}
+/* buttons */
+.cp-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  border:0;border-radius:15px;font-size:16px;font-weight:800;padding:15px 18px;cursor:pointer;color:#fff;
+  background:linear-gradient(135deg,var(--sky),var(--bright));box-shadow:0 6px 16px rgba(47,121,196,.32)}
+.cp-btn:active{transform:scale(.99)}
+.cp-btn:disabled{opacity:.55;box-shadow:none}
+.cp-btn.pay{background:linear-gradient(135deg,var(--go),var(--go-d));box-shadow:0 6px 16px rgba(91,148,57,.3)}
+.cp-btn.ghost{background:none;color:var(--sky-d);border:1.5px solid var(--sky);box-shadow:none}
+.cp-btn.sm{width:auto;font-size:13.5px;padding:9px 14px;border-radius:12px}
+.cp-btnrow{display:flex;gap:10px}
+.cp-input,.cp-ta,.cp-sel{width:100%;box-sizing:border-box;border:1.5px solid var(--line);
+  border-radius:13px;padding:13px 14px;font-size:16px;color:var(--ink);background:#fff;font-family:inherit}
+.cp-ta{min-height:110px;resize:vertical}
+.cp-label{font-size:13px;font-weight:800;color:var(--ink);margin:14px 0 6px}
+.cp-chips{display:flex;flex-wrap:wrap;gap:8px}
+.cp-chip{border:1.5px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;
+  font-size:13px;font-weight:700;padding:8px 13px;cursor:pointer}
+.cp-chip.on{border-color:var(--sky);color:var(--sky-d);background:#EAF3FC}
+.cp-note{font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.4}
+.cp-center{min-height:70dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;gap:8px}
+.cp-err{background:#FDECEA;color:var(--danger);border-radius:11px;padding:10px 12px;font-size:13.5px;margin-top:10px}
+.cp-empty{color:var(--muted);font-size:14px;text-align:center;padding:26px 8px}
+/* stepper qty */
+.cp-step{display:inline-flex;align-items:center;gap:0;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+.cp-step button{width:40px;height:40px;border:0;background:#fff;color:var(--sky-d);font-size:20px;font-weight:800;cursor:pointer}
+.cp-step button:active{background:#EAF3FC}
+.cp-step .cp-qty{min-width:38px;text-align:center;font-weight:800;font-size:15px}
+/* login — full sky */
+.cp-login{position:relative;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:#BFE0F5 url("/portal-sky.jpg") center/cover no-repeat;padding:26px;text-align:center}
+.cp-login::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(79,149,217,.12),rgba(255,255,255,.35))}
+.cp-login>*{position:relative}
+.cp-login .cp-brand{font-size:27px;font-weight:800;color:#0B3A63;letter-spacing:-.4px;text-shadow:0 1px 10px rgba(255,255,255,.6)}
+.cp-login .cp-hero-tag{color:#0B3A63;font-weight:800;font-size:14px;margin-top:8px;line-height:1.5;text-shadow:0 1px 8px rgba(255,255,255,.7)}
+.cp-login .cp-box{background:rgba(255,255,255,.92);color:var(--ink);border-radius:22px;padding:24px;width:100%;max-width:380px;margin-top:22px;
+  backdrop-filter:blur(10px);box-shadow:0 12px 40px rgba(47,121,196,.28)}
