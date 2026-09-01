@@ -86,6 +86,7 @@ import TechManual from './TechManual'
 // Fleet remains. (ELEMENTS_ROUTES intentionally no longer rendered.)
 import { ELEMENTS_ROUTES, ELEMENTS_FLEET_ROUTES, TOOLS_ROUTES } from './modules/elements-hvac'
 import { REFRIGERANT_ROUTES } from './modules/refrigerant-hvac'
+import { SUPPLIES_ROUTES } from './modules/supplies-hvac'
 import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES, MyPortal, HrEmployees } from './modules/rewards-hvac'
 import { MARKETING_ROUTES } from './modules/marketing-hvac'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
@@ -279,7 +280,7 @@ function AuthenticatedApp() {
         <Route path="/new-followup-estimate" element={<NewFollowupEstimate profile={profile} />} />
         <Route path="/invoices" element={<Invoices profile={profile} />} />
        {/* Inventory & Fleet Management — standard for all non-tech users */}
-       {profile.role !== 'tech' && [...ELEMENTS_ROUTES, ...ELEMENTS_FLEET_ROUTES, ...REFRIGERANT_ROUTES].map((r) => (
+       {profile.role !== 'tech' && [...ELEMENTS_ROUTES, ...ELEMENTS_FLEET_ROUTES, ...REFRIGERANT_ROUTES, ...SUPPLIES_ROUTES].map((r) => (
           <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
         ))}
         {/* Tools Management — optional module, gated by entitlement */}
