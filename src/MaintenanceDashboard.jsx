@@ -137,7 +137,19 @@ export default function MaintenanceDashboard({ profile }) {
         <span className="badge">{rows.length.toLocaleString()} properties</span>
       </div>
 
-      <div style={{ marginBottom: 16 }}><QuincyBrief org={selectedOrg} /></div>
+      <div style={{ marginBottom: 16 }}>
+        <QuincyBrief kind="maintenance" context={{
+          monthlyRecurringRevenue: Math.round(mrr),
+          annualizedContractValue: Math.round(acv),
+          totalProperties: rows.length,
+          active: counts.active || 0,
+          offeredNotAccepted: counts.offered || 0,
+          lapsed: counts.lapsed || 0,
+          neverOffered: counts.never_offered || 0,
+          optedOut: counts.opted_out || 0,
+          recentlyCompletedNoPlan: recentNoPlan.length,
+        }} />
+      </div>
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>

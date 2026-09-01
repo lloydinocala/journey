@@ -17,8 +17,6 @@ const C = {
   good: '#15803D', goodBg: '#E7F5EC',
 }
 
-const BRIEF_SYS = 'Write a concise daily operations briefing for the owner/office of an HVAC company, using only the provided live dashboard numbers. Lead with the most urgent money and deadlines (overdue A/R, estimates to chase, completed-but-not-invoiced work), then scheduling and maintenance. Be specific with the actual counts and dollar amounts. 3 to 6 short lines, most urgent first. No greeting, no sign-off, no headers.'
-
 const money = (n) => '$' + Math.round(Number(n || 0)).toLocaleString()
 const daysSince = (d) => (d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : null)
 const ageLabel = (days) => (days == null ? '' : days <= 0 ? 'today' : days === 1 ? '1 day' : `${days} days`)
@@ -210,8 +208,7 @@ export default function OperationsDashboard({ profile }) {
       </div>
 
       <div style={{ marginBottom: 18 }}>
-        <QuincyBrief title="Today's briefing"
-          system={BRIEF_SYS}
+        <QuincyBrief kind="operations" title="Today's briefing"
           context={{ outstandingAR: d.outstanding, unpaidInvoices: d.unpaid.length, estimatesOutValue: d.pendEstTotal, estimatesAwaitingReply: d.pendEst.length, jobsToSchedule: d.toSchedule.length, maintenanceDueIn30d: d.maintDue.length, completedNotInvoiced: d.completedNotInvoiced.length, warrantyToRegister: d.warranty.length, estimatesDrafted: d.draftEst.length, estimatesDraftedValue: d.draftEstTotal, collectedThisWeek: d.collected, estimatesWonThisWeek: d.wonAmt, jobsCompletedThisWeek: d.completedWeek, closeRatePct: d.closeRate, onCallCoverageShort: d.onCallShort }} />
       </div>
 

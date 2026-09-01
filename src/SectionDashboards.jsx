@@ -10,14 +10,14 @@ import QuincyBrief from './QuincyBrief'
 const NAVY = '#1B3A6B'
 const C = { ink: '#1F2A37', mist: '#64748B', line: '#E7EBF0', card: '#FFFFFF', wash: '#F7F9FB' }
 
-function SectionDash({ title, subtitle, intro, links, planned, tone = NAVY, org }) {
+function SectionDash({ title, subtitle, intro, links, planned, tone = NAVY, org, kind }) {
   return (
     <div style={{ color: C.ink }}>
       <div style={{ borderLeft: `4px solid ${tone}`, paddingLeft: 14, marginBottom: 6 }}>
         <h2 className="page-title" style={{ margin: 0 }}>{title}</h2>
         <div style={{ color: C.mist, fontSize: 13 }}>{subtitle}</div>
       </div>
-      <div style={{ margin: '14px 0 4px' }}><QuincyBrief org={org} /></div>
+      <div style={{ margin: '14px 0 4px' }}><QuincyBrief kind={kind} org={org} /></div>
       {intro && <p style={{ color: C.mist, fontSize: 13.5, maxWidth: 760, margin: '14px 0 22px' }}>{intro}</p>}
 
       {links && links.length > 0 && (
@@ -56,6 +56,7 @@ export function FinancialsDash({ profile }) {
   return (
     <SectionDash
       org={profile?.org_id}
+      kind="financials"
       title="Financials"
       subtitle="Money in, money out, and the health of your receivables"
       intro="The financial workflow hub — chase what is owed, watch margins, and keep pricing sharp."
@@ -84,6 +85,7 @@ export function AdminDash({ profile }) {
   return (
     <SectionDash
       org={profile?.org_id}
+      kind="admin"
       title="Admin"
       subtitle="Your team, their time, and how the system is set up"
       intro="The administrative hub — manage people and access, keep coverage staffed, and control settings."
