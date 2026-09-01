@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { getSettings } from './hrData'
 import { recentCalcs, money } from './payrollData'
 import { useOrgSelector, OrgBar, SetupNotice } from './shared'
+import QuincyBrief from '../../QuincyBrief'
 
 export default function PayrollDashboard({ profile }) {
   const org = useOrgSelector(profile)
@@ -37,6 +38,7 @@ export default function PayrollDashboard({ profile }) {
       </div>
       <OrgBar {...org} />
       <SetupNotice enabled={enabled} />
+      <div style={{ margin: '12px 0 16px' }}><QuincyBrief org={org.selectedOrg} /></div>
 
       <p style={{ color: 'var(--mist)', maxWidth: 720, marginBottom: 20 }}>
         Rewards computes the greater of hourly vs. pricebook task-hour pay, layers federal taxes, and gives you net pay per

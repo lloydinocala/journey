@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { dashboardData, getSettings } from './hrData'
 import { useOrgSelector, OrgBar, SetupNotice, FlagChip } from './shared'
+import QuincyBrief from '../../QuincyBrief'
 
 function Stat({ label, value, to }) {
   const body = (
@@ -34,6 +35,7 @@ export default function HrDashboard({ profile }) {
       </div>
       <OrgBar {...org} />
       <SetupNotice enabled={enabled} />
+      <div style={{ margin: '12px 0 16px' }}><QuincyBrief org={org.selectedOrg} /></div>
 
       {!data ? <p style={{ color: 'var(--mist)' }}>Loading…</p> : (
         <>
