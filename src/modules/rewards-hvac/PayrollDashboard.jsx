@@ -38,7 +38,13 @@ export default function PayrollDashboard({ profile }) {
       </div>
       <OrgBar {...org} />
       <SetupNotice enabled={enabled} />
-      <div style={{ margin: '12px 0 16px' }}><QuincyBrief org={org.selectedOrg} /></div>
+      <div style={{ margin: '12px 0 16px' }}>
+        <QuincyBrief kind="payroll" context={{
+          payRunsOnFile: weeks.length,
+          latestRun: weeks[0] ? { week: weeks[0].week, checks: weeks[0].count, gross: Math.round(weeks[0].gross), net: Math.round(weeks[0].net), taxToSetAside: Math.round(weeks[0].setAside) } : null,
+          recentWeeks: weeks.slice(0, 4).map((w) => ({ week: w.week, checks: w.count, gross: Math.round(w.gross), net: Math.round(w.net), taxToSetAside: Math.round(w.setAside) })),
+        }} />
+      </div>
 
       <p style={{ color: 'var(--mist)', maxWidth: 720, marginBottom: 20 }}>
         Rewards computes the greater of hourly vs. pricebook task-hour pay, layers federal taxes, and gives you net pay per

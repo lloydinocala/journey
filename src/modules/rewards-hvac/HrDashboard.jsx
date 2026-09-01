@@ -35,7 +35,14 @@ export default function HrDashboard({ profile }) {
       </div>
       <OrgBar {...org} />
       <SetupNotice enabled={enabled} />
-      <div style={{ margin: '12px 0 16px' }}><QuincyBrief org={org.selectedOrg} /></div>
+      <div style={{ margin: '12px 0 16px' }}>
+        <QuincyBrief kind="hr" context={{
+          activeEmployees: data ? data.headcount : 0,
+          trackedCertifications: data ? data.certs.length : 0,
+          openComplianceFlags: data ? data.flags.length : 0,
+          flags: data ? data.flags.map((f) => ({ severity: f.severity, subject: f.subject_label, action: f.message })) : [],
+        }} />
+      </div>
 
       {!data ? <p style={{ color: 'var(--mist)' }}>Loading…</p> : (
         <>
