@@ -66,7 +66,7 @@ export default function OperationsDashboard({ profile }) {
 
     const [invRes, jobRes, agrRes, payRes, ocRes, wrRes] = await Promise.all([
       supabase.from('invoices')
-        .select('id, invoice_number, kind, estimate_type, sent_at, approval_status, approved_at, job_total, total_paid, job_id, property_id, bills_to_customer_id')
+        .select('id, invoice_number, kind, estimate_type, sent_at, approval_status, approved_at, job_total, total_paid, paid_at, job_id, property_id, bills_to_customer_id')
         .eq('org_id', orgId).is('deleted_at', null).eq('is_archived', false),
       supabase.from('jobs')
         .select('id, job_number, status, date_pending, job_date, completed_at, customer_id')
@@ -105,7 +105,10 @@ export default function OperationsDashboard({ profile }) {
     const bal = (i) => Number(i.job_total || 0) - Number(i.total_paid || 0)
 
     // buckets
-    const unpaid = inv.filter((i) => i.kind === 'invoice' && i.sent_at && bal(i) > 0.5)
+    // Unpaid = sent, still owes money, AND not marked paid. An invoice flagged paid
+    // (paid_at set) is settled even if its stored balance was never zeroed, so it must
+    // not count toward A/R.
+    const unpaid = inv.filter((i) => i.kind === 'invoice' && i.sent_at && !i.paid_at && bal(i) > 0.5)
       .map((i) => ({ id: i.id, num: i.invoice_number, cust: cname(i.bills_to_customer_id), amt: bal(i), days: daysSince(i.sent_at), link: `/invoices?invoice=${i.id}` }))
       .sort((a, b) => b.days - a.days)
 
@@ -130,7 +133,10 @@ export default function OperationsDashboard({ profile }) {
     const pa = estAgg(pendEst)
     const da = estAgg(draftEst)
 
-    const toSchedule = jobs.filter((j) => ['unscheduled', 'incomplete'].includes(j.status) || j.date_pending)
+    // "To schedule" = jobs that genuinely need a date: unscheduled or date-pending.
+    // "incomplete" jobs already have a date and are simply not finished yet — that's an
+    // open-work state, not a scheduling gap, so it must not inflate this count.
+    const toSchedule = jobs.filter((j) => (j.status === 'unscheduled' || j.date_pending))
       .filter((j) => j.status !== 'canceled' && j.status !== 'completed')
       .map((j) => ({ id: j.id, num: j.job_number, cust: cname(j.customer_id), days: daysSince(j.job_date), link: `/jobs?job=${j.id}` }))
 

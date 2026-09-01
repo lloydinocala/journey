@@ -16,7 +16,7 @@ function formatPhone(raw) {
 
 const LINE_ITEM_COUNT = 9
 
-const APPROVAL_STATUS_OPTIONS = ['Pending', 'Approved', 'Declined', 'Pending Financing']
+const APPROVAL_STATUS_OPTIONS = ['Pending', 'Approved', 'Declined', 'Pending Financing', 'Completed']
 
 const ACTIONS_WIDTH = 320
 const FROZEN_KEYS = ['invoice_date', 'invoice_number', 'customer']
@@ -59,6 +59,11 @@ export default function SystemEstimates({ profile }) {
   const [sortField, setSortField] = useState('invoice_date')
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
+  const [showStatusPicker, setShowStatusPicker] = useState(false)
+  const [visibleStatuses, setVisibleStatuses] = useState(() => {
+    const saved = localStorage.getItem('system_estimates_visible_statuses')
+    return saved ? JSON.parse(saved) : APPROVAL_STATUS_OPTIONS.slice()
+  })
   const [newItemMode, setNewItemMode] = useState(null)
   const [sendingId, setSendingId] = useState(null)
   const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -167,6 +172,14 @@ export default function SystemEstimates({ profile }) {
   useEffect(() => {
     localStorage.setItem('estimates_visible_columns_v2', JSON.stringify(visibleColumns))
   }, [visibleColumns])
+
+  useEffect(() => {
+    localStorage.setItem('system_estimates_visible_statuses', JSON.stringify(visibleStatuses))
+  }, [visibleStatuses])
+
+  function toggleStatus(value) {
+    setVisibleStatuses((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]))
+  }
 
   function toggleColumn(key) {
     setVisibleColumns((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
@@ -319,6 +332,7 @@ export default function SystemEstimates({ profile }) {
   }
 
   const filtered = estimates.filter((est) => {
+    if (!visibleStatuses.includes(est.approval_status || 'Pending')) return false
     if (searchText) {
       const q = searchText.toLowerCase()
       const matchesNumber = est.invoice_number?.toLowerCase().includes(q)
@@ -484,6 +498,33 @@ export default function SystemEstimates({ profile }) {
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="Estimate #, job #, or customer…"
           />
+        </div>
+        <div style={{ position: 'relative', marginBottom: 10 }}>
+          <button className="logout-button" onClick={() => setShowStatusPicker(!showStatusPicker)}>
+            {visibleStatuses.length === APPROVAL_STATUS_OPTIONS.length
+              ? 'All statuses ▾'
+              : visibleStatuses.length === 0
+              ? 'No statuses ▾'
+              : `${visibleStatuses.length} of ${APPROVAL_STATUS_OPTIONS.length} statuses ▾`}
+          </button>
+          {showStatusPicker && (
+            <div className="org-picker-list" style={{ right: 'auto', left: 0, minWidth: 220, maxHeight: 360 }}>
+              <div style={{ display: 'flex', gap: 8, padding: '6px 10px', borderBottom: '1px solid var(--border)' }}>
+                <button className="logout-button" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => setVisibleStatuses(APPROVAL_STATUS_OPTIONS.slice())}>
+                  Show all
+                </button>
+                <button className="logout-button" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => setVisibleStatuses(APPROVAL_STATUS_OPTIONS.filter((s) => s !== 'Completed' && s !== 'Declined'))}>
+                  Hide completed &amp; declined
+                </button>
+              </div>
+              {APPROVAL_STATUS_OPTIONS.map((s) => (
+                <label key={s} className="org-picker-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={visibleStatuses.includes(s)} onChange={() => toggleStatus(s)} />
+                  {s}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
         <label className="nav-link" style={{ cursor: 'pointer', marginBottom: 10 }}>
           <input
