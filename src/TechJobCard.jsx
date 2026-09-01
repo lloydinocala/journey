@@ -294,7 +294,7 @@ export default function TechJobCard({ profile }) {
     setLoading(true)
     const { data } = await supabase.from('jobs').select(`
       id, org_id, property_id, customer_id, job_number, segment, status, start_time, duration_hours, job_type,
-      service_complaint, internal_notes, auth_diagnose_only, auth_limit_amount, service_estimate_not_needed, plan_options_sent_at, read_notes_before_job,
+      service_complaint, internal_notes, auth_diagnose_only, auth_limit_amount, service_estimate_not_needed, plan_options_sent_at, plan_options_declined_at, read_notes_before_job,
       tech_email_edited_at, tech_phone_edited_at, diagnosis_note, diagnosis_recorded_at, pre_photo_skip_reason, arrival_at, paused_at, paused_seconds,
       properties ( street_address, unit, city, state, zip, gate_code, expected_system_count ),
       customers ( display_name, spouse_name, primary_phone, secondary_phone, email_1 ),
@@ -427,7 +427,10 @@ export default function TechJobCard({ profile }) {
   const sigDone = approvals.some((a) => a.stage === 'work_finished')
   const planExists = !!plan
   const planSent = !!job?.plan_options_sent_at
-  const maintDone = planExists || planSent
+  // Customer said "not interested" on THIS visit — satisfies the gate without
+  // forcing another agreement email. Per-visit only; the next visit prompts again.
+  const planDeclined = !!job?.plan_options_declined_at
+  const maintDone = planExists || planSent || planDeclined
   const serviceEstDone = !!job?.service_estimate_not_needed || serviceEstItems > 0
 
   // The invoice can't be built until three process steps are complete: verification photos
@@ -436,7 +439,7 @@ export default function TechJobCard({ profile }) {
   const invoiceBlockers = []
   if (!verifyDone) invoiceBlockers.push('upload verification photos (Verify, below)')
   if (!filtersDone) invoiceBlockers.push("record the home's air filters (in Create Services Estimate)")
-  if (!maintDone) invoiceBlockers.push('send maintenance agreement options (in Create Services Estimate)')
+  if (!maintDone) invoiceBlockers.push('offer maintenance agreement options — send them, or mark the customer not interested (in Maintenance Agreements)')
   const canBuildInvoice = invoiceBlockers.length === 0
   // ---- per-job-type matrix: which spine tasks show + what the middle gate is ----
   const jtCfg = jobTypeConfig(job?.job_type)
@@ -892,6 +895,25 @@ export default function TechJobCard({ profile }) {
     setJob((p) => ({ ...p, plan_options_sent_at: new Date().toISOString() }))
     setPlansMsg(data?.sentTo ? `Sent to ${data.sentTo}` : 'Plan options sent.')
     setOpen('maintenance', false)
+  }
+
+  // Customer isn't interested — record it for THIS visit so the tech can move on to
+  // the invoice without emailing them an agreement they've already refused. Does not
+  // opt the property out; the next visit will offer again.
+  async function handleDeclinePlans() {
+    setPlansMsg('')
+    const now = new Date().toISOString()
+    const { error } = await supabase.from('jobs').update({ plan_options_declined_at: now }).eq('id', jobId)
+    if (error) { setPlansMsg('Could not save — try again.'); return }
+    setJob((p) => ({ ...p, plan_options_declined_at: now }))
+    setPlansMsg('Marked not interested for this visit.')
+  }
+  async function handleUndoDecline() {
+    setPlansMsg('')
+    const { error } = await supabase.from('jobs').update({ plan_options_declined_at: null }).eq('id', jobId)
+    if (error) { setPlansMsg('Could not update — try again.'); return }
+    setJob((p) => ({ ...p, plan_options_declined_at: null }))
+    setPlansMsg('')
   }
 
   function openCustEdit() {
@@ -1356,11 +1378,20 @@ export default function TechJobCard({ profile }) {
                 <div className="jc-plan-yes">{(plan.maintenance_agreement_tiers?.name || 'PLAN').toUpperCase()} PLAN ON RECORD</div>
               ) : planSent ? (
                 <div className="jc-plan-yes">PLAN OPTIONS SENT</div>
+              ) : planDeclined ? (
+                <div className="jc-plan-yes">CUSTOMER NOT INTERESTED — THIS VISIT</div>
               ) : (
                 <div className="jc-plan-none">CUSTOMER HAS NO PLAN ON RECORD</div>
               )}
-              {!planExists && (
-                <button className="jc-btn wide" disabled={sendingPlans} onClick={handleSendPlans}>{sendingPlans ? 'Sending…' : planSent ? 'Send Options Again' : 'Send Plan Options'}</button>
+              {!planExists && !planDeclined && (
+                <>
+                  <button className="jc-btn wide" disabled={sendingPlans} onClick={handleSendPlans}>{sendingPlans ? 'Sending…' : planSent ? 'Send Options Again' : 'Send Plan Options'}</button>
+                  <button className="jc-btn wide ghost" style={{ marginTop: 8 }} onClick={handleDeclinePlans}>Customer Not Interested — Skip</button>
+                  <p className="jc-muted-note" style={{ marginTop: 8 }}>Skipping lets you finish the invoice without emailing options. It applies to this visit only — you won&apos;t re-send to a customer who already said no, and the next visit will offer again.</p>
+                </>
+              )}
+              {!planExists && planDeclined && (
+                <button className="jc-btn wide ghost" onClick={handleUndoDecline}>Undo — offer options after all</button>
               )}
               {plansMsg && <p className="jc-muted-note" style={{ marginTop: 8, color: 'var(--jc-blue)' }}>{plansMsg}</p>}
             </div>
