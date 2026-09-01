@@ -25,9 +25,11 @@ export default function CustomerLogin() {
   return (
     <div className="cp-login">
       <div className="cp-brand">Air-Care Connect</div>
-      <div className="cp-hero-tag">
-        Your Home · Your Comfort · Your Health · Your Money<br />Your Air-Care Connection
-      </div>
+
+      {/* Lifestyle image. Appears once a licensed image is uploaded to
+          public/portal-hero.png; hides itself (no broken icon, no gap) until then. */}
+      <img className="cp-hero-img" src="/portal-hero.png" alt=""
+        onError={(e) => { e.currentTarget.style.display = 'none' }} />
 
       <div className="cp-box">
         {sent ? (
@@ -64,6 +66,15 @@ export default function CustomerLogin() {
           </>
         )}
       </div>
+
+      {/* The four subtitles as a small blue list under the sign-in. */}
+      <ul className="cp-taglist">
+        <li>Your Home</li>
+        <li>Your Comfort</li>
+        <li>Your Health</li>
+        <li>Your Money</li>
+      </ul>
+      <div className="cp-tagsum">Your Air-Care Connection</div>
     </div>
   )
 }
