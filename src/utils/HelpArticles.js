@@ -347,6 +347,72 @@ export const HELP_ARTICLES = [
     ],
   },
   {
+    id: 'tools-catalog',
+    title: 'Tool Catalog',
+    area: 'Tools',
+    keywords: ['tool catalog', 'add tool', 'assign', 'truck', 'technician', 'inspect', 'inspection', 'to shop', 'history', 'serial', 'model', 'brand', 'hand tool', 'retire'],
+    purpose: 'Where each tool and piece of equipment is recorded and run through its life: added to the shop, assigned to a truck or tech, inspected on demand, sent to the shop for repair, and retired.',
+    sections: [
+      { h: 'Adding a tool', items: [
+        'Record it by Name/Description and Brand, plus Model No. and Serial No. for powered tools. Tick "Hand tool" for simple tools (name and brand only).',
+        'Identical names auto-number as you add them — the second "Reclaimer" is saved as "Reclaimer 2" — so each physical unit is distinct.',
+        'Purchase date and cost are optional plain data for your bookkeeping; nothing here calculates depreciation.',
+      ]},
+      { h: 'The lifecycle (row actions)', items: [
+        'Assign — put the tool in the Shop, or on a specific Truck or Technician. Assignments can be ongoing or by the job.',
+        'Inspect — log condition and notes on demand; a good moment is during that vehicle’s regular inventory cycle count. Flagging a problem marks the tool "Needs maintenance".',
+        'To Shop — pull the tool in for repair, with an anticipated return-to-service date. A flagged tool cannot be reassigned until the repair is verified.',
+        'History — see every past assignment and inspection for that tool.',
+      ]},
+      { h: 'Good to know', body: 'A tool flagged on inspection must go to the shop, be repaired, and be verified on the Maintenance page before it can be redeployed — so a known-bad tool never lands back on a truck.' },
+    ],
+  },
+  {
+    id: 'tools-orders',
+    title: 'Tools — Orders & Receipts',
+    area: 'Tools',
+    keywords: ['tool order', 'purchase order', 'po', 'receipt', 'rental', 'card', 'debit', 'credit', 'vendor', 'receive', 'acquisition', 'quincy'],
+    purpose: 'How tools come into the shop: a formal PO to a tool vendor, a spur-of-the-moment card purchase from a hardware store, or a rental. Quincy can read a receipt to save typing.',
+    sections: [
+      { h: 'The three ways to acquire', items: [
+        'PO order — raise a purchase order with line items; its number comes from the same sequence as parts and supplies POs. Tools are created when the PO is received (partial receipts supported).',
+        'Card / cash purchase — record an off-the-cuff buy from a hardware or parts store with no PO; snap the receipt and Quincy reads the vendor, date, total, and items.',
+        'Rental — record a rented tool with its return-by date so it shows up for return before it runs late.',
+      ]},
+      { h: 'Receiving', body: 'Receiving a PO creates the tools in the shop, instance-numbered like any other tool, and advances the PO to Partial or Received. What you paid becomes each tool’s recorded cost.' },
+      { h: 'Good to know', body: 'Card and cash purchases that have no PO are matched to your bank statement on the Reconcile page. Overdue rentals raise a follow-up on the Tools Dashboard and in the daily QuincyAI briefing.' },
+    ],
+  },
+  {
+    id: 'tools-reconcile',
+    title: 'Tools — Reconcile',
+    area: 'Tools',
+    keywords: ['reconcile', 'reconciliation', 'bank statement', 'card', 'debit', 'credit', 'match', 'receipt', 'no po', 'last4', 'merchant'],
+    purpose: 'Match card and cash tool purchases against your bank or card statement, so spend from vendors that don’t use POs is still accounted for.',
+    sections: [
+      { h: 'How to use it', items: [
+        'Import or enter the statement charges, then let the page suggest matches to recorded purchases by amount, date, merchant, and the card’s last four digits.',
+        'Confirm a suggested match, or match by hand. Unmatched charges stay flagged until you clear them.',
+      ]},
+      { h: 'Good to know', body: 'Charges still awaiting a matched receipt are counted on the Tools Dashboard and called out in the QuincyAI briefing, so nothing bought on a card quietly goes unaccounted.' },
+    ],
+  },
+  {
+    id: 'tools-maintenance',
+    title: 'Tools — Maintenance',
+    area: 'Tools',
+    keywords: ['tool maintenance', 'repair', 'shop', 'anticipated return', 'return to service', 'follow up', 'overdue', 'verify', 'redeploy'],
+    purpose: 'The tools currently in the shop for repair — where you record the work and verify it before a tool goes back into service.',
+    sections: [
+      { h: 'How to use it', items: [
+        'Tools land here when they’re sent "To Shop" from the Catalog, each with an anticipated return-to-service date.',
+        'Record the maintenance or repair performed, then mark it verified — only a verified tool can be redeployed.',
+        'The Anticipated Return column drives the follow-up flag: a tool not back by its date is overdue.',
+      ]},
+      { h: 'Good to know', body: 'Overdue tools show as "Follow-up needed" on the Tools Dashboard and in the daily QuincyAI briefing, so a tool sitting too long in the shop gets chased.' },
+    ],
+  },
+  {
     id: 'inv-overview',
     title: 'Inventory Dashboard',
     area: 'Inventory',
@@ -666,6 +732,136 @@ export const HELP_ARTICLES = [
       { h: 'Good to know', body: 'The starting number for purchase orders is set on the Purchase Orders screen, not here.' },
     ],
   },
+
+  // ===== Refrigerant Management & EPA compliance =====
+  {
+    id: 'refrigerant-dashboard',
+    title: 'Refrigerant Dashboard',
+    area: 'Refrigerant',
+    keywords: ['refrigerant', 'freon', 'epa', '608', 'section 608', 'aim act', 'leak', 'compliance', 'dashboard', 'covered', 'exempt', 'cylinder', 'reclaim'],
+    purpose: 'The landing page for refrigerant/EPA compliance — refrigerant added and recovered, covered systems over their leak threshold (with the 30-day repair clock), cylinders on hand, and what is awaiting reclaim or disposal.',
+    sections: [
+      { h: 'At a glance', items: [
+        'Systems tracked, pounds added and recovered over the last 90 days, cylinders on hand, and recovered refrigerant awaiting reclaim.',
+        'A red "Over leak threshold" tile and callout lists covered systems that need a repair within 30 days, with each one’s estimated leak rate versus its limit.',
+        'The QuincyAI briefing leads with those repair deadlines, then cylinders to ship out, then the added-vs-recovered balance.',
+      ]},
+      { h: 'The two rule layers', body: 'Section 608 of the Clean Air Act applies to ALL refrigerant work — certified techs only, no venting, recover before opening a system, keep records. The AIM Act leak-repair rules (leak-rate thresholds and the 30-day repair clock) apply only to COVERED systems: 15 lb or more of refrigerant and not a residential/light-commercial AC or heat pump. Each system’s sector, set on the Systems page, decides which it is.' },
+      { h: 'Good to know', body: 'The leak rate shown is a trailing-12-month estimate: refrigerant added divided by the system’s full charge. It flags where to look; the formal determination is yours to make.' },
+    ],
+  },
+  {
+    id: 'refrigerant-log',
+    title: 'Refrigerant Usage Log',
+    area: 'Refrigerant',
+    keywords: ['refrigerant', 'log', 'usage', 'added', 'charged', 'recovered', 'topoff', 'repair', 'record', 'technician', 'cert', '608', 'cylinder', 'location', 'filter'],
+    purpose: 'Record every pound of refrigerant added or recovered on a job — tied to a system, a technician, and the cylinder it came from or went into.',
+    sections: [
+      { h: 'Recording an event', items: [
+        'Pick the system (which fills in its refrigerant), the technician, pounds added and/or recovered, the cylinder, and a reason (top-off, repair, install, recovery, retirement).',
+        'The technician’s EPA cert is checked against your HR records — a warning shows if none is on file or it has expired. Section 608 requires a certified tech.',
+        'Choosing a cylinder moves refrigerant in or out of it automatically: charging a system draws down a virgin cylinder, recovering credits a recovered cylinder.',
+      ]},
+      { h: 'History & leak rate', items: [
+        'The history table filters by location and by refrigerant.',
+        'A per-system summary rolls up the trailing-12-month leak rate against each covered system’s full charge, flagging any over its threshold.',
+      ]},
+      { h: 'Good to know', body: 'Records are the backbone of compliance — keep them for at least three years. Mobile capture on the tech’s job card is planned; for now events are logged office-side.' },
+    ],
+  },
+  {
+    id: 'refrigerant-systems',
+    title: 'Refrigerant Systems',
+    area: 'Refrigerant',
+    keywords: ['refrigerant', 'system', 'systems', 'charge', 'full charge', 'sector', 'subsector', 'covered', 'exempt', 'threshold', 'type', 'r-410a', 'r-454b', 'comfort cooling', 'commercial refrigeration'],
+    purpose: 'Give each installed system its refrigerant profile — refrigerant type, full charge in pounds, and sector. This is what drives the covered-vs-exempt flag and the leak-rate math everywhere else.',
+    sections: [
+      { h: 'How to use it', items: [
+        'Systems come from each property’s equipment on file. For each, set the refrigerant, the full charge (lb), and the sector.',
+        'A system is COVERED (leak rules apply) when its full charge is 15 lb or more AND it is not a residential/light-commercial AC or heat pump. Everything else is exempt — a simple usage log with no 30-day clock.',
+        'The status column shows Covered, Exempt, or "Over threshold — repair", plus the estimated annual leak rate.',
+      ]},
+      { h: 'The thresholds', body: 'Once covered, the leak-rate limit that forces a repair depends on the sector: 10% for comfort cooling, 20% for commercial refrigeration, 30% for industrial process refrigeration. Set the sector correctly and the rest follows.' },
+    ],
+  },
+  {
+    id: 'refrigerant-cylinders',
+    title: 'Refrigerant Cylinders',
+    area: 'Refrigerant',
+    keywords: ['cylinder', 'cylinders', 'virgin', 'recovered', 'reclaim', 'disposal', 'cradle to grave', 'on hand', 'ship', 'manifest', 'doc reference'],
+    purpose: 'Track each cylinder cradle-to-grave — virgin refrigerant purchased and put in service, recovered refrigerant accumulating on hand, then shipped to a reclaimer or certified disposal.',
+    sections: [
+      { h: 'How to use it', items: [
+        'Add a virgin cylinder as it’s purchased, or a recovery cylinder to receive recovered refrigerant.',
+        'On-hand pounds move on their own from the Usage Log — charging a system draws down a virgin cylinder, recovering credits a recovered one.',
+        'When a recovered cylinder is full, use "Send out" to record shipment to a reclaimer or disposal, with the date, recipient, and a document reference (manifest / ticket number). That closes the chain.',
+      ]},
+      { h: 'Good to know', body: 'Recovered cylinders with refrigerant sitting on hand are counted on the dashboard as "awaiting reclaim", so nothing lingers unshipped.' },
+    ],
+  },
+
+  // ===== Supplies (expendables) =====
+  {
+    id: 'supplies-catalog',
+    title: 'Supplies Catalog',
+    area: 'Supplies',
+    keywords: ['supplies', 'expendable', 'expendables', 'catalog', 'consumable', 'paper', 'tape', 'zip ties', 'chemicals', 'fuses', 'reorder', 'not inventoried', 'office'],
+    purpose: 'A lean list of the expendables you buy regularly but do NOT count as inventory — copy paper, tech tape, zip ties, gallon chemicals, fuses. No stock counts, by design.',
+    sections: [
+      { h: 'How to use it', items: [
+        'Add each supply with a name, category, unit, typical vendor, and last price. There are no on-hand quantities — this is a shopping catalog, not stock.',
+        'Flag anything running low to the reorder list with "+ Reorder" (with an optional quantity and note).',
+        'The tiles show supplies tracked, how many are on the reorder list, open POs, and 30- and 90-day spend.',
+      ]},
+      { h: 'Good to know', body: 'Supplies are deliberately separate from parts Inventory — nothing here affects stock, valuation, or replenishment. For durable tools and equipment, use Tools & Office Equipment instead.' },
+    ],
+  },
+  {
+    id: 'supplies-reorder',
+    title: 'Supplies Reorder List',
+    area: 'Supplies',
+    keywords: ['reorder', 'shopping list', 'to buy', 'restock', 'supplies', 'bought', 'check off', 'vendor', 'run'],
+    purpose: 'Everything you’ve flagged low, in one buy-it list grouped by vendor — the shopping list for a supply-house run.',
+    sections: [
+      { h: 'How to use it', items: [
+        'Items flagged from the catalog appear here, grouped by their typical vendor.',
+        'When you’ve bought something, hit "Bought" — enter what you paid to log the spend and refresh the item’s last price, or just check it off without a price.',
+        'Cleared items drop off the list.',
+      ]},
+      { h: 'Good to know', body: 'For vendors that require a purchase order, raise a PO on the Orders & POs page instead — you can pull the whole reorder list straight into a PO in one click, which also clears those items from this list.' },
+    ],
+  },
+  {
+    id: 'supplies-orders',
+    title: 'Supplies — Orders & POs',
+    area: 'Supplies',
+    keywords: ['supplies', 'purchase order', 'po', 'order', 'vendor', 'parts house', 'office supply', 'receive', 'partial', 'reorder', 'shared numbering'],
+    purpose: 'Purchase orders for supplies from vendors that use them (office-supply and AC parts houses). PO numbers share the same running sequence as parts and tool POs, so numbering never collides.',
+    sections: [
+      { h: 'Raising a PO', items: [
+        'Pick a vendor and expected date, then add line items — from the catalog (which fills in unit and last price) or as free text — with quantity and unit cost.',
+        '"Pull from reorder list" seeds the whole PO from whatever is flagged low; those items then drop off the reorder list because they’re now on order.',
+        'Creating the PO assigns the next shared PO number automatically.',
+      ]},
+      { h: 'Receiving', body: 'Open a PO and enter what actually came in (defaults to the full remaining amount). Partial receipts mark it "Partially received" so you can receive the rest later; a full receipt closes it. Receiving is what logs the spend — each received line writes to Purchases and refreshes that item’s last price.' },
+      { h: 'Good to know', body: 'Nothing is counted as spent until it’s received. For grab-and-go buys with no PO, use the "Bought" check-off on the Reorder List instead — both feed the same Purchases log.' },
+    ],
+  },
+  {
+    id: 'supplies-purchases',
+    title: 'Supplies Purchases',
+    area: 'Supplies',
+    keywords: ['supplies', 'purchases', 'spend', 'spending', 'log', 'receipt', 'cost', 'range', 'total', 'vendor'],
+    purpose: 'The spend log for supplies — what was bought, when, and for how much, with a running total by date range.',
+    sections: [
+      { h: 'How to use it', items: [
+        'The log fills in automatically when you check items off the reorder list or receive a PO.',
+        'Use "+ Log a purchase" for a receipt bought on the fly — pick a catalog item or type a name, with quantity, unit cost, vendor, and date.',
+        'Set the date range (30 / 90 days, 12 months, all time); the header shows the total spend in range.',
+      ]},
+      { h: 'Good to know', body: 'Purchases received against a PO are tagged with the PO number, so you can trace any line of spend back to its order.' },
+    ],
+  },
 ]
 
 // Map a route to the article that best explains it, so the drawer can open context-aware.
@@ -727,6 +923,22 @@ export const ROUTE_HELP = {
   '/elements/forecast': 'inv-forecast',
   '/elements/settings': 'inv-settings',
   '/elements': 'inv-overview',
+  // Tools & Office Equipment. Specific /tools/* before the bare /tools base.
+  '/tools/catalog': 'tools-catalog',
+  '/tools/orders': 'tools-orders',
+  '/tools/reconcile': 'tools-reconcile',
+  '/tools/maintenance': 'tools-maintenance',
+  '/tools': 'tools-dashboard',
+  // Refrigerant Management. Specific /refrigerant/* before the bare base.
+  '/refrigerant/log': 'refrigerant-log',
+  '/refrigerant/systems': 'refrigerant-systems',
+  '/refrigerant/cylinders': 'refrigerant-cylinders',
+  '/refrigerant': 'refrigerant-dashboard',
+  // Supplies. Specific /supplies/* before the bare base.
+  '/supplies/reorder': 'supplies-reorder',
+  '/supplies/orders': 'supplies-orders',
+  '/supplies/purchases': 'supplies-purchases',
+  '/supplies': 'supplies-catalog',
 }
 
 export function searchArticles(query) {

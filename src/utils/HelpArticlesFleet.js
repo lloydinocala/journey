@@ -35,7 +35,8 @@ export const FLEET_HELP_ARTICLES = [
         'Add a vehicle with year, make, model, VIN, license plate, and color.',
         'Record tank capacity and the expected MPG range — these power the fuel flags on the dashboard.',
         'Track purchase date, purchase price, in-service date, and ownership (owned, leased, financed).',
-        'Assign a driver; reassigning keeps a dated history of who was responsible when.',
+        'Record where the vehicle is kept (its home base) and its fuel card number — the home base anchors route mileage, and the card number is what routes imported fuel-card fills to this truck.',
+        'Assign a driver; reassigning keeps a dated history of who was responsible when. The assigned technician is changed with the Reassign action, not by editing the locked field on the form.',
       ]},
       { h: 'Good to know', body: 'The current driver also shows on the vehicle card and links a truck to its stocking location in Inventory. A tight expected-MPG range makes the low/high-MPG flags more useful.' },
     ],
@@ -49,7 +50,8 @@ export const FLEET_HELP_ARTICLES = [
     sections: [
       { h: 'How to use it', items: [
         'Log each fill: date, odometer, gallons, total cost, station, and fuel card if you use one.',
-        'Or import a batch of fills from a fuel-card export.',
+        'Or import a batch: a CSV export, or a PDF statement from a convenience-store fuel card (Circle K, RaceTrac, and the like) that Quincy reads into fill rows for you. Switch freely between the CSV and PDF importers.',
+        'When a card covers more than one vehicle, map each card number to its vehicle once — imported fills then land on the right truck automatically.',
         'Enter the odometer every time — it is what makes MPG and mileage-based flags work.',
       ]},
       { h: 'What it computes', items: [
@@ -102,10 +104,11 @@ export const FLEET_HELP_ARTICLES = [
     purpose: 'Compare the miles a vehicle actually drove against the miles its jobs explain — an honest-use check.',
     sections: [
       { h: 'What it shows', items: [
-        'Miles driven (from the fuel-log odometer) versus miles explained by scheduled jobs, per vehicle, over a trailing window.',
-        'A red flag when driving is well above what the jobs account for.',
+        'Miles driven (from the fuel-log odometer) versus miles explained by the jobs the tech actually drove to, per vehicle, over a trailing window.',
+        'Explained mileage counts only jobs the tech pressed "On My Way" for, chained home → jobs → home from the vehicle’s home base — so a scheduled job nobody drove to doesn’t inflate the figure.',
+        'A red flag when driving is well above what those jobs account for.',
       ]},
-      { h: 'Good to know', body: 'It needs fuel odometer readings and job routes to compare. GPS breadcrumbs are shown when a driver has them, as supporting context.' },
+      { h: 'Good to know', body: 'It needs fuel odometer readings, a home base on the vehicle, and driven-to jobs to compare. GPS breadcrumbs are shown when a driver has them, as supporting context. Each vehicle keeps its own travel log.' },
     ],
   },
   {
