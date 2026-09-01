@@ -7,6 +7,7 @@ import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
 import HelpDrawer from './HelpDrawer'
 import { ELEMENTS_NAV, ELEMENTS_FLEET_NAV, TOOLS_NAV } from './modules/elements-hvac'
+import { REFRIGERANT_NAV } from './modules/refrigerant-hvac'
 import { REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV } from './modules/rewards-hvac'
 import { MARKETING_NAV } from './modules/marketing-hvac'
 
@@ -70,6 +71,7 @@ const DASH_BY_KEY = {
   admin: '/admin',
   elements: '/elements',
   fleet: '/fleet',
+  refrigerant: '/refrigerant',
   tools: '/tools',
   rewards: '/rewards',
   'rewards-payroll': '/rewards/payroll',
@@ -93,6 +95,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
   if (pathname.startsWith('/elements')) return 'elements'
   if (pathname.startsWith('/fleet')) return 'fleet'
+  if (pathname.startsWith('/refrigerant')) return 'refrigerant'
   if (pathname.startsWith('/tools')) return 'tools'
   if (pathname.startsWith('/rewards/payroll')) return 'rewards-payroll'
   if (pathname.startsWith('/rewards/certified')) return 'rewards-cert'
@@ -118,7 +121,9 @@ export default function Layout({ profile }) {
   // Inventory + Fleet are core (any non-tech office role). Tools is an optional
   // module, gated by entitlement like Marketing. Each is its own nav unit now.
   const showTools = notTech && (isSuperAdmin || profile?.toolsEntitled)
-  const withInvFleet = showElements ? [...CATEGORIES, ELEMENTS_NAV, ELEMENTS_FLEET_NAV] : CATEGORIES
+  // Refrigerant/EPA compliance is core (Section 608 applies to all work), so it
+  // rides alongside Inventory + Fleet for any non-tech office role — no gate.
+  const withInvFleet = showElements ? [...CATEGORIES, ELEMENTS_NAV, ELEMENTS_FLEET_NAV, REFRIGERANT_NAV] : CATEGORIES
   const withElements = showTools ? [...withInvFleet, TOOLS_NAV] : withInvFleet
   const withHR = showHR ? [...withElements, REWARDS_HR_NAV] : withElements
   // Payroll staff work the employee pay/tax profile too, so surface Employees at
