@@ -16,7 +16,9 @@ function formatPhone(raw) {
 
 const LINE_ITEM_COUNT = 9
 
-const APPROVAL_STATUS_OPTIONS = ['Pending', 'Approved', 'Declined', 'Pending Financing']
+// "Completed" is an internal lifecycle state (the estimate has been fully dealt
+// with) — separate from a Job's status, so it never collides with job Completed.
+const APPROVAL_STATUS_OPTIONS = ['Pending', 'Approved', 'Declined', 'Pending Financing', 'Completed']
 
 const ACTIONS_WIDTH = 320
 const FROZEN_KEYS = ['invoice_date', 'invoice_number', 'job_number', 'customer']
@@ -59,6 +61,11 @@ export default function Estimates({ profile }) {
   const [sortField, setSortField] = useState('invoice_date')
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
+  const [showStatusPicker, setShowStatusPicker] = useState(false)
+  const [visibleStatuses, setVisibleStatuses] = useState(() => {
+    const saved = localStorage.getItem('estimates_visible_statuses')
+    return saved ? JSON.parse(saved) : APPROVAL_STATUS_OPTIONS.slice()
+  })
   const [newItemMode, setNewItemMode] = useState(null)
   const [sendingId, setSendingId] = useState(null)
   const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -97,7 +104,7 @@ export default function Estimates({ profile }) {
         .select(`
           id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
           discount_amount, discount_type, deposit, amount_due, total_paid, balance,
-          profit, profit_pct, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, approved_at, spawned_job_id, converted_to_job_id, is_archived, reference_job_id
+          profit, profit_pct, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, approved_at, spawned_job_id, converted_to_job_id, is_archived, reference_job_id, estimate_type
         `)
         .eq('org_id', orgId)
         .eq('kind', 'estimate')
@@ -156,6 +163,14 @@ export default function Estimates({ profile }) {
 
   function toggleColumn(key) {
     setVisibleColumns((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+  }
+
+  useEffect(() => {
+    localStorage.setItem('estimates_visible_statuses', JSON.stringify(visibleStatuses))
+  }, [visibleStatuses])
+
+  function toggleStatus(value) {
+    setVisibleStatuses((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]))
   }
 
   function customerName(est) {
@@ -305,6 +320,10 @@ export default function Estimates({ profile }) {
   }
 
   const filtered = estimates.filter((est) => {
+    // Job Estimates shows service/legacy estimates only. System estimates have
+    // their own page; without this they'd appear on both (the EST duplicates).
+    if (est.estimate_type === 'system') return false
+    if (!visibleStatuses.includes(est.approval_status || 'Pending')) return false
     if (searchText) {
       const q = searchText.toLowerCase()
       const matchesNumber = est.invoice_number?.toLowerCase().includes(q)
@@ -448,7 +467,7 @@ export default function Estimates({ profile }) {
       <div className="page-header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <h2>Job Estimates</h2>
-          <span className="badge">{estimates.length.toLocaleString()} total</span>
+          <span className="badge">{estimates.filter((e) => e.estimate_type !== 'system').length.toLocaleString()} total</span>
         </div>
         <NewItemDropdown onSelect={setNewItemMode} />
       </div>
@@ -470,6 +489,33 @@ export default function Estimates({ profile }) {
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="Estimate #, job #, or customer…"
           />
+        </div>
+        <div style={{ position: 'relative', marginBottom: 10 }}>
+          <button className="logout-button" onClick={() => setShowStatusPicker(!showStatusPicker)}>
+            {visibleStatuses.length === APPROVAL_STATUS_OPTIONS.length
+              ? 'All statuses ▾'
+              : visibleStatuses.length === 0
+              ? 'No statuses ▾'
+              : `${visibleStatuses.length} of ${APPROVAL_STATUS_OPTIONS.length} statuses ▾`}
+          </button>
+          {showStatusPicker && (
+            <div className="org-picker-list" style={{ right: 'auto', left: 0, minWidth: 220, maxHeight: 360 }}>
+              <div style={{ display: 'flex', gap: 8, padding: '6px 10px', borderBottom: '1px solid var(--border)' }}>
+                <button className="logout-button" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => setVisibleStatuses(APPROVAL_STATUS_OPTIONS.slice())}>
+                  Show all
+                </button>
+                <button className="logout-button" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => setVisibleStatuses(APPROVAL_STATUS_OPTIONS.filter((s) => s !== 'Completed' && s !== 'Declined'))}>
+                  Hide completed &amp; declined
+                </button>
+              </div>
+              {APPROVAL_STATUS_OPTIONS.map((s) => (
+                <label key={s} className="org-picker-item" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={visibleStatuses.includes(s)} onChange={() => toggleStatus(s)} />
+                  {s}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
         <label className="nav-link" style={{ cursor: 'pointer', marginBottom: 10 }}>
           <input
