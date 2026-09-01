@@ -77,6 +77,7 @@ export default function ToolsDashboard({ profile }) {
           rentalsOverdue: d ? d.rentalsOverdueCount : 0,
           overdueRentals: d ? d.rentalsOverdue.map((r) => ({ vendor: r.vendor, dueBack: r.due, daysLate: r.daysLate })) : [],
           cardChargesAwaitingReceiptMatch: d ? d.unreconciledChargeCount : 0,
+          toolsOnOrder_awaitingReceipt: d ? d.onOrderCount : 0,
         }} />
       </div>
 
@@ -99,6 +100,7 @@ export default function ToolsDashboard({ profile }) {
         <Metric to="/tools/maintenance" label="Follow-up needed" value={loading && !d ? '…' : String(d ? d.followUpCount : 0)} sub={d && d.followUpCount > 0 ? 'past anticipated return' : 'none overdue'} accent={d && d.followUpCount > 0 ? '#B00020' : '#0B7A3B'} alert={!!d && d.followUpCount > 0} />
         <Metric to="/tools/orders" label="Rentals overdue" value={loading && !d ? '…' : String(d ? d.rentalsOverdueCount : 0)} sub={d && d.rentalsOverdueCount > 0 ? 'past return-by date' : 'none overdue'} accent={d && d.rentalsOverdueCount > 0 ? '#B00020' : '#0B7A3B'} alert={!!d && d.rentalsOverdueCount > 0} />
         <Metric to="/tools/reconcile" label="Charges to reconcile" value={loading && !d ? '…' : String(d ? d.unreconciledChargeCount : 0)} sub={d && d.unreconciledChargeCount > 0 ? 'unmatched card charges' : 'all matched'} accent={d && d.unreconciledChargeCount > 0 ? '#B8720A' : '#0B7A3B'} alert={!!d && d.unreconciledChargeCount > 0} />
+        <Metric to="/tools/orders" label="Tools on order" value={loading && !d ? '…' : String(d ? d.onOrderCount : 0)} sub={d && d.onOrderCount > 0 ? 'PO awaiting receipt' : 'no open POs'} accent={d && d.onOrderCount > 0 ? '#1B3A6B' : '#0B7A3B'} />
       </div>
 
       {/* Value on hand (plain total cost; bookkeeping handles depreciation) */}

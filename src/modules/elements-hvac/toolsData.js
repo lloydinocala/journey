@@ -143,7 +143,7 @@ export async function toolsDashboardData(orgId) {
   const [tools, openMaint, acqRes, txnRes] = await Promise.all([
     listTools(orgId, { includeRetired: false }),
     listToolMaintenance(orgId, { openOnly: true }),
-    supabase.from('tool_acquisitions').select('id, acquisition_type, vendor, rental_return_due, rental_returned_at').eq('org_id', orgId).is('deleted_at', null),
+    supabase.from('tool_acquisitions').select('id, acquisition_type, vendor, po_status, rental_return_due, rental_returned_at').eq('org_id', orgId).is('deleted_at', null),
     supabase.from('card_transactions').select('id, matched_acquisition_id, amount').eq('org_id', orgId).is('matched_acquisition_id', null),
   ])
   const acqs = acqRes.data || [], unmatchedTxns = txnRes.data || []
@@ -180,6 +180,7 @@ export async function toolsDashboardData(orgId) {
     followUp,
     rentalsOverdueCount: rentalsOverdue.length,
     rentalsOverdue,
+    onOrderCount: acqs.filter((a) => a.acquisition_type === 'po' && (a.po_status === 'ordered' || a.po_status === 'partial')).length,
     unreconciledChargeCount: unmatchedTxns.length,
     totalCost: Math.round(totalCost),
     tools,
@@ -265,4 +266,71 @@ export async function reconcileMatch(txnId, acquisitionId) {
 export async function unmatchTxn(txnId, acquisitionId) {
   await supabase.from('card_transactions').update({ matched_acquisition_id: null }).eq('id', txnId)
   if (acquisitionId) await supabase.from('tool_acquisitions').update({ reconciled_txn_id: null }).eq('id', acquisitionId)
+}
+
+// ---- Tool purchase orders (order → receive, custom lines) ------------------
+// Create a tool PO with a number from the SAME sequential counter as parts POs
+// (elements_alloc_po_number is atomic), with custom line items. No tools are
+// created yet — they come into stock when the PO is received.
+export async function createToolOrder(orgId, { vendor, expected_date, notes, lines }, createdBy) {
+  let poNum = null
+  try { const { data: alloc } = await supabase.rpc('elements_alloc_po_number', { p_org: orgId }); if (alloc) poNum = alloc } catch (_e) { /* fall through */ }
+  if (!poNum) poNum = `PO-${Date.now().toString().slice(-6)}`
+  const clean = (lines || []).map((l) => ({
+    name: (l.name || '').trim(), brand: l.brand || null, model_no: l.model_no || null, serial_no: l.serial_no || null,
+    is_hand_tool: !!l.is_hand_tool, quantity: Math.max(1, parseInt(l.quantity, 10) || 1),
+    unit_cost: (l.unit_cost === '' || l.unit_cost == null) ? null : Number(l.unit_cost),
+  })).filter((l) => l.name)
+  const amount = clean.reduce((s, l) => s + (Number(l.unit_cost) || 0) * l.quantity, 0)
+  const { data: a, error } = await supabase.from('tool_acquisitions').insert({
+    org_id: orgId, acquisition_type: 'po', po_number: poNum, po_status: 'ordered', vendor: vendor || null,
+    acquired_date: new Date().toISOString().slice(0, 10), expected_date: expected_date || null,
+    amount: amount || null, notes: notes || null, created_by: createdBy || null,
+  }).select().single()
+  if (error) return { error }
+  if (clean.length) {
+    const { error: le } = await supabase.from('tool_order_lines').insert(clean.map((l) => ({ org_id: orgId, acquisition_id: a.id, ...l })))
+    if (le) return { error: le, acquisition: a }
+  }
+  return { acquisition: a, po_number: poNum, lineCount: clean.length }
+}
+
+export async function listToolOrderLines(orgId, acquisitionId) {
+  const { data } = await supabase.from('tool_order_lines').select('*').eq('org_id', orgId).eq('acquisition_id', acquisitionId).order('created_at')
+  return data || []
+}
+
+// Receive some/all of a tool PO: creates the ordered tools (instance-numbered,
+// received into the shop) and advances the PO to partial/received.
+export async function receiveToolOrder(orgId, acquisitionId, receipts) {
+  const lines = await listToolOrderLines(orgId, acquisitionId)
+  const { data: acq } = await supabase.from('tool_acquisitions').select('acquired_date').eq('id', acquisitionId).maybeSingle()
+  const { data: existing } = await supabase.from('tools').select('name, instance_no').eq('org_id', orgId).is('deleted_at', null)
+  const maxByName = new Map()
+  ;(existing || []).forEach((t) => { const k = (t.name || '').trim().toLowerCase(); if ((t.instance_no || 0) > (maxByName.get(k) || 0)) maxByName.set(k, t.instance_no || 0) })
+  let createdCount = 0
+  for (const l of lines) {
+    const remaining = (l.quantity || 0) - (l.received_count || 0)
+    const want = receipts && receipts[l.id] != null ? parseInt(receipts[l.id], 10) || 0 : 0
+    const n = Math.min(Math.max(0, want), remaining)
+    for (let i = 0; i < n; i++) {
+      const k = (l.name || '').trim().toLowerCase(); const next = (maxByName.get(k) || 0) + 1; maxByName.set(k, next)
+      const { data: t, error } = await supabase.from('tools').insert({
+        org_id: orgId, name: l.name, brand: l.brand || null, is_hand_tool: !!l.is_hand_tool,
+        model_no: l.is_hand_tool ? null : (l.model_no || null), serial_no: l.is_hand_tool ? null : (l.serial_no || null),
+        instance_no: next, cost: l.unit_cost ?? null, purchase_date: acq?.acquired_date || null,
+        acquisition_id: acquisitionId, is_rental: false, status: 'in_shop', holder_type: 'shop', holder_id: null,
+      }).select('id').single()
+      if (!error && t) { createdCount++; await supabase.from('tool_assignments').insert({ org_id: orgId, tool_id: t.id, holder_type: 'shop', holder_id: null, note: 'Received on PO' }) }
+    }
+    if (n > 0) await supabase.from('tool_order_lines').update({ received_count: (l.received_count || 0) + n }).eq('id', l.id)
+  }
+  const after = await listToolOrderLines(orgId, acquisitionId)
+  const allDone = after.length > 0 && after.every((l) => (l.received_count || 0) >= (l.quantity || 0))
+  const anyDone = after.some((l) => (l.received_count || 0) > 0)
+  await supabase.from('tool_acquisitions').update({
+    po_status: allDone ? 'received' : (anyDone ? 'partial' : 'ordered'),
+    received_date: allDone ? new Date().toISOString().slice(0, 10) : null,
+  }).eq('id', acquisitionId)
+  return { createdCount, fullyReceived: allDone }
 }
