@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import './portal.css'
 import CustomerLogin from './CustomerLogin'
@@ -12,6 +12,19 @@ import CustomerBook from './CustomerBook'
 import CustomerEquipment from './CustomerEquipment'
 import CustomerFilters from './CustomerFilters'
 import CustomerProfile from './CustomerProfile'
+
+function QuincyPlaceholder() {
+  const nav = useNavigate()
+  return (
+    <div className="cp-wrap">
+      <button className="cp-back" onClick={() => nav('/portal')}>‹ Home</button>
+      <h2 className="cp-h2">Ask Quincy</h2>
+      <p className="cp-lead">Quincy is your Air-Care AI helper — ask about your system, an odd noise or smell, or what a recent visit covered.</p>
+      <div className="cp-card"><p style={{ margin: 0, fontSize: 14.5 }}>Quincy is being set up for the homeowner app and will be here shortly. In the meantime, our team is glad to help — book a visit and we'll take care of it.</p></div>
+      <button className="cp-btn" onClick={() => nav('/portal/schedule')}>Schedule a visit</button>
+    </div>
+  )
+}
 
 // Self-contained customer app. Mounted at /portal/* in App.jsx, OUTSIDE the
 // staff AuthenticatedApp — its own auth context, its own data boundary (RLS).
@@ -66,7 +79,7 @@ export default function CustomerPortal() {
       await supabase.rpc('claim_customer_portal')
       const { data: cust } = await supabase
         .from('customers')
-        .select('id, first_name, last_name, display_name, email_1')
+        .select('id, first_name, last_name, display_name, company, primary_phone, secondary_phone, email_1, email_2')
         .eq('auth_user_id', session.user.id)
         .maybeSingle()
       if (!live) return
@@ -101,26 +114,47 @@ export default function CustomerPortal() {
   )
 
   return (
-    <div className="cp-root">
-      <header className="cp-head">
-        <div>
-          <h1>Air-Care Connect</h1>
-          <div className="cp-sub">{customer.first_name ? `${customer.first_name}${customer.last_name ? ' ' + customer.last_name : ''}` : (customer.display_name || 'Your account')}</div>
-        </div>
-        <button className="cp-signout" onClick={() => supabase.auth.signOut()}>Sign out</button>
-      </header>
-      <Routes>
-        <Route index element={<CustomerHome customer={customer} properties={properties} />} />
-        <Route path="records" element={<CustomerRecords customer={customer} properties={properties} />} />
-        <Route path="equipment" element={<CustomerEquipment />} />
-        <Route path="schedule" element={<CustomerSchedule />} />
-        <Route path="book/:type" element={<CustomerBook customer={customer} properties={properties} />} />
-        <Route path="request/:type" element={<CustomerRequest customer={customer} properties={properties} />} />
-        <Route path="filters" element={<CustomerFilters customer={customer} properties={properties} />} />
-        <Route path="profile" element={<CustomerProfile customer={customer} properties={properties} />} />
-        <Route path="plan" element={<CustomerPlan customer={customer} properties={properties} />} />
-        <Route path="*" element={<Navigate to="/portal" replace />} />
-      </Routes>
+    <div className="cp-app">
+      <div className="cp-scroll">
+        <Routes>
+          <Route index element={<CustomerHome customer={customer} properties={properties} />} />
+          <Route path="records" element={<CustomerRecords customer={customer} properties={properties} />} />
+          <Route path="equipment" element={<CustomerEquipment />} />
+          <Route path="schedule" element={<CustomerSchedule />} />
+          <Route path="book/:type" element={<CustomerBook customer={customer} properties={properties} />} />
+          <Route path="request/:type" element={<CustomerRequest customer={customer} properties={properties} />} />
+          <Route path="filters" element={<CustomerFilters customer={customer} properties={properties} />} />
+          <Route path="profile" element={<CustomerProfile customer={customer} properties={properties} />} />
+          <Route path="plan" element={<CustomerPlan customer={customer} properties={properties} />} />
+          <Route path="quincy" element={<QuincyPlaceholder />} />
+          <Route path="*" element={<Navigate to="/portal" replace />} />
+        </Routes>
+      </div>
+      <PortalNav />
     </div>
+  )
+}
+
+function NIc({ d }) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
+}
+function PortalNav() {
+  const nav = useNavigate()
+  const { pathname } = useLocation()
+  const tabs = [
+    { to: '/portal', label: 'Home', d: <><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></> },
+    { to: '/portal/schedule', label: 'Schedule', d: <><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M8 2v4M16 2v4M3 10h18" /></> },
+    { to: '/portal/records', label: 'Records', d: <><path d="M6 2h9l5 5v13a1 1 0 01-1 1H6a1 1 0 01-1-1V3a1 1 0 011-1z" /><path d="M14 2v6h6" /></> },
+    { to: '/portal/quincy', label: 'Quincy', d: <><path d="M12 3l2.1 4.9L19 9l-4 3.2L16 18l-4-2.6L8 18l1-5.8L5 9z" /></> },
+  ]
+  const active = (to) => to === '/portal' ? pathname === '/portal' : pathname.startsWith(to)
+  return (
+    <nav className="cp-bnav">
+      {tabs.map(t => (
+        <button key={t.to} className={active(t.to) ? 'on' : ''} onClick={() => nav(t.to)}>
+          <NIc d={t.d} /><span>{t.label}</span>
+        </button>
+      ))}
+    </nav>
   )
 }
