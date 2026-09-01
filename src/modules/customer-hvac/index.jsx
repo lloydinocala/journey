@@ -20,14 +20,36 @@ export default function CustomerPortal() {
   const [customer, setCustomer] = useState(undefined) // undefined=loading, null=unrecognized
   const [properties, setProperties] = useState([])
 
-  // Brand the installable PWA for the homeowner while they're in the portal.
+  // Give the homeowner portal its OWN installable identity while mounted, so the
+  // phone treats it as a separate app from the staff (Tech) app on the same domain:
+  // its own manifest, home-screen icon (apple-touch-icon), app name, and theme.
   useEffect(() => {
-    const link = document.querySelector('link[rel="manifest"]')
-    const prev = link?.getAttribute('href')
-    if (link) link.setAttribute('href', '/portal.webmanifest')
+    const setLink = (rel, href) => {
+      let el = document.querySelector(`link[rel="${rel}"]`)
+      const prev = el ? el.getAttribute('href') : null
+      const created = !el
+      if (!el) { el = document.createElement('link'); el.setAttribute('rel', rel); document.head.appendChild(el) }
+      el.setAttribute('href', href)
+      return () => { if (prev != null) el.setAttribute('href', prev); else if (created) el.remove() }
+    }
+    const setMeta = (name, content) => {
+      let el = document.querySelector(`meta[name="${name}"]`)
+      const prev = el ? el.getAttribute('content') : null
+      const created = !el
+      if (!el) { el = document.createElement('meta'); el.setAttribute('name', name); document.head.appendChild(el) }
+      el.setAttribute('content', content)
+      return () => { if (prev != null) el.setAttribute('content', prev); else if (created) el.remove() }
+    }
+    const restores = [
+      setLink('manifest', '/portal.webmanifest'),
+      setLink('apple-touch-icon', '/portal-icon.png'),
+      setMeta('apple-mobile-web-app-title', 'Air-Care Connect'),
+      setMeta('apple-mobile-web-app-capable', 'yes'),
+      setMeta('theme-color', '#4E95D9'),
+    ]
     const prevTitle = document.title
     document.title = 'Air-Care Connect'
-    return () => { if (link && prev) link.setAttribute('href', prev); document.title = prevTitle }
+    return () => { restores.forEach(r => r && r()); document.title = prevTitle }
   }, [])
 
   useEffect(() => {
