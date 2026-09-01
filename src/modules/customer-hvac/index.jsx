@@ -110,15 +110,15 @@ export default function CustomerPortal() {
         <button className="cp-signout" onClick={() => supabase.auth.signOut()}>Sign out</button>
       </header>
       <Routes>
-        <Route path="/portal" element={<CustomerHome customer={customer} properties={properties} />} />
-        <Route path="/portal/records" element={<CustomerRecords customer={customer} properties={properties} />} />
-        <Route path="/portal/equipment" element={<CustomerEquipment />} />
-        <Route path="/portal/schedule" element={<CustomerSchedule />} />
-        <Route path="/portal/book/:type" element={<CustomerBook customer={customer} properties={properties} />} />
-        <Route path="/portal/request/:type" element={<CustomerRequest customer={customer} properties={properties} />} />
-        <Route path="/portal/filters" element={<CustomerFilters customer={customer} properties={properties} />} />
-        <Route path="/portal/profile" element={<CustomerProfile customer={customer} properties={properties} />} />
-        <Route path="/portal/plan" element={<CustomerPlan customer={customer} properties={properties} />} />
+        <Route index element={<CustomerHome customer={customer} properties={properties} />} />
+        <Route path="records" element={<CustomerRecords customer={customer} properties={properties} />} />
+        <Route path="equipment" element={<CustomerEquipment />} />
+        <Route path="schedule" element={<CustomerSchedule />} />
+        <Route path="book/:type" element={<CustomerBook customer={customer} properties={properties} />} />
+        <Route path="request/:type" element={<CustomerRequest customer={customer} properties={properties} />} />
+        <Route path="filters" element={<CustomerFilters customer={customer} properties={properties} />} />
+        <Route path="profile" element={<CustomerProfile customer={customer} properties={properties} />} />
+        <Route path="plan" element={<CustomerPlan customer={customer} properties={properties} />} />
         <Route path="*" element={<Navigate to="/portal" replace />} />
       </Routes>
     </div>
