@@ -961,7 +961,11 @@ export default function TechJobCard({ profile }) {
   }
 
   async function sendGoogleReview() {
-    const link = (job?.customers && 'https://g.page/r/your-google-review') || 'https://g.page/r/your-google-review'
+    // The review link is per-organization (each subscriber has their own Google
+    // page), set in Settings and stored on the org record.
+    const { data: orgRow } = await supabase.from('organizations').select('google_review_url').eq('id', job.org_id).maybeSingle()
+    const link = orgRow?.google_review_url
+    if (!link) { setGoogleMsg('No Google review link is set yet — add one in Settings.'); setTimeout(() => setGoogleMsg(''), 3200); return }
     await supabase.from('job_texts').insert({ org_id: job.org_id, job_id: jobId, to_phone: phoneList[0] || null, body: `Thanks for choosing us! Please leave a review: ${link}`, direction: 'outbound', created_by: uid })
     setGoogleMsg('Review link queued to the customer.'); setTimeout(() => setGoogleMsg(''), 2200)
   }

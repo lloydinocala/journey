@@ -65,6 +65,7 @@ export default function Settings({ profile }) {
   const [bizPhone, setBizPhone] = useState('')
   const [bizEmail, setBizEmail] = useState('')
   const [bizWebsite, setBizWebsite] = useState('')
+  const [googleReviewUrl, setGoogleReviewUrl] = useState('')
   const [licenseNumber, setLicenseNumber] = useState('')
   const [paymentTermsDays, setPaymentTermsDays] = useState('0')
   const [savingBiz, setSavingBiz] = useState(false)
@@ -97,7 +98,7 @@ export default function Settings({ profile }) {
     if (!orgId) return
     const { data } = await supabase
       .from('organizations')
-    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, discount_self_approve, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, license_number, payment_terms_days, logo_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
+    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, discount_self_approve, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, google_review_url, license_number, payment_terms_days, logo_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
       .eq('id', orgId)
       .single()
     if (data) {
@@ -114,6 +115,7 @@ export default function Settings({ profile }) {
       setBizPhone(data.business_phone || '')
       setBizEmail(data.business_email || '')
       setBizWebsite(data.business_website || '')
+      setGoogleReviewUrl(data.google_review_url || '')
       setLicenseNumber(data.license_number || '')
       setPaymentTermsDays(String(data.payment_terms_days))
      setLogoUrl(data.logo_url || '')
@@ -197,6 +199,7 @@ export default function Settings({ profile }) {
         business_phone: bizPhone.trim() || null,
         business_email: bizEmail.trim() || null,
         business_website: bizWebsite.trim() || null,
+        google_review_url: googleReviewUrl.trim() || null,
         license_number: licenseNumber.trim() || null,
         payment_terms_days: parseInt(paymentTermsDays) || 0,
       })
@@ -419,6 +422,11 @@ export default function Settings({ profile }) {
         <div className="field">
           <label htmlFor="bizWebsite">Website</label>
           <input id="bizWebsite" type="text" value={bizWebsite} onChange={(e) => setBizWebsite(e.target.value)} placeholder="www.example.com" />
+        </div>
+        <div className="field">
+          <label htmlFor="googleReviewUrl">Google review link</label>
+          <input id="googleReviewUrl" type="text" value={googleReviewUrl} onChange={(e) => setGoogleReviewUrl(e.target.value)} placeholder="https://g.page/r/…/review" />
+          <span style={{ fontSize: 12, color: 'var(--mist)' }}>Used when a tech sends a customer a review request. Find it in your Google Business Profile under “Ask for reviews”.</span>
         </div>
         <div className="field">
           <label htmlFor="licenseNumber">License #</label>
