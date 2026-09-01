@@ -502,7 +502,7 @@ export default function Organizations() {
                     <button
                       className="logout-button"
                       onClick={() => toggleTools(org)}
-                      title={toolsEnabled[org.id] ? 'Tools Management is granted to this org' : 'Grant the Tools Management module to this org'}
+                      title={toolsEnabled[org.id] ? 'Tools & Office Equipment Management is granted to this org' : 'Grant the Tools & Office Equipment Management module to this org'}
                       style={toolsEnabled[org.id] ? { background: '#1B3A6B', color: '#fff', borderColor: '#1B3A6B' } : undefined}
                     >
                       {toolsEnabled[org.id] ? 'Tools ✓' : 'Tools'}
