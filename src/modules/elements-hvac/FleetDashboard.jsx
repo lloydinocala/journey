@@ -8,10 +8,7 @@ import { listTechnicians } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 import { listPolicies, listDocuments, expiryStatus, docTypeLabel } from './fleetLegalData'
 import { getSettings, lastInspectionsByVehicle, inspectionDue } from './fleetInspectData'
-import AiAssist from '../../AiAssist'
 import QuincyBrief from '../../QuincyBrief'
-
-const FLEET_HEALTH_SYS = 'Summarize the fleet health for an HVAC company manager, using only the provided data. Call out the vehicles that need attention (red first, then amber), why, and the single most important action to take. Include compliance items such as insurance or registration expirations and inspections due. Be specific with vehicle names. Under 8 short lines. No headers.'
 
 const pillColor = (state) => (state === 'overdue' ? FLAG_COLORS.red : state === 'due_soon' ? FLAG_COLORS.amber : '#16A34A')
 
@@ -84,16 +81,13 @@ export default function FleetDashboard({ profile }) {
         <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
       </div>
       <OrgBar {...org} />
-      <div style={{ margin: '12px 0 16px' }}><QuincyBrief org={org.selectedOrg} /></div>
-
-      <div style={{ marginBottom: 18 }}>
-        <AiAssist inline title="Fleet health summary" label="✨ AI: this week's fleet summary"
-          system={FLEET_HEALTH_SYS}
-          prompt="Summarize the fleet's health this week: which vehicles need attention and why, and what to do first."
-          context={{
-            vehicles: rows.map((r) => ({ name: r.vehicle.name, odometer: r.latestOdometer, lastMpg: r.lastMpg, redFlags: r.redFlags, amberFlags: r.amberFlags, flags: (r.flags || []).map((f) => f.label) })),
-            compliance: compliance.map((c) => c.label),
-          }} />
+      <div style={{ margin: '12px 0 18px' }}>
+        <QuincyBrief kind="fleet" context={{
+          totalRedFlags: totalRed + compRed,
+          totalAmberFlags: totalAmber + compAmber,
+          vehicles: rows.map((r) => ({ name: r.vehicle.name, odometer: r.latestOdometer, lastMpg: r.lastMpg, redFlags: r.redFlags, amberFlags: r.amberFlags, flags: (r.flags || []).map((f) => f.label) })),
+          compliance: compliance.map((c) => c.label),
+        }} />
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>

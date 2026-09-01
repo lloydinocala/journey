@@ -128,7 +128,19 @@ export default function ElementsInventory({ profile }) {
         <button className="logout-button" style={{ margin: 0 }} disabled={loading} onClick={load}>{loading ? 'Loading…' : 'Refresh'}</button>
       </div>
       <OrgBar {...org} />
-      <div style={{ margin: '12px 0 16px' }}><QuincyBrief org={org.selectedOrg} /></div>
+      <div style={{ margin: '12px 0 16px' }}>
+        <QuincyBrief kind="inventory" context={{
+          lowStock: m ? m.lowStock : 0,
+          openPurchaseOrders: m ? m.openPoCount : 0,
+          nextDeliveryDate: m ? m.openPoNext : null,
+          openPoValue: m ? m.openPoValue : 0,
+          inventoryValue: m ? m.valValue : 0,
+          partsInStock: m ? m.valParts : 0,
+          variance90dNet: m ? m.varNet : 0,
+          varianceExceptions90d: m ? m.varCount : 0,
+          trucks: stats.trucks, warehouses: stats.warehouses, totalParts: stats.items, mappedServices: stats.mapped,
+        }} />
+      </div>
       <DisabledNotice enabled={stats.enabled} />
 
       {/* At a glance — the four reports */}
