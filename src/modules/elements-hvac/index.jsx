@@ -27,6 +27,9 @@ import FleetRepairs from './FleetRepairs'
 import FleetRoutes from './FleetRoutes'
 import FleetInspections from './FleetInspections'
 import FleetInsurance from './FleetInsurance'
+import ToolsDashboard from './ToolsDashboard'
+import ToolsCatalog from './ToolsCatalog'
+import ToolMaintenance from './ToolMaintenance'
 
 // Each entry rendered in App.jsx as <Route path element={<Component profile={profile} />} />
 export const ELEMENTS_ROUTES = [
@@ -105,16 +108,20 @@ export const ELEMENTS_FLEET_NAV = {
   ],
 }
 
-// Assets Management — umbrella nav grouping Inventory + Fleet under one section.
-// Sub-headers keep each area visually distinct within the single panel.
-export const ASSETS_NAV = {
-  key: 'assets',
-  label: 'Assets Management',
+// Tools (Module 3) — optional module for subscribers who track durable tools.
+// Same self-contained pattern; gated by the tools_settings.enabled entitlement.
+export const TOOLS_ROUTES = [
+  { path: '/tools', Component: ToolsDashboard },
+  { path: '/tools/catalog', Component: ToolsCatalog },
+  { path: '/tools/maintenance', Component: ToolMaintenance },
+]
+
+export const TOOLS_NAV = {
+  key: 'tools',
+  label: 'Tools Management',
   items: [
-    { label: 'Assets Dashboard', path: '/assets' },
-    { header: 'Inventory Management' },
-    ...ELEMENTS_NAV.items,
-    { header: 'Fleet Management' },
-    ...ELEMENTS_FLEET_NAV.items,
+    { label: 'Tools Dashboard', path: '/tools' },
+    { label: 'Tool Catalog', path: '/tools/catalog' },
+    { label: 'Maintenance', path: '/tools/maintenance' },
   ],
 }
