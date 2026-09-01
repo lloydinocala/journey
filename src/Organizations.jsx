@@ -33,6 +33,7 @@ export default function Organizations() {
   const [entitled, setEntitled] = useState({})   // Elements-HVAC entitlement by org_id
   const [hrEntitled, setHrEntitled] = useState({})        // HR module entitlement by org_id
   const [payrollEntitled, setPayrollEntitled] = useState({})   // Payroll module entitlement by org_id
+  const [toolsEnabled, setToolsEnabled] = useState({})    // Tools Management module entitlement by org_id
   const [statusFilter, setStatusFilter] = useState('current')
 
   const [loading, setLoading] = useState(true)
@@ -117,6 +118,10 @@ export default function Organizations() {
       prMap[r.org_id] = !!(r.payroll_entitled ?? r.entitled)
     })
     setHrEntitled(hrMap); setPayrollEntitled(prMap)
+    const { data: ts } = await supabase.from('tools_settings').select('org_id, enabled')
+    const toolsMap = {}
+    ;(ts || []).forEach((r) => { toolsMap[r.org_id] = !!r.enabled })
+    setToolsEnabled(toolsMap)
     setLoading(false)
   }
 
@@ -141,6 +146,14 @@ export default function Organizations() {
     await supabase
       .from('rewards_settings')
       .upsert({ org_id: org.id, payroll_entitled: !now, updated_at: new Date().toISOString() }, { onConflict: 'org_id' })
+    loadOrgs()
+  }
+
+  async function toggleTools(org) {
+    const now = !!toolsEnabled[org.id]
+    await supabase
+      .from('tools_settings')
+      .upsert({ org_id: org.id, enabled: !now, updated_at: new Date().toISOString() }, { onConflict: 'org_id' })
     loadOrgs()
   }
 
@@ -485,6 +498,14 @@ export default function Organizations() {
                       style={payrollEntitled[org.id] ? { background: '#1B3A6B', color: '#fff', borderColor: '#1B3A6B' } : undefined}
                     >
                       {payrollEntitled[org.id] ? 'Payroll ✓' : 'Payroll'}
+                    </button>
+                    <button
+                      className="logout-button"
+                      onClick={() => toggleTools(org)}
+                      title={toolsEnabled[org.id] ? 'Tools Management is granted to this org' : 'Grant the Tools Management module to this org'}
+                      style={toolsEnabled[org.id] ? { background: '#1B3A6B', color: '#fff', borderColor: '#1B3A6B' } : undefined}
+                    >
+                      {toolsEnabled[org.id] ? 'Tools ✓' : 'Tools'}
                     </button>
                     {org.billing_status === 'canceled' ? (
                       <button className="logout-button" onClick={() => reinstateOrg(org)}>Reinstate</button>

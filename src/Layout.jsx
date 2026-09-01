@@ -6,7 +6,7 @@ import AnnouncementBanner from './AnnouncementBanner'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
 import HelpDrawer from './HelpDrawer'
-import { ASSETS_NAV } from './modules/elements-hvac'
+import { ELEMENTS_NAV, ELEMENTS_FLEET_NAV, TOOLS_NAV } from './modules/elements-hvac'
 import { REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV } from './modules/rewards-hvac'
 import { MARKETING_NAV } from './modules/marketing-hvac'
 
@@ -68,8 +68,9 @@ const DASH_BY_KEY = {
   operations: '/operations',
   financials: '/financials',
   admin: '/admin',
-  assets: '/assets',
   elements: '/elements',
+  fleet: '/fleet',
+  tools: '/tools',
   rewards: '/rewards',
   'rewards-payroll': '/rewards/payroll',
   marketing: '/marketing',
@@ -90,7 +91,9 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/maintenance-tiers') || pathname.startsWith('/maintenance-dashboard')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
-  if (pathname.startsWith('/assets') || pathname.startsWith('/elements') || pathname.startsWith('/fleet')) return 'assets'
+  if (pathname.startsWith('/elements')) return 'elements'
+  if (pathname.startsWith('/fleet')) return 'fleet'
+  if (pathname.startsWith('/tools')) return 'tools'
   if (pathname.startsWith('/rewards/payroll')) return 'rewards-payroll'
   if (pathname.startsWith('/rewards/certified')) return 'rewards-cert'
   if (pathname.startsWith('/rewards')) return 'rewards'
@@ -113,7 +116,11 @@ export default function Layout({ profile }) {
   const showHR = notTech && (isSuperAdmin || profile?.hrEntitled)
   const showPayroll = notTech && (isSuperAdmin || profile?.payrollEntitled || profile?.hrEntitled)
   // Assets Management umbrella — Inventory + Fleet nested under one section.
-  const withElements = showElements ? [...CATEGORIES, ASSETS_NAV] : CATEGORIES
+  // Inventory + Fleet are core (any non-tech office role). Tools is an optional
+  // module, gated by entitlement like Marketing. Each is its own nav unit now.
+  const showTools = notTech && (isSuperAdmin || profile?.toolsEntitled)
+  const withInvFleet = showElements ? [...CATEGORIES, ELEMENTS_NAV, ELEMENTS_FLEET_NAV] : CATEGORIES
+  const withElements = showTools ? [...withInvFleet, TOOLS_NAV] : withInvFleet
   const withHR = showHR ? [...withElements, REWARDS_HR_NAV] : withElements
   // Payroll staff work the employee pay/tax profile too, so surface Employees at
   // the top of the Payroll section whenever Payroll is shown (essential for

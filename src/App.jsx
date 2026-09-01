@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { loadOrgTz } from './utils/tz'
 import { loadPermissions, can } from './utils/permissions'
-import AssetsDashboard from './AssetsDashboard'
 import PartsCatalog from './PartsCatalog'
 import PartsCatalogImport from './PartsCatalogImport'
 import VendorPriceImport from './VendorPriceImport'
@@ -84,7 +83,7 @@ import TechCycleCounts from './TechCycleCounts'
 import TechManual from './TechManual'
 // Elements · Inventory retired in favor of the native Parts Catalog module.
 // Fleet remains. (ELEMENTS_ROUTES intentionally no longer rendered.)
-import { ELEMENTS_ROUTES, ELEMENTS_FLEET_ROUTES } from './modules/elements-hvac'
+import { ELEMENTS_ROUTES, ELEMENTS_FLEET_ROUTES, TOOLS_ROUTES } from './modules/elements-hvac'
 import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES, MyPortal, HrEmployees } from './modules/rewards-hvac'
 import { MARKETING_ROUTES } from './modules/marketing-hvac'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
@@ -146,7 +145,7 @@ function AuthenticatedApp() {
           supabase.auth.signOut()
           return
         }
-        const [permsRes, elemRes, rewardsRes, mktRes, effPerms] = await Promise.all([
+        const [permsRes, elemRes, rewardsRes, mktRes, toolsRes, effPerms] = await Promise.all([
           supabase.from('user_permissions').select('permission_key').eq('user_id', session.user.id),
           userRes.data.org_id
             ? supabase.from('elements_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
@@ -156,6 +155,9 @@ function AuthenticatedApp() {
             : Promise.resolve({ data: null }),
           userRes.data.org_id
             ? supabase.from('marketing_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
+            : Promise.resolve({ data: null }),
+          userRes.data.org_id
+            ? supabase.from('tools_settings').select('enabled').eq('org_id', userRes.data.org_id).maybeSingle()
             : Promise.resolve({ data: null }),
           loadPermissions(session.user.id, userRes.data.org_id),
         ])
@@ -175,6 +177,7 @@ function AuthenticatedApp() {
           hrEntitled: !!(rewardsRes?.data?.hr_entitled ?? rewardsRes?.data?.entitled),
           payrollEntitled: !!(rewardsRes?.data?.payroll_entitled ?? rewardsRes?.data?.entitled),
           marketingEntitled: !!mktRes?.data?.entitled,   // Marketing-HVAC subscription gate
+          toolsEntitled: !!toolsRes?.data?.enabled,      // Tools Management module gate (optional)
         })
       })
   }, [session])
@@ -269,12 +272,15 @@ function AuthenticatedApp() {
         <Route path="/financials" element={<FinancialsDash profile={profile} />} />
         <Route path="/admin" element={<AdminDash profile={profile} />} />
         <Route path="/operations" element={<OperationsDashboard profile={profile} />} />
-       <Route path="/assets" element={<AssetsDashboard profile={profile} />} />
         <Route path="/warranty-registrations" element={<WarrantyRegistrations profile={profile} />} />
         <Route path="/new-followup-estimate" element={<NewFollowupEstimate profile={profile} />} />
         <Route path="/invoices" element={<Invoices profile={profile} />} />
        {/* Inventory & Fleet Management — standard for all non-tech users */}
        {profile.role !== 'tech' && [...ELEMENTS_ROUTES, ...ELEMENTS_FLEET_ROUTES].map((r) => (
+          <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
+        ))}
+        {/* Tools Management — optional module, gated by entitlement */}
+        {(profile.role === 'super_admin' || profile.toolsEntitled) && TOOLS_ROUTES.map((r) => (
           <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
         ))}
         {/* Human Resources — full module. HR implies payroll access (superset). */}
