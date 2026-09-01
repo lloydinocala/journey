@@ -19,7 +19,7 @@ import { investigateProps } from './investigate'
 
 const SECTIONS = [
   ['Operations', '/operations'], ['Financials', '/financials'], ['Admin', '/admin'],
-  ['Assets', '/assets'], ['Inventory', '/elements'], ['Fleet', '/fleet'],
+  ['Inventory', '/elements'], ['Fleet', '/fleet'], ['Tools', '/tools'],
   ['Marketing', '/marketing'], ['HR', '/rewards'], ['Payroll', '/rewards/payroll'],
 ]
 
