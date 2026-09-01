@@ -9,6 +9,7 @@ import {
   listReplenishment, listPurchaseOrders, valuation, variance,
 } from './data'
 import { useOrgSelector, OrgBar, EnabledPill, DisabledNotice } from './shared'
+import QuincyBrief from '../../QuincyBrief'
 
 const money0 = (n) => (n == null || isNaN(n) ? '—' : `$${Math.round(Number(n)).toLocaleString()}`)
 const signed0 = (n) => {
@@ -127,6 +128,7 @@ export default function ElementsInventory({ profile }) {
         <button className="logout-button" style={{ margin: 0 }} disabled={loading} onClick={load}>{loading ? 'Loading…' : 'Refresh'}</button>
       </div>
       <OrgBar {...org} />
+      <div style={{ margin: '12px 0 16px' }}><QuincyBrief org={org.selectedOrg} /></div>
       <DisabledNotice enabled={stats.enabled} />
 
       {/* At a glance — the four reports */}
