@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../utils/supabase'
+import QuincyBrief from '../../QuincyBrief'
 import './marketing.css'
 
 export default function MarketingCommand({ profile }) {
@@ -41,6 +42,8 @@ export default function MarketingCommand({ profile }) {
         <h2>Command Center</h2>
         <p>Every channel and dollar measured against real booked revenue — pulled from Journey jobs, not vanity metrics.</p>
       </div>
+
+      <div style={{ margin: '4px 0 16px' }}><QuincyBrief org={orgId} /></div>
 
       {!m ? <p className="muted">Loading…</p> : (
         <>
