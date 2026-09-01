@@ -17,7 +17,7 @@ function SectionDash({ title, subtitle, intro, links, planned, tone = NAVY, org 
         <h2 className="page-title" style={{ margin: 0 }}>{title}</h2>
         <div style={{ color: C.mist, fontSize: 13 }}>{subtitle}</div>
       </div>
-      {org && <div style={{ margin: '14px 0 4px' }}><QuincyBrief org={org} /></div>}
+      <div style={{ margin: '14px 0 4px' }}><QuincyBrief org={org} /></div>
       {intro && <p style={{ color: C.mist, fontSize: 13.5, maxWidth: 760, margin: '14px 0 22px' }}>{intro}</p>}
 
       {links && links.length > 0 && (

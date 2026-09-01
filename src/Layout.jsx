@@ -48,14 +48,9 @@ const CATEGORIES = [
     { label: 'Sign-In Log', path: '/session-log' },
     { label: 'Settings', path: '/settings' },
   ]},
-  { key: 'import', label: 'Bulk Import', items: [
-    { label: 'Import Customers', path: '/import/customers' },
-    { label: 'Import Properties', path: '/import/properties' },
-    { label: 'Import Jobs', path: '/import/jobs' },
-    { label: 'Import Services Pricebook', path: '/import/services-pricebook' },
-    { label: 'Import Systems Pricebook', path: '/import/systems-pricebook' },
-    { label: 'Import Vendor Price File', path: '/import/vendor-prices' },
-  ]},
+  // Bulk Import is now a tile dashboard (/import). Clicking the rail entry opens it;
+  // the individual import tools live as cards there instead of a long nav dropdown.
+  { key: 'import', label: 'Bulk Import', items: [] },
 ]
 
 const PLATFORM_CATEGORY = { key: 'platform', label: 'Platform', items: [
@@ -78,6 +73,7 @@ const DASH_BY_KEY = {
   rewards: '/rewards',
   'rewards-payroll': '/rewards/payroll',
   marketing: '/marketing',
+  import: '/import',
 }
 // Sub-section headers inside a panel that have their own dashboard, so the
 // Inventory and Fleet titles under Assets Management are clickable too.
@@ -269,7 +265,7 @@ export default function Layout({ profile }) {
           <button className="rail-item" onClick={handleLogout}>Sign out</button>
         </div>
 
-        {activeCategoryData && (
+        {activeCategoryData && activeCategoryData.items.length > 0 && (
           <div className="sidebar-panel">
             <h3>{activeCategoryData.label}</h3>
             {activeCategoryData.items.filter((item) => !item.perm || isSuperAdmin || can(profile, item.perm)).map((item) => (

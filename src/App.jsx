@@ -59,6 +59,7 @@ import OrgHome from './OrgHome'
 import WarrantyRegistrations from './WarrantyRegistrations'
 import SessionLog from './SessionLog'
 import CustomerImport from './CustomerImport'
+import ImportDashboard from './ImportDashboard'
 import PricebookImport from './PricebookImport'
 import EquipmentImport from './EquipmentImport'
 import PropertyImport from './PropertyImport'
@@ -237,6 +238,7 @@ function AuthenticatedApp() {
         <Route path="/on-call" element={<OnCallSchedule profile={profile} />} />
         <Route path="/roles" element={<RolesConfig profile={profile} />} />
         <Route path="/session-log" element={<SessionLog profile={profile} />} />
+        <Route path="/import" element={<ImportDashboard />} />
         <Route path="/import/customers" element={<CustomerImport profile={profile} />} />
         <Route path="/import/properties" element={<PropertyImport profile={profile} />} />
         <Route path="/import/jobs" element={<JobImport profile={profile} />} />
