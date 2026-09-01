@@ -321,16 +321,21 @@ function AuthenticatedApp() {
   )
 }
 
+// Domains dedicated to the homeowner portal. On these, the bare address (and any
+// non-portal path) serves the customer portal, never the staff app — so the two
+// live on separate origins and phones treat them as separate installed apps.
+const PORTAL_HOSTS = ['portal.journey-hvac.app', 'air-careconnect.app']
+
 export default function App() {
+  const isPortalHost = typeof window !== 'undefined' && PORTAL_HOSTS.includes(window.location.hostname)
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/view-invoice/:invoiceId" element={<PublicInvoice />} />
         <Route path="/join-plan/:propertyId" element={<JoinPlan />} />
         <Route path="/portal/*" element={<CustomerPortal />} />
-        <Route path="*" element={<AuthenticatedApp />} />
+        <Route path="*" element={isPortalHost ? <Navigate to="/portal" replace /> : <AuthenticatedApp />} />
       </Routes>
     </BrowserRouter>
   )
 }
-
