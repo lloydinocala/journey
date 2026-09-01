@@ -99,14 +99,14 @@
 .cp-step button:active{background:#EAF3FC}
 .cp-step .cp-qty{min-width:38px;text-align:center;font-weight:800;font-size:15px}
 /* login — full sky */
-.cp-login{position:relative;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+.cp-login{position:relative;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
   background:#BFE0F5 url("/portal-sky.jpg") center/cover no-repeat;padding:26px;text-align:center}
 .cp-login::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(79,149,217,.12),rgba(255,255,255,.35))}
 .cp-login>*{position:relative}
 .cp-login .cp-apptitle{font-size:32px;font-weight:800;color:#FFFFFF;letter-spacing:-.5px;line-height:1.12;text-shadow:0 2px 16px rgba(11,58,99,.6)}
 .cp-login .cp-hero-tag{color:#0B3A63;font-weight:800;font-size:14px;margin-top:8px;line-height:1.5;text-shadow:0 1px 8px rgba(255,255,255,.7)}
-.cp-login .cp-box{background:#FFFFFF;color:var(--ink);border-radius:22px;padding:24px;width:100%;max-width:380px;margin-top:22px;box-shadow:0 12px 40px rgba(47,121,196,.28)}
-.cp-hero-img{position:absolute;bottom:0;left:max(0px,calc(50% - 230px));height:75dvh;width:auto;object-fit:contain;object-position:left bottom;pointer-events:none}
+.cp-login .cp-box{background:#FFFFFF;color:var(--ink);border-radius:22px;padding:24px;width:100%;max-width:380px;margin-top:auto;box-shadow:0 12px 40px rgba(47,121,196,.28)}
+.cp-hero-img{position:absolute;bottom:0;left:max(0px,calc(50% - 230px));height:80dvh;width:auto;object-fit:contain;object-position:left bottom;pointer-events:none}
 .cp-taglist{list-style:none;padding:0;margin:18px 0 0;display:flex;flex-direction:column;gap:5px;text-align:center}
 .cp-taglist li{color:#2F79C4;font-weight:800;font-size:14.5px;text-shadow:0 1px 6px rgba(255,255,255,.7)}
 .cp-tagsum{color:#2F79C4;font-weight:800;font-size:14.5px;margin-top:8px;letter-spacing:.2px;text-shadow:0 1px 6px rgba(255,255,255,.7)}
