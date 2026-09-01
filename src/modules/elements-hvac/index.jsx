@@ -122,7 +122,7 @@ export const TOOLS_ROUTES = [
 
 export const TOOLS_NAV = {
   key: 'tools',
-  label: 'Tools Management',
+  label: 'Tools & Office Equipment Management',
   items: [
     { label: 'Tools Dashboard', path: '/tools' },
     { label: 'Tool Catalog', path: '/tools/catalog' },

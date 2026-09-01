@@ -83,7 +83,7 @@ export default function ToolsDashboard({ profile }) {
 
       {!enabled && (
         <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', padding: '10px 14px', borderRadius: 10, marginBottom: 18, fontSize: 14 }}>
-          Tools Management is currently <strong>disabled</strong> for this organization.{' '}
+          Tools &amp; Office Equipment Management is currently <strong>disabled</strong> for this organization.{' '}
           <button onClick={toggleEnabled} disabled={savingEnable} style={{ color: '#9A3412', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
             {savingEnable ? 'Enabling…' : 'Enable it'}
           </button>{' '}to start tracking tools.
