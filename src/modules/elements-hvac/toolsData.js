@@ -115,8 +115,9 @@ export async function listToolMaintenance(orgId, { openOnly = false, toolId = nu
   return data || []
 }
 // Send a tool to the shop for maintenance: opens a record and moves it in_maintenance.
-export async function sendToMaintenance(orgId, toolId, description) {
-  await supabase.from('tool_maintenance').insert({ org_id: orgId, tool_id: toolId, description: description || null })
+// expectedReturn (YYYY-MM-DD) is the anticipated return-to-service date, optional.
+export async function sendToMaintenance(orgId, toolId, description, expectedReturn = null) {
+  await supabase.from('tool_maintenance').insert({ org_id: orgId, tool_id: toolId, description: description || null, expected_return_date: expectedReturn || null })
   const now = new Date().toISOString()
   const { data: open } = await supabase.from('tool_assignments').select('id, holder_type').eq('org_id', orgId).eq('tool_id', toolId).is('ended_at', null).maybeSingle()
   if (open && open.holder_type !== 'shop') await supabase.from('tool_assignments').update({ ended_at: now }).eq('id', open.id)
@@ -125,6 +126,11 @@ export async function sendToMaintenance(orgId, toolId, description) {
   }
   return supabase.from('tools').update({ status: 'in_maintenance', holder_type: 'shop', holder_id: null, needs_maintenance: true }).eq('id', toolId)
 }
+// Set or clear the anticipated return-to-service date on an open maintenance record.
+export async function setExpectedReturn(maintId, dateStr) {
+  return supabase.from('tool_maintenance').update({ expected_return_date: dateStr || null }).eq('id', maintId)
+}
+
 // Verify the fix: closes the record, clears the flag, tool returns to in_shop (redeployable).
 export async function resolveMaintenance(orgId, maintId, toolId, { verified_by = null, cost = null, notes = null } = {}) {
   const now = new Date().toISOString()
@@ -143,11 +149,25 @@ export async function toolsDashboardData(orgId) {
   const inMaintenance = tools.filter((t) => t.status === 'in_maintenance').length
   const flagged = tools.filter((t) => t.needs_maintenance)
   const totalCost = tools.reduce((s, t) => s + (Number(t.cost) || 0), 0)
+  // Follow-up needed: an open maintenance record whose anticipated return date has
+  // passed and the tool still isn't marked returned (resolved).
+  const today = new Date().toISOString().slice(0, 10)
+  const byTool = Object.fromEntries(tools.map((t) => [t.id, t]))
+  const followUp = openMaint
+    .filter((m) => m.expected_return_date && m.expected_return_date < today)
+    .map((m) => ({
+      id: m.id, toolId: m.tool_id,
+      label: byTool[m.tool_id] ? toolLabel(byTool[m.tool_id], tools) : 'Tool',
+      expected: m.expected_return_date,
+      daysLate: Math.max(0, Math.round((new Date(today) - new Date(m.expected_return_date)) / 86400000)),
+    }))
   return {
     total: tools.length, inShop, assigned, inMaintenance,
     flaggedCount: flagged.length,
     flagged: flagged.map((t) => ({ id: t.id, label: toolLabel(t, tools), status: t.status })),
     openMaintenanceCount: openMaint.length,
+    followUpCount: followUp.length,
+    followUp,
     totalCost: Math.round(totalCost),
     tools,
   }

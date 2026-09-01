@@ -70,6 +70,8 @@ export default function ToolsDashboard({ profile }) {
           inMaintenance: d ? d.inMaintenance : 0,
           flaggedNeedsMaintenance: d ? d.flaggedCount : 0,
           openMaintenanceRecords: d ? d.openMaintenanceCount : 0,
+          followUpNeeded_pastAnticipatedReturn: d ? d.followUpCount : 0,
+          followUpTools: d ? d.followUp.map((f) => ({ tool: f.label, expectedReturn: f.expected, daysLate: f.daysLate })) : [],
         }} />
       </div>
 
@@ -89,6 +91,7 @@ export default function ToolsDashboard({ profile }) {
         <Metric to="/tools/catalog" label="On trucks / techs" value={loading && !d ? '…' : String(d ? d.assigned : 0)} sub="currently assigned" accent="#1B3A6B" />
         <Metric to="/tools/maintenance" label="Needs maintenance" value={loading && !d ? '…' : String(d ? d.flaggedCount : 0)} sub={flaggedAlert ? 'flagged on inspection' : 'all clear'} accent={flaggedAlert ? '#B00020' : '#0B7A3B'} alert={flaggedAlert} />
         <Metric to="/tools/maintenance" label="In maintenance" value={loading && !d ? '…' : String(d ? d.inMaintenance : 0)} sub="in the shop for repair" accent={d && d.inMaintenance > 0 ? '#B8720A' : '#132A4C'} />
+        <Metric to="/tools/maintenance" label="Follow-up needed" value={loading && !d ? '…' : String(d ? d.followUpCount : 0)} sub={d && d.followUpCount > 0 ? 'past anticipated return' : 'none overdue'} accent={d && d.followUpCount > 0 ? '#B00020' : '#0B7A3B'} alert={!!d && d.followUpCount > 0} />
       </div>
 
       {/* Value on hand (plain total cost; bookkeeping handles depreciation) */}
@@ -98,6 +101,21 @@ export default function ToolsDashboard({ profile }) {
           <div style={{ fontSize: 12, color: 'var(--mist)' }}>Total purchase cost on hand</div>
         </div>
       </div>
+
+      {/* Follow-up needed — past anticipated return-to-service date */}
+      {d && d.followUp.length > 0 && (
+        <div style={{ border: '1px solid #E3B0B0', background: '#FCEFEF', borderRadius: 12, padding: 16, marginBottom: 24 }}>
+          <div style={{ fontWeight: 800, color: '#B00020', marginBottom: 8 }}>Follow-up needed — overdue return to service</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {d.followUp.map((f) => (
+              <div key={f.id} style={{ fontSize: 14 }}>
+                {f.label} <span style={{ color: 'var(--mist)' }}>· due back {new Date(f.expected).toLocaleDateString()} · {f.daysLate} day{f.daysLate === 1 ? '' : 's'} late</span>
+              </div>
+            ))}
+          </div>
+          <Link to="/tools/maintenance" style={{ color: '#B00020', fontWeight: 700, fontSize: 13, marginTop: 10, display: 'inline-block' }}>Go to Maintenance →</Link>
+        </div>
+      )}
 
       {/* Flagged list */}
       {d && d.flagged.length > 0 && (

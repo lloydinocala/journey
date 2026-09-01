@@ -3,8 +3,10 @@
 // open work record. A tool can't be redeployed until its repair is verified here.
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { listTools, listToolMaintenance, sendToMaintenance, resolveMaintenance, toolLabel } from './toolsData'
+import { listTools, listToolMaintenance, sendToMaintenance, resolveMaintenance, setExpectedReturn, toolLabel } from './toolsData'
 import { useOrgSelector, OrgBar } from './shared'
+
+const todayStr = () => new Date().toISOString().slice(0, 10)
 
 export default function ToolMaintenance({ profile }) {
   const org = useOrgSelector(profile)
@@ -32,6 +34,9 @@ export default function ToolMaintenance({ profile }) {
 
   async function pullToShop(t) {
     setBusy(true); await sendToMaintenance(org.selectedOrg, t.id, 'Flagged on inspection'); setBusy(false); load()
+  }
+  async function saveReturn(rec, val) {
+    setBusy(true); await setExpectedReturn(rec.id, val || null); setBusy(false); load()
   }
   function startVerify(t) {
     setVerifyId(t.id); setVerifyForm({ cost: '', notes: '' })
@@ -63,7 +68,9 @@ export default function ToolMaintenance({ profile }) {
       <OrgBar {...org} />
 
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0, maxWidth: 760 }}>
-        Tools flagged on inspection or sent to the shop show here. Record the repair and{' '}
+        Tools flagged on inspection or sent to the shop show here. Set an{' '}
+        <strong>Anticipated return to service</strong> date; if the tool isn&apos;t returned by then it&apos;s flagged as
+        a follow-up here and on the Tools Dashboard. Record the repair and{' '}
         <strong>Verify &amp; return to shop</strong> — only then is the tool cleared to redeploy from the{' '}
         <Link to="/tools/catalog">Tool Catalog</Link>.
       </p>
@@ -72,16 +79,30 @@ export default function ToolMaintenance({ profile }) {
         <div style={{ color: '#166534', fontWeight: 600, fontSize: 14, marginTop: 12 }}>Nothing in the shop — every tool is in good standing.</div>
       ) : (
         <table className="data-table">
-          <thead><tr><th>Tool</th><th>Status</th><th>Reported issue</th><th>Since</th><th></th></tr></thead>
+          <thead><tr><th>Tool</th><th>Status</th><th>Reported issue</th><th>Anticipated return</th><th>Since</th><th></th></tr></thead>
           <tbody>
             {queue.map((t) => {
               const rec = openFor(t.id)
               const inShopForRepair = t.status === 'in_maintenance'
+              const overdue = rec && rec.expected_return_date && rec.expected_return_date < todayStr()
               return (
-                <tr key={t.id}>
+                <tr key={t.id} style={overdue ? { background: '#FCEFEF' } : undefined}>
                   <td><strong>{toolLabel(t, tools)}</strong>{t.brand ? <span style={{ color: 'var(--mist)' }}> · {t.brand}</span> : ''}</td>
-                  <td>{inShopForRepair ? 'In shop for repair' : <span style={{ color: '#B00020', fontWeight: 600 }}>Flagged — still deployed</span>}</td>
+                  <td>
+                    {inShopForRepair ? 'In shop for repair' : <span style={{ color: '#B00020', fontWeight: 600 }}>Flagged — still deployed</span>}
+                    {overdue && <div><span className="badge" style={{ background: '#B00020', color: '#fff', marginTop: 4 }}>Follow-up needed</span></div>}
+                  </td>
                   <td style={{ color: 'var(--mist)' }}>{rec?.description || (t.needs_maintenance ? 'Flagged on inspection' : '—')}</td>
+                  <td>
+                    {rec ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <input type="date" value={rec.expected_return_date || ''} disabled={busy}
+                          onChange={(e) => saveReturn(rec, e.target.value)}
+                          style={overdue ? { borderColor: '#B00020', color: '#B00020', fontWeight: 600 } : undefined} />
+                        {overdue && <span style={{ fontSize: 11, color: '#B00020' }}>Past due — not yet returned</span>}
+                      </div>
+                    ) : <span style={{ color: 'var(--mist)', fontSize: 12 }}>Pull to shop to set</span>}
+                  </td>
                   <td style={{ color: 'var(--mist)' }}>{rec ? new Date(rec.opened_at).toLocaleDateString() : '—'}</td>
                   <td>
                     {verifyId === t.id ? (
