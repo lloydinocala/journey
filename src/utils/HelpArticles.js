@@ -862,6 +862,93 @@ export const HELP_ARTICLES = [
       { h: 'Good to know', body: 'Purchases received against a PO are tagged with the PO number, so you can trace any line of spend back to its order.' },
     ],
   },
+
+  // ===== Human Resources =====
+  {
+    id: 'hr',
+    title: 'Human Resources',
+    area: 'Human Resources',
+    keywords: ['hr', 'human resources', 'employee', 'employees', 'headcount', 'hiring', 'onboarding', 'discipline', 'separation', 'termination', 'certification', 'license', 'skills', 'scorecard', 'documents', 'time off', 'pto', 'compliance'],
+    purpose: 'The people module — headcount, a compliance watchdog for expiring certifications and licenses, and the full employee lifecycle from hire to separation. It’s a paid add-on; turn it on in HR Settings.',
+    sections: [
+      { h: 'The pieces', items: [
+        'HR Dashboard — headcount, tracked certifications, and open compliance flags at a glance, with a QuincyAI briefing.',
+        'Employees — the people record: contact, role, pay/tax profile, and history.',
+        'Job Descriptions, Hiring, and Onboarding — define roles, track applicants, and run new-hire checklists.',
+        'Discipline and Separations — document write-ups and offboarding, so there’s a clean record.',
+        'Certifications & Licenses and the Skills Matrix — who holds what (EPA 608, NATE, driver’s licenses) and who can do what.',
+        'Scorecards, Documents, and Time Off — performance metrics, stored HR files, and PTO requests and balances.',
+      ]},
+      { h: 'The compliance watchdog', body: 'The dashboard flags expiring or expired certifications and licenses and any open compliance items, most urgent first. The same certification records back the EPA-cert check on the Refrigerant Usage Log — so keeping HR current pays off across the app.' },
+      { h: 'Good to know', body: 'HR is the fuller module and implies Payroll access. Turn it on and set defaults in HR Settings before entering people.' },
+    ],
+  },
+  {
+    id: 'payroll',
+    title: 'Payroll',
+    area: 'Payroll',
+    keywords: ['payroll', 'pay', 'paycheck', 'gross', 'net', 'taxes', 'set aside', 'withholding', 'prepare payroll', 'deductions', 'benefits', 'workers comp', 'tax center', 'classification', 'w-2', '1099', 'year end', 'state rules'],
+    purpose: 'Run payroll from recorded hours and always know the taxes to set aside. Payroll can stand alone for smaller shops or comes included with HR.',
+    sections: [
+      { h: 'How it flows', items: [
+        'Payroll Dashboard — the most recent runs (checks, gross, net) and the tax to set aside, grouped by week.',
+        'Prepare Payroll — build a run from captured hours, review each employee, and generate the checks.',
+        'Paychecks — the register of checks produced, with details per employee.',
+        'Tax Center and Year-End — payroll taxes owed and the W-2 / 1099 wrap-up.',
+      ]},
+      { h: 'Setup that drives the math', items: [
+        'Benefits & Deductions — pre- and post-tax items that adjust each check.',
+        'Workers’ Comp — class codes and rates for the comp premium.',
+        'Classification Check and State Rules — employee-vs-contractor sanity checks and the state-specific withholding rules.',
+      ]},
+      { h: 'Good to know', body: 'Hours come from Time Clock via Payroll Capture. The set-aside figure is what to reserve for taxes on each run — not a filing; taxes are still remitted through your tax service or accountant.' },
+    ],
+  },
+  {
+    id: 'certified-payroll',
+    title: 'Certified Payroll (Prevailing Wage)',
+    area: 'Payroll',
+    keywords: ['certified payroll', 'prevailing wage', 'davis-bacon', 'davis bacon', 'wh-347', 'statement of compliance', 'classification', 'wage determination', 'government', 'public works', 'project'],
+    purpose: 'Weekly certified payroll for prevailing-wage (Davis-Bacon) government jobs — per-worker hours by classification, auto-priced from the wage determination, producing the WH-347 and Statement of Compliance.',
+    sections: [
+      { h: 'How to use it', items: [
+        'Projects — set up each public-works project and attach its wage determination.',
+        'Prevailing Wage — the classifications and wage/fringe rates the hours are priced against.',
+        'Certified Payroll — pick a project and week-ending Friday, enter each worker’s daily hours by classification, and the app prices straight time and overtime from the determination.',
+      ]},
+      { h: 'Good to know', body: 'Output is the WH-347 with its Statement of Compliance, ready to file for the week. Workers and their base info come from the Employees record in HR.' },
+    ],
+  },
+
+  // ===== Marketing =====
+  {
+    id: 'marketing',
+    title: 'Marketing',
+    area: 'Marketing',
+    keywords: ['marketing', 'campaign', 'campaigns', 'channel', 'channels', 'content', 'draft', 'approval', 'queue', 'review', 'reviews', 'reputation', 'leads', 'demand', 'social', 'google'],
+    purpose: 'Demand generation and reputation — channels and campaigns, a queue of AI-drafted content awaiting your approval, leads, and customer review requests. It’s a paid add-on.',
+    sections: [
+      { h: 'The pieces', items: [
+        'Command Center — the KPIs: channels, active campaigns, drafts awaiting your yes, leads, and review requests.',
+        'Approval Queue — AI-drafted posts and messages that wait for your approval before anything goes out. Nothing publishes on its own.',
+        'Channels & Assets — the built-in and custom channels you market through, and the brand assets used.',
+        'Reviews — review requests and your reputation. Reviews are the top contractor-marketing lever: a request goes out when a job is marked complete.',
+      ]},
+      { h: 'Good to know', body: 'The customer review link a request points to is your per-organization Google review link, set in Settings. Drafts always wait for a person — the Command Center leads with anything sitting in the approval queue.' },
+    ],
+  },
+
+  // ===== Personal =====
+  {
+    id: 'my-portal',
+    title: 'My Pay & Benefits',
+    area: 'Personal',
+    keywords: ['my pay', 'my benefits', 'self service', 'portal', 'pay stub', 'paycheck', 'benefits', 'tax profile', 'time off', 'w-4', 'direct deposit', 'personal'],
+    purpose: 'Your own self-service page — your pay stubs, benefits, tax and direct-deposit profile, and time off, without going through the office.',
+    sections: [
+      { h: 'How to use it', body: 'Open My Pay & Benefits to see your recent paychecks, your benefits and deductions, your tax/direct-deposit details, and your time-off balance and requests. It shows only your own information.' },
+    ],
+  },
 ]
 
 // Map a route to the article that best explains it, so the drawer can open context-aware.
@@ -939,6 +1026,40 @@ export const ROUTE_HELP = {
   '/supplies/orders': 'supplies-orders',
   '/supplies/purchases': 'supplies-purchases',
   '/supplies': 'supplies-catalog',
+  // HR / Payroll / Certified Payroll all live under /rewards — list every deeper
+  // path BEFORE the bare /rewards base, since matching is by startsWith.
+  '/rewards/payroll/prepare': 'payroll',
+  '/rewards/payroll/paychecks': 'payroll',
+  '/rewards/payroll/tax-center': 'payroll',
+  '/rewards/payroll/classification': 'payroll',
+  '/rewards/payroll/deductions': 'payroll',
+  '/rewards/payroll/workers-comp': 'payroll',
+  '/rewards/payroll/state-rules': 'payroll',
+  '/rewards/payroll/year-end': 'payroll',
+  '/rewards/payroll': 'payroll',
+  '/rewards/certified/projects': 'certified-payroll',
+  '/rewards/certified/wage-rates': 'certified-payroll',
+  '/rewards/certified': 'certified-payroll',
+  '/rewards/employees': 'hr',
+  '/rewards/job-descriptions': 'hr',
+  '/rewards/hiring': 'hr',
+  '/rewards/onboarding': 'hr',
+  '/rewards/discipline': 'hr',
+  '/rewards/separations': 'hr',
+  '/rewards/certifications': 'hr',
+  '/rewards/skills': 'hr',
+  '/rewards/scorecards': 'hr',
+  '/rewards/documents': 'hr',
+  '/rewards/time-off': 'hr',
+  '/rewards/settings': 'hr',
+  '/rewards': 'hr',
+  // Marketing.
+  '/marketing/queue': 'marketing',
+  '/marketing/channels': 'marketing',
+  '/marketing/reviews': 'marketing',
+  '/marketing': 'marketing',
+  // Personal self-service.
+  '/my': 'my-portal',
 }
 
 export function searchArticles(query) {
