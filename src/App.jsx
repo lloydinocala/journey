@@ -63,6 +63,7 @@ import PricebookImport from './PricebookImport'
 import EquipmentImport from './EquipmentImport'
 import PropertyImport from './PropertyImport'
 import JobImport from './JobImport'
+import ToolsImport from './ToolsImport'
 import TechJobs from './TechJobs'
 import TheTower from './TheTower'
 import TechJobCard from './TechJobCard'
@@ -249,6 +250,7 @@ function AuthenticatedApp() {
         <Route path="/import/parts-catalog" element={<PartsCatalogImport profile={profile} />} />
         <Route path="/import/vendor-prices" element={<VendorPriceImport profile={profile} />} />
         <Route path="/import/systems-pricebook" element={<EquipmentImport profile={profile} />} />
+        <Route path="/import/tools" element={<ToolsImport profile={profile} />} />
         <Route path="/calendar" element={<Calendar profile={profile} />} />
         <Route path="/pricebook" element={<Pricebook profile={profile} />} />
         <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />

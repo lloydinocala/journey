@@ -13,6 +13,7 @@ const IMPORTS = [
   { to: '/import/systems-pricebook', icon: '❄️', title: 'Systems Pricebook', desc: 'Equipment and full-system pricing for install and replacement estimates.' },
   { to: '/import/vendor-prices', icon: '🧾', title: 'Vendor Price File', desc: 'Vendor parts price files to keep material costs and markups current.' },
   { to: '/import/parts-catalog', icon: '🔩', title: 'Parts Catalog', desc: 'Your inventory parts master — names, units, reorder levels, and markups for stock tracking.' },
+  { to: '/import/tools', icon: '🛠️', title: 'Tools', desc: 'Your durable tools — name, brand, model/serial, purchase date and cost, received into the shop.' },
 ]
 
 export default function ImportDashboard() {
