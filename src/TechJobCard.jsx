@@ -10,6 +10,11 @@ import {
   IconReceipt, IconShield, IconFile, IconCalculator, IconLock, IconList,
 } from './MobileIcons'
 
+// Customer-portal QR (static — encodes https://portal.journey-hvac.app). Inlined
+// as an SVG data URI so it always renders, stays crisp at any size, and needs no
+// runtime library or network fetch.
+const PORTAL_QR_URI = "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27264%27%20height%3D%27264%27%20class%3D%27segno%27%3E%3Cg%20transform%3D%27scale%288%29%27%3E%3Cpath%20fill%3D%27%23fff%27%20d%3D%27M0%200h33v33h-33z%27%2F%3E%3Cpath%20class%3D%27qrline%27%20stroke%3D%27%230b3041%27%20d%3D%27M2%202.5h7m4%200h1m1%200h1m4%200h1m1%200h1m1%200h7m-29%201h1m5%200h1m3%200h2m1%200h7m2%200h1m5%200h1m-29%201h1m1%200h3m1%200h1m1%200h5m2%200h1m1%200h1m1%200h1m2%200h1m1%200h3m1%200h1m-29%201h1m1%200h3m1%200h1m3%200h2m1%200h1m4%200h1m1%200h1m1%200h1m1%200h3m1%200h1m-29%201h1m1%200h3m1%200h1m1%200h2m3%200h1m3%200h1m4%200h1m1%200h3m1%200h1m-29%201h1m5%200h1m1%200h2m2%200h2m1%200h1m1%200h1m1%200h1m2%200h1m5%200h1m-29%201h7m1%200h1m1%200h1m1%200h1m1%200h1m1%200h1m1%200h1m1%200h7m-19%201h2m1%200h2m2%200h1m1%200h2m-20%201h1m2%200h1m1%200h1m1%200h3m2%200h2m2%200h1m2%200h2m1%200h2m1%200h1m-27%201h1m3%200h1m5%200h2m2%200h1m3%200h1m3%200h1m1%200h1m1%200h3m-28%201h6m1%200h1m2%200h5m1%200h2m1%200h2m3%200h1m2%200h1m-28%201h3m1%200h1m2%200h1m3%200h1m4%200h1m3%200h1m1%200h3m1%200h2m-29%201h1m1%200h6m2%200h1m2%200h1m1%200h1m1%200h1m1%200h2m2%200h1m4%200h1m-28%201h1m2%200h1m5%200h1m1%200h2m1%200h2m1%200h1m3%200h1m1%200h1m1%200h3m-25%201h1m1%200h3m2%200h1m1%200h2m1%200h2m6%200h1m3%200h1m-27%201h1m1%200h1m2%200h2m1%200h1m1%200h2m2%200h3m3%200h2m1%200h1m-22%201h1m1%200h1m1%200h2m1%200h1m1%200h2m2%200h1m1%200h3m1%200h1m3%200h2m-29%201h1m1%200h2m4%200h1m1%200h3m9%200h5m1%200h1m-26%201h2m1%200h3m4%200h1m1%200h3m8%200h1m1%200h1m-27%201h1m1%200h1m4%200h1m3%200h1m1%200h6m4%200h1m-26%201h2m1%200h4m4%200h2m1%200h1m2%200h1m1%200h7m1%200h2m-21%201h1m1%200h1m1%200h5m1%200h1m1%200h1m3%200h1m1%200h1m1%200h1m-29%201h7m2%200h3m1%200h5m1%200h2m1%200h1m1%200h1m3%200h1m-29%201h1m5%200h1m2%200h3m1%200h2m2%200h1m1%200h2m3%200h2m1%200h1m-28%201h1m1%200h3m1%200h1m1%200h2m1%200h3m1%200h1m1%200h1m1%200h6m3%200h1m-29%201h1m1%200h3m1%200h1m2%200h2m1%200h2m3%200h1m5%200h1m3%200h1m-28%201h1m1%200h3m1%200h1m2%200h1m1%200h11m4%200h3m-29%201h1m5%200h1m1%200h4m3%200h3m1%200h3m1%200h1m1%200h1m1%200h2m-29%201h7m2%200h1m1%200h1m2%200h1m2%200h2m1%200h1m3%200h2m1%200h1%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"
+
 const INCOMPLETE_REASONS = [
   'Estimate provided — customer approved follow-up work',
   'Awaiting parts or materials',
@@ -1641,6 +1646,14 @@ export default function TechJobCard({ profile }) {
           <span className="stars">★★★★★</span>
         </button>
         {googleMsg && <p className="jc-muted-note" style={{ textAlign: 'center', marginTop: 8 }}>{googleMsg}</p>}
+
+        {/* Customer Portal — show the phone screen for the customer to scan */}
+        <div style={{ marginTop: 12, textAlign: 'center', border: '1px solid var(--jc-line, #E2E8F0)', borderRadius: 14, padding: '14px 12px', background: 'var(--jc-card, #fff)' }}>
+          <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--jc-ink, #0B3041)' }}>Customer Portal</div>
+          <div style={{ fontSize: 12.5, color: 'var(--jc-mist, #64748B)', margin: '2px 0 10px' }}>Have the customer scan to open their account</div>
+          <img src={PORTAL_QR_URI} alt="Scan to open portal.journey-hvac.app" width="160" height="160" style={{ width: 160, height: 160, display: 'block', margin: '0 auto', borderRadius: 8 }} />
+          <a href="https://portal.journey-hvac.app" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 12.5, color: 'var(--jc-blue, #1B5FA8)', textDecoration: 'none', fontWeight: 600 }}>portal.journey-hvac.app</a>
+        </div>
       </div>
 
       {/* Stop My Time — incomplete reason */}
