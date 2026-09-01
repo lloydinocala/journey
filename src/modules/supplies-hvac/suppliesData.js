@@ -87,12 +87,106 @@ export async function listPurchases(orgId, { sinceDays = null } = {}) {
   return data || []
 }
 
+// ---- Purchase orders (order → receive) ------------------------------------
+// Supplies POs draw from the SAME sequential counter as parts and tool POs
+// (elements_alloc_po_number is atomic). No spend is logged until the PO is
+// received; receiving writes a supplies_purchases row per received line and
+// refreshes the catalog's last price.
+export async function createSupplyOrder(orgId, { vendor, expected_date, notes, lines }, createdBy) {
+  let poNum = null
+  try { const { data: alloc } = await supabase.rpc('elements_alloc_po_number', { p_org: orgId }); if (alloc) poNum = alloc } catch (_e) { /* fall through */ }
+  if (!poNum) poNum = `PO-${Date.now().toString().slice(-6)}`
+  const clean = (lines || [])
+    .map((l) => ({
+      supply_id: l.supply_id || null,
+      item_name: (l.item_name || '').trim() || null,
+      category: l.category || null,
+      unit: l.unit || null,
+      quantity: num(l.quantity) || 1,
+      unit_cost: num(l.unit_cost),
+    }))
+    .filter((l) => l.item_name || l.supply_id)
+  const amount = clean.reduce((s, l) => s + (Number(l.unit_cost) || 0) * l.quantity, 0)
+  const { data: order, error } = await supabase.from('supplies_orders').insert({
+    org_id: orgId, po_number: poNum, vendor: vendor || null, status: 'ordered',
+    order_date: today(), expected_date: expected_date || null,
+    amount: amount || null, notes: notes || null, created_by: createdBy || null,
+  }).select().single()
+  if (error) return { error }
+  if (clean.length) {
+    const rows = clean.map((l) => ({ org_id: orgId, order_id: order.id, ...l }))
+    const { error: le } = await supabase.from('supplies_order_lines').insert(rows)
+    if (le) return { error: le, order }
+    // Items now on order drop off the reorder list.
+    const ids = clean.map((l) => l.supply_id).filter(Boolean)
+    if (ids.length) await supabase.from('supplies_catalog').update({ needs_reorder: false, flagged_at: null, reorder_qty: null, reorder_note: null }).in('id', ids).eq('org_id', orgId)
+  }
+  return { order, po_number: poNum, lineCount: clean.length }
+}
+
+export async function listSupplyOrders(orgId, { includeClosed = false } = {}) {
+  let q = supabase.from('supplies_orders').select('*').eq('org_id', orgId).is('deleted_at', null)
+  if (!includeClosed) q = q.in('status', ['ordered', 'partial'])
+  const { data } = await q.order('order_date', { ascending: false })
+  return data || []
+}
+export async function listSupplyOrderLines(orgId, orderId) {
+  const { data } = await supabase.from('supplies_order_lines').select('*').eq('org_id', orgId).eq('order_id', orderId).order('created_at')
+  return data || []
+}
+
+// Receive some/all of a PO. `receipts` maps line id -> qty received now. Each
+// received quantity is logged as spend and refreshes the catalog last price.
+export async function receiveSupplyOrder(orgId, orderId, receipts) {
+  const [lines, { data: order }] = await Promise.all([
+    listSupplyOrderLines(orgId, orderId),
+    supabase.from('supplies_orders').select('po_number, vendor').eq('id', orderId).maybeSingle().then((r) => r),
+  ])
+  const poNumber = order?.po_number || null
+  const vendor = order?.vendor || null
+  for (const l of lines) {
+    const want = num(receipts?.[l.id]) || 0
+    const remaining = (Number(l.quantity) || 0) - (Number(l.received_count) || 0)
+    const n = Math.max(0, Math.min(want, remaining))
+    if (n <= 0) continue
+    const uc = num(l.unit_cost)
+    await supabase.from('supplies_purchases').insert({
+      org_id: orgId, supply_id: l.supply_id || null, item_name: l.item_name, category: l.category || null,
+      purchase_date: today(), qty: n, unit_cost: uc, total_cost: uc != null ? uc * n : null,
+      vendor, notes: poNumber ? `PO ${poNumber}` : null,
+    })
+    await supabase.from('supplies_order_lines').update({ received_count: (Number(l.received_count) || 0) + n }).eq('id', l.id)
+    if (l.supply_id && uc != null) await supabase.from('supplies_catalog').update({ last_price: uc }).eq('id', l.supply_id).eq('org_id', orgId)
+  }
+  const after = await listSupplyOrderLines(orgId, orderId)
+  const allDone = after.length > 0 && after.every((l) => (Number(l.received_count) || 0) >= (Number(l.quantity) || 0))
+  const anyDone = after.some((l) => (Number(l.received_count) || 0) > 0)
+  return supabase.from('supplies_orders').update({
+    status: allDone ? 'received' : (anyDone ? 'partial' : 'ordered'),
+    received_date: allDone ? today() : null,
+  }).eq('id', orderId).eq('org_id', orgId)
+}
+
+export async function cancelSupplyOrder(orgId, orderId) {
+  return supabase.from('supplies_orders').update({ status: 'canceled' }).eq('id', orderId).eq('org_id', orgId)
+}
+
+// Seed PO lines from whatever is currently on the reorder list.
+export async function reorderSeedLines(orgId) {
+  const rows = await listReorder(orgId)
+  return rows.map((r) => ({
+    supply_id: r.id, item_name: r.name, category: r.category || null, unit: r.unit || null,
+    quantity: r.reorder_qty || 1, unit_cost: r.last_price ?? '',
+  }))
+}
+
 // ---- Dashboard rollup ------------------------------------------------------
 export async function suppliesDashboard(orgId) {
-  const [items, reorder, purch] = await Promise.all([
+  const [items, reorder, purch, openOrders] = await Promise.all([
     listSupplies(orgId),
     listReorder(orgId),
     listPurchases(orgId, { sinceDays: 90 }),
+    listSupplyOrders(orgId, { includeClosed: false }),
   ])
   const d30 = new Date(); d30.setDate(d30.getDate() - 30); const since30 = d30.toISOString().slice(0, 10)
   let spend30 = 0, spend90 = 0
@@ -103,6 +197,8 @@ export async function suppliesDashboard(orgId) {
     reorderCount: reorder.length,
     reorderItems: reorder.map((r) => ({ id: r.id, name: r.name, qty: r.reorder_qty, vendor: r.typical_vendor, note: r.reorder_note })),
     spend30: r1(spend30), spend90: r1(spend90),
+    openOrderCount: openOrders.length,
+    openOrders: openOrders.map((o) => ({ po: o.po_number, vendor: o.vendor, status: o.status, expected: o.expected_date })),
     recentPurchases: purch.slice(0, 5).map((p) => ({ item: p.item_name, total: Number(p.total_cost) || 0, date: p.purchase_date, vendor: p.vendor })),
   }
 }

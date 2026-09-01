@@ -95,6 +95,8 @@ export default function SuppliesCatalog({ profile }) {
           suppliesTracked: d ? d.itemCount : 0,
           onReorderList: d ? d.reorderCount : 0,
           itemsToBuy: d ? d.reorderItems.map((r) => ({ item: r.name, qty: r.qty, vendor: r.vendor })) : [],
+          openPurchaseOrders: d ? d.openOrderCount : 0,
+          openPOs: d ? d.openOrders : [],
           spendLast30Days: d ? d.spend30 : 0,
           spendLast90Days: d ? d.spend90 : 0,
         }} />
@@ -103,6 +105,7 @@ export default function SuppliesCatalog({ profile }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 12, marginBottom: 20 }}>
         <Metric to="/supplies" label="Supplies tracked" value={loading && !d ? '…' : String(d ? d.itemCount : 0)} sub="in the catalog" accent="#132A4C" />
         <Metric to="/supplies/reorder" label="On the reorder list" value={loading && !d ? '…' : String(d ? d.reorderCount : 0)} sub={reorderAlert ? 'ready to buy' : 'nothing to buy'} accent={reorderAlert ? '#B8720A' : '#0B7A3B'} alert={reorderAlert} />
+        <Metric to="/supplies/orders" label="Open POs" value={loading && !d ? '…' : String(d ? d.openOrderCount : 0)} sub={d && d.openOrderCount > 0 ? 'awaiting receipt' : 'none open'} accent={d && d.openOrderCount > 0 ? '#1B3A6B' : '#0B7A3B'} />
         <Metric to="/supplies/purchases" label="Spent (30 days)" value={loading && !d ? '…' : money0(d ? d.spend30 : 0)} sub="on supplies" accent="#1B3A6B" />
         <Metric to="/supplies/purchases" label="Spent (90 days)" value={loading && !d ? '…' : money0(d ? d.spend90 : 0)} sub="on supplies" accent="#1B3A6B" />
       </div>
