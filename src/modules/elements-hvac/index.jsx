@@ -30,6 +30,8 @@ import FleetInsurance from './FleetInsurance'
 import ToolsDashboard from './ToolsDashboard'
 import ToolsCatalog from './ToolsCatalog'
 import ToolMaintenance from './ToolMaintenance'
+import ToolOrders from './ToolOrders'
+import ToolReconcile from './ToolReconcile'
 
 // Each entry rendered in App.jsx as <Route path element={<Component profile={profile} />} />
 export const ELEMENTS_ROUTES = [
@@ -113,6 +115,8 @@ export const ELEMENTS_FLEET_NAV = {
 export const TOOLS_ROUTES = [
   { path: '/tools', Component: ToolsDashboard },
   { path: '/tools/catalog', Component: ToolsCatalog },
+  { path: '/tools/orders', Component: ToolOrders },
+  { path: '/tools/reconcile', Component: ToolReconcile },
   { path: '/tools/maintenance', Component: ToolMaintenance },
 ]
 
@@ -122,6 +126,8 @@ export const TOOLS_NAV = {
   items: [
     { label: 'Tools Dashboard', path: '/tools' },
     { label: 'Tool Catalog', path: '/tools/catalog' },
+    { label: 'Orders & Receipts', path: '/tools/orders' },
+    { label: 'Reconcile', path: '/tools/reconcile' },
     { label: 'Maintenance', path: '/tools/maintenance' },
   ],
 }

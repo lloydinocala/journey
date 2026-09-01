@@ -11,6 +11,8 @@ const money0 = (n) => (n == null || isNaN(n) ? '—' : `$${Math.round(Number(n))
 
 const CARDS = [
   { path: '/tools/catalog', title: 'Tool Catalog', desc: 'Add tools, assign to trucks/techs, inspect, and see each tool’s history.' },
+  { path: '/tools/orders', title: 'Orders & Receipts', desc: 'Record PO orders, card purchases, and rentals — Quincy can read a receipt.' },
+  { path: '/tools/reconcile', title: 'Reconcile', desc: 'Match card purchases to your bank statement — no PO needed.' },
   { path: '/tools/maintenance', title: 'Maintenance', desc: 'Tools in the shop for repair — record and verify work before redeploying.' },
 ]
 
@@ -72,6 +74,9 @@ export default function ToolsDashboard({ profile }) {
           openMaintenanceRecords: d ? d.openMaintenanceCount : 0,
           followUpNeeded_pastAnticipatedReturn: d ? d.followUpCount : 0,
           followUpTools: d ? d.followUp.map((f) => ({ tool: f.label, expectedReturn: f.expected, daysLate: f.daysLate })) : [],
+          rentalsOverdue: d ? d.rentalsOverdueCount : 0,
+          overdueRentals: d ? d.rentalsOverdue.map((r) => ({ vendor: r.vendor, dueBack: r.due, daysLate: r.daysLate })) : [],
+          cardChargesAwaitingReceiptMatch: d ? d.unreconciledChargeCount : 0,
         }} />
       </div>
 
@@ -92,6 +97,8 @@ export default function ToolsDashboard({ profile }) {
         <Metric to="/tools/maintenance" label="Needs maintenance" value={loading && !d ? '…' : String(d ? d.flaggedCount : 0)} sub={flaggedAlert ? 'flagged on inspection' : 'all clear'} accent={flaggedAlert ? '#B00020' : '#0B7A3B'} alert={flaggedAlert} />
         <Metric to="/tools/maintenance" label="In maintenance" value={loading && !d ? '…' : String(d ? d.inMaintenance : 0)} sub="in the shop for repair" accent={d && d.inMaintenance > 0 ? '#B8720A' : '#132A4C'} />
         <Metric to="/tools/maintenance" label="Follow-up needed" value={loading && !d ? '…' : String(d ? d.followUpCount : 0)} sub={d && d.followUpCount > 0 ? 'past anticipated return' : 'none overdue'} accent={d && d.followUpCount > 0 ? '#B00020' : '#0B7A3B'} alert={!!d && d.followUpCount > 0} />
+        <Metric to="/tools/orders" label="Rentals overdue" value={loading && !d ? '…' : String(d ? d.rentalsOverdueCount : 0)} sub={d && d.rentalsOverdueCount > 0 ? 'past return-by date' : 'none overdue'} accent={d && d.rentalsOverdueCount > 0 ? '#B00020' : '#0B7A3B'} alert={!!d && d.rentalsOverdueCount > 0} />
+        <Metric to="/tools/reconcile" label="Charges to reconcile" value={loading && !d ? '…' : String(d ? d.unreconciledChargeCount : 0)} sub={d && d.unreconciledChargeCount > 0 ? 'unmatched card charges' : 'all matched'} accent={d && d.unreconciledChargeCount > 0 ? '#B8720A' : '#0B7A3B'} alert={!!d && d.unreconciledChargeCount > 0} />
       </div>
 
       {/* Value on hand (plain total cost; bookkeeping handles depreciation) */}
@@ -114,6 +121,21 @@ export default function ToolsDashboard({ profile }) {
             ))}
           </div>
           <Link to="/tools/maintenance" style={{ color: '#B00020', fontWeight: 700, fontSize: 13, marginTop: 10, display: 'inline-block' }}>Go to Maintenance →</Link>
+        </div>
+      )}
+
+      {/* Rentals overdue for return */}
+      {d && d.rentalsOverdue.length > 0 && (
+        <div style={{ border: '1px solid #E3B0B0', background: '#FCEFEF', borderRadius: 12, padding: 16, marginBottom: 24 }}>
+          <div style={{ fontWeight: 800, color: '#B00020', marginBottom: 8 }}>Rentals overdue for return</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {d.rentalsOverdue.map((r) => (
+              <div key={r.id} style={{ fontSize: 14 }}>
+                {r.vendor} <span style={{ color: 'var(--mist)' }}>· due back {new Date(r.due).toLocaleDateString()} · {r.daysLate} day{r.daysLate === 1 ? '' : 's'} late</span>
+              </div>
+            ))}
+          </div>
+          <Link to="/tools/orders" style={{ color: '#B00020', fontWeight: 700, fontSize: 13, marginTop: 10, display: 'inline-block' }}>Go to Orders &amp; Receipts →</Link>
         </div>
       )}
 

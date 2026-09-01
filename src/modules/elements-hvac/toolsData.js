@@ -140,10 +140,13 @@ export async function resolveMaintenance(orgId, maintId, toolId, { verified_by =
 
 // ---- Dashboard rollup -----------------------------------------------------
 export async function toolsDashboardData(orgId) {
-  const [tools, openMaint] = await Promise.all([
+  const [tools, openMaint, acqRes, txnRes] = await Promise.all([
     listTools(orgId, { includeRetired: false }),
     listToolMaintenance(orgId, { openOnly: true }),
+    supabase.from('tool_acquisitions').select('id, acquisition_type, vendor, rental_return_due, rental_returned_at').eq('org_id', orgId).is('deleted_at', null),
+    supabase.from('card_transactions').select('id, matched_acquisition_id, amount').eq('org_id', orgId).is('matched_acquisition_id', null),
   ])
+  const acqs = acqRes.data || [], unmatchedTxns = txnRes.data || []
   const inShop = tools.filter((t) => t.status === 'in_shop').length
   const assigned = tools.filter((t) => t.status === 'assigned').length
   const inMaintenance = tools.filter((t) => t.status === 'in_maintenance').length
@@ -161,6 +164,13 @@ export async function toolsDashboardData(orgId) {
       expected: m.expected_return_date,
       daysLate: Math.max(0, Math.round((new Date(today) - new Date(m.expected_return_date)) / 86400000)),
     }))
+  // Rentals overdue: past their return-by date and not yet returned.
+  const rentalsOverdue = acqs
+    .filter((a) => a.acquisition_type === 'rental' && !a.rental_returned_at && a.rental_return_due && a.rental_return_due < today)
+    .map((a) => ({
+      id: a.id, vendor: a.vendor || 'rental', due: a.rental_return_due,
+      daysLate: Math.max(0, Math.round((new Date(today) - new Date(a.rental_return_due)) / 86400000)),
+    }))
   return {
     total: tools.length, inShop, assigned, inMaintenance,
     flaggedCount: flagged.length,
@@ -168,7 +178,91 @@ export async function toolsDashboardData(orgId) {
     openMaintenanceCount: openMaint.length,
     followUpCount: followUp.length,
     followUp,
+    rentalsOverdueCount: rentalsOverdue.length,
+    rentalsOverdue,
+    unreconciledChargeCount: unmatchedTxns.length,
     totalCost: Math.round(totalCost),
     tools,
   }
+}
+
+// ---- Acquisitions (how a tool entered) ------------------------------------
+export async function listAcquisitions(orgId, { type = null } = {}) {
+  let q = supabase.from('tool_acquisitions').select('*').eq('org_id', orgId).is('deleted_at', null)
+  if (type) q = q.eq('acquisition_type', type)
+  const { data } = await q.order('acquired_date', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false })
+  return data || []
+}
+
+// Quincy reads a tool/equipment purchase receipt (PDF or photo).
+export async function extractToolReceipt(fileBase64, mediaType) {
+  const { data, error } = await supabase.functions.invoke('tool-receipt-extract', { body: { fileBase64, mediaType } })
+  if (error || data?.error) return { error: data?.error || error?.message || 'Could not read the receipt.' }
+  return { ...data, items: Array.isArray(data?.items) ? data.items : [] }
+}
+
+// Create an acquisition and (optionally) the tools it brought in. Each new tool
+// gets the next instance number for its name and an opening shop assignment.
+export async function createAcquisitionWithTools(orgId, acq, toolRows, createdBy) {
+  const { data: a, error: aerr } = await supabase.from('tool_acquisitions')
+    .insert({ org_id: orgId, ...acq, created_by: createdBy || null }).select().single()
+  if (aerr) return { error: aerr }
+  const isRental = acq.acquisition_type === 'rental'
+  const { data: existing } = await supabase.from('tools').select('name, instance_no').eq('org_id', orgId).is('deleted_at', null)
+  const maxByName = new Map()
+  ;(existing || []).forEach((t) => { const k = (t.name || '').trim().toLowerCase(); if ((t.instance_no || 0) > (maxByName.get(k) || 0)) maxByName.set(k, t.instance_no || 0) })
+  let createdCount = 0
+  for (const r of (toolRows || [])) {
+    const name = (r.name || '').trim(); if (!name) continue
+    const k = name.toLowerCase(); const next = (maxByName.get(k) || 0) + 1; maxByName.set(k, next)
+    const { data: t, error } = await supabase.from('tools').insert({
+      org_id: orgId, name, brand: r.brand || null, is_hand_tool: !!r.is_hand_tool,
+      model_no: r.is_hand_tool ? null : (r.model_no || null), serial_no: r.is_hand_tool ? null : (r.serial_no || null),
+      instance_no: next, cost: r.cost ?? null, purchase_date: acq.acquired_date || null,
+      maintenance_requirements: r.maintenance_requirements || null,
+      acquisition_id: a.id, is_rental: isRental, status: 'in_shop', holder_type: 'shop', holder_id: null,
+    }).select('id').single()
+    if (!error && t) { createdCount++; await supabase.from('tool_assignments').insert({ org_id: orgId, tool_id: t.id, holder_type: 'shop', holder_id: null, note: isRental ? 'Rental received' : 'Received by shop (purchase)' }) }
+  }
+  return { acquisition: a, createdCount }
+}
+
+// Return a rented tool set: stamp the return and retire the rented tools.
+export async function returnRental(orgId, acquisitionId) {
+  const now = new Date().toISOString()
+  await supabase.from('tool_acquisitions').update({ rental_returned_at: now }).eq('id', acquisitionId)
+  return supabase.from('tools').update({ status: 'retired', deleted_at: now, deleted_reason: 'rental_returned' }).eq('acquisition_id', acquisitionId).is('deleted_at', null)
+}
+
+// ---- Card / bank statement reconciliation ---------------------------------
+export async function extractCardStatement(fileBase64, mediaType) {
+  const { data, error } = await supabase.functions.invoke('card-statement-extract', { body: { fileBase64, mediaType } })
+  if (error || data?.error) return { error: data?.error || error?.message || 'Could not read the statement.' }
+  return { card_last4: data?.card_last4 || '', transactions: Array.isArray(data?.transactions) ? data.transactions : [] }
+}
+export async function importCardTransactions(orgId, rows) {
+  const payload = rows.map((r) => ({ org_id: orgId, source: 'csv', ...r }))
+  const { data, error } = await supabase.from('card_transactions').insert(payload).select('id')
+  return { inserted: data?.length || 0, error }
+}
+export async function listCardTransactions(orgId, { unmatchedOnly = false } = {}) {
+  let q = supabase.from('card_transactions').select('*').eq('org_id', orgId)
+  if (unmatchedOnly) q = q.is('matched_acquisition_id', null)
+  const { data } = await q.order('txn_date', { ascending: false, nullsFirst: false })
+  return data || []
+}
+// Card-purchase acquisitions (the receipts) available to match a statement charge.
+export async function listCardAcquisitions(orgId, { unmatchedOnly = false } = {}) {
+  let q = supabase.from('tool_acquisitions').select('*').eq('org_id', orgId).eq('acquisition_type', 'card').is('deleted_at', null)
+  if (unmatchedOnly) q = q.is('reconciled_txn_id', null)
+  const { data } = await q.order('acquired_date', { ascending: false, nullsFirst: false })
+  return data || []
+}
+export async function reconcileMatch(txnId, acquisitionId) {
+  await supabase.from('card_transactions').update({ matched_acquisition_id: acquisitionId }).eq('id', txnId)
+  return supabase.from('tool_acquisitions').update({ reconciled_txn_id: txnId }).eq('id', acquisitionId)
+}
+export async function unmatchTxn(txnId, acquisitionId) {
+  await supabase.from('card_transactions').update({ matched_acquisition_id: null }).eq('id', txnId)
+  if (acquisitionId) await supabase.from('tool_acquisitions').update({ reconciled_txn_id: null }).eq('id', acquisitionId)
 }
