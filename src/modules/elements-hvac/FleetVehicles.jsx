@@ -162,9 +162,9 @@ export default function FleetVehicles({ profile }) {
               </select>
             )}
           </div>
-          <div className="field" style={{ minWidth: 240 }}>
-            <label>Home base (garage / driveway)</label>
-            <input type="text" value={form.home_address} onChange={(e) => setForm({ ...form, home_address: e.target.value })} placeholder="Tech's home — the daily route anchor" />
+          <div className="field" style={{ minWidth: 280 }}>
+            <label>Where the vehicle is kept (home base)</label>
+            <input type="text" value={form.home_address} onChange={(e) => setForm({ ...form, home_address: e.target.value })} placeholder="Garage / driveway address — the daily route anchor" />
           </div>
           <div className="field" style={{ width: 80 }}><label>Year</label><input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} /></div>
           <div className="field" style={{ width: 120 }}><label>Make</label><input type="text" value={form.make} onChange={(e) => setForm({ ...form, make: e.target.value })} /></div>
