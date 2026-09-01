@@ -164,7 +164,7 @@ export default function CommandDashboard({ profile }) {
         </div>
       )}
 
-      <div style={{ marginBottom: 16 }}><QuincyBrief org={selectedOrg} /></div>
+      <div style={{ marginBottom: 16 }}><QuincyBrief kind="home" org={selectedOrg} /></div>
 
       {arranging && (
         <div style={{ background: 'var(--route-blue, #1B3A6B)', color: '#fff', borderRadius: 10, padding: '9px 14px', marginBottom: 12, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
