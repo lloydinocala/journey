@@ -707,9 +707,8 @@ export const ROUTE_HELP = {
   '/settings': 'settings',
   '/announcements': 'announcements',
   '/import': 'bulk-import',
-  // Assets & Inventory Management (Elements). Specific /elements/* routes must
+  // Inventory Management (Elements). Specific /elements/* routes must
   // come BEFORE the bare /elements base, because matching is by startsWith.
-  '/assets': 'assets-dashboard',
   '/elements/locations': 'inv-locations',
   '/elements/items': 'inv-items',
   '/elements/stock': 'inv-stock',
