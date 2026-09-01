@@ -14,6 +14,7 @@ import { fetchMeasure, queryKpi, getLayout, saveLayout, resetLayout, periodRange
 import Widget from './charts'
 import KpiBuilder from './KpiBuilder'
 import AiAssist from '../../AiAssist'
+import QuincyBrief from '../../QuincyBrief'
 import { investigateProps } from './investigate'
 
 const SECTIONS = [
@@ -162,6 +163,8 @@ export default function CommandDashboard({ profile }) {
           <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
         </div>
       )}
+
+      <div style={{ marginBottom: 16 }}><QuincyBrief org={selectedOrg} /></div>
 
       {arranging && (
         <div style={{ background: 'var(--route-blue, #1B3A6B)', color: '#fff', borderRadius: 10, padding: '9px 14px', marginBottom: 12, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
