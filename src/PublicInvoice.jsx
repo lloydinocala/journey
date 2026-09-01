@@ -26,12 +26,22 @@ export default function PublicInvoice() {
   async function handlePayNow() {
     setPayingNow(true)
     setPayError('')
-    const { data: result, error } = await supabase.functions.invoke('create-invoice-checkout', { body: { invoiceId } })
-    setPayingNow(false)
-    if (error || result?.error) {
-      setPayError(result?.error || error.message)
-    } else if (result?.url) {
-      window.location.href = result.url
+    try {
+      const { data: result, error } = await supabase.functions.invoke('create-invoice-checkout', { body: { invoiceId } })
+      if (result?.url) { window.location.href = result.url; return }
+      // The function returns its real reason (e.g. "already paid", "not yet verified with
+      // completion photos") as JSON in a non-2xx response. supabase-js surfaces that as
+      // `error` and puts the Response on error.context — the body is NOT auto-parsed — so
+      // read it here; otherwise the customer would see a cryptic "non-2xx status code".
+      let msg = result?.error || ''
+      if (!msg && error?.context && typeof error.context.json === 'function') {
+        try { const body = await error.context.json(); msg = body?.error || '' } catch (_) { /* fall through */ }
+      }
+      setPayError(msg || error?.message || 'We couldn’t start the payment just now. Please try again, or contact us and we’ll be glad to help you take care of it.')
+    } catch (e) {
+      setPayError('We couldn’t start the payment just now. Please try again, or contact us and we’ll be glad to help you take care of it.')
+    } finally {
+      setPayingNow(false)
     }
   }
 
@@ -52,7 +62,7 @@ export default function PublicInvoice() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8A93A6' }}>
+      <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center', color: '#8A93A6' }}>
         Loading…
       </div>
     )
@@ -60,7 +70,7 @@ export default function PublicInvoice() {
 
   if (error || !data) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C0392B' }}>
+      <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center', color: '#C0392B' }}>
         {error || 'Invoice not found.'}
       </div>
     )
@@ -78,7 +88,7 @@ export default function PublicInvoice() {
       ) : (
         <div>
           <p style={{ color: '#152238', fontSize: 15, marginBottom: 14 }}>Approve this estimate to authorize the repair, or decline.</p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => handleDecision('approved')} disabled={deciding} style={{ background: '#1F7A43', color: 'white', border: 'none', borderRadius: 8, padding: '14px 36px', fontSize: 15, fontWeight: 700, cursor: deciding ? 'default' : 'pointer', opacity: deciding ? 0.7 : 1 }}>{deciding ? 'Saving…' : 'Approve'}</button>
             <button onClick={() => handleDecision('declined')} disabled={deciding} style={{ background: 'white', color: '#C0392B', border: '1px solid #C0392B', borderRadius: 8, padding: '14px 36px', fontSize: 15, fontWeight: 700, cursor: deciding ? 'default' : 'pointer', opacity: deciding ? 0.7 : 1 }}>Decline</button>
           </div>
@@ -101,22 +111,32 @@ export default function PublicInvoice() {
           background: data.org?.brand_primary_color || '#2F5DE3',
           color: 'white',
           border: 'none',
-          borderRadius: 8,
-          padding: '14px 40px',
-          fontSize: 15,
-          fontWeight: 600,
+          borderRadius: 10,
+          padding: '16px 40px',
+          fontSize: 17,
+          fontWeight: 700,
           cursor: payingNow ? 'default' : 'pointer',
           opacity: payingNow ? 0.7 : 1,
+          width: '100%',
+          maxWidth: 360,
+          minHeight: 52,
         }}
       >
-        {payingNow ? 'Loading…' : 'Pay Now'}
+        {payingNow ? 'Loading…' : `Pay Now — $${data.invoice.amount_due?.toFixed(2)}`}
       </button>
-      {payError && <p style={{ color: '#C0392B', fontSize: 13, marginTop: 10 }}>{payError}</p>}
+      {payError && <p style={{ color: '#C0392B', fontSize: 14, marginTop: 12, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.4 }}>{payError}</p>}
     </div>
   )
 
   return (
-    <div style={{ minHeight: '100vh', padding: '40px 20px', background: '#EEF1F6' }}>
+    <div style={{
+      minHeight: '100dvh',
+      // Comfortable gutters that shrink on phones; generous bottom room past the
+      // safe-area/home-indicator so the Pay button is never trapped under the
+      // browser toolbar (100dvh + this is the fix for the mobile "cut off" report).
+      padding: 'clamp(16px, 4vw, 40px) clamp(10px, 4vw, 20px) calc(clamp(24px, 6vw, 56px) + env(safe-area-inset-bottom, 0px))',
+      background: '#EEF1F6',
+    }}>
       {data.pmReport && <PMReportDocument report={data.pmReport} org={data.org} property={data.property} customer={data.customer} />}
       {(!data.pmReport || (data.lineItems && data.lineItems.length > 0)) ? (
         <InvoiceDocument data={data} footer={footer} />

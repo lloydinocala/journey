@@ -57,11 +57,11 @@ export default function InvoiceDocument({ data, footer }) {
   const shownSubtotal = (invoice.subtotal || 0) - customDiscountAmt
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', background: 'white', borderRadius: 12, padding: 40, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+    <div style={{ maxWidth: 760, margin: '0 auto', background: 'white', borderRadius: 12, padding: 'clamp(16px, 5vw, 40px)', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap', marginBottom: 24 }}>
 
-        <div style={{ flex: 1, minWidth: 240 }}>
+        <div style={{ flex: '1 1 220px', minWidth: 0 }}>
           {org?.logo_url ? (
             <img src={org.logo_url} alt={org.name} style={{ maxHeight: 70, maxWidth: 220, marginBottom: 10, display: 'block' }} />
           ) : (
@@ -86,7 +86,7 @@ export default function InvoiceDocument({ data, footer }) {
           </div>
         </div>
 
-        <div style={{ flex: 1, minWidth: 240 }}>
+        <div style={{ flex: '1 1 220px', minWidth: 0 }}>
           <div style={{ border: '1px solid #E2E6ED', borderRadius: 8, overflow: 'hidden' }}>
             <div style={{ padding: '10px 16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0' }}>
@@ -168,7 +168,7 @@ export default function InvoiceDocument({ data, footer }) {
               background: idx % 2 === 1 ? '#FAFBFC' : 'white',
             }}
           >
-            <div style={{ flex: 3 }}>{boldEquipmentLines(li.description)}</div>
+            <div style={{ flex: 3, minWidth: 0, wordBreak: 'break-word' }}>{boldEquipmentLines(li.description)}</div>
             <div style={{ flex: 1, textAlign: 'right', color: '#64748B' }}>{li.quantity}</div>
             <div style={{ flex: 1, textAlign: 'right', color: '#64748B' }}>${li.unit_price.toFixed(2)}</div>
             <div style={{ flex: 1, textAlign: 'right', fontWeight: 600 }}>${(li.quantity * li.unit_price).toFixed(2)}</div>
