@@ -76,8 +76,8 @@ const DASH_BY_KEY = {
   marketing: '/marketing',
   import: '/import',
 }
-// Sub-section headers inside a panel that have their own dashboard, so the
-// Inventory and Fleet titles under Assets Management are clickable too.
+// Optional sub-section headers with their own dashboard (kept generic for any
+// future grouped nav; the current Inventory/Fleet/Tools units are top-level).
 const HEADER_DASH = {
   'Inventory Management': '/elements',
   'Fleet Management': '/fleet',
@@ -115,7 +115,6 @@ export default function Layout({ profile }) {
   const notTech = profile?.role !== 'tech'
   const showHR = notTech && (isSuperAdmin || profile?.hrEntitled)
   const showPayroll = notTech && (isSuperAdmin || profile?.payrollEntitled || profile?.hrEntitled)
-  // Assets Management umbrella — Inventory + Fleet nested under one section.
   // Inventory + Fleet are core (any non-tech office role). Tools is an optional
   // module, gated by entitlement like Marketing. Each is its own nav unit now.
   const showTools = notTech && (isSuperAdmin || profile?.toolsEntitled)
