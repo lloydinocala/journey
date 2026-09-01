@@ -27,6 +27,18 @@ function Pill({ tone, children }) {
   return <span style={{ fontSize: 11, fontWeight: 700, color: fg, background: bg, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>{children}</span>
 }
 
+// Marks an estimate row as a System or Job estimate so the type is obvious at a
+// glance and it's clear which page the row links to.
+function TypeTag({ t }) {
+  const sys = t === 'system'
+  return (
+    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.3, padding: '1px 5px', borderRadius: 4, marginRight: 6,
+      color: sys ? '#1B3A6B' : '#475569', background: sys ? '#E3ECF7' : '#EEF1F6', border: `1px solid ${sys ? '#C4D6EE' : '#DDE3EA'}` }}>
+      {sys ? 'System' : 'Job'}
+    </span>
+  )
+}
+
 export default function OperationsDashboard({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
@@ -98,11 +110,25 @@ export default function OperationsDashboard({ profile }) {
       .sort((a, b) => b.days - a.days)
 
     const pendEst = inv.filter((i) => i.kind === 'estimate' && i.sent_at && i.approval_status === 'Pending')
-      .map((i) => ({ id: i.id, num: i.invoice_number, cust: cname(i.bills_to_customer_id), amt: i.job_total, days: daysSince(i.sent_at), link: i.estimate_type === 'system' ? `/system-estimates?estimate=${i.id}` : `/estimates?estimate=${i.id}` }))
+      .map((i) => ({ id: i.id, num: i.invoice_number, cust: cname(i.bills_to_customer_id), amt: i.job_total, days: daysSince(i.sent_at), type: i.estimate_type === 'system' ? 'system' : 'job', link: i.estimate_type === 'system' ? `/system-estimates?estimate=${i.id}` : `/estimates?estimate=${i.id}` }))
       .sort((a, b) => b.days - a.days)
 
     const draftEst = inv.filter((i) => i.kind === 'estimate' && !i.sent_at && i.approval_status === 'Pending')
-      .map((i) => ({ id: i.id, num: i.invoice_number, cust: cname(i.bills_to_customer_id), amt: i.job_total, days: daysSince(i.created_at), link: i.estimate_type === 'system' ? `/system-estimates?estimate=${i.id}` : `/estimates?estimate=${i.id}` }))
+      .map((i) => ({ id: i.id, num: i.invoice_number, cust: cname(i.bills_to_customer_id), amt: i.job_total, days: daysSince(i.created_at), type: i.estimate_type === 'system' ? 'system' : 'job', link: i.estimate_type === 'system' ? `/system-estimates?estimate=${i.id}` : `/estimates?estimate=${i.id}` }))
+
+    // Where should the aggregate tile/"See all" go? If every pending estimate is one
+    // type, straight to that page; if mixed, default to Job Estimates (the per-row links
+    // still send each estimate to its own correct page).
+    const estAgg = (list) => {
+      const types = new Set(list.map((e) => e.type))
+      const single = types.size === 1 ? [...types][0] : null
+      return {
+        link: single === 'system' ? '/system-estimates' : '/estimates',
+        label: single === 'system' ? 'System' : single === 'job' ? 'Job' : (types.size > 1 ? 'mixed' : ''),
+      }
+    }
+    const pa = estAgg(pendEst)
+    const da = estAgg(draftEst)
 
     const toSchedule = jobs.filter((j) => ['unscheduled', 'incomplete'].includes(j.status) || j.date_pending)
       .filter((j) => j.status !== 'canceled' && j.status !== 'completed')
@@ -134,6 +160,7 @@ export default function OperationsDashboard({ profile }) {
       draftEstTotal: draftEst.reduce((s, x) => s + Number(x.amt || 0), 0),
       collected, wonAmt, wonCount: wonWeek.length, completedWeek, closeRate,
       onCallShort, onCallEnd, warranty,
+      pendLink: pa.link, pendTypeLabel: pa.label, draftLink: da.link,
     })
     setLastUpdated(new Date())
     setLoading(false)
@@ -194,7 +221,7 @@ export default function OperationsDashboard({ profile }) {
       {/* Hero vital signs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, marginBottom: 14 }}>
         <Vital label="Outstanding A/R" value={money(d.outstanding)} sub={`${d.unpaid.length} unpaid invoice${d.unpaid.length === 1 ? '' : 's'}`} to="/invoices" accent={d.outstanding > 0 ? C.over : C.good} />
-        <Vital label="Estimates Out" value={money(d.pendEstTotal)} sub={`${d.pendEst.length} awaiting a reply`} to="/estimates" accent={d.pendEst.length ? C.amber : C.good} />
+        <Vital label="Estimates Out" value={money(d.pendEstTotal)} sub={`${d.pendEst.length}${d.pendTypeLabel && d.pendTypeLabel !== 'mixed' ? ' ' + d.pendTypeLabel : ''} awaiting a reply${d.pendTypeLabel === 'mixed' ? ' · Job + System' : ''}`} to={d.pendLink || '/estimates'} accent={d.pendEst.length ? C.amber : C.good} />
         <Vital label="Jobs to Schedule" value={String(d.toSchedule.length)} sub="need a real date" to="/jobs" accent={d.toSchedule.length ? C.amber : C.good} />
         <Vital label="Maintenance Due" value={String(d.maintDue.length)} sub="within 30 days" to="/maintenance-due" accent={d.maintDue.length ? C.amber : C.good} />
       </div>
@@ -216,9 +243,9 @@ export default function OperationsDashboard({ profile }) {
           ))}
         </Card>
 
-        <Card title="Estimates to Follow Up" headline={money(d.pendEstTotal)} count={d.pendEst.length} seeAll="/estimates" emptyMsg="No estimates waiting">
+        <Card title="Estimates to Follow Up" headline={money(d.pendEstTotal)} count={d.pendEst.length} seeAll={d.pendLink || '/estimates'} emptyMsg="No estimates waiting">
           {d.pendEst.slice(0, 4).map((x) => (
-            <Row key={x.id} to={x.link} left={<>{x.num} · {x.cust}</>} right={<Pill tone={estTone(x.days)}>sent {ageLabel(x.days)}</Pill>} amt={money(x.amt)} />
+            <Row key={x.id} to={x.link} left={<><TypeTag t={x.type} />{x.num} · {x.cust}</>} right={<Pill tone={estTone(x.days)}>sent {ageLabel(x.days)}</Pill>} amt={money(x.amt)} />
           ))}
         </Card>
 
@@ -249,9 +276,9 @@ export default function OperationsDashboard({ profile }) {
           ))}
         </Card>
 
-        <Card title="Estimates Not Yet Sent" headline={money(d.draftEstTotal)} count={d.draftEst.length} seeAll="/estimates" emptyMsg="No drafts sitting">
+        <Card title="Estimates Not Yet Sent" headline={money(d.draftEstTotal)} count={d.draftEst.length} seeAll={d.draftLink || '/estimates'} emptyMsg="No drafts sitting">
           {d.draftEst.slice(0, 4).map((x) => (
-            <Row key={x.id} to={x.link} left={<>{x.num} · {x.cust}</>} right={<Pill tone={x.days >= 3 ? 'amber' : 'mist'}>drafted {ageLabel(x.days)}</Pill>} amt={money(x.amt)} />
+            <Row key={x.id} to={x.link} left={<><TypeTag t={x.type} />{x.num} · {x.cust}</>} right={<Pill tone={x.days >= 3 ? 'amber' : 'mist'}>drafted {ageLabel(x.days)}</Pill>} amt={money(x.amt)} />
           ))}
         </Card>
       </div>
