@@ -333,10 +333,10 @@ export const HELP_ARTICLES = [
   // ===== Tools Management =====
   {
     id: 'tools-dashboard',
-    title: 'Tools Management Dashboard',
+    title: 'Tools & Office Equipment Dashboard',
     area: 'Tools',
-    keywords: ['tools', 'dashboard', 'equipment', 'reclaimer', 'assign', 'shop', 'inspection', 'maintenance', 'hand tool'],
-    purpose: 'The landing page for Tools Management — where your durable tools are (shop, trucks, techs), what is flagged for maintenance, and what is in the shop for repair.',
+    keywords: ['tools', 'office equipment', 'computers', 'dashboard', 'equipment', 'reclaimer', 'assign', 'shop', 'inspection', 'maintenance', 'hand tool'],
+    purpose: 'The landing page for Tools & Office Equipment Management — where your durable tools and equipment (including computers and other non-expendable purchases) are, what is flagged for maintenance, and what is in the shop for repair.',
     sections: [
       { h: 'How to use it', items: [
         'Enable the module from the banner (or the Organizations page) to start tracking tools.',
