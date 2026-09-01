@@ -330,21 +330,20 @@ export const HELP_ARTICLES = [
     ],
   },
 
-  // ===== Assets & Inventory Management (Elements) =====
+  // ===== Tools Management =====
   {
-    id: 'assets-dashboard',
-    title: 'Assets Management Dashboard',
-    area: 'Assets',
-    keywords: ['assets', 'dashboard', 'inventory', 'fleet', 'purchase orders', 'awaiting receipt', 'open po', 'overdue', 'hub'],
-    purpose: 'The hub for everything your company owns and stocks — it fronts Inventory Management and Fleet Management, and surfaces purchase orders still awaiting receipt so nothing you’ve ordered gets forgotten.',
+    id: 'tools-dashboard',
+    title: 'Tools Management Dashboard',
+    area: 'Tools',
+    keywords: ['tools', 'dashboard', 'equipment', 'reclaimer', 'assign', 'shop', 'inspection', 'maintenance', 'hand tool'],
+    purpose: 'The landing page for Tools Management — where your durable tools are (shop, trucks, techs), what is flagged for maintenance, and what is in the shop for repair.',
     sections: [
       { h: 'How to use it', items: [
-        'Pick an area card — Inventory Management or Fleet Management — to jump into it. (Tools & Equipment is a placeholder for future asset types.)',
-        'The "Purchase Orders awaiting receipt" panel lists every ordered or partially-received PO, most urgent first.',
-        'Overdue POs (past their expected date) sort to the top with a red flag; the panel header shows how many are overdue.',
-        'Click any PO row to open it in Purchase Orders, ready to receive.',
+        'Enable the module from the banner (or the Organizations page) to start tracking tools.',
+        'The tiles show totals: in the shop, out on trucks/techs, flagged for maintenance, and in maintenance.',
+        'Open the Tool Catalog to add tools, assign them to a truck or tech, and log inspections; open Maintenance to verify repairs.',
       ]},
-      { h: 'Good to know', body: 'The panel shows up to eight POs with a "+N more" link; an empty panel means nothing is awaiting receipt. Only ordered and partial POs appear here — drafts and fully-received POs do not.' },
+      { h: 'Good to know', body: 'Tools flow like inventory: received by the shop, assigned to a truck or tech, inspected on demand, and returned to the shop for verified maintenance before being redeployed. Identical tools auto-number (e.g. "Reclaimer 1", "Reclaimer 2"). Purchase date and cost are logged as plain data for your bookkeeping.' },
     ],
   },
   {
@@ -503,7 +502,7 @@ export const HELP_ARTICLES = [
         'Search by number, job name, vendor, or part. The default "Relevant" view shows in-flight POs plus anything received in the last 30 days; switch the filter to see all, cancelled, or older receipts.',
       ]},
       { h: 'Numbering', body: 'New POs get the next number automatically (PO-1001, PO-1002…). If you’re moving from another system, use the numbering control on this screen to set the next number so your sequence continues where you left off.' },
-      { h: 'Good to know', body: 'A draft you change your mind about can be deleted; an ordered PO can be cancelled. Open POs awaiting receipt also surface on the Assets Dashboard.' },
+      { h: 'Good to know', body: 'A draft you change your mind about can be deleted; an ordered PO can be cancelled. Open POs awaiting receipt also surface on the Inventory Dashboard.' },
     ],
   },
   {
