@@ -628,6 +628,11 @@ export default function Estimates({ profile }) {
                             <option key={s} value={s}>{s}</option>
                           ))}
                         </select>
+                        {est.result_job && (
+                          <div style={{ fontSize: 11, color: 'var(--route-blue, #1B3A6B)', marginTop: 3, fontWeight: 600 }}>
+                            → {est.result_job.job_number}{est.result_job.status ? ' · ' + est.result_job.status : ''}
+                          </div>
+                        )}
                       </div>
                     )
                   }
