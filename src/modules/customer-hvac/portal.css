@@ -1,5 +1,6 @@
 /* Customer Portal — scoped (.cp-*). Sky theme: light, airy, high-retention.
    Palette from Lloyd's mockup: sky #4E95D9, bright #00B0F0, go-green #70AD47. */
+.cp-root,.cp-login{--sky:#4E95D9;--sky-d:#2F79C4;--bright:#00B0F0;--go:#70AD47;--go-d:#5B9439;--ink:#123449;--muted:#5A6B7A;--line:#DCE7F1;--card:#FFFFFF;--amber:#B26A00;--danger:#C0392B}
 .cp-root{--sky:#4E95D9;--sky-d:#2F79C4;--bright:#00B0F0;--go:#70AD47;--go-d:#5B9439;
   --ink:#123449;--muted:#5A6B7A;--line:#DCE7F1;--card:#FFFFFF;
   --amber:#B26A00;--danger:#C0392B;
@@ -69,7 +70,8 @@
 .cp-pill.ok{background:#E7F5EC;color:var(--go-d)}
 .cp-tabs{display:flex;gap:8px;overflow:auto;margin-bottom:14px;-webkit-overflow-scrolling:touch}
 .cp-tab{border:1px solid rgba(255,255,255,.8);background:#fff;color:var(--muted);
-  font-weight:700;font-size:13.5px;padding:8px 14px;border-radius:999px;white-space:nowrap;cursor:pointer;color:#fff;border-color:transparent}
+  font-weight:700;font-size:13.5px;padding:8px 14px;border-radius:999px;white-space:nowrap;cursor:pointer}
+.cp-tab.on{background:linear-gradient(135deg,var(--sky),var(--bright));color:#fff;border-color:transparent}
 /* buttons */
 .cp-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
   border:0;border-radius:15px;font-size:16px;font-weight:800;padding:15px 18px;cursor:pointer;color:#fff;
