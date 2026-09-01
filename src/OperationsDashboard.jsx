@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
-import AiAssist from './AiAssist'
+import QuincyBrief from './QuincyBrief'
 
 // A WORKING dashboard for office staff — a queue of what needs doing, not a report.
 // Every number links to the thing to resolve. Goal: clear the board to zero.
@@ -203,9 +203,8 @@ export default function OperationsDashboard({ profile }) {
       <p style={{ color: C.mist, fontSize: 13, marginTop: 0, marginBottom: 18 }}>What needs doing today. Click anything to go resolve it.</p>
 
       <div style={{ marginBottom: 18 }}>
-        <AiAssist inline title="Today's briefing" label="✨ AI: brief me on today"
+        <QuincyBrief title="Today's briefing"
           system={BRIEF_SYS}
-          prompt="Using the live numbers, write my prioritized briefing for today: what to tackle first and why. Reference the actual counts and dollar amounts."
           context={{ outstandingAR: d.outstanding, unpaidInvoices: d.unpaid.length, estimatesOutValue: d.pendEstTotal, estimatesAwaitingReply: d.pendEst.length, jobsToSchedule: d.toSchedule.length, maintenanceDueIn30d: d.maintDue.length, completedNotInvoiced: d.completedNotInvoiced.length, warrantyToRegister: d.warranty.length, estimatesDrafted: d.draftEst.length, estimatesDraftedValue: d.draftEstTotal, collectedThisWeek: d.collected, estimatesWonThisWeek: d.wonAmt, jobsCompletedThisWeek: d.completedWeek, closeRatePct: d.closeRate, onCallCoverageShort: d.onCallShort }} />
       </div>
 

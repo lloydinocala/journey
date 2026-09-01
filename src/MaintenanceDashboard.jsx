@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
 import OrgPicker from './OrgPicker'
+import QuincyBrief from './QuincyBrief'
 
 const BUCKETS = [
   { key: 'active', label: 'Active', tone: '#1F7A43' },
@@ -135,6 +136,8 @@ export default function MaintenanceDashboard({ profile }) {
         <h2 className="page-title" style={{ margin: 0 }}>Maintenance Dashboard</h2>
         <span className="badge">{rows.length.toLocaleString()} properties</span>
       </div>
+
+      <div style={{ marginBottom: 16 }}><QuincyBrief org={selectedOrg} /></div>
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>

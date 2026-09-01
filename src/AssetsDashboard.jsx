@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { listPurchaseOrders } from './modules/elements-hvac/data'
+import QuincyBrief from './QuincyBrief'
 
 const ACCENT = '#2F5DE3'
 
@@ -60,9 +61,10 @@ export default function AssetsDashboard({ profile }) {
       <div className="page-header-bar">
         <h2>Assets Management</h2>
       </div>
-      <p style={{ color: 'var(--mist)', fontSize: 15, marginTop: 4, marginBottom: 24, maxWidth: 640 }}>
+      <p style={{ color: 'var(--mist)', fontSize: 15, marginTop: 4, marginBottom: 16, maxWidth: 640 }}>
         One place to run everything your company owns and stocks. Pick an area to manage.
       </p>
+      <div style={{ marginBottom: 20 }}><QuincyBrief org={orgId} /></div>
 
       {/* Open purchase orders — awaiting receipt */}
       <div style={{ border: '1px solid var(--border)', borderTop: `4px solid ${overdueCount ? '#B00020' : ACCENT}`, borderRadius: 14, padding: 20, background: '#fff', boxShadow: '0 1px 3px rgba(15,23,42,0.06)', marginBottom: 24 }}>
