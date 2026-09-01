@@ -86,9 +86,20 @@ export async function addFuel(orgId, row) {
 
 export async function importFuel(orgId, rows) {
   // rows: array of fuel_log payloads (already mapped). Returns {inserted, error}.
+  // Each row may set its own `source`; otherwise it defaults to 'import'.
   const payload = rows.map((r) => ({ org_id: orgId, source: 'import', ...r }))
   const { data, error } = await supabase.from('elements_fuel_logs').insert(payload).select('id')
   return { inserted: data?.length || 0, error }
+}
+
+// Quincy reads a PDF/image fuel-card statement and returns the fills it found.
+// Mirrors the invoice reader — the fuel-statement-extract edge function calls the
+// AI and returns { account_name, provider, fills: [{date, gallons, total_cost,
+// price_per_gallon, odometer, card_id, vehicle_label, station, fuel_type}] }.
+export async function extractFuelStatement(fileBase64, mediaType) {
+  const { data, error } = await supabase.functions.invoke('fuel-statement-extract', { body: { fileBase64, mediaType } })
+  if (error || data?.error) return { error: data?.error || error?.message || 'Could not read the statement.' }
+  return { fills: Array.isArray(data?.fills) ? data.fills : [], account_name: data?.account_name || '', provider: data?.provider || '' }
 }
 
 // ---- Meters ---------------------------------------------------------------

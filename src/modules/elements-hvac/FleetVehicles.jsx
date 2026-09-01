@@ -7,7 +7,7 @@ import { useOrgSelector, OrgBar } from './shared'
 const today = () => new Date().toISOString().slice(0, 10)
 
 const blank = {
-  ownership: 'company', location_id: '', name: '', assigned_user_id: '', home_address: '', year: '', make: '', model: '',
+  ownership: 'company', location_id: '', name: '', assigned_user_id: '', home_address: '', fuel_card_id: '', year: '', make: '', model: '',
   vin: '', license_plate: '', color: '', tank_capacity_gal: '',
   expected_mpg_low: '', expected_mpg_high: '', status: 'active',
 }
@@ -75,7 +75,7 @@ export default function FleetVehicles({ profile }) {
     setForm({
       ownership: v.ownership || 'company',
       location_id: v.location_id || '', name: v.name || '', assigned_user_id: v.assigned_user_id || '',
-      home_address: v.home_address || '',
+      home_address: v.home_address || '', fuel_card_id: v.fuel_card_id || '',
       year: v.year ?? '', make: v.make || '', model: v.model || '', vin: v.vin || '',
       license_plate: v.license_plate || '', color: v.color || '',
       tank_capacity_gal: v.tank_capacity_gal ?? '', expected_mpg_low: v.expected_mpg_low ?? '',
@@ -98,6 +98,7 @@ export default function FleetVehicles({ profile }) {
       name: form.name.trim(),
       assigned_user_id: form.assigned_user_id || null,
       home_address: form.home_address.trim() || null,
+      fuel_card_id: form.fuel_card_id.trim() || null,
       year: num(form.year), make: form.make.trim() || null, model: form.model.trim() || null,
       vin: form.vin.trim() || null, license_plate: form.license_plate.trim() || null, color: form.color.trim() || null,
       tank_capacity_gal: num(form.tank_capacity_gal),
@@ -165,6 +166,10 @@ export default function FleetVehicles({ profile }) {
           <div className="field" style={{ minWidth: 280 }}>
             <label>Where the vehicle is kept (home base)</label>
             <input type="text" value={form.home_address} onChange={(e) => setForm({ ...form, home_address: e.target.value })} placeholder="Garage / driveway address — the daily route anchor" />
+          </div>
+          <div className="field" style={{ minWidth: 160 }}>
+            <label>Fuel card # / last 4</label>
+            <input type="text" value={form.fuel_card_id} onChange={(e) => setForm({ ...form, fuel_card_id: e.target.value })} placeholder="Auto-maps imported fuel" />
           </div>
           <div className="field" style={{ width: 80 }}><label>Year</label><input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} /></div>
           <div className="field" style={{ width: 120 }}><label>Make</label><input type="text" value={form.make} onChange={(e) => setForm({ ...form, make: e.target.value })} /></div>
