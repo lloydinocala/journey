@@ -62,6 +62,10 @@ export default function Estimates({ profile }) {
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [showStatusPicker, setShowStatusPicker] = useState(false)
+  const [convertEst, setConvertEst] = useState(null)
+  const [convertMode, setConvertMode] = useState('segment')
+  const [converting, setConverting] = useState(false)
+  const [convertErr, setConvertErr] = useState('')
   const [visibleStatuses, setVisibleStatuses] = useState(() => {
     const saved = localStorage.getItem('estimates_visible_statuses')
     return saved ? JSON.parse(saved) : APPROVAL_STATUS_OPTIONS.slice()
@@ -218,6 +222,27 @@ export default function Estimates({ profile }) {
 
   async function updateApprovalStatus(id, status) {
     await supabase.from('invoices').update({ approval_status: status }).eq('id', id)
+    loadEstimates(selectedOrg)
+  }
+
+  // Convert an approved estimate into a schedulable Service Call (Repair).
+  function openConvert(est) {
+    const canSegment = !!(est.job_id || est.reference_job_id)
+    setConvertMode(canSegment ? 'segment' : 'job')
+    setConvertErr('')
+    setConvertEst(est)
+  }
+  async function doConvert() {
+    if (!convertEst) return
+    setConverting(true)
+    setConvertErr('')
+    const { error } = await supabase.rpc('convert_estimate_to_service_call', {
+      p_estimate_id: convertEst.id,
+      p_mode: convertMode,
+    })
+    setConverting(false)
+    if (error) { setConvertErr(error.message || 'Could not convert this estimate.'); return }
+    setConvertEst(null)
     loadEstimates(selectedOrg)
   }
 
@@ -595,6 +620,11 @@ export default function Estimates({ profile }) {
                   <button className="logout-button" onClick={() => addToIncompleteJobs(est)}>
                     + Incomplete
                   </button>
+                  {est.approval_status === 'Approved' && !est.result_job && (
+                    <button className="logout-button" style={{ color: 'var(--route-blue, #1B3A6B)', fontWeight: 700 }} onClick={() => openConvert(est)}>
+                      → Service Call
+                    </button>
+                  )}
                   <button className="logout-button" style={{ color: est.is_archived ? undefined : '#C0392B' }} onClick={() => handleDelete(est)}>
                     {est.is_archived ? 'Unarchive' : 'Delete'}
                   </button>
@@ -677,6 +707,40 @@ export default function Estimates({ profile }) {
           onClose={() => setNewItemMode(null)}
           onCreated={() => loadEstimates(selectedOrg)}
         />
+      )}
+
+      {convertEst && (
+        <div onClick={() => !converting && setConvertEst(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--surface, #fff)', borderRadius: 14, width: '100%', maxWidth: 460, boxShadow: '0 24px 60px rgba(0,0,0,.35)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+              <h3 style={{ margin: 0 }}>Convert {convertEst.invoice_number} to a Service Call</h3>
+            </div>
+            <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ fontSize: 13, color: 'var(--mist)' }}>
+                Creates an unscheduled repair call with <strong style={{ color: 'var(--route-blue,#1B3A6B)' }}>No Trip Charge</strong> (the estimate already priced the work), linked back to this estimate. You'll schedule it from Jobs.
+              </div>
+              {(convertEst.job_id || convertEst.reference_job_id) && (
+                <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+                  <input type="radio" name="cmode" checked={convertMode === 'segment'} onChange={() => setConvertMode('segment')} style={{ marginTop: 3 }} />
+                  <span><strong>New segment</strong> of the existing job — a return visit on the same job number. <span style={{ color: 'var(--mist)' }}>(Recommended)</span></span>
+                </label>
+              )}
+              <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+                <input type="radio" name="cmode" checked={convertMode === 'job'} onChange={() => setConvertMode('job')} style={{ marginTop: 3 }} />
+                <span><strong>New job</strong> — a brand-new job number for this repair.</span>
+              </label>
+              {convertErr && <div style={{ color: '#B00020', fontSize: 13, background: '#FBE7E7', border: '1px solid #E3B0B0', borderRadius: 8, padding: '8px 10px' }}>{convertErr}</div>}
+            </div>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button className="logout-button" disabled={converting} onClick={() => setConvertEst(null)}>Cancel</button>
+              <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={converting} onClick={doConvert}>
+                {converting ? 'Converting…' : 'Convert'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
