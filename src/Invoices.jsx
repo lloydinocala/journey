@@ -59,6 +59,13 @@ export default function Invoices({ profile }) {
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [newItemMode, setNewItemMode] = useState(null)
   const [sendingId, setSendingId] = useState(null)
+  const [payFor, setPayFor] = useState(null)
+  const [payAmount, setPayAmount] = useState('')
+  const [payMethod, setPayMethod] = useState('cash')
+  const [payCheck, setPayCheck] = useState('')
+  const [payNotes, setPayNotes] = useState('')
+  const [paying, setPaying] = useState(false)
+  const [payErr, setPayErr] = useState('')
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('invoices_visible_columns_v2')
     return saved ? JSON.parse(saved) : DEFAULT_VISIBLE
@@ -199,8 +206,54 @@ export default function Invoices({ profile }) {
     return isPaid(inv) ? 'Paid' : inv.sent_at ? 'Sent' : 'Draft'
   }
 
-  async function setPaid(inv, paid) {
-    await supabase.from('invoices').update({ paid_at: paid ? new Date().toISOString() : null }).eq('id', inv.id)
+  // Marking paid records a real payment in the ledger (a DB trigger then updates the
+  // invoice's total_paid / balance / paid_at). This keeps the money side honest and
+  // makes the payment show up in cash reports — not just a flag on the invoice.
+  function openPay(inv) {
+    const remaining = Math.max((Number(inv.amount_due) || 0) - (Number(inv.total_paid) || 0), 0)
+    setPayFor(inv)
+    setPayAmount(remaining ? remaining.toFixed(2) : '')
+    setPayMethod('cash')
+    setPayCheck('')
+    setPayNotes('')
+    setPayErr('')
+  }
+  async function recordPayment() {
+    if (!payFor) return
+    const amt = Number(payAmount)
+    if (!amt || amt <= 0) { setPayErr('Enter a payment amount greater than zero.'); return }
+    if (payMethod === 'check' && !payCheck.trim()) { setPayErr('Enter a check number.'); return }
+    setPaying(true); setPayErr('')
+    const { data: userData } = await supabase.auth.getUser()
+    const { error } = await supabase.from('invoice_payments').insert({
+      org_id: payFor.org_id,
+      invoice_id: payFor.id,
+      amount: amt,
+      method: payMethod,
+      check_number: payMethod === 'check' ? payCheck.trim() : null,
+      notes: payNotes.trim() || null,
+      recorded_by: userData?.user?.id || null,
+    })
+    setPaying(false)
+    if (error) { setPayErr(error.message || 'Could not record the payment.'); return }
+    setPayFor(null)
+    loadInvoices(selectedOrg)
+  }
+  // Reverse a payment (undo an erroneous mark-paid) with an offsetting ledger entry —
+  // preserves the audit trail rather than deleting history; the trigger reopens the balance.
+  async function unmarkPaid(inv) {
+    const paid = Number(inv.total_paid) || 0
+    if (!window.confirm(`Reverse the recorded payment${paid ? ' of $' + paid.toFixed(2) : ''} on ${inv.invoice_number} and reopen its balance?`)) return
+    const { data: userData } = await supabase.auth.getUser()
+    const { error } = await supabase.from('invoice_payments').insert({
+      org_id: inv.org_id,
+      invoice_id: inv.id,
+      amount: -paid,
+      method: 'reversal',
+      notes: 'Payment reversed — marked unpaid in the office',
+      recorded_by: userData?.user?.id || null,
+    })
+    if (error) { window.alert(error.message || 'Could not reverse the payment.'); return }
     loadInvoices(selectedOrg)
   }
 
@@ -532,9 +585,9 @@ export default function Invoices({ profile }) {
                       context={{ invoice_number: inv.invoice_number, customer: inv.jobs?.properties?.customers?.display_name, outstanding_balance: inv.balance, invoice_date: inv.invoice_date }} />
                   )}
                   {inv.paid_at ? (
-                    <button className="logout-button" onClick={() => setPaid(inv, false)}>Unmark Paid</button>
+                    <button className="logout-button" onClick={() => unmarkPaid(inv)}>Unmark Paid</button>
                   ) : Number(inv.balance || 0) > 0 ? (
-                    <button className="logout-button" onClick={() => setPaid(inv, true)}>Mark Paid</button>
+                    <button className="logout-button" onClick={() => openPay(inv)}>Mark Paid</button>
                   ) : null}
                   <button className="logout-button" onClick={() => toggleArchive(inv)}>
                     {inv.is_archived ? 'Unarchive' : 'Archive'}
@@ -603,6 +656,51 @@ export default function Invoices({ profile }) {
           onClose={() => setNewItemMode(null)}
           onCreated={() => loadInvoices(selectedOrg)}
         />
+      )}
+
+      {payFor && (
+        <div onClick={() => !paying && setPayFor(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--surface, #fff)', borderRadius: 14, width: '100%', maxWidth: 440, boxShadow: '0 24px 60px rgba(0,0,0,.35)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+              <h3 style={{ margin: 0 }}>Record payment · {payFor.invoice_number}</h3>
+              <div style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 3 }}>Only record money you have actually received. This posts to the payment ledger and settles the balance.</div>
+            </div>
+            <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label>Amount received</label>
+                <input type="number" step="0.01" min="0" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder="0.00" />
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label>Method</label>
+                <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
+                  <option value="cash">Cash</option>
+                  <option value="check">Check</option>
+                  <option value="card">Card</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              {payMethod === 'check' && (
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label>Check number</label>
+                  <input type="text" value={payCheck} onChange={(e) => setPayCheck(e.target.value)} />
+                </div>
+              )}
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label>Notes (optional)</label>
+                <input type="text" value={payNotes} onChange={(e) => setPayNotes(e.target.value)} placeholder="Reference, payer, etc." />
+              </div>
+              {payErr && <div style={{ color: '#B00020', fontSize: 13, background: '#FBE7E7', border: '1px solid #E3B0B0', borderRadius: 8, padding: '8px 10px' }}>{payErr}</div>}
+            </div>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button className="logout-button" disabled={paying} onClick={() => setPayFor(null)}>Cancel</button>
+              <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={paying} onClick={recordPayment}>
+                {paying ? 'Recording…' : 'Record payment'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
