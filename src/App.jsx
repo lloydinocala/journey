@@ -48,6 +48,7 @@ import Estimates from './Estimates'
 import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
 import JoinPlan from './JoinPlan'
+import CustomerPortal from './modules/customer-hvac'
 import SystemEstimate from './SystemEstimate'
 import NewSystemEstimate from './NewSystemEstimate'
 import SystemEstimates from './SystemEstimates'
@@ -144,6 +145,10 @@ function AuthenticatedApp() {
       .single()
       .then(async (userRes) => {
         if (!userRes.data) {
+          // Not a staff user. If this is a portal customer who wandered onto the
+          // staff root, send them to their app instead of killing their session.
+          const { data: cid } = await supabase.rpc('current_customer_id')
+          if (cid) { window.location.replace('/portal'); return }
           setProfile(null)
           supabase.auth.signOut()
           return
@@ -322,6 +327,7 @@ export default function App() {
       <Routes>
         <Route path="/view-invoice/:invoiceId" element={<PublicInvoice />} />
         <Route path="/join-plan/:propertyId" element={<JoinPlan />} />
+        <Route path="/portal/*" element={<CustomerPortal />} />
         <Route path="*" element={<AuthenticatedApp />} />
       </Routes>
     </BrowserRouter>
