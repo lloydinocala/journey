@@ -18,13 +18,20 @@ function searchAll(query) {
   return ALL_ARTICLES.filter((a) => q.split(/\s+/).every((w) => hay(a).includes(w)))
 }
 
-// Rank articles by how many of the question's words they touch — used to pick the
-// handful of docs QuincyAI reads to answer, so the prompt stays small and on-topic.
+// Common words carry no topic signal — dropping them keeps ranking on the nouns
+// that actually name a feature ("supplies", "estimate", "refrigerant").
+const STOPWORDS = new Set(['how', 'do', 'does', 'did', 'the', 'and', 'for', 'you', 'your', 'with', 'what', 'where', 'when', 'why', 'who', 'can', 'get', 'got', 'are', 'was', 'this', 'that', 'from', 'into', 'out', 'not', 'but', 'has', 'have', 'had', 'will', 'would', 'should', 'could', 'about', 'set', 'use', 'using', 'add', 'see', 'view', 'find', 'need', 'want', 'make', 'new', 'app', 'page', 'screen', 'here', 'there', 'them', 'they', 'its', 'our'])
+
+// Rank articles by how many of the question's meaningful words they touch — used to
+// pick the handful of docs QuincyAI reads to answer, so the prompt stays small and
+// on-topic. Prefix-matches so "raise" hits "raising", "invoices" hits "invoice".
 function rankArticles(query, n = 6) {
-  const words = (query || '').toLowerCase().split(/\s+/).filter((w) => w.length > 2)
+  const words = (query || '').toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/)
+    .filter((w) => w.length > 2 && !STOPWORDS.has(w))
   if (!words.length) return []
+  const hit = (h, w) => h.includes(w) || (w.length > 4 && h.includes(w.slice(0, w.length - 1)))
   return ALL_ARTICLES
-    .map((a) => { const h = hay(a); return { a, score: words.reduce((s, w) => s + (h.includes(w) ? 1 : 0), 0) } })
+    .map((a) => { const h = hay(a); return { a, score: words.reduce((s, w) => s + (hit(h, w) ? 1 : 0), 0) } })
     .filter((x) => x.score > 0)
     .sort((x, y) => y.score - x.score)
     .slice(0, n)
