@@ -24,7 +24,7 @@ export default function CustomerLogin() {
 
   return (
     <div className="cp-login">
-      <div className="cp-brand">Air-Care Connect</div>
+      <div className="cp-apptitle">Your Air-Care Connection</div>
 
       {/* Lifestyle image. Appears once a licensed image is uploaded to
           public/portal-hero.png; hides itself (no broken icon, no gap) until then. */}
@@ -74,7 +74,6 @@ export default function CustomerLogin() {
         <li>Your Health</li>
         <li>Your Money</li>
       </ul>
-      <div className="cp-tagsum">Your Air-Care Connection</div>
     </div>
   )
 }
