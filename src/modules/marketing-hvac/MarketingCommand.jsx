@@ -43,7 +43,15 @@ export default function MarketingCommand({ profile }) {
         <p>Every channel and dollar measured against real booked revenue — pulled from Journey jobs, not vanity metrics.</p>
       </div>
 
-      <div style={{ margin: '4px 0 16px' }}><QuincyBrief org={orgId} /></div>
+      <div style={{ margin: '4px 0 16px' }}>
+        <QuincyBrief kind="marketing" context={{
+          draftsAwaitingReview: m ? m.pending : 0,
+          activeCampaigns: m ? m.campaigns : 0,
+          leadsAllTime: m ? m.leads : 0,
+          reviewRequests: m ? m.reviews : 0,
+          channels: m ? m.channels : 0,
+        }} />
+      </div>
 
       {!m ? <p className="muted">Loading…</p> : (
         <>
