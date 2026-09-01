@@ -12,6 +12,7 @@ const IMPORTS = [
   { to: '/import/services-pricebook', icon: '📗', title: 'Services Pricebook', desc: 'Your service and labor pricing catalog, including trip charges and variants.' },
   { to: '/import/systems-pricebook', icon: '❄️', title: 'Systems Pricebook', desc: 'Equipment and full-system pricing for install and replacement estimates.' },
   { to: '/import/vendor-prices', icon: '🧾', title: 'Vendor Price File', desc: 'Vendor parts price files to keep material costs and markups current.' },
+  { to: '/import/parts-catalog', icon: '🔩', title: 'Parts Catalog', desc: 'Your inventory parts master — names, units, reorder levels, and markups for stock tracking.' },
 ]
 
 export default function ImportDashboard() {

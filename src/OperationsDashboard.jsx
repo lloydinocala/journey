@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import QuincyBrief from './QuincyBrief'
+import NewItemDropdown from './NewItemDropdown'
+import QuickAddModal from './QuickAddModal'
 
 // A WORKING dashboard for office staff — a queue of what needs doing, not a report.
 // Every number links to the thing to resolve. Goal: clear the board to zero.
@@ -46,6 +48,7 @@ export default function OperationsDashboard({ profile }) {
   const [d, setD] = useState(null)
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState(null)
+  const [newItemMode, setNewItemMode] = useState(null)
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -200,7 +203,11 @@ export default function OperationsDashboard({ profile }) {
         <h2 className="page-title" style={{ marginBottom: 4 }}>Operations Dashboard</h2>
         <span style={{ fontSize: 11.5, color: C.mist }}>Live · updated {lastUpdated ? lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
       </div>
-      <p style={{ color: C.mist, fontSize: 13, marginTop: 0, marginBottom: 18 }}>What needs doing today. Click anything to go resolve it.</p>
+      <p style={{ color: C.mist, fontSize: 13, marginTop: 0, marginBottom: 14 }}>What needs doing today. Click anything to go resolve it.</p>
+
+      <div style={{ marginBottom: 16 }}>
+        <NewItemDropdown onSelect={setNewItemMode} />
+      </div>
 
       <div style={{ marginBottom: 18 }}>
         <QuincyBrief title="Today's briefing"
@@ -287,6 +294,16 @@ export default function OperationsDashboard({ profile }) {
           ))}
         </Card>
       </div>
+
+      {newItemMode && (
+        <QuickAddModal
+          mode={newItemMode}
+          orgId={selectedOrg}
+          profile={profile}
+          onClose={() => setNewItemMode(null)}
+          onCreated={() => load(selectedOrg)}
+        />
+      )}
     </div>
   )
 }
