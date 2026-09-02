@@ -1,73 +1,93 @@
 import { useState } from 'react'
 import { supabase } from '../../utils/supabase'
 
-// Passwordless sign-in. OTP proves the customer controls the email, which is
-// what makes the "link to the customer record by email" step safe server-side.
+// Passwordless sign-in with a 6-digit CODE (not a link). The customer types the
+// code into the app, so the session is created in the app itself — it works even
+// when the email is on another device, and it never bounces out to a browser.
 export default function CustomerLogin() {
   const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
+  const [code, setCode] = useState('')
+  const [step, setStep] = useState('email') // 'email' | 'code'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  async function sendLink() {
+  async function sendCode() {
     const e = email.trim().toLowerCase()
     if (!e) return
     setBusy(true); setError('')
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email: e,
-      options: { emailRedirectTo: window.location.origin + '/portal' },
-    })
+    const { error: err } = await supabase.auth.signInWithOtp({ email: e, options: { shouldCreateUser: true } })
     setBusy(false)
     if (err) setError(err.message)
-    else setSent(true)
+    else setStep('code')
+  }
+
+  async function verifyCode() {
+    const e = email.trim().toLowerCase()
+    const token = code.trim()
+    if (token.length < 6) return
+    setBusy(true); setError('')
+    const { error: err } = await supabase.auth.verifyOtp({ email: e, token, type: 'email' })
+    setBusy(false)
+    if (err) setError(err.message)
+    // On success, index.jsx's auth listener takes over and loads the account.
   }
 
   return (
     <div className="cp-login">
       <div className="cp-apptitle">Your Air-Care Connection</div>
 
-      {/* Lifestyle image. Appears once a licensed image is uploaded to
-          public/portal-hero.png; hides itself (no broken icon, no gap) until then. */}
       <img className="cp-hero-img" src="/portal-hero.png" alt=""
         onError={(e) => { e.currentTarget.style.display = 'none' }} />
 
       <div className="cp-box">
-        {sent ? (
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 6 }}>✉️</div>
-            <h2 className="cp-h2" style={{ marginTop: 0 }}>Check your email</h2>
-            <p className="cp-lead" style={{ marginBottom: 8 }}>
-              We sent a sign-in link to <b>{email.trim().toLowerCase()}</b>. Tap it on this
-              device and you'll be signed in — no password needed.
+        {step === 'code' ? (
+          <>
+            <h2 className="cp-h2" style={{ marginTop: 0 }}>Enter your code</h2>
+            <p className="cp-lead" style={{ marginBottom: 10 }}>
+              We emailed a 6-digit code to <b>{email.trim().toLowerCase()}</b>. Enter it here to sign in —
+              no link to open, no browser.
             </p>
-            <button className="cp-btn ghost" onClick={() => { setSent(false); setError('') }}>
+            <input
+              className="cp-input" type="text" inputMode="numeric" autoComplete="one-time-code"
+              placeholder="123456" maxLength={6} value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              onKeyDown={(e) => e.key === 'Enter' && verifyCode()}
+              style={{ textAlign: 'center', fontSize: 26, letterSpacing: 8, fontWeight: 800 }}
+            />
+            {error && <div className="cp-err">{error}</div>}
+            <div style={{ height: 14 }} />
+            <button className="cp-btn" onClick={verifyCode} disabled={busy || code.trim().length < 6}>
+              {busy ? 'Signing in…' : 'Sign in'}
+            </button>
+            <div style={{ height: 8 }} />
+            <button className="cp-btn ghost" onClick={() => { setStep('email'); setCode(''); setError('') }}>
               Use a different email
             </button>
-          </div>
+            <p className="cp-note">Didn't get it? Check your spam folder, or go back and try again.</p>
+          </>
         ) : (
           <>
             <h2 className="cp-h2" style={{ marginTop: 0 }}>Welcome back</h2>
-            <p className="cp-lead">Enter the email we have on file and we'll send you a secure sign-in link.</p>
+            <p className="cp-lead">Enter the email we have on file and we'll send you a 6-digit sign-in code.</p>
             <input
               className="cp-input" type="email" inputMode="email" autoComplete="email"
               placeholder="you@email.com" value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendLink()}
+              onKeyDown={(e) => e.key === 'Enter' && sendCode()}
             />
             {error && <div className="cp-err">{error}</div>}
             <div style={{ height: 14 }} />
-            <button className="cp-btn" onClick={sendLink} disabled={busy}>
-              {busy ? 'Sending…' : 'Email me a sign-in link'}
+            <button className="cp-btn" onClick={sendCode} disabled={busy}>
+              {busy ? 'Sending…' : 'Email me a code'}
             </button>
             <p className="cp-note">
-              First time here? Use the same email address you gave us when we did work at your
-              home, and we'll connect you to your account automatically.
+              First time here? Use the same email you gave us for service and we'll connect you to
+              your account automatically.
             </p>
           </>
         )}
       </div>
 
-      {/* The four subtitles as a small blue list under the sign-in. */}
       <ul className="cp-taglist">
         <li>Your Home</li>
         <li>Your Comfort</li>
