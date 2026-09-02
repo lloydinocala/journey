@@ -30,9 +30,9 @@ export default function CustomerHome({ customer, properties }) {
 
   const key = import.meta.env.VITE_GOOGLE_MAPS_KEY
   const addr = prop ? [prop.street_address, prop.city, prop.state, prop.zip].filter(Boolean).join(', ') : ''
-  const heroUrl = key && addr
-    ? `https://maps.googleapis.com/maps/api/streetview?size=760x420&location=${encodeURIComponent(addr)}&key=${key}`
-    : '/portal-sky.jpg'
+  const heroBg = key && addr
+    ? `url(https://maps.googleapis.com/maps/api/streetview?size=760x420&location=${encodeURIComponent(addr)}&key=${key})`
+    : 'linear-gradient(135deg,#5EA6E6 0%,#3E86D0 55%,#00B0F0 100%)'
 
   const feats = [
     { k: 'schedule', tone: '', label: 'Schedule an Appointment', sub: 'Repair, tune-up, or estimate — booked in a minute', to: '/portal/schedule' },
@@ -46,7 +46,7 @@ export default function CustomerHome({ customer, properties }) {
   return (
     <>
       <div className="cp-hero">
-        <div className="cp-heroimg" style={{ backgroundImage: `url(${heroUrl})` }} />
+        <div className="cp-heroimg" style={{ backgroundImage: heroBg }} />
         <div className="cp-brandtag">AIR-CARE CONNECT</div>
         <button className="cp-hero-signout" onClick={() => supabase.auth.signOut()}>Sign Out</button>
         <div className="cp-yourhome">YOUR HOME</div>
