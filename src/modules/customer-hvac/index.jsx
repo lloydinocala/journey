@@ -16,12 +16,31 @@ import CustomerProfile from './CustomerProfile'
 function QuincyPlaceholder() {
   const nav = useNavigate()
   return (
-    <div className="cp-wrap">
+    <div className="cp-wrap cp-quincy">
       <button className="cp-back" onClick={() => nav('/portal')}>‹ Home</button>
-      <h2 className="cp-h2">Ask Quincy</h2>
-      <p className="cp-lead">Quincy is your Air-Care AI helper — ask about your system, an odd noise or smell, or what a recent visit covered.</p>
-      <div className="cp-card"><p style={{ margin: 0, fontSize: 14.5 }}>Quincy is being set up for the homeowner app and will be here shortly. In the meantime, our team is glad to help — book a visit and we'll take care of it.</p></div>
-      <button className="cp-btn" onClick={() => nav('/portal/schedule')}>Schedule a visit</button>
+      <textarea className="cp-qbox" rows={7} placeholder="Describe the problem and see what Quincy recommends …" />
+      <div className="cp-qhead">“Hey Quincy! What’s wrong with my Air Conditioner?”</div>
+      <div className="cp-qrow">
+        <span className="cp-qbadge">
+          <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="6" y="6" width="88" height="88" rx="22" fill="#123449" />
+            <circle cx="44" cy="54" r="22" fill="none" stroke="#fff" strokeWidth="9" />
+            <line x1="56" y1="67" x2="70" y2="81" stroke="#fff" strokeWidth="9" strokeLinecap="round" />
+            <g stroke="#F0851F" strokeWidth="4" strokeLinecap="round">
+              <line x1="62" y1="34" x2="62" y2="19" />
+              <line x1="62" y1="34" x2="75" y2="23" />
+              <line x1="62" y1="34" x2="80" y2="36" />
+              <line x1="62" y1="34" x2="75" y2="47" />
+              <line x1="62" y1="34" x2="49" y2="23" />
+              <line x1="62" y1="34" x2="46" y2="35" />
+            </g>
+          </svg>
+        </span>
+        <svg className="cp-qmic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="3" width="6" height="11" rx="3" /><path d="M6 11a6 6 0 0012 0M12 17v4M9 21h6" />
+        </svg>
+      </div>
+      <button className="cp-btn" onClick={() => { window.location.href = 'tel:3524846341' }}>Call for Service</button>
     </div>
   )
 }
@@ -119,7 +138,7 @@ export default function CustomerPortal() {
         <Routes>
           <Route index element={<CustomerHome customer={customer} properties={properties} />} />
           <Route path="records" element={<CustomerRecords customer={customer} properties={properties} />} />
-          <Route path="equipment" element={<CustomerEquipment />} />
+          <Route path="equipment" element={<CustomerEquipment customer={customer} properties={properties} />} />
           <Route path="schedule" element={<CustomerSchedule />} />
           <Route path="book/:type" element={<CustomerBook customer={customer} properties={properties} />} />
           <Route path="request/:type" element={<CustomerRequest customer={customer} properties={properties} />} />
