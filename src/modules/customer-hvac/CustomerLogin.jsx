@@ -49,7 +49,7 @@ export default function CustomerLogin() {
             </p>
             <input
               className="cp-input" type="text" inputMode="numeric" autoComplete="one-time-code"
-              placeholder="123456" maxLength={6} value={code}
+              placeholder="Enter code" maxLength={8} value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
               onKeyDown={(e) => e.key === 'Enter' && verifyCode()}
               style={{ textAlign: 'center', fontSize: 26, letterSpacing: 8, fontWeight: 800 }}
