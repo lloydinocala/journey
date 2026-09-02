@@ -35,12 +35,12 @@ export default function CustomerHome({ customer, properties }) {
     : 'linear-gradient(135deg,#5EA6E6 0%,#3E86D0 55%,#00B0F0 100%)'
 
   const feats = [
-    { k: 'schedule', tone: '', label: 'Schedule an Appointment', sub: 'Repair, tune-up, or estimate — booked in a minute', to: '/portal/schedule' },
+    { k: 'equip', tone: '', label: 'See My Equipment Details', sub: 'Your system, warranties & coverage at a glance', to: '/portal/equipment' },
+    { k: 'schedule', tone: '', label: 'Schedule My Appointment', sub: 'Repair, tune-up, or estimate — booked in a minute', to: '/portal/schedule' },
     { k: 'plan', tone: 'pm', label: 'Preventive Maintenance', sub: 'Protect your comfort, avoid surprise breakdowns', to: '/portal/plan' },
-    { k: 'quincy', tone: 'q', label: 'Ask Quincy', sub: 'Your AI helper for anything about your home’s air', to: '/portal/quincy' },
-    { k: 'equip', tone: '', label: 'See Your Equipment Details', sub: 'Your system, warranties & coverage at a glance', to: '/portal/equipment' },
-    { k: 'filter', tone: '', label: 'Order AC Filters', sub: 'The exact filter for your system, delivered', to: '/portal/filters' },
-    { k: 'records', tone: '', label: 'Access Your Service Records', sub: 'Every visit, invoice & estimate in one place', to: '/portal/records' },
+    { k: 'records', tone: '', label: 'Access My Service Records', sub: 'Every visit, invoice & estimate in one place', to: '/portal/records' },
+    { k: 'filter', tone: '', label: 'Order My AC Filters', sub: 'The exact filter for your system, delivered', to: '/portal/filters' },
+    { k: 'quincy', tone: 'q', label: 'Ask Quincy: Why?', sub: 'Your AI helper for anything about your home’s air', to: '/portal/quincy' },
   ]
 
   return (
