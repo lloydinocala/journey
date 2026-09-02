@@ -2,17 +2,15 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 
-// "Order AC Filters" — the app surfaces the exact filter sizes we recorded at
-// the customer's service calls, and lets them reorder by quantity. Sizes come
-// straight from property_filters (captured in the field); nothing to type.
 const num = v => (v == null ? '' : String(v).replace(/\.0+$/, ''))
 const sizeOf = f => [num(f.width), num(f.height), num(f.thickness)].filter(Boolean).join('x')
+const MERVS = [8, 11, 13]
 
 export default function CustomerFilters({ properties }) {
   const nav = useNavigate()
   const [propId, setPropId] = useState(properties[0]?.id || '')
-  const [filters, setFilters] = useState(null) // null=loading
-  const [qty, setQty] = useState({})
+  const [filters, setFilters] = useState(null) // null = loading
+  const [custom, setCustom] = useState({})     // size -> { merv, qty }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
@@ -22,14 +20,7 @@ export default function CustomerFilters({ properties }) {
     setFilters(null)
     supabase.from('property_filters')
       .select('id, property_id, width, height, thickness, merv, location, quantity')
-      .then(({ data }) => {
-        if (!live) return
-        const rows = data || []
-        setFilters(rows)
-        const q = {}
-        rows.forEach(f => { q[f.id] = Math.max(1, Number(f.quantity) || 1) })
-        setQty(q)
-      })
+      .then(({ data }) => { if (live) setFilters(data || []) })
     return () => { live = false }
   }, [])
 
@@ -38,18 +29,30 @@ export default function CustomerFilters({ properties }) {
     [filters, propId]
   )
 
-  const bump = (id, d) => setQty(q => ({ ...q, [id]: Math.max(0, (q[id] || 0) + d) }))
+  const sizes = useMemo(() => {
+    const seen = []
+    mine.forEach(f => { const s = sizeOf(f); if (s && !seen.includes(s)) seen.push(s) })
+    return seen
+  }, [mine])
 
-  async function order() {
-    const lines = mine.filter(f => (qty[f.id] || 0) > 0).map(f => {
-      const bits = [`${qty[f.id]}\u00D7 ${sizeOf(f) || 'filter'}`]
-      if (f.merv) bits.push(`MERV ${f.merv}`)
-      if (f.location) bits.push(`(${f.location})`)
-      return '\u2022 ' + bits.join(' ')
+  useEffect(() => {
+    setCustom(prev => {
+      const next = { ...prev }
+      sizes.forEach(s => {
+        if (!next[s]) {
+          const rec = mine.find(f => sizeOf(f) === s)
+          next[s] = { merv: Number(rec?.merv) || 8, qty: 0 }
+        }
+      })
+      return next
     })
-    if (!lines.length) { setError('Choose at least one filter to order.'); return }
+  }, [sizes]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setMerv = (s, m) => setCustom(c => ({ ...c, [s]: { ...c[s], merv: m } }))
+  const bump = (s, d) => setCustom(c => ({ ...c, [s]: { ...c[s], qty: Math.max(0, (c[s]?.qty || 0) + d) } }))
+
+  async function submit(details) {
     setBusy(true); setError('')
-    const details = 'Filter reorder:\n' + lines.join('\n')
     const { error: err } = await supabase.rpc('submit_customer_request', {
       p_property_id: propId, p_type: 'filter_order', p_details: details, p_window: null,
     })
@@ -58,16 +61,24 @@ export default function CustomerFilters({ properties }) {
     setDone(true)
   }
 
-  async function askIdentify() {
-    setBusy(true); setError('')
-    const { error: err } = await supabase.rpc('submit_customer_request', {
-      p_property_id: propId, p_type: 'filter_order',
-      p_details: 'Customer asked us to identify/record their filter sizes on the next visit.',
-      p_window: null,
+  function orderTypical() {
+    const lines = mine.map(f => {
+      const q = Math.max(1, Number(f.quantity) || 1)
+      return `\u2022 ${q}\u00D7 ${sizeOf(f) || 'filter'}${f.merv ? ` MERV ${f.merv}` : ''}`
     })
-    setBusy(false)
-    if (err) { setError(err.message); return }
-    setDone(true)
+    if (!lines.length) { setError('No filters on file to reorder.'); return }
+    submit('Reorder usual filters:\n' + lines.join('\n'))
+  }
+
+  function orderCustom() {
+    const lines = sizes.filter(s => (custom[s]?.qty || 0) > 0)
+      .map(s => `\u2022 ${custom[s].qty}\u00D7 ${s} MERV ${custom[s].merv}`)
+    if (!lines.length) { setError('Set a quantity on at least one filter.'); return }
+    submit('Custom filter order:\n' + lines.join('\n'))
+  }
+
+  function askIdentify() {
+    submit('Customer asked us to identify/record their filter sizes on the next visit.')
   }
 
   if (done) return (
@@ -86,8 +97,7 @@ export default function CustomerFilters({ properties }) {
   return (
     <div className="cp-wrap">
       <button className="cp-back" onClick={() => nav('/portal')}>‹ Home</button>
-      <h2 className="cp-h2">Order AC Filters</h2>
-      <p className="cp-lead">The sizes below are the ones we’ve fitted at your home — just set the quantity.</p>
+      <h2 className="cp-h2">My AC Filters</h2>
 
       {properties.length > 1 && (
         <>
@@ -118,30 +128,48 @@ export default function CustomerFilters({ properties }) {
         </div>
       ) : (
         <>
-          <div className="cp-card">
-            {mine.map(f => (
-              <div key={f.id} className="cp-row">
-                <div className="cp-main">
-                  <b>{sizeOf(f) || 'Filter'}{f.merv ? `  ·  MERV ${f.merv}` : ''}</b>
-                  <span>{f.location || 'Air handler'}</span>
+          <div className="cp-card cp-filtsum">
+            <div className="cp-fsum-h">You Typically Use:</div>
+            {mine.map((f, i) => (
+              <div className="cp-fsum-row" key={f.id}>
+                <span className="lbl">Filter #{i + 1}</span>
+                <span className="merv">MERV {f.merv || '—'}</span>
+                <span className="size">{sizeOf(f) || 'filter'} ({Math.max(1, Number(f.quantity) || 1)})</span>
+              </div>
+            ))}
+            <button className="cp-btn" onClick={orderTypical} disabled={busy}>Order 1 Each Above</button>
+          </div>
+
+          <div className="cp-card cp-filtcustom">
+            {sizes.map(s => (
+              <div className="cp-fcust-row" key={s}>
+                <div className="size">{s}</div>
+                <div className="mervs">
+                  {MERVS.map(m => (
+                    <button
+                      key={m}
+                      className={'cp-mervchip' + (custom[s]?.merv === m ? ' on' : '')}
+                      onClick={() => setMerv(s, m)}
+                    >
+                      MERV {m}
+                    </button>
+                  ))}
                 </div>
-                <div className="cp-step">
-                  <button onClick={() => bump(f.id, -1)} aria-label="less">–</button>
-                  <span className="cp-qty">{qty[f.id] || 0}</span>
-                  <button onClick={() => bump(f.id, 1)} aria-label="more">+</button>
+                <div className="cp-qtybox">
+                  <div className="qtylabel">QTY</div>
+                  <div className="cp-step">
+                    <button onClick={() => bump(s, -1)} aria-label="less">–</button>
+                    <span className="cp-qty">{custom[s]?.qty || 0}</span>
+                    <button onClick={() => bump(s, 1)} aria-label="more">+</button>
+                  </div>
                 </div>
               </div>
             ))}
+            <button className="cp-btn pay" onClick={orderCustom} disabled={busy}>Order Custom Selection</button>
           </div>
+
           {error && <div className="cp-err">{error}</div>}
-          <div style={{ height: 12 }} />
-          <button className="cp-btn pay" onClick={order} disabled={busy}>
-            {busy ? 'Sending…' : 'Request these filters'}
-          </button>
-          <p className="cp-note">
-            We’ll confirm current pricing before anything is charged or delivered. Filters help your
-            system run efficiently and keep your indoor air clean.
-          </p>
+          <p className="cp-note">We’ll confirm current pricing before anything is charged or delivered.</p>
         </>
       )}
     </div>
