@@ -148,3 +148,14 @@
 .cp-bnav button.on{color:var(--sky-d)}
 .cp-bnav svg{width:24px;height:24px;margin:0 auto 3px;display:block}
 .cp-bnav span{font-size:12px;font-weight:800}
+/* schedule screen — larger, deeper option tiles + quick text/call */
+.cp-schedgrid .cp-tile{min-height:135px;box-shadow:0 12px 28px rgba(11,40,74,.26)}
+.cp-schedgrid .cp-tile .cp-ic{background:linear-gradient(135deg,var(--sky-d),#123A63)}
+.cp-schedgrid .cp-tile b{font-size:30px;line-height:1.05;overflow-wrap:break-word}
+.cp-schedgrid .cp-tile span{font-size:25px;line-height:1.15;overflow-wrap:break-word}
+.cp-schedgrid .cp-tile.emergency{background:#FDECEA;border-color:#F3C6BF}
+.cp-schedgrid .cp-tile.emergency .cp-ic{background:linear-gradient(135deg,#E0553A,#C0392B)}
+.cp-contact{display:flex;gap:12px;margin-top:18px}
+.cp-contactbtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;text-decoration:none;background:#fff;border-radius:16px;padding:16px;box-shadow:0 8px 22px rgba(11,40,74,.18);color:var(--ink);font-weight:800;font-size:17px}
+.cp-contactbtn svg{width:30px;height:30px;color:var(--sky-d)}
+.cp-contactbtn.call svg{color:var(--go-d)}
