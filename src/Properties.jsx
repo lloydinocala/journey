@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+Propertiesimport { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
