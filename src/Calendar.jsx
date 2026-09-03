@@ -67,7 +67,7 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile }) {
         <span style={{ fontSize: 12, color: 'var(--mist)' }}>{collapsed ? '\u25B8' : '\u25BE'}</span>
       </div>
       {!collapsed && (count === 0 ? (
-        <div style={{ fontSize: 13, color: 'var(--mist)' }}>Nothing waiting \u2014 all caught up.</div>
+        <div style={{ fontSize: 13, color: 'var(--mist)' }}>Nothing waiting — all caught up.</div>
       ) : (
         <>
           {asap.length > 0 && (
@@ -98,6 +98,7 @@ export default function Calendar({ profile }) {
   const [businessStart, setBusinessStart] = useState('08:00')
   const [businessEnd, setBusinessEnd] = useState('19:00')
   const [jobs, setJobs] = useState([])
+  const [trayJobs, setTrayJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState(null)
   const [trayCollapsed, setTrayCollapsed] = useState(false)
@@ -197,9 +198,41 @@ export default function Calendar({ profile }) {
     setLoading(false)
   }
 
+  // The tray loads ALL pending jobs for the org, independent of the grid's date
+  // window, so future self-bookings and pending jobs are always visible to dispatch.
+  async function loadTray() {
+    if (!selectedOrg) return
+    const { data } = await supabase
+      .from('jobs')
+      .select(
+        'id, job_number, job_date, date_pending, requested_window, self_booked, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(id, display_name, is_banned))'
+      )
+      .eq('org_id', selectedOrg)
+      .is('deleted_at', null)
+      .eq('date_pending', true)
+      .neq('status', 'cancelled')
+      .order('job_date', { ascending: true })
+    setTrayJobs((data || []).map((j) => {
+      const techs = (j.job_technicians || []).slice().sort((a, b) => a.sort_order - b.sort_order)
+      return {
+        ...j,
+        customer_name: j.properties?.customers?.display_name || 'Unknown',
+        customer_id: j.properties?.customers?.id || null,
+        address: j.properties?.street_address || '',
+        is_banned: j.properties?.customers?.is_banned || false,
+        primary_technician: techs[0]?.users || null,
+        technician_names: techs.length > 0 ? techs.map((t) => t.users?.full_name).join(', ') : 'Unassigned',
+      }
+    }))
+  }
+
   useEffect(() => {
     loadJobs()
   }, [selectedOrg, currentDate, effectiveView])
+
+  useEffect(() => {
+    loadTray()
+  }, [selectedOrg])
 
   function goToday() {
     setCurrentDate(new Date())
@@ -227,7 +260,7 @@ export default function Calendar({ profile }) {
       .from('jobs')
       .update({ job_date: newDateStr, start_time: newStartTime, date_pending: false })
       .eq('id', jobId)
-    loadJobs()
+    loadJobs(); loadTray()
   }
 
   function handleDayClick(day) {
@@ -237,7 +270,7 @@ export default function Calendar({ profile }) {
 
   async function handleMonthDrop(jobId, newDateStr) {
     await supabase.from('jobs').update({ job_date: newDateStr, date_pending: false }).eq('id', jobId)
-    loadJobs()
+    loadJobs(); loadTray()
   }
 
   const dateLabel =
@@ -298,7 +331,7 @@ export default function Calendar({ profile }) {
       ) : (
         <div style={{ display: isMobile ? 'block' : 'flex', gap: 16, alignItems: 'flex-start' }}>
           <DispatchTray
-            jobs={jobs.filter((j) => j.date_pending)}
+            jobs={trayJobs}
             onJobClick={setSelectedJob}
             collapsed={trayCollapsed}
             onToggle={() => setTrayCollapsed((c) => !c)}
@@ -336,7 +369,7 @@ export default function Calendar({ profile }) {
           orgId={selectedOrg}
           profile={profile}
           onClose={() => setNewItemMode(null)}
-          onCreated={loadJobs}
+          onCreated={() => { loadJobs(); loadTray() }}
         />
       )}
     </div>
