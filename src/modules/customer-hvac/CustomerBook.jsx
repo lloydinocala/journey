@@ -2,37 +2,30 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 
-// Self-scheduling. Availability, capacity, business hours, per-type weekday rules
-// (repair Mon-Sat, others Mon-Fri) and per-type notice (repair same-day, estimate
-// 4h, tune-up 2 business days, duct 3 business days) are all resolved server-side.
+// Self-scheduling. Availability, capacity, business hours, per-type weekday rules,
+// per-type notice, and the arrival windows are resolved server-side.
 const META = {
-  repair:        { title: 'Service Call',           lead: 'Tell us what’s going on, then pick a time.', note: 'Same-day service Mon–Sat. For Sunday emergencies, please call the office.' },
+  repair:        { title: 'Service Call',           lead: 'Tell us what’s going on, then pick a time.', note: 'Weekdays. For weekend or after-hours emergencies, we’re available 24/7 by phone — please call the office.' },
   pm:            { title: 'Preventive Maintenance', lead: 'Pick a day and window for your tune-up.',     note: 'Weekdays, with at least 2 business days’ notice.' },
   duct_cleaning: { title: 'Duct Cleaning',          lead: 'Pick a day for your duct cleaning.',          note: 'Weekdays. Duct cleanings begin at 9:00 AM.' },
   system_quote:  { title: 'Free Estimate',          lead: 'Pick a time for your free estimate.',         note: 'Weekdays, with about 4 hours’ notice.' },
 }
 
+const WLABEL = { '8_11': '8:00–11:00 AM', '10_1': '10:00 AM–1:00 PM', '12_3': '12:00–3:00 PM', '2_5': '2:00–5:00 PM', 'asap': 'ASAP' }
+
 function dparts(dstr) {
   const d = new Date(dstr + 'T00:00:00')
-  return {
-    dow: d.toLocaleDateString('en-US', { weekday: 'short' }),
-    num: d.getDate(),
-    mon: d.toLocaleDateString('en-US', { month: 'short' }),
-  }
+  return { dow: d.toLocaleDateString('en-US', { weekday: 'short' }), num: d.getDate(), mon: d.toLocaleDateString('en-US', { month: 'short' }) }
 }
 function fmtLong(dstr) {
   return new Date(dstr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 }
 
-const SunIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-  </svg>
+const ClockIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
 )
-const AfternoonIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17 18a5 5 0 00-10 0" /><path d="M12 2v7M4.9 10.9l1.4 1.4M19.1 10.9l-1.4 1.4M2 18h20M3 22h18" />
-  </svg>
+const BoltIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></svg>
 )
 
 export default function CustomerBook({ properties }) {
@@ -69,13 +62,13 @@ export default function CustomerBook({ properties }) {
 
   function pickDay(a) {
     setDay(a)
-    setWin(amOnly ? 'am' : '')
+    setWin(amOnly ? '8_11' : '')
     setError('')
   }
 
   async function confirm() {
     if (!day) { setError('Pick a day first.'); return }
-    if (!win) { setError('Pick a window first.'); return }
+    if (!win) { setError('Pick an arrival window first.'); return }
     if (effectiveType === 'repair' && !details.trim()) { setError('Please tell us what’s going on so we send the right tech.'); return }
     setBusy(true); setError('')
     const { data, error: err } = await supabase.rpc('book_appointment', {
@@ -106,7 +99,9 @@ export default function CustomerBook({ properties }) {
         <h2 className="cp-h2">You’re booked</h2>
         <p className="cp-lead" style={{ maxWidth: 360 }}>
           {meta.title} on <b>{fmtLong(done.date)}</b>
-          {amOnly ? <> at <b>9:00 AM</b>.</> : <>, {done.win === 'am' ? 'morning' : 'afternoon'}.</>}
+          {amOnly ? <> at <b>9:00 AM</b>.</>
+            : done.win === 'asap' ? <> — <b>as soon as possible</b>.</>
+            : <>, <b>{WLABEL[done.win]}</b>.</>}
           {' '}Our office will confirm the exact date and time with you.
         </p>
         <button className="cp-btn" style={{ maxWidth: 260 }} onClick={() => nav('/portal')}>Back to home</button>
@@ -173,18 +168,15 @@ export default function CustomerBook({ properties }) {
             </div>
           ) : (
             <>
-              <div className="cp-label">Choose a window</div>
+              <div className="cp-label">Choose an arrival window</div>
               <div className="cp-winrow">
-                {day.am_ok && (
-                  <button className={'cp-wincard' + (win === 'am' ? ' on' : '')} onClick={() => { setWin('am'); setError('') }}>
-                    <SunIcon /><span className="wlabel">Morning</span><span className="wsub">Before noon</span>
+                {(day.windows || []).map(code => (
+                  <button key={code} className={'cp-wincard' + (win === code ? ' on' : '') + (code === 'asap' ? ' asap' : '')} onClick={() => { setWin(code); setError('') }}>
+                    {code === 'asap' ? <BoltIcon /> : <ClockIcon />}
+                    <span className="wlabel">{WLABEL[code]}</span>
+                    {code === 'asap' && <span className="wsub">As soon as possible</span>}
                   </button>
-                )}
-                {day.pm_ok && (
-                  <button className={'cp-wincard' + (win === 'pm' ? ' on' : '')} onClick={() => { setWin('pm'); setError('') }}>
-                    <AfternoonIcon /><span className="wlabel">Afternoon</span><span className="wsub">After noon</span>
-                  </button>
-                )}
+                ))}
               </div>
             </>
           )}
