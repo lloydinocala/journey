@@ -40,6 +40,8 @@ export default function Properties({ profile }) {
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [properties, setProperties] = useState([])
   const [showArchived, setShowArchived] = useState(false)
+  const [needsFiltersOnly, setNeedsFiltersOnly] = useState(false)
+  const [propsWithFilters, setPropsWithFilters] = useState(() => new Set())
   const [loading, setLoading] = useState(true)
   const [newItemMode, setNewItemMode] = useState(null)
 
@@ -136,7 +138,7 @@ export default function Properties({ profile }) {
     if (!orgId) return
     setLoading(true)
     try {
-      const [propertiesData, jobsData] = await Promise.all([
+      const [propertiesData, jobsData, filtersData] = await Promise.all([
         fetchAllRows(() =>
           supabase
             .from('properties')
@@ -150,7 +152,13 @@ export default function Properties({ profile }) {
         fetchAllRows(() =>
           supabase.from('jobs').select('property_id, job_date, status').eq('org_id', orgId).eq('status', 'completed').is('deleted_at', null)
         ),
+        // Which properties already have at least one recorded air filter.
+        fetchAllRows(() =>
+          supabase.from('property_filters').select('property_id').eq('org_id', orgId)
+        ),
       ])
+
+      setPropsWithFilters(new Set((filtersData || []).map((f) => f.property_id)))
 
       const lastServiceByProperty = {}
       jobsData.forEach((j) => {
@@ -443,6 +451,7 @@ export default function Properties({ profile }) {
   }
 
   const filtered = properties.filter((p) => {
+    if (needsFiltersOnly && propsWithFilters.has(p.id)) return false
     if (!searchText) return true
     const q = searchText.toLowerCase()
     return (
@@ -540,6 +549,15 @@ export default function Properties({ profile }) {
             style={{ marginRight: 6 }}
           />
           Show archived
+        </label>
+        <label className="nav-link" style={{ cursor: 'pointer', marginBottom: 10 }}>
+          <input
+            type="checkbox"
+            checked={needsFiltersOnly}
+            onChange={(e) => setNeedsFiltersOnly(e.target.checked)}
+            style={{ marginRight: 6 }}
+          />
+          Needs filters
         </label>
         <div style={{ position: 'relative', marginBottom: 10 }}>
           <button className="logout-button" onClick={() => setShowColumnPicker(!showColumnPicker)}>
@@ -716,6 +734,7 @@ export default function Properties({ profile }) {
                   <div className="grid-cell" style={{ background: rowBg }}>
                     {p.street_address}{p.unit ? ` #${p.unit}` : ''}
                     {!p.is_active && <span className="status-pill status-canceled" style={{ marginLeft: 6 }}>Archived</span>}
+                    {!propsWithFilters.has(p.id) && <span className="status-pill" style={{ marginLeft: 6, background: 'rgba(210,150,40,0.15)', color: '#9a6a12' }}>No filters</span>}
                   </div>
                   {visibleColumns.includes('city') && <div className="grid-cell" style={{ background: rowBg }}>{p.city || '—'}</div>}
                   {visibleColumns.includes('state') && <div className="grid-cell" style={{ background: rowBg }}>{p.state || '—'}</div>}
