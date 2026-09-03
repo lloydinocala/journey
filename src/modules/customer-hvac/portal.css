@@ -215,3 +215,20 @@
 .cp-warr-ok { background: rgba(46, 160, 87, 0.14); color: #1b7a3d; border-color: rgba(46, 160, 87, 0.35); }
 .cp-warr-exp { background: rgba(200, 60, 60, 0.12); color: #b0342f; border-color: rgba(200, 60, 60, 0.32); }
 .cp-warr-verify { background: rgba(210, 150, 40, 0.14); color: #9a6a12; border-color: rgba(210, 150, 40, 0.35); }
+
+/* Quincy chat (customer portal) */
+.cp-chat-head{display:flex;align-items:center;gap:10px;margin:6px 0 12px}
+.cp-chat-badge{width:38px;height:38px;border-radius:50%;background:var(--sky);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex:0 0 auto}
+.cp-chat-title{font-weight:800;font-size:18px;color:var(--ink)}
+.cp-chat-sub{font-size:12.5px;color:var(--muted)}
+.cp-chat-scroll{max-height:58vh;min-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:6px 2px 12px}
+.cp-bubble{max-width:82%;padding:10px 13px;border-radius:16px;font-size:14.5px;line-height:1.42;white-space:pre-wrap;word-wrap:break-word}
+.cp-bubble.bot{align-self:flex-start;background:#fff;border:1px solid var(--line);color:var(--ink);border-bottom-left-radius:5px}
+.cp-bubble.me{align-self:flex-end;background:var(--sky);color:#fff;border-bottom-right-radius:5px}
+.cp-bubble.err{align-self:center;background:#FDECEC;color:#B0342F;border:1px solid #F5C6C6;font-size:13px}
+.cp-bubble-typing{color:var(--muted);font-style:italic}
+.cp-chat-input{display:flex;gap:8px;padding-top:8px;border-top:1px solid var(--line)}
+.cp-chat-input input{flex:1;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;font-size:15px;outline:none}
+.cp-chat-input input:focus{border-color:var(--sky)}
+.cp-chat-input button{border:0;background:var(--sky);color:#fff;font-weight:800;border-radius:12px;padding:0 18px;font-size:15px;cursor:pointer}
+.cp-chat-input button:disabled{opacity:.5}
