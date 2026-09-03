@@ -42,6 +42,8 @@ export default function Properties({ profile }) {
   const [showArchived, setShowArchived] = useState(false)
   const [needsFiltersOnly, setNeedsFiltersOnly] = useState(false)
   const [propsWithFilters, setPropsWithFilters] = useState(() => new Set())
+  const [needsMfgOnly, setNeedsMfgOnly] = useState(false)
+  const [propsNeedingMfg, setPropsNeedingMfg] = useState(() => new Set())
   const [loading, setLoading] = useState(true)
   const [newItemMode, setNewItemMode] = useState(null)
 
@@ -138,7 +140,7 @@ export default function Properties({ profile }) {
     if (!orgId) return
     setLoading(true)
     try {
-      const [propertiesData, jobsData, filtersData] = await Promise.all([
+      const [propertiesData, jobsData, filtersData, equipData] = await Promise.all([
         fetchAllRows(() =>
           supabase
             .from('properties')
@@ -156,9 +158,19 @@ export default function Properties({ profile }) {
         fetchAllRows(() =>
           supabase.from('property_filters').select('property_id').eq('org_id', orgId)
         ),
+        // Active equipment — used to flag properties whose warranty can't be dated
+        // yet (no install date, no confirmed mfg year, and an undecodable serial).
+        fetchAllRows(() =>
+          supabase.from('property_equipment')
+            .select('property_id, install_date, manufacture_year, manufacture_month, outdoor_brand, outdoor_serial, indoor_brand, indoor_serial, furnace_brand, furnace_serial')
+            .eq('org_id', orgId).neq('status', 'retired')
+        ),
       ])
 
       setPropsWithFilters(new Set((filtersData || []).map((f) => f.property_id)))
+      const needMfg = new Set()
+      ;(equipData || []).forEach((eq) => { if (eqWarranty(eq).parts.state === 'verify') needMfg.add(eq.property_id) })
+      setPropsNeedingMfg(needMfg)
 
       const lastServiceByProperty = {}
       jobsData.forEach((j) => {
@@ -452,6 +464,7 @@ export default function Properties({ profile }) {
 
   const filtered = properties.filter((p) => {
     if (needsFiltersOnly && propsWithFilters.has(p.id)) return false
+    if (needsMfgOnly && !propsNeedingMfg.has(p.id)) return false
     if (!searchText) return true
     const q = searchText.toLowerCase()
     return (
@@ -558,6 +571,15 @@ export default function Properties({ profile }) {
             style={{ marginRight: 6 }}
           />
           Needs filters
+        </label>
+        <label className="nav-link" style={{ cursor: 'pointer', marginBottom: 10 }}>
+          <input
+            type="checkbox"
+            checked={needsMfgOnly}
+            onChange={(e) => setNeedsMfgOnly(e.target.checked)}
+            style={{ marginRight: 6 }}
+          />
+          Needs mfg date
         </label>
         <div style={{ position: 'relative', marginBottom: 10 }}>
           <button className="logout-button" onClick={() => setShowColumnPicker(!showColumnPicker)}>
@@ -735,6 +757,7 @@ export default function Properties({ profile }) {
                     {p.street_address}{p.unit ? ` #${p.unit}` : ''}
                     {!p.is_active && <span className="status-pill status-canceled" style={{ marginLeft: 6 }}>Archived</span>}
                     {!propsWithFilters.has(p.id) && <span className="status-pill" style={{ marginLeft: 6, background: 'rgba(210,150,40,0.15)', color: '#9a6a12' }}>No filters</span>}
+                    {propsNeedingMfg.has(p.id) && <span className="status-pill" style={{ marginLeft: 6, background: 'rgba(200,60,60,0.12)', color: '#b0342f' }}>No mfg date</span>}
                   </div>
                   {visibleColumns.includes('city') && <div className="grid-cell" style={{ background: rowBg }}>{p.city || '—'}</div>}
                   {visibleColumns.includes('state') && <div className="grid-cell" style={{ background: rowBg }}>{p.state || '—'}</div>}
