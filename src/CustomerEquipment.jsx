@@ -1,85 +1,126 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
-import { warrantyFor } from './warranty'
+import { warrantyFor, decodeSerial } from './warranty'
 
-const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null
-const pillClass = (state) => state === 'active' ? 'ok' : state === 'expired' ? 'due' : 'pend'
-
-// Break a property_equipment row into its up-to-three physical units.
 function unitsOf(q) {
   return [
-    { kind: 'Outdoor unit', brand: q.outdoor_brand, model: q.outdoor_model, serial: q.outdoor_serial },
-    { kind: 'Indoor unit',  brand: q.indoor_brand,  model: q.indoor_model,  serial: q.indoor_serial },
+    { kind: 'Outdoor Unit', brand: q.outdoor_brand, model: q.outdoor_model, serial: q.outdoor_serial },
+    { kind: 'Indoor Unit',  brand: q.indoor_brand,  model: q.indoor_model,  serial: q.indoor_serial },
     { kind: 'Furnace',      brand: q.furnace_brand, model: q.furnace_model, serial: q.furnace_serial },
-  ].filter(u => u.brand || u.model || u.serial)
+  ].filter((u) => u.brand || u.model || u.serial)
 }
 
-export default function CustomerEquipment() {
+// The system's manufacture year drives the parts warranty. Prefer a confirmed
+// manufacture_year on the record; else decode the outdoor unit (the condenser is
+// what the parts warranty tracks), then indoor, then furnace.
+function systemWarranty(q) {
+  const order = [
+    [q.outdoor_brand, q.outdoor_serial],
+    [q.indoor_brand, q.indoor_serial],
+    [q.furnace_brand, q.furnace_serial],
+  ]
+  let brand = q.outdoor_brand, serial = q.outdoor_serial
+  if (q.manufacture_year == null) {
+    for (const [b, s] of order) {
+      if (decodeSerial(b, s).year) { brand = b; serial = s; break }
+    }
+  }
+  return warrantyFor({ manufactureYear: q.manufacture_year, installDate: q.install_date, brand, serial })
+}
+
+const pillClass = (state) => (state === 'active' ? 'cp-warr-ok' : state === 'expired' ? 'cp-warr-exp' : 'cp-warr-verify')
+
+export default function CustomerEquipment({ customer, properties }) {
   const nav = useNavigate()
   const [equip, setEquip] = useState(null)
+  const prop = (properties || [])[0]
+  const propIds = (properties || []).map((p) => p.id)
 
   useEffect(() => {
     let live = true
+    if (!propIds.length) { setEquip([]); return }
     supabase.from('property_equipment')
-      .select('id, system_label, install_date, status, outdoor_brand, outdoor_model, outdoor_serial, indoor_brand, indoor_model, indoor_serial, furnace_brand, furnace_model, furnace_serial')
+      .select('id, system_label, install_date, manufacture_year, status, outdoor_brand, outdoor_model, outdoor_serial, indoor_brand, indoor_model, indoor_serial, furnace_brand, furnace_model, furnace_serial')
+      .in('property_id', propIds)
       .neq('status', 'retired')
+      .order('created_at', { ascending: false })
       .then(({ data }) => { if (live) setEquip(data || []) })
     return () => { live = false }
-  }, [])
+  }, [properties]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const name = customer ? ([customer.first_name, customer.last_name].filter(Boolean).join(' ') || customer.display_name || '') : ''
 
   return (
     <div className="cp-wrap">
       <button className="cp-back" onClick={() => nav('/portal')}>‹ Home</button>
-      <h2 className="cp-h2">Your Equipment</h2>
-      <p className="cp-lead">The systems we’ve installed and serviced at your home, with warranty status.</p>
+      <h2 className="cp-h2">My Equipment & Warranty</h2>
+
+      <div className="cp-card cp-inforows">
+        {name && <div className="cp-inforow"><span className="lbl">Name</span><span className="val">{name}</span></div>}
+        {prop && <div className="cp-inforow"><span className="lbl">Address</span><span className="val">{[prop.street_address, prop.unit].filter(Boolean).join(' ')}</span></div>}
+        {prop && (prop.city || prop.state || prop.zip) && (
+          <div className="cp-inforow"><span className="lbl">City, State, Zip</span><span className="val">{[prop.city, prop.state].filter(Boolean).join(', ')} {prop.zip}</span></div>
+        )}
+        {customer && customer.primary_phone && <div className="cp-inforow"><span className="lbl">Phone</span><span className="val">{customer.primary_phone}</span></div>}
+        {customer && customer.email_1 && <div className="cp-inforow"><span className="lbl">Email</span><span className="val">{customer.email_1}</span></div>}
+      </div>
 
       {equip === null ? (
-        <div className="cp-empty">Loading your systems…</div>
+        <div className="cp-card">Loading…</div>
       ) : equip.length === 0 ? (
-        <div className="cp-card">
-          <p style={{ margin: 0, fontSize: 14.5 }}>
-            We don’t have equipment recorded for your home yet. We capture make, model, and serial
-            at each visit, so this fills in after your next service call.
-          </p>
-        </div>
-      ) : equip.map(q => {
-        const units = unitsOf(q)
-        return (
-          <div className="cp-card" key={q.id}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-              <b style={{ fontSize: 15.5 }}>{q.system_label || 'HVAC system'}</b>
-              <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>
-                {fmtDate(q.install_date) ? `Installed ${fmtDate(q.install_date)}` : 'Install date not on file'}
-              </span>
-            </div>
-            {units.length === 0 ? (
-              <p className="cp-note" style={{ marginTop: 8 }}>Details on file with the office.</p>
-            ) : units.map((u, idx) => {
-              const w = warrantyFor({ installDate: q.install_date, brand: u.brand, serial: u.serial })
-              return (
-                <div key={idx} style={{ padding: '11px 0', borderBottom: idx < units.length - 1 ? '1px solid var(--line)' : 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>
-                    {u.kind}{u.brand ? ` · ${u.brand}` : ''}
-                  </div>
-                  {u.model && <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>Model {u.model}{u.serial ? ` · S/N ${u.serial}` : ''}</div>}
-                  <div className="cp-chips" style={{ marginTop: 8 }}>
-                    <span className={`cp-pill ${pillClass(w.parts.state)}`}>{w.parts.label}</span>
-                    <span className={`cp-pill ${pillClass(w.labor.state)}`}>{w.labor.label}</span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )
-      })}
+        <div className="cp-card"><div className="note">We’ll record your system’s make, model &amp; serial at your next visit.</div></div>
+      ) : (
+        equip.map((q) => {
+          const w = systemWarranty(q)
+          const units = unitsOf(q)
+          return (
+            <div className="cp-card cp-equip" key={q.id}>
+              {q.system_label && <div className="cp-equip-sys"><b>{q.system_label}</b></div>}
 
-      {equip && equip.length > 0 && (
-        <p className="cp-note">
-          Parts coverage is shown from your install date when we have it. Where we don’t, parts are
-          estimated from the equipment’s manufacture date (marked “est.”) and labor is shown as
-          expired. Call the office to confirm exact coverage before scheduling warranty work.
-        </p>
+              <div className="cp-inforow">
+                <span className="lbl">Manufactured</span>
+                <span className="val">
+                  {w.manufactureYear
+                    ? `${w.manufactureYear}${w.manufactureSource === 'serial' ? ' (from serial)' : ''}`
+                    : 'Verify — see note'}
+                </span>
+              </div>
+
+              {q.install_date && (
+                <div className="cp-inforow">
+                  <span className="lbl">Installed</span>
+                  <span className="val">{new Date(q.install_date + 'T00:00:00').toLocaleDateString('en-US')}</span>
+                </div>
+              )}
+
+              <div className="cp-warrpills">
+                <span className={`cp-warr-pill ${pillClass(w.parts.state)}`}>{w.parts.label}</span>
+                <span className={`cp-warr-pill ${pillClass(w.labor.state)}`}>{w.labor.label}</span>
+                <span className={`cp-warr-pill ${pillClass(w.freon.state)}`}>{w.freon.label}</span>
+              </div>
+
+              {w.note && <div className="note" style={{ marginTop: 8 }}>{w.note}</div>}
+              <div className="note" style={{ marginTop: 8 }}>
+                Parts: 10 years — from the install date when we installed it, otherwise from the manufacture date (honored to any owner). Labor &amp; refrigerant: 1 year from install only. Diagnostic/service fees may apply.
+              </div>
+
+              <div style={{ marginTop: 10 }}>
+                {units.map((u, i) => {
+                  const d = decodeSerial(u.brand, u.serial)
+                  return (
+                    <div className="unit" key={i}>
+                      <b>{u.kind}: {u.brand || '—'}</b>
+                      {u.model && <div>Model: {u.model}</div>}
+                      {u.serial && <div>Serial: {u.serial}</div>}
+                      {d.year && <div>Mfg: {d.year}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })
       )}
     </div>
   )
