@@ -12,10 +12,10 @@ const COLS = [
   { key: 'thickness', label: 'Thickness', w: 80, num: true },
   { key: 'type', label: 'Type', w: 130, num: false },
   { key: 'merv', label: 'MERV', w: 70, num: true },
-  { key: 'price_1', label: '1 ea', w: 80, num: true, money: true },
-  { key: 'price_4', label: '4 ea', w: 80, num: true, money: true },
-  { key: 'price_6', label: '6 ea', w: 80, num: true, money: true },
-  { key: 'price_case', label: 'Case (12)', w: 90, num: true, money: true },
+  { key: 'price_1', label: '1–3 ea', w: 84, num: true, money: true },
+  { key: 'price_4', label: '4–5 ea', w: 84, num: true, money: true },
+  { key: 'price_6', label: '6–11 ea', w: 88, num: true, money: true },
+  { key: 'price_case', label: 'Case of 12', w: 96, num: true, money: true },
 ]
 const BLANK = { height: '', width: '', thickness: '', type: '', merv: '', price_1: '', price_4: '', price_6: '', price_case: '' }
 
@@ -134,7 +134,8 @@ export default function FilterPricebookImport({ profile }) {
     <div style={{ maxWidth: 1050, margin: '0 auto' }}>
       <div className="page-header-bar"><h2>Filter Price Book</h2></div>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 720 }}>
-        Your retail filter prices by size, type, and MERV, with quantity breaks (1 / 4 / 6 / case of 12).
+        Your retail filter prices by size, type, and MERV, with quantity breaks by total ordered — 1–3, 4–5, 6–11, and 12+ (case). The 1–3 / 4–5 / 6–11
+        columns are the price PER FILTER at that quantity; “Case of 12” is the total for a full case (used at 12+).
         These feed the customer portal's filter ordering. Add rows below or paste a spreadsheet.
       </p>
 
@@ -163,7 +164,7 @@ export default function FilterPricebookImport({ profile }) {
           <div style={{ marginTop: 8, padding: 12, background: 'var(--panel)', borderRadius: 8 }}>
             <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 0 }}>
               Paste rows in this column order (a header row is fine, it's skipped):<br />
-              <strong>Height, Width, Thickness, Type, MERV, 1 ea, 4 ea, 6 ea, Case(12)</strong>
+              <strong>Height, Width, Thickness, Type, MERV, 1–3 ea, 4–5 ea, 6–11 ea, Case of 12</strong>
             </p>
             <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={6} style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }}
               placeholder={'25,16,1,Pleated,8,6.99,24.99,34.99,64.99\n25,16,1,Pleated,11,7.99,28.99,39.99,74.99'} />
