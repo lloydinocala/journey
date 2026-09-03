@@ -246,7 +246,11 @@
 .cp-daycard:active{transform:scale(.96)}
 .cp-daycard.on{background:var(--sky);border-color:var(--sky);box-shadow:0 4px 12px rgba(46,120,200,.28)}
 .cp-daycard.on .dow,.cp-daycard.on .num,.cp-daycard.on .mon{color:#fff}
-.cp-winrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0}
+.cp-winrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin:6px 0}
+.cp-wincard .wlabel{font-size:13.5px}
+.cp-wincard.asap svg{color:#c8511b}
+.cp-wincard.asap.on{background:#c8511b;border-color:#c8511b}
+.cp-wincard.asap.on svg{color:#fff}
 .cp-wincard{display:flex;flex-direction:column;align-items:center;gap:5px;padding:16px 10px;border:1.5px solid var(--line);border-radius:15px;background:#fff;cursor:pointer;transition:transform .1s ease,border-color .1s ease,background .1s ease;box-shadow:0 1px 2px rgba(16,42,67,.05)}
 .cp-wincard svg{width:26px;height:26px;color:var(--sky)}
 .cp-wincard .wlabel{font-weight:800;font-size:15px;color:var(--ink)}
