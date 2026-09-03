@@ -47,6 +47,15 @@ export default function OperationsDashboard({ profile }) {
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState(null)
   const [newItemMode, setNewItemMode] = useState(null)
+  const [openFilterOrders, setOpenFilterOrders] = useState(0)
+
+  useEffect(() => {
+    if (selectedOrg) {
+      supabase.from('invoices').select('id', { count: 'exact', head: true })
+        .eq('org_id', selectedOrg).eq('is_filter_order', true).eq('is_archived', false).is('filter_fulfilled_at', null)
+        .then(({ count }) => setOpenFilterOrders(count || 0))
+    }
+  }, [selectedOrg])
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -233,6 +242,7 @@ export default function OperationsDashboard({ profile }) {
         <Vital label="Estimates Out" value={money(d.pendEstTotal)} sub={`${d.pendEst.length}${d.pendTypeLabel && d.pendTypeLabel !== 'mixed' ? ' ' + d.pendTypeLabel : ''} awaiting a reply${d.pendTypeLabel === 'mixed' ? ' · Job + System' : ''}`} to={d.pendLink || '/estimates'} accent={d.pendEst.length ? C.amber : C.good} />
         <Vital label="Jobs to Schedule" value={String(d.toSchedule.length)} sub="need a real date" to="/jobs" accent={d.toSchedule.length ? C.amber : C.good} />
         <Vital label="Maintenance Due" value={String(d.maintDue.length)} sub="within 30 days" to="/maintenance-due" accent={d.maintDue.length ? C.amber : C.good} />
+        <Vital label="Filter Orders" value={String(openFilterOrders)} sub="to fulfill" to="/filter-orders" accent={openFilterOrders ? C.amber : C.good} />
       </div>
 
       {/* Wins */}
