@@ -98,6 +98,7 @@ export default function CustomerFilters({ properties }) {
     <div className="cp-wrap">
       <button className="cp-back" onClick={() => nav('/portal')}>‹ Home</button>
       <h2 className="cp-h2">My AC Filters</h2>
+      <p className="cp-note" style={{ marginTop: 0 }}>We’ll confirm current pricing before anything is charged or delivered.</p>
 
       {properties.length > 1 && (
         <>
@@ -169,7 +170,6 @@ export default function CustomerFilters({ properties }) {
           </div>
 
           {error && <div className="cp-err">{error}</div>}
-          <p className="cp-note">We’ll confirm current pricing before anything is charged or delivered.</p>
         </>
       )}
     </div>
