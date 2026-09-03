@@ -7,6 +7,7 @@ import { exportToCSV } from './utils/csvExport'
 import { fetchAllRows } from './utils/csvImport'
 import { Link } from 'react-router-dom'
 import CustomerSearchSelect from './CustomerSearchSelect'
+import { warrantyFor, decodeSerial } from './Warranty'
 
 function formatPhone(raw) {
   if (!raw) return raw
@@ -77,7 +78,7 @@ export default function Properties({ profile }) {
     system_label: '', outdoor_brand: '', outdoor_model: '', outdoor_serial: '',
     indoor_brand: '', indoor_model: '', indoor_serial: '',
     furnace_brand: '', furnace_model: '', furnace_serial: '',
-    install_date: '', notes: '',
+    install_date: '', notes: '', manufacture_year: '', manufacture_month: '',
   }
   const [equipForm, setEquipForm] = useState(blankEquipForm)
   const [savingEquip, setSavingEquip] = useState(false)
@@ -91,6 +92,32 @@ export default function Properties({ profile }) {
   const [savingFilter, setSavingFilter] = useState(false)
 
   const isSuperAdmin = profile.role === 'super_admin'
+
+  // Warranty helpers (shared logic in ./Warranty). Parts run from the manufacture
+  // date (serial-decoded or confirmed) unless we installed it; labor/refrigerant
+  // are 1 yr from install. Everything is month-precise.
+  const WARR_PILL_STYLE = (state) => ({
+    active: { background: 'rgba(46,160,87,0.14)', color: '#1b7a3d', border: '1px solid rgba(46,160,87,0.35)' },
+    expired: { background: 'rgba(200,60,60,0.12)', color: '#b0342f', border: '1px solid rgba(200,60,60,0.32)' },
+    verify: { background: 'rgba(210,150,40,0.14)', color: '#9a6a12', border: '1px solid rgba(210,150,40,0.35)' },
+  }[state] || {})
+  const warrPill = (pill) => (
+    <span key={pill.label} style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 600, ...WARR_PILL_STYLE(pill.state) }}>{pill.label}</span>
+  )
+  const EQ_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  function eqWarranty(eq) {
+    const order = [[eq.outdoor_brand, eq.outdoor_serial], [eq.indoor_brand, eq.indoor_serial], [eq.furnace_brand, eq.furnace_serial]]
+    let brand = eq.outdoor_brand, serial = eq.outdoor_serial
+    if (eq.manufacture_year == null) {
+      for (const [b, sn] of order) { if (decodeSerial(b, sn).year) { brand = b; serial = sn; break } }
+    }
+    return warrantyFor({ manufactureYear: eq.manufacture_year, manufactureMonth: eq.manufacture_month, installDate: eq.install_date, brand, serial })
+  }
+  function eqMfgLabel(w) {
+    if (!w.manufactureYear) return 'Verify (see note)'
+    const m = w.manufactureMonth ? EQ_MONTHS[w.manufactureMonth - 1] + ' ' : ''
+    return `${m}${w.manufactureYear}${w.manufactureSource === 'serial' ? ' (from serial)' : ''}`
+  }
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -283,6 +310,8 @@ export default function Properties({ profile }) {
       furnace_model: eq.furnace_model || '',
       furnace_serial: eq.furnace_serial || '',
       install_date: eq.install_date || '',
+      manufacture_year: eq.manufacture_year != null ? String(eq.manufacture_year) : '',
+      manufacture_month: eq.manufacture_month != null ? String(eq.manufacture_month) : '',
       notes: eq.notes || '',
     })
   }
@@ -301,6 +330,8 @@ export default function Properties({ profile }) {
       furnace_model: equipForm.furnace_model.trim() || null,
       furnace_serial: equipForm.furnace_serial.trim() || null,
       install_date: equipForm.install_date || null,
+      manufacture_year: equipForm.manufacture_year === '' ? null : (parseInt(equipForm.manufacture_year, 10) || null),
+      manufacture_month: equipForm.manufacture_month === '' ? null : (parseInt(equipForm.manufacture_month, 10) || null),
       notes: equipForm.notes.trim() || null,
     }
     if (equipEditingId) {
@@ -736,6 +767,16 @@ export default function Properties({ profile }) {
                               <div><strong>Indoor:</strong> {[eq.indoor_brand, eq.indoor_model].filter(Boolean).join(' ') || '—'}{eq.indoor_serial ? ` (SN: ${eq.indoor_serial})` : ''}</div>
                               <div><strong>Furnace:</strong> {[eq.furnace_brand, eq.furnace_model].filter(Boolean).join(' ') || '—'}{eq.furnace_serial ? ` (SN: ${eq.furnace_serial})` : ''}</div>
                             </div>
+                            {(() => {
+                              const w = eqWarranty(eq)
+                              return (
+                                <div style={{ marginTop: 8 }}>
+                                  <div style={{ fontSize: 13, color: 'var(--mist)' }}><strong>Mfg:</strong> {eqMfgLabel(w)}</div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>{warrPill(w.parts)}{warrPill(w.labor)}{warrPill(w.freon)}</div>
+                                  {w.note && <div style={{ fontSize: 12, color: 'var(--amber)', marginTop: 4 }}>{w.note}</div>}
+                                </div>
+                              )
+                            })()}
                             {eq.notes && <div style={{ fontSize: 12, color: 'var(--mist)', marginTop: 4 }}>{eq.notes}</div>}
                           </div>
                         ))
@@ -790,6 +831,17 @@ export default function Properties({ profile }) {
                           <div className="field" style={{ marginBottom: 0, minWidth: 140 }}>
                             <label>Install Date</label>
                             <input type="date" value={equipForm.install_date} onChange={(e) => setEquipForm({ ...equipForm, install_date: e.target.value })} />
+                          </div>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 110 }}>
+                            <label>Mfg Year</label>
+                            <input type="number" inputMode="numeric" value={equipForm.manufacture_year} onChange={(e) => setEquipForm({ ...equipForm, manufacture_year: e.target.value })} placeholder="auto" />
+                          </div>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 110 }}>
+                            <label>Mfg Month</label>
+                            <select value={equipForm.manufacture_month} onChange={(e) => setEquipForm({ ...equipForm, manufacture_month: e.target.value })}>
+                              <option value="">—</option>
+                              {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((mn, i) => <option key={mn} value={i + 1}>{mn}</option>)}
+                            </select>
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
