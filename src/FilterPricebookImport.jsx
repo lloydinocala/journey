@@ -1,29 +1,43 @@
 // Filter Price Book — the per-org retail price list for air filters, keyed by
-// size (H×W×T) + type + MERV, with quantity-break pricing (1 / 4 / 6 / case of 12).
-// Filled and edited here (grid + CSV paste); read by the customer portal for
-// filter ordering and by the filter invoice.
+// size (H×W×T) + type + MERV, with quantity-break pricing (1-3 / 4-5 / 6-11 / 12+
+// as a case of 12). The 1-3/4-5/6-11 columns are the price PER FILTER at that
+// quantity; "Case of 12" is the total for a full case (used at 12+). Filled and
+// edited here (grid + file import); read by the customer portal for ordering.
 import { useState, useEffect } from 'react'
+import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
+import { fetchAllRows, readFileSmart } from './utils/csvImport'
 import OrgPicker from './OrgPicker'
 
 const COLS = [
   { key: 'height', label: 'Height', w: 70, num: true },
   { key: 'width', label: 'Width', w: 70, num: true },
   { key: 'thickness', label: 'Thickness', w: 80, num: true },
-  { key: 'type', label: 'Type', w: 130, num: false },
+  { key: 'type', label: 'Type', w: 120, num: false },
   { key: 'merv', label: 'MERV', w: 70, num: true },
   { key: 'price_1', label: '1–3 ea', w: 84, num: true, money: true },
   { key: 'price_4', label: '4–5 ea', w: 84, num: true, money: true },
   { key: 'price_6', label: '6–11 ea', w: 88, num: true, money: true },
   { key: 'price_case', label: 'Case of 12', w: 96, num: true, money: true },
   { key: 'vendor', label: 'Vendor', w: 120, num: false },
-  { key: 'notes', label: 'Notes', w: 160, num: false },
-  { key: 'product_url', label: 'Product URL', w: 190, num: false },
+  { key: 'notes', label: 'Notes', w: 150, num: false },
+  { key: 'product_url', label: 'Product URL', w: 180, num: false, link: true },
 ]
 const BLANK = { height: '', width: '', thickness: '', type: '', merv: '', price_1: '', price_4: '', price_6: '', price_case: '', vendor: '', notes: '', product_url: '' }
 
+// Template / import headers (a spreadsheet-friendly, round-trippable column set).
+const TEMPLATE_ROW = {
+  Height: '25', Width: '16', Thickness: '1', Type: 'Pleated', MERV: '8',
+  '1-3 ea': '6.99', '4-5 ea': '5.99', '6-11 ea': '5.49', 'Case of 12': '59.88',
+  Vendor: 'Acme Supply', Notes: '', 'Product URL': 'https://vendor.com/item',
+}
+
 const money = (v) => (v == null || v === '' ? '—' : '$' + Number(v).toFixed(2))
 const numOrNull = (v) => (v === '' || v == null ? null : Number(v))
+const csvNum = (v) => { const t = (v ?? '').toString().trim().replace(/[$,]/g, ''); if (t === '') return null; const n = parseFloat(t); return isNaN(n) ? null : n }
+const csvInt = (v) => { const n = csvNum(v); return n == null ? null : Math.round(n) }
+const csvTxt = (v) => { const t = (v ?? '').toString().trim(); return t === '' ? null : t }
+const keyOf = (r) => [r.height, r.width, r.thickness, r.merv, (r.type || '').toString().toLowerCase().trim()].join('|')
 
 export default function FilterPricebookImport({ profile }) {
   const isSuperAdmin = profile?.role === 'super_admin'
@@ -38,10 +52,10 @@ export default function FilterPricebookImport({ profile }) {
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(BLANK)
 
-  const [csvOpen, setCsvOpen] = useState(false)
-  const [csvText, setCsvText] = useState('')
-  const [csvBusy, setCsvBusy] = useState(false)
-  const [csvMsg, setCsvMsg] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [summary, setSummary] = useState(null)
+  const [failed, setFailed] = useState([])
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (isSuperAdmin) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
@@ -80,10 +94,9 @@ export default function FilterPricebookImport({ profile }) {
 
   function startEdit(r) {
     setEditingId(r.id)
-    setEditForm({
-      height: r.height ?? '', width: r.width ?? '', thickness: r.thickness ?? '', type: r.type || '',
-      merv: r.merv ?? '', price_1: r.price_1 ?? '', price_4: r.price_4 ?? '', price_6: r.price_6 ?? '', price_case: r.price_case ?? '',
-    })
+    const f = { ...BLANK }
+    COLS.forEach((c) => { f[c.key] = r[c.key] ?? '' })
+    setEditForm(f)
   }
   async function saveEdit(id) {
     await supabase.from('filter_pricebook').update({ ...payloadFrom(editForm), updated_at: new Date().toISOString() }).eq('id', id)
@@ -100,31 +113,91 @@ export default function FilterPricebookImport({ profile }) {
     loadRows(selectedOrg)
   }
 
-  async function importCsv() {
-    setCsvBusy(true); setCsvMsg('')
-    const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-    const parsed = []
-    for (const line of lines) {
-      const cells = line.split(line.includes('\t') ? '\t' : ',').map((c) => c.trim())
-      // Skip a header row (non-numeric height)
-      if (parsed.length === 0 && cells[0] && isNaN(Number(cells[0]))) continue
-      if (cells.length < 5) continue
-      const [height, width, thickness, type, merv, price_1, price_4, price_6, price_case, vendor, notes, product_url] = cells
-      parsed.push({
-        org_id: selectedOrg, is_active: true,
-        height: numOrNull(height), width: numOrNull(width), thickness: numOrNull(thickness),
-        type: (type || '').trim() || null, merv: merv === '' || merv == null ? null : parseInt(merv, 10),
-        price_1: numOrNull(price_1), price_4: numOrNull(price_4), price_6: numOrNull(price_6), price_case: numOrNull(price_case),
-        vendor: (vendor || '').trim() || null, notes: (notes || '').trim() || null, product_url: (product_url || '').trim() || null,
-      })
+  function downloadTemplate() {
+    const blob = new Blob([Papa.unparse([TEMPLATE_ROW])], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'filter-pricebook-template.csv'
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  async function handleFile(e) {
+    const file = e.target.files[0]
+    if (!file || !selectedOrg) return
+    setError(''); setSummary(null); setFailed([]); setImporting(true)
+    try {
+      const text = await readFileSmart(file)
+      const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
+      if (parsed.errors?.length) throw new Error(`CSV parse error: ${parsed.errors[0].message} (row ${parsed.errors[0].row})`)
+      const mapped = parsed.data.map((r) => ({
+        height: csvNum(r.Height ?? r.height),
+        width: csvNum(r.Width ?? r.width),
+        thickness: csvNum(r.Thickness ?? r.thickness),
+        type: csvTxt(r.Type ?? r.type),
+        merv: csvInt(r.MERV ?? r.merv),
+        price_1: csvNum(r['1-3 ea'] ?? r['1–3 ea'] ?? r['Price 1-3'] ?? r['1 ea'] ?? r.price_1),
+        price_4: csvNum(r['4-5 ea'] ?? r['4–5 ea'] ?? r['Price 4-5'] ?? r['4 ea'] ?? r.price_4),
+        price_6: csvNum(r['6-11 ea'] ?? r['6–11 ea'] ?? r['Price 6-11'] ?? r['6 ea'] ?? r.price_6),
+        price_case: csvNum(r['Case of 12'] ?? r['Case'] ?? r['Case Price'] ?? r.price_case),
+        vendor: csvTxt(r.Vendor ?? r.vendor),
+        notes: csvTxt(r.Notes ?? r.notes),
+        product_url: csvTxt(r['Product URL'] ?? r.product_url ?? r.URL ?? r.url),
+      })).filter((r) => r.height != null && r.width != null)
+
+      if (!mapped.length) throw new Error('No valid rows found. Each row needs at least Height and Width. Try the template.')
+
+      const existing = await fetchAllRows(() =>
+        supabase.from('filter_pricebook').select('id, height, width, thickness, merv, type').eq('org_id', selectedOrg))
+      const byKey = new Map()
+      for (const it of existing) byKey.set(keyOf(it), it.id)
+
+      const toInsert = [], toUpdate = [], seen = new Set()
+      for (const r of mapped) {
+        const k = keyOf(r)
+        if (seen.has(k)) continue
+        seen.add(k)
+        const payload = { ...r, is_active: true, updated_at: new Date().toISOString() }
+        const id = byKey.get(k)
+        if (id) toUpdate.push({ id, payload }); else toInsert.push({ ...payload, org_id: selectedOrg })
+      }
+
+      let created = 0
+      const fails = []
+      const sizeStr = (x) => `${x.height ?? ''}x${x.width ?? ''}x${x.thickness ?? ''}${x.merv ? ' MERV ' + x.merv : ''}`
+      for (let i = 0; i < toInsert.length; i += 300) {
+        const batch = toInsert.slice(i, i + 300)
+        const { error: insErr } = await supabase.from('filter_pricebook').insert(batch)
+        if (!insErr) { created += batch.length; continue }
+        for (const row of batch) {
+          const { error: rowErr } = await supabase.from('filter_pricebook').insert(row)
+          if (rowErr) fails.push({ Size: sizeStr(row), reason: rowErr.message }); else created++
+        }
+      }
+      let updated = 0
+      for (const u of toUpdate) {
+        const { error: upErr } = await supabase.from('filter_pricebook').update(u.payload).eq('id', u.id)
+        if (upErr) fails.push({ Size: sizeStr(u.payload), reason: upErr.message }); else updated++
+      }
+
+      setSummary({ created, updated, failed: fails.length, total: mapped.length })
+      setFailed(fails)
+      loadRows(selectedOrg)
+    } catch (err) {
+      setError(err.message || String(err))
+    } finally {
+      setImporting(false)
+      e.target.value = ''
     }
-    if (!parsed.length) { setCsvBusy(false); setCsvMsg('No rows found. Expected columns: Height, Width, Thickness, Type, MERV, 1–3 ea, 4–5 ea, 6–11 ea, Case of 12, Vendor, Notes, Product URL.'); return }
-    const { error } = await supabase.from('filter_pricebook').insert(parsed)
-    setCsvBusy(false)
-    if (error) { setCsvMsg('Import failed: ' + error.message); return }
-    setCsvMsg(`Imported ${parsed.length} row${parsed.length === 1 ? '' : 's'}.`)
-    setCsvText('')
-    loadRows(selectedOrg)
+  }
+
+  function downloadFailed() {
+    const blob = new Blob([Papa.unparse(failed)], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'filter-pricebook-import-errors.csv'
+    a.click()
+    URL.revokeObjectURL(a.href)
   }
 
   const cellInput = (form, setForm, col) => (
@@ -136,12 +209,12 @@ export default function FilterPricebookImport({ profile }) {
   )
 
   return (
-    <div style={{ maxWidth: 1050, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1150, margin: '0 auto' }}>
       <div className="page-header-bar"><h2>Filter Price Book</h2></div>
-      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 720 }}>
-        Your retail filter prices by size, type, and MERV, with quantity breaks by total ordered — 1–3, 4–5, 6–11, and 12+ (case). The 1–3 / 4–5 / 6–11
-        columns are the price PER FILTER at that quantity; “Case of 12” is the total for a full case (used at 12+).
-        These feed the customer portal's filter ordering. Add rows below or paste a spreadsheet.
+      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 760 }}>
+        Your retail filter prices by size, type, and MERV, with quantity breaks by total ordered — 1–3, 4–5,
+        6–11, and 12+ (case). The 1–3 / 4–5 / 6–11 columns are the price PER FILTER at that quantity; “Case of 12”
+        is the total for a full case (used at 12+). These feed the customer portal’s filter ordering.
       </p>
 
       {isSuperAdmin && (
@@ -151,7 +224,33 @@ export default function FilterPricebookImport({ profile }) {
         </div>
       )}
 
-      {/* Add a row */}
+      {/* Bulk import: download a template, then pick a CSV from your computer */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+        <button className="logout-button" onClick={downloadTemplate}>Download template</button>
+        <label className="auth-button" style={{ width: 'auto', padding: '9px 18px', cursor: 'pointer', display: 'inline-block', opacity: selectedOrg ? 1 : 0.5 }}>
+          {importing ? 'Importing…' : 'Choose CSV & Import'}
+          <input type="file" accept=".csv,text/csv" onChange={handleFile} disabled={importing || !selectedOrg} style={{ display: 'none' }} />
+        </label>
+        <span style={{ fontSize: 12, color: 'var(--mist)' }}>Re-importing updates matching sizes; new sizes are added.</span>
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--mist)', marginTop: 0, marginBottom: 16 }}>
+        Columns: Height, Width, Thickness, Type, MERV, 1-3 ea, 4-5 ea, 6-11 ea, Case of 12, Vendor, Notes, Product URL.
+      </p>
+
+      {error && <div className="auth-error" style={{ marginBottom: 12 }}>{error}</div>}
+      {summary && (
+        <div style={{ marginBottom: 18, padding: 16, border: '1px solid var(--border, rgba(255,255,255,0.15))', borderRadius: 10, maxWidth: 460 }}>
+          <h3 style={{ marginTop: 0 }}>Import complete</h3>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            <div><div style={{ fontSize: 26, fontWeight: 700, color: '#1a7f37' }}>{summary.created}</div><div style={{ fontSize: 12, color: 'var(--mist)' }}>created</div></div>
+            <div><div style={{ fontSize: 26, fontWeight: 700, color: '#4e95d9' }}>{summary.updated}</div><div style={{ fontSize: 12, color: 'var(--mist)' }}>updated</div></div>
+            <div><div style={{ fontSize: 26, fontWeight: 700, color: summary.failed ? '#b0342f' : 'var(--mist)' }}>{summary.failed}</div><div style={{ fontSize: 12, color: 'var(--mist)' }}>failed</div></div>
+          </div>
+          {summary.failed > 0 && <button className="logout-button" style={{ marginTop: 12 }} onClick={downloadFailed}>Download failed rows</button>}
+        </div>
+      )}
+
+      {/* Add a single row */}
       <form onSubmit={addRow} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16, padding: 12, background: 'var(--panel)', borderRadius: 8 }}>
         {COLS.map((col) => (
           <div className="field" key={col.key} style={{ marginBottom: 0 }}>
@@ -162,31 +261,12 @@ export default function FilterPricebookImport({ profile }) {
         <button className="auth-button" type="submit" style={{ width: 'auto', padding: '8px 18px' }} disabled={saving}>{saving ? 'Adding…' : 'Add row'}</button>
       </form>
 
-      {/* CSV paste import */}
-      <div style={{ marginBottom: 16 }}>
-        <button className="logout-button" onClick={() => setCsvOpen((o) => !o)}>{csvOpen ? 'Hide CSV import' : 'Import from spreadsheet (CSV)'}</button>
-        {csvOpen && (
-          <div style={{ marginTop: 8, padding: 12, background: 'var(--panel)', borderRadius: 8 }}>
-            <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 0 }}>
-              Paste rows in this column order (a header row is fine, it's skipped):<br />
-              <strong>Height, Width, Thickness, Type, MERV, 1–3 ea, 4–5 ea, 6–11 ea, Case of 12, Vendor, Notes, Product URL</strong>
-            </p>
-            <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={6} style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }}
-              placeholder={'25,16,1,Pleated,8,6.99,24.99,34.99,64.99\n25,16,1,Pleated,11,7.99,28.99,39.99,74.99'} />
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 }}>
-              <button className="auth-button" style={{ width: 'auto', padding: '8px 18px' }} disabled={csvBusy || !csvText.trim()} onClick={importCsv}>{csvBusy ? 'Importing…' : 'Import rows'}</button>
-              {csvMsg && <span style={{ fontSize: 13, color: 'var(--mist)' }}>{csvMsg}</span>}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* The grid */}
       {loading ? <p style={{ color: 'var(--mist)' }}>Loading…</p> : rows.length === 0 ? (
-        <p style={{ color: 'var(--mist)' }}>No filter prices yet. Add a row or import a spreadsheet above.</p>
+        <p style={{ color: 'var(--mist)' }}>No filter prices yet. Import a CSV above or add a row.</p>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table className="data-table" style={{ minWidth: 900 }}>
+          <table className="data-table" style={{ minWidth: 1050 }}>
             <thead>
               <tr>
                 {COLS.map((c) => <th key={c.key} style={{ textAlign: c.num ? 'right' : 'left' }}>{c.label}</th>)}
@@ -203,6 +283,7 @@ export default function FilterPricebookImport({ profile }) {
                       <td key={c.key} style={{ textAlign: c.num ? 'right' : 'left' }}>
                         {editing ? cellInput(editForm, setEditForm, c)
                           : c.money ? money(r[c.key])
+                          : c.link && r[c.key] ? <a href={r[c.key]} target="_blank" rel="noreferrer">link</a>
                           : (r[c.key] ?? '—')}
                       </td>
                     ))}
