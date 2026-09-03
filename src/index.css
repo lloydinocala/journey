@@ -2430,3 +2430,10 @@ body {
   .mobile-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .job-card-v2 .jc-sections { column-count: 3; }
 }
+
+/* Collapsible second-level nav panel */
+.sidebar-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.sidebar-panel-toggle { background: none; border: none; color: var(--mist); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 4px; border-radius: 6px; }
+.sidebar-panel-toggle:hover { background: var(--ink); color: var(--paper); }
+.sidebar-panel-reopen { width: 24px; flex-shrink: 0; background: var(--panel); border: none; border-right: 1px solid var(--border); color: var(--mist); cursor: pointer; font-size: 16px; height: 100%; }
+.sidebar-panel-reopen:hover { color: var(--paper); background: var(--ink); }

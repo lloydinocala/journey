@@ -56,7 +56,7 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile }) {
   )
   return (
     <div style={{
-      flex: isMobile ? 'none' : '0 0 262px', width: isMobile ? '100%' : 262,
+      flex: isMobile ? 'none' : '0 0 202px', width: isMobile ? '100%' : 202,
       background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(220,38,38,.28)', borderRadius: 12,
       padding: 12, marginBottom: isMobile ? 16 : 0, boxSizing: 'border-box',
       position: isMobile ? 'static' : 'sticky', top: isMobile ? 'auto' : 12,

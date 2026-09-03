@@ -155,6 +155,7 @@ export default function Layout({ profile }) {
     return c
   }
   const [expandedCategory, setExpandedCategory] = useState(resolveCat(location.pathname))
+  const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [logoutShiftId, setLogoutShiftId] = useState(null)  // open shift id when logging out
   const [loggingOut, setLoggingOut] = useState(false)
 
@@ -285,8 +286,14 @@ export default function Layout({ profile }) {
         </div>
 
         {activeCategoryData && activeCategoryData.items.length > 0 && (
+          panelCollapsed ? (
+            <button className="sidebar-panel-reopen" onClick={() => setPanelCollapsed(false)} title="Show menu" aria-label="Show menu">›</button>
+          ) : (
           <div className="sidebar-panel">
-            <h3>{activeCategoryData.label}</h3>
+            <div className="sidebar-panel-head">
+              <h3 style={{ margin: 0 }}>{activeCategoryData.label}</h3>
+              <button className="sidebar-panel-toggle" onClick={() => setPanelCollapsed(true)} title="Hide menu" aria-label="Hide menu">‹</button>
+            </div>
             {activeCategoryData.items.filter((item) => !item.perm || isSuperAdmin || can(profile, item.perm)).map((item) => (
               item.header ? (
                 HEADER_DASH[item.header] ? (
@@ -313,6 +320,7 @@ export default function Layout({ profile }) {
               )
             ))}
           </div>
+          )
         )}
 
         <div className="main-content-area">
