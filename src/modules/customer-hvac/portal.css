@@ -194,9 +194,13 @@
 .cp-fsum-row .merv{color:var(--sky-d);flex:0 0 66px}
 .cp-fsum-row .size{color:var(--sky-d)}
 .cp-filtsum .cp-btn{margin-top:14px}
-.cp-fcust-row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.cp-fcust-row{display:flex;flex-direction:column;gap:10px;padding:14px 0;border-bottom:1px solid var(--line)}
 .cp-fcust-row:last-of-type{border-bottom:0}
-.cp-fcust-row .size{flex:0 0 72px;font-weight:800;color:var(--ink);font-size:15px}
+.cp-fcust-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.cp-fcust-row .size{font-weight:800;color:var(--ink);font-size:15px}
+.cp-fcust-price{font-size:13px;color:var(--ink);text-align:right;white-space:nowrap}
+.cp-fcust-price .muted{color:var(--muted)}
+.cp-fcust-controls{display:flex;gap:12px;align-items:flex-start}
 .cp-fcust-row .mervs{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}
 .cp-mervchip{border:1.5px solid var(--sky);background:#fff;color:var(--sky-d);border-radius:10px;font-weight:800;font-size:14px;padding:9px 8px;cursor:pointer;text-align:center;width:100%}
 .cp-mervchip.on{background:var(--sky);color:#fff;border-color:var(--sky)}
