@@ -17,6 +17,78 @@ import {
   getMonthGridDays,
 } from './utils/dateHelpers'
 
+const TRAY_W = { '8_11': '8\u201311 AM', '10_1': '10 AM\u20131 PM', '12_3': '12\u20133 PM', '2_5': '2\u20135 PM', 'asap': 'ASAP' }
+function trayWindowLabel(job) { return TRAY_W[job.requested_window] || 'Needs scheduling' }
+function trayDayLabel(dstr) {
+  if (!dstr) return 'No date'
+  return new Date(dstr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+// The "Needs Dispatch" tray: sits on the calendar screen but OFF the time grid,
+// so provisional self-bookings and pending office jobs never crowd the grid.
+// Drag a card onto the grid to schedule + it clears date_pending and lands there.
+function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile }) {
+  const asap = jobs.filter((j) => j.requested_window === 'asap')
+  const rest = jobs.filter((j) => j.requested_window !== 'asap')
+    .slice().sort((a, b) => (a.job_date || '').localeCompare(b.job_date || ''))
+  const groups = []
+  let cur = null
+  for (const j of rest) {
+    if (!cur || cur.date !== j.job_date) { cur = { date: j.job_date, jobs: [] }; groups.push(cur) }
+    cur.jobs.push(j)
+  }
+  const count = jobs.length
+  const card = (job) => (
+    <div
+      key={job.id}
+      draggable="true"
+      onDragStart={(e) => e.dataTransfer.setData('text/plain', job.id)}
+      onClick={() => onJobClick(job)}
+      style={{ background: '#fff', borderLeft: '4px solid #DC2626', borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'grab', boxShadow: '0 1px 3px rgba(16,42,67,.12)' }}
+    >
+      <div style={{ fontSize: 11, fontWeight: 800, color: '#DC2626', textTransform: 'uppercase', letterSpacing: '.03em' }}>
+        {job.requested_window === 'asap' ? '\u26A1 ASAP' : trayWindowLabel(job)}
+      </div>
+      <div style={{ fontWeight: 700, fontSize: 14 }}>{job.customer_name}</div>
+      {job.job_type && <div style={{ fontSize: 12.5, color: 'var(--mist)' }}>{job.job_type}</div>}
+      {job.address && <div style={{ fontSize: 12, color: 'var(--mist)' }}>{job.address}</div>}
+    </div>
+  )
+  return (
+    <div style={{
+      flex: isMobile ? 'none' : '0 0 262px', width: isMobile ? '100%' : 262,
+      background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(220,38,38,.28)', borderRadius: 12,
+      padding: 12, marginBottom: isMobile ? 16 : 0, boxSizing: 'border-box',
+      position: isMobile ? 'static' : 'sticky', top: isMobile ? 'auto' : 12,
+      maxHeight: isMobile ? 'none' : 'calc(100vh - 150px)', overflowY: 'auto',
+    }}>
+      <div onClick={onToggle} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: collapsed ? 0 : 10 }}>
+        <strong style={{ fontSize: 14, color: '#B0342F' }}>Needs Dispatch{count ? ` (${count})` : ''}</strong>
+        <span style={{ fontSize: 12, color: 'var(--mist)' }}>{collapsed ? '\u25B8' : '\u25BE'}</span>
+      </div>
+      {!collapsed && (count === 0 ? (
+        <div style={{ fontSize: 13, color: 'var(--mist)' }}>Nothing waiting \u2014 all caught up.</div>
+      ) : (
+        <>
+          {asap.length > 0 && (
+            <div style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#DC2626', margin: '2px 0 6px' }}>URGENT</div>
+              {asap.map(card)}
+            </div>
+          )}
+          {groups.map((g) => (
+            <div key={g.date || 'nodate'} style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--mist)', margin: '2px 0 6px', textTransform: 'uppercase', letterSpacing: '.03em' }}>{trayDayLabel(g.date)}</div>
+              {g.jobs.map(card)}
+            </div>
+          ))}
+          <div style={{ fontSize: 11, color: 'var(--mist)', marginTop: 6 }}>Drag a card onto the calendar to schedule &amp; assign.</div>
+        </>
+      ))}
+    </div>
+  )
+}
+
 export default function Calendar({ profile }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
@@ -28,6 +100,7 @@ export default function Calendar({ profile }) {
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState(null)
+  const [trayCollapsed, setTrayCollapsed] = useState(false)
   const [newItemMode, setNewItemMode] = useState(null)
 
   const isSuperAdmin = profile.role === 'super_admin'
@@ -94,7 +167,7 @@ export default function Calendar({ profile }) {
     const { data } = await supabase
       .from('jobs')
       .select(
-        'id, job_number, job_date, date_pending, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(id, display_name, is_banned))'
+        'id, job_number, job_date, date_pending, requested_window, self_booked, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(id, display_name, is_banned))'
       )
       .eq('org_id', selectedOrg)
       .is('deleted_at', null)
@@ -222,24 +295,37 @@ export default function Calendar({ profile }) {
 
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : effectiveView === 'month' ? (
-        <CalendarMonth
-          monthDate={currentDate}
-          gridDays={days}
-          jobs={jobs}
-          onJobClick={setSelectedJob}
-          onDayClick={handleDayClick}
-          onJobDrop={handleMonthDrop}
-        />
       ) : (
-        <CalendarGrid
-          days={days}
-          jobs={jobs}
-          businessStart={businessStart}
-          businessEnd={businessEnd}
-          onJobClick={setSelectedJob}
-          onJobDrop={handleGridDrop}
-        />
+        <div style={{ display: isMobile ? 'block' : 'flex', gap: 16, alignItems: 'flex-start' }}>
+          <DispatchTray
+            jobs={jobs.filter((j) => j.date_pending)}
+            onJobClick={setSelectedJob}
+            collapsed={trayCollapsed}
+            onToggle={() => setTrayCollapsed((c) => !c)}
+            isMobile={isMobile}
+          />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {effectiveView === 'month' ? (
+              <CalendarMonth
+                monthDate={currentDate}
+                gridDays={days}
+                jobs={jobs.filter((j) => !j.date_pending)}
+                onJobClick={setSelectedJob}
+                onDayClick={handleDayClick}
+                onJobDrop={handleMonthDrop}
+              />
+            ) : (
+              <CalendarGrid
+                days={days}
+                jobs={jobs.filter((j) => !j.date_pending)}
+                businessStart={businessStart}
+                businessEnd={businessEnd}
+                onJobClick={setSelectedJob}
+                onJobDrop={handleGridDrop}
+              />
+            )}
+          </div>
+        </div>
       )}
 
       <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)} />
