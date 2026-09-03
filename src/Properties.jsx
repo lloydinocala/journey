@@ -1,4 +1,4 @@
-Propertiesimport { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
@@ -31,6 +31,8 @@ const COLUMNS = [
 ]
 
 const DEFAULT_VISIBLE = COLUMNS.map((c) => c.key)
+
+const FILTER_LOCATIONS = ['Ceiling', 'Wall', 'Through the door', 'In the unit', 'Other']
 
 export default function Properties({ profile }) {
   const [orgs, setOrgs] = useState([])
@@ -79,6 +81,14 @@ export default function Properties({ profile }) {
   }
   const [equipForm, setEquipForm] = useState(blankEquipForm)
   const [savingEquip, setSavingEquip] = useState(false)
+
+  const [expandedFiltersId, setExpandedFiltersId] = useState(null)
+  const [filtersList, setFiltersList] = useState([])
+  const [loadingFilters, setLoadingFilters] = useState(false)
+  const [filterEditingId, setFilterEditingId] = useState(null)
+  const blankFilterForm = { width: '', height: '', thickness: '', merv: '', location: '', quantity: '1' }
+  const [filterForm, setFilterForm] = useState(blankFilterForm)
+  const [savingFilter, setSavingFilter] = useState(false)
 
   const isSuperAdmin = profile.role === 'super_admin'
 
@@ -308,6 +318,67 @@ export default function Properties({ profile }) {
     if (!window.confirm('Remove this equipment record? This cannot be undone.')) return
     await supabase.from('property_equipment').delete().eq('id', id)
     loadEquipmentList(propertyId)
+  }
+
+  // Air filters: per-property, same property_filters table the tech job card writes to
+  // and the customer portal reads for reordering. View / add / edit / remove here.
+  async function loadFiltersList(propertyId) {
+    setLoadingFilters(true)
+    const { data } = await supabase
+      .from('property_filters')
+      .select('*')
+      .eq('property_id', propertyId)
+      .order('created_at')
+    setFiltersList(data || [])
+    setLoadingFilters(false)
+  }
+
+  function toggleFilters(propertyId) {
+    if (expandedFiltersId === propertyId) {
+      setExpandedFiltersId(null)
+      setFilterEditingId(null)
+      setFilterForm(blankFilterForm)
+      return
+    }
+    setExpandedFiltersId(propertyId)
+    setFilterEditingId(null)
+    setFilterForm(blankFilterForm)
+    loadFiltersList(propertyId)
+  }
+
+  function startFilterEdit(f) {
+    setFilterEditingId(f.id)
+    setFilterForm({
+      width: f.width ?? '', height: f.height ?? '', thickness: f.thickness ?? '',
+      merv: f.merv ?? '', location: f.location || '',
+      quantity: f.quantity != null ? String(f.quantity) : '1',
+    })
+  }
+
+  async function saveFilter(propertyId) {
+    setSavingFilter(true)
+    const numOrNull = (v) => (v === '' || v == null ? null : Number(v))
+    const payload = {
+      width: numOrNull(filterForm.width), height: numOrNull(filterForm.height), thickness: numOrNull(filterForm.thickness),
+      merv: filterForm.merv === '' ? null : parseInt(filterForm.merv, 10),
+      location: filterForm.location || null,
+      quantity: filterForm.quantity === '' ? 1 : parseInt(filterForm.quantity, 10) || 1,
+    }
+    if (filterEditingId) {
+      await supabase.from('property_filters').update(payload).eq('id', filterEditingId)
+    } else {
+      await supabase.from('property_filters').insert({ ...payload, org_id: selectedOrg, property_id: propertyId })
+    }
+    setSavingFilter(false)
+    setFilterEditingId(null)
+    setFilterForm(blankFilterForm)
+    loadFiltersList(propertyId)
+  }
+
+  async function deleteFilter(id, propertyId) {
+    if (!window.confirm('Remove this filter record? This cannot be undone.')) return
+    await supabase.from('property_filters').delete().eq('id', id)
+    loadFiltersList(propertyId)
   }
 
   function daysUntilPurge(retiredAt) {
@@ -607,6 +678,9 @@ export default function Properties({ profile }) {
                     <button className="logout-button" onClick={() => toggleEquipment(p.id)}>
                       {expandedEquipmentId === p.id ? 'Hide Equipment' : 'Equipment'}
                     </button>
+                    <button className="logout-button" onClick={() => toggleFilters(p.id)}>
+                      {expandedFiltersId === p.id ? 'Hide Filters' : 'Filters'}
+                    </button>
                   </div>
                   <div className="grid-cell" style={{ background: rowBg }}>
                     {p.street_address}{p.unit ? ` #${p.unit}` : ''}
@@ -770,6 +844,86 @@ export default function Properties({ profile }) {
                           </button>
                           {equipEditingId && (
                             <button className="logout-button" onClick={() => { setEquipEditingId(null); setEquipForm(blankEquipForm) }}>
+                              Cancel Edit
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {expandedFiltersId === p.id && (
+                <div className="grid-cell" style={{ gridColumn: '1 / -1', background: 'var(--ink)', padding: 16 }}>
+                  {loadingFilters ? (
+                    <p style={{ color: 'var(--mist)' }}>Loading filters…</p>
+                  ) : (
+                    <>
+                      {filtersList.length === 0 ? (
+                        <p style={{ color: 'var(--mist)', marginTop: 0 }}>No filters on file for this property yet. Techs record them on the job, or you can add them here.</p>
+                      ) : (
+                        filtersList.map((f) => (
+                          <div key={f.id} style={{ background: 'var(--panel)', border: '1px solid rgba(78, 149, 217, 0.35)', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => startFilterEdit(f)}>Edit</button>
+                                <button className="logout-button" style={{ fontSize: 12, padding: '2px 8px' }} onClick={() => deleteFilter(f.id, p.id)}>Delete</button>
+                              </div>
+                              <strong style={{ fontSize: 13 }}>
+                                {[f.width, f.height, f.thickness].filter((n) => n != null).join(' × ') || 'Size not set'}
+                                {f.quantity > 1 ? ` \u00B7 Qty ${f.quantity}` : ''}{' '}
+                                <span className="status-pill status-active">{f.location || 'No location'}</span>
+                              </strong>
+                            </div>
+                            <div style={{ fontSize: 13, color: 'var(--mist)', marginTop: 6 }}>
+                              {f.merv != null ? `MERV ${f.merv}` : 'MERV not set'}
+                            </div>
+                          </div>
+                        ))
+                      )}
+
+                      <div style={{ background: 'var(--panel)', borderRadius: 8, padding: 12, marginTop: 12 }}>
+                        <strong style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
+                          {filterEditingId ? 'Edit Filter' : 'Add Filter'}
+                        </strong>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 110 }}>
+                            <label>Width (in)</label>
+                            <input type="number" inputMode="decimal" value={filterForm.width} onChange={(e) => setFilterForm({ ...filterForm, width: e.target.value })} placeholder="16" />
+                          </div>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 110 }}>
+                            <label>Height (in)</label>
+                            <input type="number" inputMode="decimal" value={filterForm.height} onChange={(e) => setFilterForm({ ...filterForm, height: e.target.value })} placeholder="25" />
+                          </div>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 110 }}>
+                            <label>Thickness (in)</label>
+                            <input type="number" inputMode="decimal" value={filterForm.thickness} onChange={(e) => setFilterForm({ ...filterForm, thickness: e.target.value })} placeholder="1" />
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 110 }}>
+                            <label>MERV</label>
+                            <input type="number" inputMode="numeric" value={filterForm.merv} onChange={(e) => setFilterForm({ ...filterForm, merv: e.target.value })} placeholder="8" />
+                          </div>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 110 }}>
+                            <label>Quantity</label>
+                            <input type="number" inputMode="numeric" min="1" value={filterForm.quantity} onChange={(e) => setFilterForm({ ...filterForm, quantity: e.target.value })} />
+                          </div>
+                          <div className="field" style={{ marginBottom: 0, minWidth: 160 }}>
+                            <label>Location</label>
+                            <select value={filterForm.location} onChange={(e) => setFilterForm({ ...filterForm, location: e.target.value })}>
+                              <option value="">Select…</option>
+                              {FILTER_LOCATIONS.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button className="auth-button" style={{ width: 'auto', padding: '8px 20px' }} disabled={savingFilter} onClick={() => saveFilter(p.id)}>
+                            {savingFilter ? 'Saving\u2026' : filterEditingId ? 'Save Changes' : 'Add Filter'}
+                          </button>
+                          {filterEditingId && (
+                            <button className="logout-button" onClick={() => { setFilterEditingId(null); setFilterForm(blankFilterForm) }}>
                               Cancel Edit
                             </button>
                           )}
