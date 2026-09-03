@@ -164,6 +164,22 @@ export default function MaintenanceDashboard({ profile }) {
         <div className="stat-tile"><div className="stat-value">{money(acv)}</div><div className="stat-label">Annualized contract value</div></div>
       </div>
 
+      {/* Quick links into the maintenance records */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+        <Link to="/maintenance-agreements" className="stat-tile" style={{ textDecoration: 'none', minWidth: 160 }}>
+          <div className="stat-value" style={{ fontSize: 18 }}>Agreements</div>
+          <div className="stat-label">View, add &amp; edit plans</div>
+        </Link>
+        <Link to="/maintenance-due" className="stat-tile" style={{ textDecoration: 'none', minWidth: 160 }}>
+          <div className="stat-value" style={{ fontSize: 18 }}>Maintenance Due</div>
+          <div className="stat-label">Visits to book &amp; complete</div>
+        </Link>
+        <Link to="/maintenance-tiers" className="stat-tile" style={{ textDecoration: 'none', minWidth: 160 }}>
+          <div className="stat-value" style={{ fontSize: 18 }}>Plan Tiers</div>
+          <div className="stat-label">Define &amp; price the plans</div>
+        </Link>
+      </div>
+
       {/* Acceptance-status buckets — click to filter the list */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         {BUCKETS.map((b) => (
