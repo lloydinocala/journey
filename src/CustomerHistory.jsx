@@ -15,6 +15,10 @@ export default function CustomerHistory({ profile }) {
   const [invoices, setInvoices] = useState([])
   const [warranties, setWarranties] = useState([])
   const [equipment, setEquipment] = useState([])
+  const blankEqForm = { system_label: '', install_date: '', manufacture_year: '', manufacture_month: '', outdoor_brand: '', outdoor_model: '', outdoor_serial: '', indoor_brand: '', indoor_model: '', indoor_serial: '', furnace_brand: '', furnace_model: '', furnace_serial: '', notes: '' }
+  const [eqEditingId, setEqEditingId] = useState(null)
+  const [eqForm, setEqForm] = useState(blankEqForm)
+  const [savingEq, setSavingEq] = useState(false)
   const [agreements, setAgreements] = useState([])
   const [offerPropId, setOfferPropId] = useState('')
   const [sendingOffer, setSendingOffer] = useState(false)
@@ -62,7 +66,7 @@ export default function CustomerHistory({ profile }) {
     const [propsRes, jobsRes, invoicesRes, agreementsRes, warrantiesRes] = await Promise.all([
       supabase
         .from('properties')
-        .select('id, street_address, unit, city, county, state, zip, gate_code, notes, is_active')
+        .select('id, org_id, street_address, unit, city, county, state, zip, gate_code, notes, is_active')
         .eq('customer_id', customerId)
         .order('is_active', { ascending: false }),
       supabase
@@ -192,6 +196,76 @@ export default function CustomerHistory({ profile }) {
     if (!w.manufactureYear) return 'Verify (see note)'
     const m = w.manufactureMonth ? EQ_MONTHS[w.manufactureMonth - 1] + ' ' : ''
     return `${m}${w.manufactureYear}${w.manufactureSource === 'serial' ? ' (from serial)' : ''}`
+  }
+
+  async function reloadEquipment() {
+    const propIds = properties.map((pr) => pr.id)
+    if (!propIds.length) { setEquipment([]); return }
+    const { data } = await supabase.from('property_equipment')
+      .select('id, property_id, system_label, install_date, manufacture_year, manufacture_month, status, outdoor_brand, outdoor_model, outdoor_serial, indoor_brand, indoor_model, indoor_serial, furnace_brand, furnace_model, furnace_serial')
+      .in('property_id', propIds).neq('status', 'retired').order('created_at', { ascending: false })
+    setEquipment(data || [])
+  }
+  function startEqEdit(eq) {
+    setEqEditingId(eq.id)
+    setEqForm({
+      system_label: eq.system_label || '', install_date: eq.install_date || '',
+      manufacture_year: eq.manufacture_year != null ? String(eq.manufacture_year) : '',
+      manufacture_month: eq.manufacture_month != null ? String(eq.manufacture_month) : '',
+      outdoor_brand: eq.outdoor_brand || '', outdoor_model: eq.outdoor_model || '', outdoor_serial: eq.outdoor_serial || '',
+      indoor_brand: eq.indoor_brand || '', indoor_model: eq.indoor_model || '', indoor_serial: eq.indoor_serial || '',
+      furnace_brand: eq.furnace_brand || '', furnace_model: eq.furnace_model || '', furnace_serial: eq.furnace_serial || '',
+      notes: eq.notes || '',
+    })
+  }
+  function startEqAdd(propertyId) { setEqEditingId('new:' + propertyId); setEqForm(blankEqForm) }
+  function cancelEq() { setEqEditingId(null); setEqForm(blankEqForm) }
+  async function saveEq(property) {
+    setSavingEq(true)
+    const payload = {
+      system_label: eqForm.system_label.trim() || null,
+      install_date: eqForm.install_date || null,
+      manufacture_year: eqForm.manufacture_year === '' ? null : (parseInt(eqForm.manufacture_year, 10) || null),
+      manufacture_month: eqForm.manufacture_month === '' ? null : (parseInt(eqForm.manufacture_month, 10) || null),
+      outdoor_brand: eqForm.outdoor_brand.trim() || null, outdoor_model: eqForm.outdoor_model.trim() || null, outdoor_serial: eqForm.outdoor_serial.trim() || null,
+      indoor_brand: eqForm.indoor_brand.trim() || null, indoor_model: eqForm.indoor_model.trim() || null, indoor_serial: eqForm.indoor_serial.trim() || null,
+      furnace_brand: eqForm.furnace_brand.trim() || null, furnace_model: eqForm.furnace_model.trim() || null, furnace_serial: eqForm.furnace_serial.trim() || null,
+      notes: eqForm.notes.trim() || null,
+    }
+    if (typeof eqEditingId === 'string' && eqEditingId.startsWith('new:')) {
+      await supabase.from('property_equipment').insert({ ...payload, org_id: property.org_id, property_id: property.id, status: 'active' })
+    } else {
+      await supabase.from('property_equipment').update(payload).eq('id', eqEditingId)
+    }
+    setSavingEq(false); setEqEditingId(null); setEqForm(blankEqForm)
+    await reloadEquipment()
+  }
+  function renderEqForm(property) {
+    const f = eqForm
+    const set = (k, v) => setEqForm({ ...eqForm, [k]: v })
+    return (
+      <div style={{ display: 'grid', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <label style={{ fontSize: 12 }}>System<br /><input type="text" value={f.system_label} onChange={(e) => set('system_label', e.target.value)} placeholder="e.g. Upstairs" /></label>
+          <label style={{ fontSize: 12 }}>Install date<br /><input type="date" value={f.install_date} onChange={(e) => set('install_date', e.target.value)} /></label>
+          <label style={{ fontSize: 12 }}>Mfg year<br /><input type="number" value={f.manufacture_year} onChange={(e) => set('manufacture_year', e.target.value)} placeholder="auto" style={{ width: 90 }} /></label>
+          <label style={{ fontSize: 12 }}>Mfg month<br /><select value={f.manufacture_month} onChange={(e) => set('manufacture_month', e.target.value)}><option value="">—</option>{EQ_MONTHS.map((mn, i) => <option key={mn} value={i + 1}>{mn}</option>)}</select></label>
+        </div>
+        {[['Outdoor', 'outdoor'], ['Indoor', 'indoor'], ['Furnace', 'furnace']].map(([lbl, k]) => (
+          <div key={k} style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, width: 62, color: 'var(--mist)' }}>{lbl}</span>
+            <input type="text" value={f[k + '_brand']} onChange={(e) => set(k + '_brand', e.target.value)} placeholder="Brand" style={{ width: 110 }} />
+            <input type="text" value={f[k + '_model']} onChange={(e) => set(k + '_model', e.target.value)} placeholder="Model" style={{ width: 130 }} />
+            <input type="text" value={f[k + '_serial']} onChange={(e) => set(k + '_serial', e.target.value)} placeholder="Serial" style={{ width: 150 }} />
+          </div>
+        ))}
+        <label style={{ fontSize: 12 }}>Notes<br /><input type="text" value={f.notes} onChange={(e) => set('notes', e.target.value)} style={{ width: '100%', maxWidth: 420 }} /></label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="auth-button" style={{ width: 'auto', padding: '6px 16px' }} disabled={savingEq} onClick={() => saveEq(property)}>{savingEq ? 'Saving…' : 'Save'}</button>
+          <button className="logout-button" onClick={cancelEq}>Cancel</button>
+        </div>
+      </div>
+    )
   }
 
   function formatDate(d) {
@@ -360,15 +434,25 @@ export default function CustomerHistory({ profile }) {
                     const w = eqWarranty(eq)
                     return (
                       <div key={eq.id} style={{ margin: '4px 0 4px 14px', padding: 8, background: 'var(--panel)', borderRadius: 6 }}>
-                        <div style={{ fontSize: 13 }}>
-                          <strong>{eq.system_label || 'System'}</strong>{eq.outdoor_brand ? ` — ${eq.outdoor_brand}` : ''}{' · '}
-                          <span style={{ color: 'var(--mist)' }}>Mfg: {eqMfgLabel(w)}</span>
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>{warrPill(w.parts)}{warrPill(w.labor)}{warrPill(w.freon)}</div>
-                        {w.note && <div style={{ fontSize: 12, color: 'var(--amber)', marginTop: 4 }}>{w.note}</div>}
+                        {eqEditingId === eq.id ? renderEqForm(p) : (
+                          <>
+                            <div style={{ fontSize: 13 }}>
+                              <strong>{eq.system_label || 'System'}</strong>{eq.outdoor_brand ? ` — ${eq.outdoor_brand}` : ''}{' · '}
+                              <span style={{ color: 'var(--mist)' }}>Mfg: {eqMfgLabel(w)}</span>
+                              <button className="logout-button" style={{ marginLeft: 8, fontSize: 12, padding: '1px 8px' }} onClick={() => startEqEdit(eq)}>Edit</button>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>{warrPill(w.parts)}{warrPill(w.labor)}{warrPill(w.freon)}</div>
+                            {w.note && <div style={{ fontSize: 12, color: 'var(--amber)', marginTop: 4 }}>{w.note}</div>}
+                          </>
+                        )}
                       </div>
                     )
                   })}
+                  {eqEditingId === 'new:' + p.id ? (
+                    <div style={{ margin: '4px 0 4px 14px', padding: 8, background: 'var(--panel)', borderRadius: 6 }}>{renderEqForm(p)}</div>
+                  ) : (
+                    <button className="logout-button" style={{ marginLeft: 14, fontSize: 12, padding: '2px 10px' }} onClick={() => startEqAdd(p.id)}>+ Add equipment</button>
+                  )}
                 </div>
               )
             })}
