@@ -30,6 +30,7 @@ export default function CustomerFilters({ properties }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  const [orderMode, setOrderMode] = useState('requested') // 'invoiced' | 'requested'
 
   useEffect(() => {
     let live = true
@@ -104,50 +105,70 @@ export default function CustomerFilters({ properties }) {
     return priced ? total : null
   }, [mine, prices]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function submit(details) {
-    setBusy(true); setError('')
+  async function submitRequest(details) {
     const { error: err } = await supabase.rpc('submit_customer_request', {
       p_property_id: propId, p_type: 'filter_order', p_details: details, p_window: null,
     })
+    return err
+  }
+
+  // Try to generate + email a real filter invoice (priced server-side from the
+  // price book). If a size isn't priced yet (or the invoice step fails), fall back
+  // to a plain request so the office can follow up — the order is never lost.
+  async function placeOrder(items, fallbackDetails) {
+    setBusy(true); setError('')
+    let invoiced = false
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke('create-filter-invoice', {
+        body: { propertyId: propId, items },
+      })
+      if (!fnErr && data && data.invoiced) invoiced = true
+    } catch { /* fall through to a request */ }
+    if (invoiced) { setBusy(false); setOrderMode('invoiced'); setDone(true); return }
+    const err = await submitRequest(fallbackDetails)
     setBusy(false)
     if (err) { setError(err.message); return }
-    setDone(true)
+    setOrderMode('requested'); setDone(true)
   }
 
   function orderTypical() {
-    const lines = mine.map(f => {
+    if (!mine.length) { setError('No filters on file to reorder.'); return }
+    const items = mine.map(f => ({ width: f.width, height: f.height, thickness: f.thickness, merv: f.merv, qty: Math.max(1, Number(f.quantity) || 1) }))
+    const details = 'Reorder usual filters:\n' + mine.map(f => {
       const q = Math.max(1, Number(f.quantity) || 1)
-      const up = unitPrice(priceRowFor(sizeOf(f), f.merv), q)
-      return `\u2022 ${q}\u00D7 ${sizeOf(f) || 'filter'}${f.merv ? ` MERV ${f.merv}` : ''}${up != null ? ` \u2014 ${money(up)} ea` : ''}`
-    })
-    if (!lines.length) { setError('No filters on file to reorder.'); return }
-    const tail = typicalTotal != null ? `\n\nEstimated total: ${money(typicalTotal)}` : ''
-    submit('Reorder usual filters:\n' + lines.join('\n') + tail)
+      return `\u2022 ${q}\u00D7 ${sizeOf(f) || 'filter'}${f.merv ? ` MERV ${f.merv}` : ''}`
+    }).join('\n')
+    placeOrder(items, details)
   }
 
   function orderCustom() {
-    const lines = sizes.filter(s => (custom[s]?.qty || 0) > 0)
-      .map(s => {
-        const q = custom[s].qty
-        const up = unitPrice(priceRowFor(s, custom[s].merv), q)
-        return `\u2022 ${q}\u00D7 ${s} MERV ${custom[s].merv}${up != null ? ` \u2014 ${money(up)} ea` : ''}`
-      })
-    if (!lines.length) { setError('Set a quantity on at least one filter.'); return }
-    const tail = customTotal != null ? `\n\nEstimated total: ${money(customTotal)}` : ''
-    submit('Custom filter order:\n' + lines.join('\n') + tail)
+    const chosen = sizes.filter(s => (custom[s]?.qty || 0) > 0)
+    if (!chosen.length) { setError('Set a quantity on at least one filter.'); return }
+    const items = chosen.map(s => {
+      const [width, height, thickness] = s.split('x').map(Number)
+      return { width, height, thickness, merv: custom[s].merv, qty: custom[s].qty }
+    })
+    const details = 'Custom filter order:\n' + chosen.map(s => `\u2022 ${custom[s].qty}\u00D7 ${s} MERV ${custom[s].merv}`).join('\n')
+    placeOrder(items, details)
   }
 
-  function askIdentify() {
-    submit('Customer asked us to identify/record their filter sizes on the next visit.')
+  async function askIdentify() {
+    setBusy(true); setError('')
+    const err = await submitRequest('Customer asked us to identify/record their filter sizes on the next visit.')
+    setBusy(false)
+    if (err) { setError(err.message); return }
+    setOrderMode('requested'); setDone(true)
   }
 
   if (done) return (
     <div className="cp-wrap">
       <div className="cp-center">
         <div style={{ fontSize: 46 }}>✅</div>
-        <h2 className="cp-h2">Filter request received</h2>
-        <p className="cp-lead" style={{ maxWidth: 340 }}>
-          We’ll confirm pricing and delivery, and reach out if we need anything. Thanks!
+        <h2 className="cp-h2">{orderMode === 'invoiced' ? 'Invoice on its way' : 'Filter request received'}</h2>
+        <p className="cp-lead" style={{ maxWidth: 360 }}>
+          {orderMode === 'invoiced'
+            ? 'We’ve emailed your filter invoice with a secure link to pay by card. Thank you!'
+            : 'We’ll confirm pricing and delivery, and reach out if we need anything. Thanks!'}
         </p>
         <button className="cp-btn" style={{ maxWidth: 260 }} onClick={() => nav('/portal')}>Back to home</button>
       </div>
