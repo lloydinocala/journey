@@ -65,7 +65,7 @@ export default function CalendarMonth({ monthDate, gridDays, jobs, onJobClick, o
                       ? '#DC2626'
                       : job.status === 'completed'
                       ? '#9CA3AF'
-                      : job.primary_technician?.calendar_color || '#8A93A6',
+                      : job.primary_technician?.calendar_color || '#DC2626',
                   opacity: draggingId === job.id ? 0.5 : 1,
                 }}
                 draggable="true"
