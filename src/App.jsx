@@ -60,6 +60,7 @@ import WarrantyRegistrations from './WarrantyRegistrations'
 import SessionLog from './SessionLog'
 import CustomerImport from './CustomerImport'
 import ImportDashboard from './ImportDashboard'
+import FilterPricebookImport from './FilterPricebookImport'
 import PricebookImport from './PricebookImport'
 import EquipmentImport from './EquipmentImport'
 import PropertyImport from './PropertyImport'
@@ -255,6 +256,7 @@ function AuthenticatedApp() {
         <Route path="/import/jobs" element={<JobImport profile={profile} />} />
         <Route path="/import/services-pricebook" element={<PricebookImport profile={profile} />} />
         <Route path="/import/parts-catalog" element={<PartsCatalogImport profile={profile} />} />
+        <Route path="/import/filter-pricebook" element={<FilterPricebookImport profile={profile} />} />
         <Route path="/import/vendor-prices" element={<VendorPriceImport profile={profile} />} />
         <Route path="/import/systems-pricebook" element={<EquipmentImport profile={profile} />} />
         <Route path="/import/tools" element={<ToolsImport profile={profile} />} />
