@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
-import { fetchAllRows, readFileSmart } from './utils/csvImport'
+import { readFileSmart } from './utils/csvImport'
 import OrgPicker from './OrgPicker'
 
 const COLS = [
@@ -37,7 +37,6 @@ const numOrNull = (v) => (v === '' || v == null ? null : Number(v))
 const csvNum = (v) => { const t = (v ?? '').toString().trim().replace(/[$,]/g, ''); if (t === '') return null; const n = parseFloat(t); return isNaN(n) ? null : n }
 const csvInt = (v) => { const n = csvNum(v); return n == null ? null : Math.round(n) }
 const csvTxt = (v) => { const t = (v ?? '').toString().trim(); return t === '' ? null : t }
-const keyOf = (r) => [r.height, r.width, r.thickness, r.merv, (r.type || '').toString().toLowerCase().trim()].join('|')
 
 export default function FilterPricebookImport({ profile }) {
   const isSuperAdmin = profile?.role === 'super_admin'
@@ -55,6 +54,8 @@ export default function FilterPricebookImport({ profile }) {
   const [importing, setImporting] = useState(false)
   const [summary, setSummary] = useState(null)
   const [failed, setFailed] = useState([])
+  const [skipped, setSkipped] = useState([])
+  const [clearFirst, setClearFirst] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -125,63 +126,56 @@ export default function FilterPricebookImport({ profile }) {
   async function handleFile(e) {
     const file = e.target.files[0]
     if (!file || !selectedOrg) return
-    setError(''); setSummary(null); setFailed([]); setImporting(true)
+    setError(''); setSummary(null); setFailed([]); setSkipped([]); setImporting(true)
     try {
       const text = await readFileSmart(file)
       const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
       if (parsed.errors?.length) throw new Error(`CSV parse error: ${parsed.errors[0].message} (row ${parsed.errors[0].row})`)
-      const mapped = parsed.data.map((r) => ({
+      const mappedAll = parsed.data.map((r, idx) => ({
+        __row: idx + 2,
         height: csvNum(r.Height ?? r.height),
         width: csvNum(r.Width ?? r.width),
         thickness: csvNum(r.Thickness ?? r.thickness),
         type: csvTxt(r.Type ?? r.type),
         merv: csvInt(r.MERV ?? r.merv),
-        price_1: csvNum(r['1-3 ea'] ?? r['1–3 ea'] ?? r['Price 1-3'] ?? r['1 ea'] ?? r.price_1),
-        price_4: csvNum(r['4-5 ea'] ?? r['4–5 ea'] ?? r['Price 4-5'] ?? r['4 ea'] ?? r.price_4),
-        price_6: csvNum(r['6-11 ea'] ?? r['6–11 ea'] ?? r['Price 6-11'] ?? r['6 ea'] ?? r.price_6),
+        price_1: csvNum(r['1-3 ea'] ?? r['1\u20133 ea'] ?? r['Price 1-3'] ?? r['1 ea'] ?? r.price_1),
+        price_4: csvNum(r['4-5 ea'] ?? r['4\u20135 ea'] ?? r['Price 4-5'] ?? r['4 ea'] ?? r.price_4),
+        price_6: csvNum(r['6-11 ea'] ?? r['6\u201311 ea'] ?? r['Price 6-11'] ?? r['6 ea'] ?? r.price_6),
         price_case: csvNum(r['Case of 12'] ?? r['Case'] ?? r['Case Price'] ?? r.price_case),
         vendor: csvTxt(r.Vendor ?? r.vendor),
         notes: csvTxt(r.Notes ?? r.notes),
         product_url: csvTxt(r['Product URL'] ?? r.product_url ?? r.URL ?? r.url),
-      })).filter((r) => r.height != null && r.width != null)
+      }))
 
-      if (!mapped.length) throw new Error('No valid rows found. Each row needs at least Height and Width. Try the template.')
+      // Keep every row that has at least a Height and Width. Nothing is silently
+      // dropped: rows without them are reported as "skipped" (downloadable).
+      const valid = [], skips = []
+      for (const r of mappedAll) {
+        if (r.height == null || r.width == null) { skips.push({ Row: r.__row, Height: r.height ?? '', Width: r.width ?? '', Type: r.type ?? '', MERV: r.merv ?? '', reason: 'missing Height/Width' }); continue }
+        valid.push(r)
+      }
+      if (!valid.length) throw new Error('No rows had a readable Height and Width \u2014 check the column headers against the template.')
 
-      const existing = await fetchAllRows(() =>
-        supabase.from('filter_pricebook').select('id, height, width, thickness, merv, type').eq('org_id', selectedOrg))
-      const byKey = new Map()
-      for (const it of existing) byKey.set(keyOf(it), it.id)
-
-      const toInsert = [], toUpdate = [], seen = new Set()
-      for (const r of mapped) {
-        const k = keyOf(r)
-        if (seen.has(k)) continue
-        seen.add(k)
-        const payload = { ...r, is_active: true, updated_at: new Date().toISOString() }
-        const id = byKey.get(k)
-        if (id) toUpdate.push({ id, payload }); else toInsert.push({ ...payload, org_id: selectedOrg })
+      if (clearFirst) {
+        const { error: delErr } = await supabase.from('filter_pricebook').delete().eq('org_id', selectedOrg)
+        if (delErr) throw new Error('Could not clear existing prices: ' + delErr.message)
       }
 
       let created = 0
       const fails = []
       const sizeStr = (x) => `${x.height ?? ''}x${x.width ?? ''}x${x.thickness ?? ''}${x.merv ? ' MERV ' + x.merv : ''}`
-      for (let i = 0; i < toInsert.length; i += 300) {
-        const batch = toInsert.slice(i, i + 300)
+      for (let i = 0; i < valid.length; i += 300) {
+        const batch = valid.slice(i, i + 300).map(({ __row, ...r }) => ({ ...r, org_id: selectedOrg, is_active: true }))
         const { error: insErr } = await supabase.from('filter_pricebook').insert(batch)
         if (!insErr) { created += batch.length; continue }
         for (const row of batch) {
           const { error: rowErr } = await supabase.from('filter_pricebook').insert(row)
-          if (rowErr) fails.push({ Size: sizeStr(row), reason: rowErr.message }); else created++
+          if (rowErr) fails.push({ Size: sizeStr(row), Vendor: row.vendor ?? '', reason: rowErr.message }); else created++
         }
       }
-      let updated = 0
-      for (const u of toUpdate) {
-        const { error: upErr } = await supabase.from('filter_pricebook').update(u.payload).eq('id', u.id)
-        if (upErr) fails.push({ Size: sizeStr(u.payload), reason: upErr.message }); else updated++
-      }
 
-      setSummary({ created, updated, failed: fails.length, total: mapped.length })
-      setFailed(fails)
+      setSummary({ created, skipped: skips.length, failed: fails.length, total: mappedAll.length })
+      setFailed(fails); setSkipped(skips)
       loadRows(selectedOrg)
     } catch (err) {
       setError(err.message || String(err))
@@ -191,11 +185,11 @@ export default function FilterPricebookImport({ profile }) {
     }
   }
 
-  function downloadFailed() {
-    const blob = new Blob([Papa.unparse(failed)], { type: 'text/csv' })
+  function downloadRows(list, name) {
+    const blob = new Blob([Papa.unparse(list)], { type: 'text/csv' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = 'filter-pricebook-import-errors.csv'
+    a.download = name
     a.click()
     URL.revokeObjectURL(a.href)
   }
@@ -231,7 +225,10 @@ export default function FilterPricebookImport({ profile }) {
           {importing ? 'Importing…' : 'Choose CSV & Import'}
           <input type="file" accept=".csv,text/csv" onChange={handleFile} disabled={importing || !selectedOrg} style={{ display: 'none' }} />
         </label>
-        <span style={{ fontSize: 12, color: 'var(--mist)' }}>Re-importing updates matching sizes; new sizes are added.</span>
+        <label style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          <input type="checkbox" checked={clearFirst} onChange={(e) => setClearFirst(e.target.checked)} />
+          Clear existing prices before import (recommended for a full vendor upload)
+        </label>
       </div>
       <p style={{ fontSize: 12, color: 'var(--mist)', marginTop: 0, marginBottom: 16 }}>
         Columns: Height, Width, Thickness, Type, MERV, 1-3 ea, 4-5 ea, 6-11 ea, Case of 12, Vendor, Notes, Product URL.
@@ -241,12 +238,16 @@ export default function FilterPricebookImport({ profile }) {
       {summary && (
         <div style={{ marginBottom: 18, padding: 16, border: '1px solid var(--border, rgba(255,255,255,0.15))', borderRadius: 10, maxWidth: 460 }}>
           <h3 style={{ marginTop: 0 }}>Import complete</h3>
+          <div style={{ fontSize: 12, color: 'var(--mist)', marginBottom: 8 }}>{summary.total} rows in file</div>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
             <div><div style={{ fontSize: 26, fontWeight: 700, color: '#1a7f37' }}>{summary.created}</div><div style={{ fontSize: 12, color: 'var(--mist)' }}>created</div></div>
-            <div><div style={{ fontSize: 26, fontWeight: 700, color: '#4e95d9' }}>{summary.updated}</div><div style={{ fontSize: 12, color: 'var(--mist)' }}>updated</div></div>
+            <div><div style={{ fontSize: 26, fontWeight: 700, color: summary.skipped ? '#9a6a12' : 'var(--mist)' }}>{summary.skipped}</div><div style={{ fontSize: 12, color: 'var(--mist)' }}>skipped</div></div>
             <div><div style={{ fontSize: 26, fontWeight: 700, color: summary.failed ? '#b0342f' : 'var(--mist)' }}>{summary.failed}</div><div style={{ fontSize: 12, color: 'var(--mist)' }}>failed</div></div>
           </div>
-          {summary.failed > 0 && <button className="logout-button" style={{ marginTop: 12 }} onClick={downloadFailed}>Download failed rows</button>}
+          <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+            {summary.skipped > 0 && <button className="logout-button" onClick={() => downloadRows(skipped, 'filter-pricebook-skipped.csv')}>Download skipped rows</button>}
+            {summary.failed > 0 && <button className="logout-button" onClick={() => downloadRows(failed, 'filter-pricebook-errors.csv')}>Download failed rows</button>}
+          </div>
         </div>
       )}
 
