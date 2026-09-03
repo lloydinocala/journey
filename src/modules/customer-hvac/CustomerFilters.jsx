@@ -231,30 +231,34 @@ export default function CustomerFilters({ properties }) {
               const up = unitPrice(priceRowFor(s, custom[s]?.merv), q)
               return (
                 <div className="cp-fcust-row" key={s}>
-                  <div className="size">{s}</div>
-                  <div className="mervs">
-                    {MERVS.map(m => (
-                      <button
-                        key={m}
-                        className={'cp-mervchip' + (custom[s]?.merv === m ? ' on' : '')}
-                        onClick={() => setMerv(s, m)}
-                      >
-                        MERV {m}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="cp-qtybox">
-                    <div className="qtylabel">QTY</div>
-                    <div className="cp-step">
-                      <button onClick={() => bump(s, -1)} aria-label="less">–</button>
-                      <span className="cp-qty">{q}</span>
-                      <button onClick={() => bump(s, 1)} aria-label="more">+</button>
+                  <div className="cp-fcust-top">
+                    <div className="size">{s}</div>
+                    <div className="cp-fcust-price">
+                      {up != null
+                        ? <>{money(up)} ea{q > 0 ? <> · <b>{money(up * q)}</b></> : null}</>
+                        : <span className="muted">price at order</span>}
                     </div>
                   </div>
-                  <div style={{ minWidth: 96, textAlign: 'right', fontSize: 13 }}>
-                    {up != null
-                      ? <><div>{money(up)} ea</div>{q > 0 && <div style={{ fontWeight: 700 }}>{money(up * q)}</div>}</>
-                      : <span style={{ color: 'var(--mist)' }}>price at order</span>}
+                  <div className="cp-fcust-controls">
+                    <div className="mervs">
+                      {MERVS.map(m => (
+                        <button
+                          key={m}
+                          className={'cp-mervchip' + (custom[s]?.merv === m ? ' on' : '')}
+                          onClick={() => setMerv(s, m)}
+                        >
+                          MERV {m}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="cp-qtybox">
+                      <div className="qtylabel">QTY</div>
+                      <div className="cp-step">
+                        <button onClick={() => bump(s, -1)} aria-label="less">–</button>
+                        <span className="cp-qty">{q}</span>
+                        <button onClick={() => bump(s, 1)} aria-label="more">+</button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )
