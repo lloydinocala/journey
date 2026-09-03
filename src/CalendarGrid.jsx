@@ -49,7 +49,7 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
           ? '#DC2626'
           : job.status === 'completed'
           ? '#9CA3AF'
-          : job.primary_technician?.calendar_color || '#8A93A6',
+          : job.primary_technician?.calendar_color || '#DC2626',
     }
   }
 
