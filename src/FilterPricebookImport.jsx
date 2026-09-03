@@ -16,8 +16,11 @@ const COLS = [
   { key: 'price_4', label: '4–5 ea', w: 84, num: true, money: true },
   { key: 'price_6', label: '6–11 ea', w: 88, num: true, money: true },
   { key: 'price_case', label: 'Case of 12', w: 96, num: true, money: true },
+  { key: 'vendor', label: 'Vendor', w: 120, num: false },
+  { key: 'notes', label: 'Notes', w: 160, num: false },
+  { key: 'product_url', label: 'Product URL', w: 190, num: false },
 ]
-const BLANK = { height: '', width: '', thickness: '', type: '', merv: '', price_1: '', price_4: '', price_6: '', price_case: '' }
+const BLANK = { height: '', width: '', thickness: '', type: '', merv: '', price_1: '', price_4: '', price_6: '', price_case: '', vendor: '', notes: '', product_url: '' }
 
 const money = (v) => (v == null || v === '' ? '—' : '$' + Number(v).toFixed(2))
 const numOrNull = (v) => (v === '' || v == null ? null : Number(v))
@@ -62,6 +65,7 @@ export default function FilterPricebookImport({ profile }) {
       merv: form.merv === '' ? null : parseInt(form.merv, 10),
       price_1: numOrNull(form.price_1), price_4: numOrNull(form.price_4),
       price_6: numOrNull(form.price_6), price_case: numOrNull(form.price_case),
+      vendor: (form.vendor || '').trim() || null, notes: (form.notes || '').trim() || null, product_url: (form.product_url || '').trim() || null,
     }
   }
 
@@ -105,15 +109,16 @@ export default function FilterPricebookImport({ profile }) {
       // Skip a header row (non-numeric height)
       if (parsed.length === 0 && cells[0] && isNaN(Number(cells[0]))) continue
       if (cells.length < 5) continue
-      const [height, width, thickness, type, merv, price_1, price_4, price_6, price_case] = cells
+      const [height, width, thickness, type, merv, price_1, price_4, price_6, price_case, vendor, notes, product_url] = cells
       parsed.push({
         org_id: selectedOrg, is_active: true,
         height: numOrNull(height), width: numOrNull(width), thickness: numOrNull(thickness),
         type: (type || '').trim() || null, merv: merv === '' || merv == null ? null : parseInt(merv, 10),
         price_1: numOrNull(price_1), price_4: numOrNull(price_4), price_6: numOrNull(price_6), price_case: numOrNull(price_case),
+        vendor: (vendor || '').trim() || null, notes: (notes || '').trim() || null, product_url: (product_url || '').trim() || null,
       })
     }
-    if (!parsed.length) { setCsvBusy(false); setCsvMsg('No rows found. Expected: Height, Width, Thickness, Type, MERV, 1 ea, 4 ea, 6 ea, Case(12).'); return }
+    if (!parsed.length) { setCsvBusy(false); setCsvMsg('No rows found. Expected columns: Height, Width, Thickness, Type, MERV, 1–3 ea, 4–5 ea, 6–11 ea, Case of 12, Vendor, Notes, Product URL.'); return }
     const { error } = await supabase.from('filter_pricebook').insert(parsed)
     setCsvBusy(false)
     if (error) { setCsvMsg('Import failed: ' + error.message); return }
@@ -164,7 +169,7 @@ export default function FilterPricebookImport({ profile }) {
           <div style={{ marginTop: 8, padding: 12, background: 'var(--panel)', borderRadius: 8 }}>
             <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 0 }}>
               Paste rows in this column order (a header row is fine, it's skipped):<br />
-              <strong>Height, Width, Thickness, Type, MERV, 1–3 ea, 4–5 ea, 6–11 ea, Case of 12</strong>
+              <strong>Height, Width, Thickness, Type, MERV, 1–3 ea, 4–5 ea, 6–11 ea, Case of 12, Vendor, Notes, Product URL</strong>
             </p>
             <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={6} style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }}
               placeholder={'25,16,1,Pleated,8,6.99,24.99,34.99,64.99\n25,16,1,Pleated,11,7.99,28.99,39.99,74.99'} />
