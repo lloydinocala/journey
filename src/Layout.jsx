@@ -23,20 +23,22 @@ const CATEGORIES = [
     { label: 'Properties', path: '/properties' },
     { label: 'Job Estimates', path: '/estimates' },
     { label: 'System Estimates', path: '/system-estimates' },
-    { label: 'Maintenance Agreements', path: '/maintenance-agreements' },
-    { label: 'Maintenance Due', path: '/maintenance-due' },
     { label: 'Warranty Registrations', path: '/warranty-registrations' },
     { label: 'Vendors', path: '/vendors' },
     { label: 'Text Archive', path: '/text-archive' },
   ]},
+  { key: 'maintenance', label: 'Maintenance', items: [
+    { label: 'Maintenance Dashboard', path: '/maintenance-dashboard', perm: 'view_maintenance_dashboard' },
+    { label: 'Maintenance Agreements', path: '/maintenance-agreements' },
+    { label: 'Maintenance Due', path: '/maintenance-due' },
+    { label: 'Maintenance Tiers', path: '/maintenance-tiers' },
+  ]},
   { key: 'financials', label: 'Financials', items: [
     { label: 'Invoices', path: '/invoices' },
-    { label: 'Maintenance Dashboard', path: '/maintenance-dashboard', perm: 'view_maintenance_dashboard' },
     { label: 'Pricebook', path: '/pricebook' },
     { label: 'Systems Pricebook', path: '/systems-pricebook' },
     { label: 'Special Features', path: '/special-features' },
     { label: 'Discount Catalog', path: '/discount-catalog' },
-    { label: 'Maintenance Tiers', path: '/maintenance-tiers' },
     { label: 'PM Checklists', path: '/pm-checklists' },
     { label: 'System Estimate Setup', path: '/system-estimate-setup' },
   ]},
@@ -68,6 +70,7 @@ const PERSONAL_CATEGORY = { key: 'personal', label: 'Personal', items: [
 // still expands its panel). Sections whose key is absent here just expand.
 const DASH_BY_KEY = {
   operations: '/operations',
+  maintenance: '/maintenance-dashboard',
   financials: '/financials',
   admin: '/admin',
   elements: '/elements',
@@ -91,8 +94,9 @@ function getCategoryForPath(pathname) {
   if (pathname === '/' || pathname === '/home') return null
   if (pathname.startsWith('/financials')) return 'financials'
   if (pathname.startsWith('/admin')) return 'admin'
-  if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/text-archive') || pathname.startsWith('/maintenance-agreements')) return 'operations'
-  if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/maintenance-tiers') || pathname.startsWith('/maintenance-dashboard')) return 'financials'
+  if (pathname.startsWith('/maintenance')) return 'maintenance'
+  if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/text-archive')) return 'operations'
+  if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
   if (pathname.startsWith('/elements')) return 'elements'
