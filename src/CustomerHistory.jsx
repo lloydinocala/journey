@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import AiAssist from './AiAssist'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import { warrantyFor, decodeSerial } from './Warranty'
 
 const CUST_SUMMARY_SYS = 'Summarize an HVAC customer account for office staff, using only the provided facts. Start with a 2-3 line snapshot (who they are, how long a customer, property/job/invoice volume), then flag opportunities and risks: overdue balances, a missing or expiring maintenance agreement, aging estimates, upcoming maintenance. Be specific with numbers. Under 8 short lines. No headers.'
 
@@ -13,6 +14,7 @@ export default function CustomerHistory({ profile }) {
   const [jobs, setJobs] = useState([])
   const [invoices, setInvoices] = useState([])
   const [warranties, setWarranties] = useState([])
+  const [equipment, setEquipment] = useState([])
   const [agreements, setAgreements] = useState([])
   const [offerPropId, setOfferPropId] = useState('')
   const [sendingOffer, setSendingOffer] = useState(false)
@@ -96,6 +98,16 @@ export default function CustomerHistory({ profile }) {
 
     setProperties(propsRes.data || [])
     setOfferPropId((propsRes.data || []).find((p) => p.is_active)?.id || '')
+    const eqPropIds = (propsRes.data || []).map((pr) => pr.id)
+    if (eqPropIds.length) {
+      const { data: eqData } = await supabase
+        .from('property_equipment')
+        .select('id, property_id, system_label, install_date, manufacture_year, manufacture_month, status, outdoor_brand, outdoor_model, outdoor_serial, indoor_brand, indoor_model, indoor_serial, furnace_brand, furnace_model, furnace_serial')
+        .in('property_id', eqPropIds)
+        .neq('status', 'retired')
+        .order('created_at', { ascending: false })
+      setEquipment(eqData || [])
+    }
     setJobs(jobsRes.data || [])
     setInvoices(invoicesRes.data || [])
     setAgreements(agreementsRes.data || [])
@@ -155,6 +167,31 @@ export default function CustomerHistory({ profile }) {
     setPhotoUrls(Object.fromEntries(urlEntries))
 
     setLoading(false)
+  }
+
+  // Warranty helpers (shared logic in ./Warranty). Month-precise; parts from the
+  // manufacture date unless we installed it, labor/refrigerant 1 yr from install.
+  const WARR_PILL_STYLE = (state) => ({
+    active: { background: 'rgba(46,160,87,0.14)', color: '#1b7a3d', border: '1px solid rgba(46,160,87,0.35)' },
+    expired: { background: 'rgba(200,60,60,0.12)', color: '#b0342f', border: '1px solid rgba(200,60,60,0.32)' },
+    verify: { background: 'rgba(210,150,40,0.14)', color: '#9a6a12', border: '1px solid rgba(210,150,40,0.35)' },
+  }[state] || {})
+  const warrPill = (pill) => (
+    <span key={pill.label} style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 600, ...WARR_PILL_STYLE(pill.state) }}>{pill.label}</span>
+  )
+  const EQ_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  function eqWarranty(eq) {
+    const order = [[eq.outdoor_brand, eq.outdoor_serial], [eq.indoor_brand, eq.indoor_serial], [eq.furnace_brand, eq.furnace_serial]]
+    let brand = eq.outdoor_brand, serial = eq.outdoor_serial
+    if (eq.manufacture_year == null) {
+      for (const [b, sn] of order) { if (decodeSerial(b, sn).year) { brand = b; serial = sn; break } }
+    }
+    return warrantyFor({ manufactureYear: eq.manufacture_year, manufactureMonth: eq.manufacture_month, installDate: eq.install_date, brand, serial })
+  }
+  function eqMfgLabel(w) {
+    if (!w.manufactureYear) return 'Verify (see note)'
+    const m = w.manufactureMonth ? EQ_MONTHS[w.manufactureMonth - 1] + ' ' : ''
+    return `${m}${w.manufactureYear}${w.manufactureSource === 'serial' ? ' (from serial)' : ''}`
   }
 
   function formatDate(d) {
@@ -311,12 +348,30 @@ export default function CustomerHistory({ profile }) {
           <div>
             <h3 style={{ marginBottom: 6 }}>Properties</h3>
             {properties.length === 0 && <p style={{ color: 'var(--mist)' }}>No properties on file.</p>}
-            {properties.map((p) => (
-              <p key={p.id} style={{ margin: '2px 0' }}>
-                {propertyLine(p)}{!p.is_active ? ' (inactive)' : ''}
-                {p.gate_code ? ` — Gate: ${p.gate_code}` : ''}
-              </p>
-            ))}
+            {properties.map((p) => {
+              const propEquip = equipment.filter((e) => e.property_id === p.id)
+              return (
+                <div key={p.id} style={{ margin: '4px 0 10px' }}>
+                  <p style={{ margin: '2px 0' }}>
+                    {propertyLine(p)}{!p.is_active ? ' (inactive)' : ''}
+                    {p.gate_code ? ` — Gate: ${p.gate_code}` : ''}
+                  </p>
+                  {propEquip.map((eq) => {
+                    const w = eqWarranty(eq)
+                    return (
+                      <div key={eq.id} style={{ margin: '4px 0 4px 14px', padding: 8, background: 'var(--panel)', borderRadius: 6 }}>
+                        <div style={{ fontSize: 13 }}>
+                          <strong>{eq.system_label || 'System'}</strong>{eq.outdoor_brand ? ` — ${eq.outdoor_brand}` : ''}{' · '}
+                          <span style={{ color: 'var(--mist)' }}>Mfg: {eqMfgLabel(w)}</span>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>{warrPill(w.parts)}{warrPill(w.labor)}{warrPill(w.freon)}</div>
+                        {w.note && <div style={{ fontSize: 12, color: 'var(--amber)', marginTop: 4 }}>{w.note}</div>}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
           </div>
 
           <div>
