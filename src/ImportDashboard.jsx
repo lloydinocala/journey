@@ -14,7 +14,7 @@ const IMPORTS = [
   { to: '/import/vendor-prices', icon: '🧾', title: 'Vendor Price File', desc: 'Vendor parts price files to keep material costs and markups current.' },
   { to: '/import/parts-catalog', icon: '🔩', title: 'Parts Catalog', desc: 'Your inventory parts master — names, units, reorder levels, and markups for stock tracking.' },
   { to: '/import/tools', icon: '🛠️', title: 'Tools', desc: 'Your durable tools — name, brand, model/serial, purchase date and cost, received into the shop.' },
-  { to: '/import/filter-pricebook', icon: '🌬️', title: 'Filter Price Book', desc: 'Your retail air-filter prices by size, type and MERV, with 1 / 4 / 6 / case quantity breaks. Feeds the customer portal.' },
+  { to: '/import/filter-pricebook', icon: '🌬️', title: 'Filter Price Book', desc: 'Your retail air-filter prices by size, type and MERV, with 1–3 / 4–5 / 6–11 / case-of-12 pricing. Feeds the customer portal.' },
 ]
 
 export default function ImportDashboard() {
