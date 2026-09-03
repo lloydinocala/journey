@@ -203,3 +203,11 @@
 .cp-qtybox{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto}
 .cp-qtybox .qtylabel{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.5px}
 .cp-filtcustom .cp-btn{margin-top:16px}
+
+/* Equipment / warranty (My Equipment screen) */
+.cp-equip-sys { margin-bottom: 8px; font-size: 15px; }
+.cp-warrpills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.cp-warr-pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; border: 1px solid transparent; }
+.cp-warr-ok { background: rgba(46, 160, 87, 0.14); color: #1b7a3d; border-color: rgba(46, 160, 87, 0.35); }
+.cp-warr-exp { background: rgba(200, 60, 60, 0.12); color: #b0342f; border-color: rgba(200, 60, 60, 0.32); }
+.cp-warr-verify { background: rgba(210, 150, 40, 0.14); color: #9a6a12; border-color: rgba(210, 150, 40, 0.35); }
