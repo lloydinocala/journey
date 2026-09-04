@@ -21,7 +21,7 @@ function unitPrice(row, qty) {
   return (row.price_4 != null ? Number(row.price_4) : null) ?? (row.price_6 != null ? Number(row.price_6) : null) ?? perCase
 }
 
-export default function CustomerFilters({ properties, activePropertyId }) {
+export default function CustomerFilters({ customer, properties, activePropertyId }) {
   const nav = useNavigate()
   const [propId, setPropId] = useState(activePropertyId || properties[0]?.id || '')
   const [filters, setFilters] = useState(null) // null = loading
@@ -31,6 +31,11 @@ export default function CustomerFilters({ properties, activePropertyId }) {
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
   const [orderMode, setOrderMode] = useState('requested') // 'invoiced' | 'requested'
+  const [subs, setSubs] = useState([])
+  const [discount, setDiscount] = useState(0)
+  const [subForm, setSubForm] = useState({ size: '', merv: '', qty: 1, cadence: 90 })
+  const [subBusy, setSubBusy] = useState(false)
+  const [subMsg, setSubMsg] = useState('')
 
   useEffect(() => {
     let live = true
@@ -175,6 +180,31 @@ export default function CustomerFilters({ properties, activePropertyId }) {
     </div>
   )
 
+  function reloadSubs() {
+    if (!propId) { setSubs([]); return }
+    supabase.from('filter_subscriptions').select('*').eq('property_id', propId).neq('status', 'canceled').order('created_at', { ascending: false }).then(({ data }) => setSubs(data || []))
+  }
+  useEffect(() => { reloadSubs() }, [propId])
+  useEffect(() => { supabase.rpc('current_customer_filter_discount').then(({ data }) => setDiscount(Number(data) || 0)) }, [])
+
+  async function addSub() {
+    if (!subForm.size || !propId || !customer) return
+    const [w, h, t] = subForm.size.split('x')
+    const next = new Date(); next.setDate(next.getDate() + Number(subForm.cadence))
+    setSubBusy(true); setSubMsg('')
+    const { error: err } = await supabase.from('filter_subscriptions').insert({
+      org_id: customer.org_id, customer_id: customer.id, property_id: propId,
+      width: Number(w) || null, height: Number(h) || null, thickness: Number(t) || null,
+      merv: subForm.merv ? Number(subForm.merv) : null, quantity: Math.max(1, Number(subForm.qty) || 1),
+      cadence_days: Number(subForm.cadence), next_ship_date: next.toISOString().slice(0, 10), status: 'active',
+    })
+    setSubBusy(false)
+    if (err) { setSubMsg(err.message); return }
+    setSubForm({ size: '', merv: '', qty: 1, cadence: 90 }); setSubMsg('Auto-ship started \u2713'); reloadSubs()
+  }
+  async function setSubStatus(id, status) { await supabase.from('filter_subscriptions').update({ status }).eq('id', id); reloadSubs() }
+  async function cancelSub(id) { if (!window.confirm('Cancel this auto-ship?')) return; await supabase.from('filter_subscriptions').update({ status: 'canceled' }).eq('id', id); reloadSubs() }
+
   return (
     <div className="cp-wrap">
       <button className="cp-back" onClick={() => nav('/portal')}>‹ Home</button>
@@ -267,6 +297,59 @@ export default function CustomerFilters({ properties, activePropertyId }) {
               <div style={{ textAlign: 'right', fontWeight: 700, margin: '6px 2px 0' }}>Estimated total: {money(customTotal)}</div>
             )}
             <button className="cp-btn pay" onClick={orderCustom} disabled={busy}>Order Custom Selection</button>
+          </div>
+
+          <div className="cp-card" style={{ marginTop: 18 }}>
+            <h3 className="cp-h3" style={{ margin: '0 0 4px' }}>🔁 Auto-Ship &amp; Save{discount ? ` ${discount}%` : ''}</h3>
+            <p className="cp-fineprint" style={{ marginTop: 0 }}>Never think about filters again — we ship the right ones on your schedule{discount ? `, ${discount}% off every time` : ''}. Pause or cancel anytime.</p>
+
+            {subs.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                {subs.map(su => (
+                  <div key={su.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '8px 0', borderTop: '1px solid var(--line)' }}>
+                    <div style={{ flex: 1, minWidth: 180, fontSize: 14 }}>
+                      <b>{[num(su.width), num(su.height), num(su.thickness)].filter(Boolean).join('x')}{su.merv ? ` MERV ${su.merv}` : ''}</b> · qty {su.quantity} · every {su.cadence_days} days
+                      <div className="cp-fineprint" style={{ marginTop: 2 }}>{su.status === 'paused' ? 'Paused' : `Next ship ${new Date(su.next_ship_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}</div>
+                    </div>
+                    {su.status === 'active'
+                      ? <button className="cp-btn ghost" style={{ width: 'auto', padding: '6px 12px' }} onClick={() => setSubStatus(su.id, 'paused')}>Pause</button>
+                      : <button className="cp-btn ghost" style={{ width: 'auto', padding: '6px 12px' }} onClick={() => setSubStatus(su.id, 'active')}>Resume</button>}
+                    <button className="cp-btn ghost" style={{ width: 'auto', padding: '6px 12px', color: '#B0342F' }} onClick={() => cancelSub(su.id)}>Cancel</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {sizes.length === 0
+              ? <p className="cp-fineprint">Add your filter sizes to your profile first, then set up auto-ship here.</p>
+              : (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <label style={{ fontSize: 12 }}>Size<br />
+                    <select value={subForm.size} onChange={e => setSubForm({ ...subForm, size: e.target.value })} style={{ padding: '8px', borderRadius: 8, border: '1.5px solid var(--line)' }}>
+                      <option value="">Choose…</option>
+                      {sizes.map(sz => <option key={sz} value={sz}>{sz}</option>)}
+                    </select>
+                  </label>
+                  <label style={{ fontSize: 12 }}>MERV<br />
+                    <select value={subForm.merv} onChange={e => setSubForm({ ...subForm, merv: e.target.value })} style={{ padding: '8px', borderRadius: 8, border: '1.5px solid var(--line)' }}>
+                      <option value="">Any</option>
+                      {MERVS.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </label>
+                  <label style={{ fontSize: 12 }}>Qty<br />
+                    <input type="number" min="1" value={subForm.qty} onChange={e => setSubForm({ ...subForm, qty: e.target.value })} style={{ width: 60, padding: '8px', borderRadius: 8, border: '1.5px solid var(--line)' }} />
+                  </label>
+                  <label style={{ fontSize: 12 }}>Every<br />
+                    <select value={subForm.cadence} onChange={e => setSubForm({ ...subForm, cadence: Number(e.target.value) })} style={{ padding: '8px', borderRadius: 8, border: '1.5px solid var(--line)' }}>
+                      <option value={60}>60 days</option>
+                      <option value={90}>90 days</option>
+                      <option value={120}>120 days</option>
+                    </select>
+                  </label>
+                  <button className="cp-btn" style={{ width: 'auto', padding: '9px 18px' }} disabled={subBusy || !subForm.size} onClick={addSub}>{subBusy ? 'Starting…' : 'Start auto-ship'}</button>
+                </div>
+              )}
+            {subMsg && <div className="cp-fineprint" style={{ marginTop: 8, color: subMsg.includes('\u2713') ? '#1b7a3d' : '#B0342F' }}>{subMsg}</div>}
           </div>
 
           {error && <div className="cp-err">{error}</div>}

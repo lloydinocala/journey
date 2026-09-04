@@ -30,6 +30,7 @@ const CATEGORIES = [
     { label: 'Vendors', path: '/vendors' },
     { label: 'Text Archive', path: '/text-archive' },
     { label: 'Filter Orders', path: '/filter-orders' },
+    { label: 'Filter Subscriptions', path: '/filter-subscriptions' },
   ]},
   { key: 'maintenance', label: 'Maintenance', items: [
     { label: 'Maintenance Dashboard', path: '/maintenance-dashboard', perm: 'view_maintenance_dashboard' },
@@ -99,7 +100,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/financials')) return 'financials'
   if (pathname.startsWith('/admin')) return 'admin'
   if (pathname.startsWith('/maintenance')) return 'maintenance'
-  if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/text-archive') || pathname.startsWith('/filter-orders') || pathname.startsWith('/dispatch-map') || pathname.startsWith('/call') || pathname.startsWith('/service-requests')) return 'operations'
+  if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/text-archive') || pathname.startsWith('/filter-orders') || pathname.startsWith('/filter-subscriptions') || pathname.startsWith('/dispatch-map') || pathname.startsWith('/call') || pathname.startsWith('/service-requests')) return 'operations'
   if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog')) return 'financials'
   if (pathname.startsWith('/estimate')) return 'operations'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'

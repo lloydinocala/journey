@@ -69,7 +69,7 @@ export default function CustomerPortal() {
       await supabase.rpc('claim_customer_portal')
       const { data: cust } = await supabase
         .from('customers')
-        .select('id, first_name, last_name, display_name, company, primary_phone, secondary_phone, email_1, email_2')
+        .select('id, org_id, first_name, last_name, display_name, company, primary_phone, secondary_phone, email_1, email_2')
         .eq('auth_user_id', session.user.id)
         .maybeSingle()
       if (!live) return
