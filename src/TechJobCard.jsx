@@ -136,15 +136,10 @@ function loadGoogleMaps(key) {
   return gmapsPromise
 }
 async function geocodeAddress(address, key) {
-  // 1) Free US Census geocoder — no API key, CORS-enabled, good US coverage.
+  // 1) Server-side geocode (edge function: Census -> OpenStreetMap). No browser CORS.
   try {
-    const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(address)}&benchmark=Public_AR_Current&format=json`
-    const r = await fetch(url)
-    if (r.ok) {
-      const j = await r.json()
-      const c = j?.result?.addressMatches?.[0]?.coordinates
-      if (c && typeof c.y === 'number' && typeof c.x === 'number') return { lat: c.y, lng: c.x }
-    }
+    const { data } = await supabase.functions.invoke('geocode-address', { body: { address } })
+    if (data && data.lat != null && data.lng != null) return { lat: data.lat, lng: data.lng }
   } catch { /* fall through to Google */ }
   // 2) Fallback: Google Maps JS Geocoder (only if the website key is authorized for it).
   try {
