@@ -13,6 +13,7 @@ import CustomerEquipment from './CustomerEquipment'
 import CustomerFilters from './CustomerFilters'
 import CustomerProfile from './CustomerProfile'
 import CustomerQuincy from './CustomerQuincy'
+import CustomerServiceRequests from './CustomerServiceRequests'
 
 // Self-contained customer app. Mounted at /portal/* in App.jsx, OUTSIDE the
 // staff AuthenticatedApp — its own auth context, its own data boundary (RLS).
@@ -128,6 +129,7 @@ export default function CustomerPortal() {
           <Route path="profile" element={<CustomerProfile customer={customer} properties={properties} />} />
           <Route path="plan" element={<CustomerPlan customer={customer} properties={properties} activeProperty={activeProperty} />} />
           <Route path="quincy" element={<CustomerQuincy />} />
+          <Route path="requests" element={<CustomerServiceRequests />} />
           <Route path="*" element={<Navigate to="/portal" replace />} />
         </Routes>
       </div>

@@ -267,3 +267,6 @@
 .cp-propswitch-chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
 .cp-propchip{flex:0 0 auto;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap}
 .cp-propchip.on{background:var(--sky);border-color:var(--sky);color:#fff}
+
+/* Service-request approval banner (portal home) */
+.cp-reqbanner{display:block;width:calc(100% - 32px);margin:14px 16px 0;background:#FEF3C7;border:1.5px solid #F0D38A;color:#8a6d2b;border-radius:12px;padding:12px 14px;font-weight:700;font-size:14.5px;text-align:left;cursor:pointer}

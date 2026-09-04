@@ -25,6 +25,7 @@ import Jobs from './Jobs'
 import Settings from './Settings'
 import Team from './Team'
 import Calendar from './Calendar'
+import ServiceRequests from './ServiceRequests'
 import CallConsole from './CallConsole'
 import DispatchMap from './DispatchMap'
 import Pricebook from './Pricebook'
@@ -50,6 +51,7 @@ import Estimates from './Estimates'
 import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
 import JoinPlan from './JoinPlan'
+import ServiceHub from './ServiceHub'
 import CustomerPortal from './modules/customer-hvac'
 import SystemEstimate from './SystemEstimate'
 import NewSystemEstimate from './NewSystemEstimate'
@@ -266,6 +268,7 @@ function AuthenticatedApp() {
         <Route path="/import/tools" element={<ToolsImport profile={profile} />} />
         <Route path="/calendar" element={<Calendar profile={profile} />} />
         <Route path="/call" element={<CallConsole profile={profile} />} />
+        <Route path="/service-requests" element={<ServiceRequests profile={profile} />} />
         <Route path="/dispatch-map" element={<DispatchMap profile={profile} />} />
         <Route path="/pricebook" element={<Pricebook profile={profile} />} />
         <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />
@@ -341,6 +344,7 @@ export default function App() {
       <Routes>
         <Route path="/view-invoice/:invoiceId" element={<PublicInvoice />} />
         <Route path="/join-plan/:propertyId" element={<JoinPlan />} />
+        <Route path="/r/:token" element={<ServiceHub />} />
         <Route path="/portal/*" element={<CustomerPortal />} />
         <Route path="*" element={isPortalHost ? <Navigate to="/portal" replace /> : <AuthenticatedApp />} />
       </Routes>

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 
@@ -25,6 +26,8 @@ const I = {
 export default function CustomerHome({ customer, properties, activePropertyId, setActivePropertyId }) {
   const nav = useNavigate()
   const prop = properties.find((p) => p.id === activePropertyId) || properties[0]
+  const [pendingReq, setPendingReq] = useState(0)
+  useEffect(() => { supabase.from('service_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending').then(({ count }) => setPendingReq(count || 0)) }, [])
   const name = [customer.first_name, customer.last_name].filter(Boolean).join(' ') || customer.display_name || 'Your account'
   const initials = ((customer.first_name || customer.display_name || '?')[0] + (customer.last_name ? customer.last_name[0] : '')).toUpperCase()
 
@@ -76,6 +79,12 @@ export default function CustomerHome({ customer, properties, activePropertyId, s
             ))}
           </div>
         </div>
+      )}
+
+      {pendingReq > 0 && (
+        <button className="cp-reqbanner" onClick={() => nav('/portal/requests')}>
+          🔔 {pendingReq} service request{pendingReq > 1 ? 's' : ''} need your approval →
+        </button>
       )}
 
       <div className="cp-sec">How can we help?</div>
