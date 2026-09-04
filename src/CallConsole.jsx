@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import NewItemDropdown from './NewItemDropdown'
+import QuickAddModal from './QuickAddModal'
 
 const money = (v) => '$' + (Number(v) || 0).toFixed(2)
 const fmtDate = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
@@ -15,6 +17,11 @@ export default function CallConsole({ profile }) {
   const [searching, setSearching] = useState(false)
   const [selected, setSelected] = useState(null)
   const [detail, setDetail] = useState(null)
+  const [newItemMode, setNewItemMode] = useState(null)
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [noteBody, setNoteBody] = useState('')
+  const [noteSaving, setNoteSaving] = useState(false)
+  const [noteSaved, setNoteSaved] = useState(false)
 
   useEffect(() => {
     if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
@@ -62,6 +69,13 @@ export default function CallConsole({ profile }) {
     return () => { live = false }
   }, [selected])
 
+  async function saveNote() {
+    const t = noteBody.trim(); if (!t || !selectedOrg) return
+    setNoteSaving(true)
+    await supabase.from('office_reminders').insert({ org_id: selectedOrg, body: t, created_by: profile?.user_id || null })
+    setNoteSaving(false); setNoteOpen(false); setNoteBody(''); setNoteSaved(true); setTimeout(() => setNoteSaved(false), 3500)
+  }
+
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <div className="page-header-bar"><h2>Call Console</h2></div>
@@ -81,6 +95,24 @@ export default function CallConsole({ profile }) {
         <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(352) 555-1234" autoFocus
           style={{ fontSize: 20, letterSpacing: '0.5px', padding: '12px 14px' }} />
       </div>
+
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+        <NewItemDropdown onSelect={setNewItemMode} />
+        <button className="logout-button" onClick={() => { setNoteOpen(true); setNoteSaved(false); setNoteBody(selected ? `Call re: ${selected.display_name}${selected.primary_phone ? ` (${selected.primary_phone})` : ''} \u2014 ` : '') }}>📝 New Note</button>
+        {selected && <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>New Job pre-fills {selected.display_name}</span>}
+        {noteSaved && <span style={{ color: '#1a7f37', fontSize: 14 }}>Saved to Operations Dashboard ✓</span>}
+      </div>
+
+      {noteOpen && (
+        <div className="section-card" style={{ padding: 14, marginTop: 10, maxWidth: 520 }}>
+          <textarea value={noteBody} onChange={(e) => setNoteBody(e.target.value)} placeholder="What needs to be done? (shows on the Operations Dashboard)" autoFocus
+            style={{ width: '100%', minHeight: 72, padding: 10, border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button className="auth-button" style={{ width: 'auto' }} disabled={noteSaving || !noteBody.trim()} onClick={saveNote}>{noteSaving ? 'Saving…' : 'Save note'}</button>
+            <button className="logout-button" onClick={() => { setNoteOpen(false); setNoteBody('') }}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {digits.length >= 4 && (
         <div style={{ marginTop: 16 }}>
@@ -161,6 +193,10 @@ export default function CallConsole({ profile }) {
             </div>
           )}
         </div>
+      )}
+
+      {newItemMode && (
+        <QuickAddModal mode={newItemMode} orgId={selectedOrg} profile={profile} prefillCustomerId={selected?.id || ''} onClose={() => setNewItemMode(null)} onCreated={() => setNewItemMode(null)} />
       )}
     </div>
   )

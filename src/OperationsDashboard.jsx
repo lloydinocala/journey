@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import QuincyBrief from './QuincyBrief'
+import Reminders from './Reminders'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 
@@ -258,6 +259,8 @@ export default function OperationsDashboard({ profile }) {
         <Win label="Jobs completed" value={String(d.completedWeek)} />
         {d.closeRate != null && <Win label="Close rate" value={`${d.closeRate}%`} />}
       </div>
+
+      <Reminders orgId={selectedOrg} profile={profile} />
 
       <SectionHead>Needs attention now</SectionHead>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16, marginBottom: 24 }}>
