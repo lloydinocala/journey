@@ -81,6 +81,44 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
     setDraggingId(null)
   }
 
+  // Lay overlapping jobs into side-by-side lanes (max 3) so none are hidden.
+  function laneLayout(dayJobs) {
+    const items = dayJobs
+      .map((j) => {
+        const [h, m] = localTimeString(j.start_time, '08:00').split(':').map(Number)
+        const start = h * 60 + m
+        return { id: j.id, start, end: start + (j.duration_hours || 1) * 60 }
+      })
+      .sort((a, b) => a.start - b.start || a.end - b.end)
+    const out = {}
+    let cluster = [], clusterEnd = -1
+    const flush = () => {
+      const laneEnds = []
+      for (const it of cluster) {
+        let lane = laneEnds.findIndex((e) => e <= it.start)
+        if (lane === -1) { lane = laneEnds.length; laneEnds.push(it.end) } else laneEnds[lane] = it.end
+        out[it.id] = { lane }
+      }
+      for (const it of cluster) out[it.id].lanes = laneEnds.length
+      cluster = []; clusterEnd = -1
+    }
+    for (const it of items) {
+      if (cluster.length && it.start >= clusterEnd) flush()
+      cluster.push(it)
+      clusterEnd = Math.max(clusterEnd, it.end)
+    }
+    if (cluster.length) flush()
+    return out
+  }
+
+  function laneStyle(l) {
+    if (!l || l.lanes <= 1) return {}
+    const lanes = Math.min(l.lanes, 3)
+    const w = 100 / lanes
+    const lane = Math.min(l.lane, lanes - 1)
+    return { left: `calc(${lane * w}% + 2px)`, width: `calc(${w}% - 4px)`, right: 'auto' }
+  }
+
   return (
     <div className="calendar-grid-wrap">
       <div className="calendar-grid" style={{ gridTemplateColumns: `60px repeat(${days.length}, 1fr)` }}>
@@ -108,7 +146,10 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
             ))}
           </div>
 
-          {days.map((day) => (
+          {days.map((day) => {
+            const dayJobs = jobsForDay(day)
+            const layout = laneLayout(dayJobs)
+            return (
             <div
               key={toLocalDateStr(day)}
               className="calendar-day-col"
@@ -131,11 +172,11 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
                   }}
                 />
               )}
-             {jobsForDay(day).map((job) => (
+             {dayJobs.map((job) => (
                 <div
                   key={job.id}
                   className={`job-block${job.is_banned ? ' banned' : ''}${draggingId === job.id ? ' dragging' : ''}`}
-                  style={blockStyle(job)}
+                  style={{ ...blockStyle(job), ...laneStyle(layout[job.id]) }}
                   draggable="true"
                   onDragStart={(e) => handleDragStart(e, job)}
                   onDragEnd={handleDragEnd}
@@ -155,7 +196,8 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
                 </div>
               ))}
             </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </div>
