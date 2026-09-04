@@ -20,6 +20,7 @@ export default function CustomerPortal() {
   const [session, setSession] = useState(undefined)
   const [customer, setCustomer] = useState(undefined) // undefined=loading, null=unrecognized
   const [properties, setProperties] = useState([])
+  const [activePropertyId, setActivePropertyId] = useState(null)
 
   // Give the homeowner portal its OWN installable identity while mounted, so the
   // phone treats it as a separate app from the staff (Tech) app on the same domain:
@@ -83,6 +84,16 @@ export default function CustomerPortal() {
     return () => { live = false }
   }, [session])
 
+  useEffect(() => {
+    if (!properties.length) { setActivePropertyId(null); return }
+    setActivePropertyId((cur) => {
+      if (cur && properties.some((p) => p.id === cur)) return cur
+      const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('cp_active_property') : null
+      return properties.some((p) => p.id === saved) ? saved : properties[0].id
+    })
+  }, [properties])
+  useEffect(() => { if (activePropertyId && typeof localStorage !== 'undefined') localStorage.setItem('cp_active_property', activePropertyId) }, [activePropertyId])
+
   if (session === undefined) return null
   if (!session) return <CustomerLogin />
   if (customer === undefined) return <div className="cp-root"><div className="cp-center">Loading your account…</div></div>
@@ -101,19 +112,21 @@ export default function CustomerPortal() {
     </div>
   )
 
+  const activeProperty = properties.find((p) => p.id === activePropertyId) || properties[0] || null
+
   return (
     <div className="cp-app">
       <div className="cp-scroll">
         <Routes>
-          <Route index element={<CustomerHome customer={customer} properties={properties} />} />
+          <Route index element={<CustomerHome customer={customer} properties={properties} activePropertyId={activePropertyId} setActivePropertyId={setActivePropertyId} />} />
           <Route path="records" element={<CustomerRecords customer={customer} properties={properties} />} />
-          <Route path="equipment" element={<CustomerEquipment customer={customer} properties={properties} />} />
+          <Route path="equipment" element={<CustomerEquipment customer={customer} properties={properties} activePropertyId={activePropertyId} />} />
           <Route path="schedule" element={<CustomerSchedule />} />
-          <Route path="book/:type" element={<CustomerBook customer={customer} properties={properties} />} />
+          <Route path="book/:type" element={<CustomerBook customer={customer} properties={properties} activePropertyId={activePropertyId} />} />
           <Route path="request/:type" element={<CustomerRequest customer={customer} properties={properties} />} />
-          <Route path="filters" element={<CustomerFilters customer={customer} properties={properties} />} />
+          <Route path="filters" element={<CustomerFilters customer={customer} properties={properties} activePropertyId={activePropertyId} />} />
           <Route path="profile" element={<CustomerProfile customer={customer} properties={properties} />} />
-          <Route path="plan" element={<CustomerPlan customer={customer} properties={properties} />} />
+          <Route path="plan" element={<CustomerPlan customer={customer} properties={properties} activeProperty={activeProperty} />} />
           <Route path="quincy" element={<CustomerQuincy />} />
           <Route path="*" element={<Navigate to="/portal" replace />} />
         </Routes>

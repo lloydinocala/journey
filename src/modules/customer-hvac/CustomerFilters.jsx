@@ -21,9 +21,9 @@ function unitPrice(row, qty) {
   return (row.price_4 != null ? Number(row.price_4) : null) ?? (row.price_6 != null ? Number(row.price_6) : null) ?? perCase
 }
 
-export default function CustomerFilters({ properties }) {
+export default function CustomerFilters({ properties, activePropertyId }) {
   const nav = useNavigate()
-  const [propId, setPropId] = useState(properties[0]?.id || '')
+  const [propId, setPropId] = useState(activePropertyId || properties[0]?.id || '')
   const [filters, setFilters] = useState(null) // null = loading
   const [prices, setPrices] = useState([])      // filter_pricebook rows (active, this org)
   const [custom, setCustom] = useState({})      // size -> { merv, qty }

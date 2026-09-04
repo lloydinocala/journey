@@ -4,7 +4,7 @@ import { supabase } from '../../utils/supabase'
 
 const date = (d) => d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''
 
-export default function CustomerPlan({ customer, properties }) {
+export default function CustomerPlan({ customer, properties, activeProperty }) {
   const nav = useNavigate()
   const [agreements, setAgreements] = useState([])
   const [tiers, setTiers] = useState({})
@@ -89,8 +89,8 @@ export default function CustomerPlan({ customer, properties }) {
               </div>
             ))}
           </div>
-          {properties[0]
-            ? <a className="cp-btn" href={`/join-plan/${properties[0].id}`} style={{ textDecoration: 'none' }}>See plans & join</a>
+          {(activeProperty || properties[0])
+            ? <a className="cp-btn" href={`/join-plan/${(activeProperty || properties[0]).id}`} style={{ textDecoration: 'none' }}>See plans & join</a>
             : <button className="cp-btn ghost" onClick={() => nav('/portal/request/pm')}>Ask us about a plan</button>}
           <p className="cp-note">Takes a couple of minutes — pick a tier and you’re covered.</p>
         </>

@@ -31,11 +31,11 @@ function systemWarranty(q) {
 
 const pillClass = (state) => (state === 'active' ? 'cp-warr-ok' : state === 'expired' ? 'cp-warr-exp' : 'cp-warr-verify')
 
-export default function CustomerEquipment({ customer, properties }) {
+export default function CustomerEquipment({ customer, properties, activePropertyId }) {
   const nav = useNavigate()
   const [equip, setEquip] = useState(null)
   const prop = (properties || [])[0]
-  const propIds = (properties || []).map((p) => p.id)
+  const propIds = activePropertyId ? [activePropertyId] : (properties || []).map((p) => p.id)
 
   useEffect(() => {
     let live = true

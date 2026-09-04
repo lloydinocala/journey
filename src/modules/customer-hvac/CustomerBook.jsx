@@ -28,7 +28,7 @@ const BoltIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></svg>
 )
 
-export default function CustomerBook({ properties }) {
+export default function CustomerBook({ properties, activePropertyId }) {
   const nav = useNavigate()
   const { type } = useParams()
 
@@ -39,7 +39,7 @@ export default function CustomerBook({ properties }) {
   const meta = META[effectiveType] || { title: 'Schedule a Visit', lead: 'Pick a day and window.', note: '' }
   const amOnly = effectiveType === 'duct_cleaning'
 
-  const [propId, setPropId] = useState(properties[0]?.id || '')
+  const [propId, setPropId] = useState(activePropertyId || properties[0]?.id || '')
   const [avail, setAvail] = useState(null)
   const [day, setDay] = useState(null)
   const [win, setWin] = useState('')

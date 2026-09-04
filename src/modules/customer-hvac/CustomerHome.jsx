@@ -22,9 +22,9 @@ const I = {
 // Home = the customer's OWN home photo, their ID card, then the feature menu.
 // "This is about you." Street View fills the hero automatically once a Google
 // Maps key is set (VITE_GOOGLE_MAPS_KEY); until then it falls back to the sky.
-export default function CustomerHome({ customer, properties }) {
+export default function CustomerHome({ customer, properties, activePropertyId, setActivePropertyId }) {
   const nav = useNavigate()
-  const prop = properties[0]
+  const prop = properties.find((p) => p.id === activePropertyId) || properties[0]
   const name = [customer.first_name, customer.last_name].filter(Boolean).join(' ') || customer.display_name || 'Your account'
   const initials = ((customer.first_name || customer.display_name || '?')[0] + (customer.last_name ? customer.last_name[0] : '')).toUpperCase()
 
@@ -64,6 +64,19 @@ export default function CustomerHome({ customer, properties }) {
         {customer.primary_phone && <div className="cp-idrow"><Ic d={I.phone} /><div>{customer.primary_phone}</div></div>}
         {customer.email_1 && <div className="cp-idrow"><Ic d={I.mail} /><div>{customer.email_1}</div></div>}
       </div>
+
+      {properties.length > 1 && (
+        <div className="cp-propswitch">
+          <div className="cp-propswitch-label">Managing property</div>
+          <div className="cp-propswitch-chips">
+            {properties.map((pp) => (
+              <button key={pp.id} className={'cp-propchip' + (pp.id === (prop?.id) ? ' on' : '')} onClick={() => setActivePropertyId(pp.id)}>
+                {[pp.street_address, pp.unit].filter(Boolean).join(' ') || 'Property'}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="cp-sec">How can we help?</div>
       <div className="cp-feats">

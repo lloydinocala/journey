@@ -260,3 +260,10 @@
 .cp-wincard.on svg,.cp-wincard.on .wlabel,.cp-wincard.on .wsub{color:#fff}
 .cp-fixednote{background:#fff;border:1.5px solid var(--line);border-radius:15px;padding:14px 16px;margin:8px 0;font-size:14px;color:var(--muted);line-height:1.5}
 .cp-fixednote b{color:var(--ink)}
+
+/* Multi-property switcher (portal home) */
+.cp-propswitch{margin:14px 16px 0}
+.cp-propswitch-label{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.cp-propswitch-chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.cp-propchip{flex:0 0 auto;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.cp-propchip.on{background:var(--sky);border-color:var(--sky);color:#fff}
