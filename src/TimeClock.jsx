@@ -36,6 +36,8 @@ export default function TimeClock({ profile }) {
   const [editNote, setEditNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [rangeDays, setRangeDays] = useState(14)
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -48,13 +50,16 @@ export default function TimeClock({ profile }) {
 
   useEffect(() => {
     if (selectedOrg) load()
-  }, [selectedOrg, rangeDays])
+  }, [selectedOrg, rangeDays, fromDate, toDate])
 
   async function load() {
     setLoading(true)
-    const since = new Date(Date.now() - rangeDays * 86400000).toISOString()
+    let q = supabase.from('time_clock_events').select('*').eq('org_id', selectedOrg).order('clock_in', { ascending: false })
+    if (fromDate) q = q.gte('clock_in', new Date(fromDate + 'T00:00:00').toISOString())
+    else if (rangeDays > 0) q = q.gte('clock_in', new Date(Date.now() - rangeDays * 86400000).toISOString())
+    if (toDate) q = q.lte('clock_in', new Date(toDate + 'T23:59:59').toISOString())
     const [evRes, empRes] = await Promise.all([
-      supabase.from('time_clock_events').select('*').eq('org_id', selectedOrg).gte('clock_in', since).order('clock_in', { ascending: false }),
+      q,
       supabase.from('users').select('id, full_name').eq('org_id', selectedOrg),
     ])
     setEvents(evRes.data || [])
@@ -187,12 +192,21 @@ export default function TimeClock({ profile }) {
       {/* ALL ENTRIES */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0 }}>All entries</h3>
-        <select value={rangeDays} onChange={(e) => setRangeDays(Number(e.target.value))}>
+        <select value={rangeDays} onChange={(e) => setRangeDays(Number(e.target.value))} disabled={!!(fromDate || toDate)}>
           <option value={7}>Last 7 days</option>
           <option value={14}>Last 14 days</option>
           <option value={30}>Last 30 days</option>
           <option value={90}>Last 90 days</option>
+          <option value={0}>All time</option>
         </select>
+        <span style={{ color: 'var(--mist)', fontSize: 13 }}>or date range</span>
+        <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }}>From
+          <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        </label>
+        <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }}>To
+          <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </label>
+        {(fromDate || toDate) && <button className="logout-button" onClick={() => { setFromDate(''); setToDate('') }}>Clear dates</button>}
       </div>
 
       {loading ? <p>Loading…</p> : (

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import StatusFilter from './StatusFilter'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { exportToCSV } from './utils/csvExport'
@@ -28,6 +29,7 @@ export default function Team({ profile }) {
   const [success, setSuccess] = useState('')
 
   const [searchText, setSearchText] = useState('')
+  const [statusFilter, setStatusFilter] = useState(['Active', 'Deactivated'])
   const [sortField, setSortField] = useState('full_name')
   const [sortDirection, setSortDirection] = useState('asc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
@@ -358,6 +360,7 @@ export default function Team({ profile }) {
   }
 
   const filtered = members.filter((m) => {
+    if (!statusFilter.includes(m.is_active ? 'Active' : 'Deactivated')) return false
     if (!searchText) return true
     const q = searchText.toLowerCase()
     return m.full_name?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q) || m.role?.toLowerCase().includes(q)
@@ -469,6 +472,7 @@ export default function Team({ profile }) {
             placeholder="Name, email, or role…"
           />
         </div>
+        <StatusFilter options={['Active', 'Deactivated']} value={statusFilter} onChange={setStatusFilter} />
         <div style={{ position: 'relative', marginBottom: 10 }}>
           <button className="logout-button" onClick={() => setShowColumnPicker(!showColumnPicker)}>
             Columns ▾

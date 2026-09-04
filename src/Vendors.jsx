@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import StatusFilter from './StatusFilter'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
@@ -19,7 +20,7 @@ export default function Vendors({ profile }) {
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showArchived, setShowArchived] = useState(false)
+  const [statusFilter, setStatusFilter] = useState(['Active'])
   const [searchText, setSearchText] = useState('')
 
   const [showAddForm, setShowAddForm] = useState(false)
@@ -59,7 +60,7 @@ export default function Vendors({ profile }) {
     if (!orgId) return
     setLoading(true)
     const data = await fetchAllRows(() =>
-      supabase.from('vendors').select('*').eq('org_id', orgId).eq('is_active', !showArchived).order('name')
+      supabase.from('vendors').select('*').eq('org_id', orgId).order('name')
     )
     setVendors(data)
     setLoading(false)
@@ -67,7 +68,7 @@ export default function Vendors({ profile }) {
 
   useEffect(() => {
     loadVendors(selectedOrg)
-  }, [selectedOrg, showArchived])
+  }, [selectedOrg])
 
   async function handleAdd(e) {
     e.preventDefault()
@@ -107,7 +108,7 @@ export default function Vendors({ profile }) {
     loadVendors(selectedOrg)
   }
 
-  const filtered = vendors.filter((v) => !searchText || v.name.toLowerCase().includes(searchText.toLowerCase()))
+  const filtered = vendors.filter((v) => statusFilter.includes(v.is_active ? 'Active' : 'Archived') && (!searchText || v.name.toLowerCase().includes(searchText.toLowerCase())))
 
   return (
     <div>
@@ -194,10 +195,7 @@ export default function Vendors({ profile }) {
           <label>Search</label>
           <input type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Vendor name…" />
         </div>
-        <label className="nav-link" style={{ cursor: 'pointer', marginBottom: 10 }}>
-          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} style={{ marginRight: 6 }} />
-          Show archived
-        </label>
+        <StatusFilter options={['Active', 'Archived']} value={statusFilter} onChange={setStatusFilter} />
       </div>
 
       {loading ? (
