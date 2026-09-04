@@ -121,40 +121,70 @@ export default function DispatchMap({ profile }) {
 
   useEffect(() => { load() }, [selectedOrg, date])
 
-  // Draw markers whenever data or the map changes.
+  // Draw markers whenever data or the map changes. Coincident markers (e.g. two
+  // jobs next door that geocode to the same point) are fanned out in a tiny circle
+  // so each stays visible and clickable; the map still fits to true locations.
   useEffect(() => {
     const map = mapRef.current, layer = layerRef.current
     if (!map || !layer || !window.L) return
     layer.clearLayers()
-    const pts = []
+
+    const items = []
     for (const j of jobs) {
       if (j.date_pending) continue
       if (j.lat == null || j.lng == null) continue
       const color = jobColor(j)
-      const icon = window.L.divIcon({ className: '', iconSize: [20, 20], iconAnchor: [10, 10], html: `<div style="background:${color};width:18px;height:18px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)"></div>` })
-      window.L.marker([j.lat, j.lng], { icon }).addTo(layer)
-        .bindPopup(`<strong>${j.customer_name}</strong><br>${j.time ? j.time + ' &middot; ' : ''}${j.job_type || ''}<br>${j.address || ''}<br>Tech: ${j.tech_name}<br><em>${j.date_pending ? 'Needs dispatch' : (j.status || '')}</em>`)
-      pts.push([j.lat, j.lng])
-    }
-    for (const t of techs) {
-      const color = t.users?.calendar_color || '#1f7a43'
-      const initial = (t.users?.full_name || '?').slice(0, 1).toUpperCase()
-      const icon = window.L.divIcon({ className: '', iconSize: [28, 28], iconAnchor: [14, 26], html: `<div style="background:${color};width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:#fff;font-size:13px;font-weight:800">${initial}</span></div>` })
-      const ago = Math.round((Date.now() - new Date(t.updated_at).getTime()) / 60000)
-      window.L.marker([t.latitude, t.longitude], { icon }).addTo(layer)
-        .bindPopup(`<strong>${t.users?.full_name || 'Technician'}</strong><br>Updated ${ago} min ago`)
-      pts.push([t.latitude, t.longitude])
+      items.push({
+        lat: j.lat, lng: j.lng, iconSize: [20, 20], iconAnchor: [10, 10],
+        html: `<div style="background:${color};width:18px;height:18px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)"></div>`,
+        popup: `<strong>${j.customer_name}</strong><br>${j.time ? j.time + ' &middot; ' : ''}${j.job_type || ''}<br>${j.address || ''}<br>Tech: ${j.tech_name}<br><em>${j.status || ''}</em>`,
+      })
     }
     if (showUnscheduled) {
       for (const p of pending) {
         if (p.lat == null || p.lng == null) continue
-        const icon = window.L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11], html: `<div style="background:#DC2626;width:16px;height:16px;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.55);transform:rotate(45deg)"></div>` })
         const when = p.job_date ? new Date(p.job_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : ''
         const win = WLABEL[p.requested_window] || ''
-        window.L.marker([p.lat, p.lng], { icon }).addTo(layer)
-          .bindPopup(`<strong>\u23F3 ${p.customer_name}</strong><br>Needs dispatch${p.self_booked ? ' (portal booking)' : ''}<br>${win}${win && when ? ' &middot; ' : ''}${when}<br>${p.job_type || ''}<br>${p.address || ''}`)
-        pts.push([p.lat, p.lng])
+        items.push({
+          lat: p.lat, lng: p.lng, iconSize: [22, 22], iconAnchor: [11, 11],
+          html: `<div style="background:#DC2626;width:16px;height:16px;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.55);transform:rotate(45deg)"></div>`,
+          popup: `<strong>\u23F3 ${p.customer_name}</strong><br>Needs dispatch${p.self_booked ? ' (portal booking)' : ''}<br>${win}${win && when ? ' &middot; ' : ''}${when}<br>${p.job_type || ''}<br>${p.address || ''}`,
+        })
       }
+    }
+    for (const t of techs) {
+      const color = t.users?.calendar_color || '#1f7a43'
+      const initial = (t.users?.full_name || '?').slice(0, 1).toUpperCase()
+      const ago = Math.round((Date.now() - new Date(t.updated_at).getTime()) / 60000)
+      items.push({
+        lat: t.latitude, lng: t.longitude, iconSize: [28, 28], iconAnchor: [14, 26],
+        html: `<div style="background:${color};width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:#fff;font-size:13px;font-weight:800">${initial}</span></div>`,
+        popup: `<strong>${t.users?.full_name || 'Technician'}</strong><br>Updated ${ago} min ago`,
+      })
+    }
+
+    // Fan out markers that share (nearly) the same coordinate.
+    const groups = {}
+    for (const m of items) {
+      const key = `${m.lat.toFixed(5)},${m.lng.toFixed(5)}`
+      ;(groups[key] || (groups[key] = [])).push(m)
+    }
+    const R = 0.00011 // ~12 m
+    for (const key in groups) {
+      const g = groups[key]
+      if (g.length < 2) continue
+      g.forEach((m, i) => {
+        const ang = (2 * Math.PI * i) / g.length
+        m.dlat = m.lat + R * Math.cos(ang)
+        m.dlng = m.lng + (R * Math.sin(ang)) / Math.cos((m.lat * Math.PI) / 180)
+      })
+    }
+
+    const pts = []
+    for (const m of items) {
+      const icon = window.L.divIcon({ className: '', iconSize: m.iconSize, iconAnchor: m.iconAnchor, html: m.html })
+      window.L.marker([m.dlat ?? m.lat, m.dlng ?? m.lng], { icon }).addTo(layer).bindPopup(m.popup)
+      pts.push([m.lat, m.lng])
     }
     if (pts.length) { try { map.fitBounds(pts, { padding: [40, 40], maxZoom: 14 }) } catch { /* single/empty */ } }
   }, [jobs, techs, pending, showUnscheduled, mapReady])
