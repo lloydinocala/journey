@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
@@ -92,7 +93,8 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile }) {
 export default function Calendar({ profile }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const nav = useNavigate()
+  const [currentDate, setCurrentDate] = useState(() => { const d = new URLSearchParams(window.location.search).get('date'); return d ? new Date(d + 'T00:00:00') : new Date() })
   const [viewMode, setViewMode] = useState('week')
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [businessStart, setBusinessStart] = useState('08:00')
@@ -298,6 +300,7 @@ export default function Calendar({ profile }) {
         <div className="calendar-nav-group">
           <button className="calendar-nav-btn" onClick={goPrev}>‹</button>
           <button className="logout-button" onClick={goToday}>Today</button>
+          <button className="logout-button" onClick={() => nav('/dispatch-map?date=' + toLocalDateStr(currentDate))} title="Open the dispatch map for this date">🗺 Map</button>
           <button className="calendar-nav-btn" onClick={goNext}>›</button>
           <div className="calendar-date-label">{dateLabel}</div>
         </div>

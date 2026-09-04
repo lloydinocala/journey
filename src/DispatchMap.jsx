@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 
@@ -25,10 +26,11 @@ function todayLocal() {
 }
 
 export default function DispatchMap({ profile }) {
+  const nav = useNavigate()
   const isSuper = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
-  const [date, setDate] = useState(todayLocal())
+  const [date, setDate] = useState(() => new URLSearchParams(window.location.search).get('date') || todayLocal())
   const [jobs, setJobs] = useState([])
   const [techs, setTechs] = useState([])
   const [pending, setPending] = useState([])
@@ -171,6 +173,7 @@ export default function DispatchMap({ profile }) {
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
         <button className="logout-button" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
+        <button className="logout-button" onClick={() => nav('/calendar?date=' + date)} title="Back to the calendar for this date">📅 Calendar</button>
         <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
           <input type="checkbox" checked={showUnscheduled} onChange={(e) => setShowUnscheduled(e.target.checked)} />
           Unscheduled bookings{pending.length ? ` (${pending.length})` : ''}
