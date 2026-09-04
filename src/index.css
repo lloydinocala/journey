@@ -2241,7 +2241,7 @@ body {
 .jc-system-badge.filled { background: rgba(33,95,154,0.14); color: var(--jc-blue); }
 .jc-system-badge.missing { background: rgba(255,0,0,0.14); color: var(--jc-red); }
 .jc-system-detail { font-size: 17px; color: var(--jc-muted); line-height: 1.6; }
-.jc-system-actions { display: flex; gap: 12px; margin-top: 8px; }
+.jc-system-actions { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
 
 /* --- Inline buttons / fields --------------------------------- */
 .jc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 13px 16px; border-radius: 11px; border: none; background: var(--jc-blue); color: #fff; font-weight: 800; font-size: 17px; cursor: pointer; font-family: inherit; box-shadow: var(--jc-shadow); }
@@ -2250,7 +2250,8 @@ body {
 .jc-btn.green { background: var(--jc-green); }
 .jc-btn.ghost { background: #fff; color: var(--jc-blue); box-shadow: inset 0 0 0 2px var(--jc-blue), var(--jc-shadow); }
 .jc-btn:disabled { opacity: 0.5; cursor: default; }
-.jc-btn-sm { background: none; border: none; color: var(--jc-blue); font-weight: 800; font-size: 16px; cursor: pointer; font-family: inherit; padding: 0; }
+.jc-btn-sm { background: #fff; border: 1.5px solid var(--jc-line); color: var(--jc-blue); font-weight: 800; font-size: 15px; cursor: pointer; font-family: inherit; padding: 10px 22px; border-radius: 10px; min-height: 44px; }
+.jc-btn-sm:active { background: #F0F4F8; }
 .jc-not-needed { display: flex; align-items: center; gap: 10px; padding: 12px; border: 2px dashed var(--jc-line); border-radius: 10px; margin-bottom: 12px; font-weight: 700; cursor: pointer; }
 .jc-not-needed input { width: 20px; height: 20px; }
 

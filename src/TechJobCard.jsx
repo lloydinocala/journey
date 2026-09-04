@@ -254,6 +254,7 @@ export default function TechJobCard({ profile }) {
   // Equipment form
   const blankEquip = { system_label: '', outdoor_brand: '', outdoor_model: '', outdoor_serial: '', indoor_brand: '', indoor_model: '', indoor_serial: '', furnace_brand: '', furnace_model: '', furnace_serial: '', install_date: '', notes: '', info_unavailable_reason: '' }
   const [equipForm, setEquipForm] = useState(blankEquip)
+  const equipFormRef = useRef(null)
   const [showEquipForm, setShowEquipForm] = useState(false)
   const [equipEditingId, setEquipEditingId] = useState(null)
   const [savingEquip, setSavingEquip] = useState(false)
@@ -762,6 +763,7 @@ export default function TechJobCard({ profile }) {
     setEquipEditingId(eq.id)
     setEquipForm({ system_label: eq.system_label || '', outdoor_brand: eq.outdoor_brand || '', outdoor_model: eq.outdoor_model || '', outdoor_serial: eq.outdoor_serial || '', indoor_brand: eq.indoor_brand || '', indoor_model: eq.indoor_model || '', indoor_serial: eq.indoor_serial || '', furnace_brand: eq.furnace_brand || '', furnace_model: eq.furnace_model || '', furnace_serial: eq.furnace_serial || '', install_date: eq.install_date || '', notes: eq.notes || '', info_unavailable_reason: eq.info_unavailable_reason || '' })
     setScanMsg(''); setShowEquipForm(true); setOpen('equipment', true)
+    setTimeout(() => equipFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80)
   }
   async function saveEquipment() {
     if (!job?.property_id) return
@@ -1222,12 +1224,12 @@ export default function TechJobCard({ profile }) {
                       <div><strong>Furnace:</strong> {[eq.furnace_brand, eq.furnace_model].filter(Boolean).join(' ') || '—'}{eq.furnace_serial ? ` (SN: ${eq.furnace_serial})` : ''}</div>
                       {eq.info_unavailable_reason && <div style={{ color: 'var(--jc-red)', fontWeight: 700, marginTop: 4 }}>Data not available: {eq.info_unavailable_reason}</div>}
                     </div>
-                    <div className="jc-system-actions"><button className="jc-btn-sm" onClick={() => startEquipEdit(eq)}>Edit</button><button className="jc-btn-sm" style={{ color: 'var(--jc-red)' }} onClick={() => deleteEquipment(eq.id)}>Remove</button></div>
+                    <div className="jc-system-actions"><button className="jc-btn-sm" onClick={() => startEquipEdit(eq)}>Edit</button><button className="jc-btn-sm" style={{ color: 'var(--jc-red)', borderColor: 'rgba(200,60,50,0.4)', marginLeft: 'auto' }} onClick={() => deleteEquipment(eq.id)}>Remove</button></div>
                   </div>
                 )
               })}
               {showEquipForm && (
-                <div style={{ marginTop: 12 }}>
+                <div ref={equipFormRef} style={{ marginTop: 12 }}>
                   {scanMsg && <p className="jc-muted-note" style={{ color: scanBusy ? 'var(--jc-muted)' : 'var(--jc-blue)', marginBottom: 10, fontWeight: 700 }}>{scanBusy ? '📷 ' : ''}{scanMsg}</p>}
                   <div className="jc-field"><label>System label</label><input value={equipForm.system_label} onChange={(e) => setEquipForm({ ...equipForm, system_label: e.target.value })} placeholder="e.g. Upstairs" /></div>
                   <div className="jc-field"><label>Install date</label><input type="date" value={equipForm.install_date} onChange={(e) => setEquipForm({ ...equipForm, install_date: e.target.value })} /></div>
