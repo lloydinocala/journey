@@ -24,6 +24,8 @@ function buildEquipSummary(list) {
   return 'Equipment on file — ' + parts.join('  |  ')
 }
 
+const blankEquip = { system_label: '', install_date: '', outdoor_brand: '', outdoor_model: '', outdoor_serial: '', indoor_brand: '', indoor_model: '', indoor_serial: '', furnace_brand: '', furnace_model: '', furnace_serial: '', info_unavailable_reason: '' }
+
 export default function TechEstimate({ profile }) {
   const { jobId } = useParams()
   const [searchParams] = useSearchParams()
@@ -38,6 +40,10 @@ export default function TechEstimate({ profile }) {
   const [lineItems, setLineItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState([])
+  const [equipList, setEquipList] = useState([])
+  const [equipEditId, setEquipEditId] = useState(null)
+  const [equipForm, setEquipForm] = useState(blankEquip)
+  const [savingEquip, setSavingEquip] = useState(false)
 
   const [categories, setCategories] = useState([])
   const [pickCategory, setPickCategory] = useState('')
@@ -174,7 +180,45 @@ export default function TechEstimate({ profile }) {
     else await supabase.from('invoice_line_items').insert({ invoice_id: estimateId, org_id: jobData.org_id, description: summary, unit_price: 0, quantity: 1, taxable: false, is_custom: false, sort_order: 0, category: 'EQUIPMENT ON FILE' })
   }
 
+  async function loadEquipList(propertyId) {
+    const pid = propertyId || job?.property_id
+    if (!pid) return
+    const { data } = await supabase.from('property_equipment').select('*').eq('property_id', pid).eq('status', 'active').order('created_at')
+    setEquipList(data || [])
+  }
+
+  function startEditEquip(eq) {
+    setEquipEditId(eq.id)
+    setEquipForm({
+      system_label: eq.system_label || '', install_date: eq.install_date || '',
+      outdoor_brand: eq.outdoor_brand || '', outdoor_model: eq.outdoor_model || '', outdoor_serial: eq.outdoor_serial || '',
+      indoor_brand: eq.indoor_brand || '', indoor_model: eq.indoor_model || '', indoor_serial: eq.indoor_serial || '',
+      furnace_brand: eq.furnace_brand || '', furnace_model: eq.furnace_model || '', furnace_serial: eq.furnace_serial || '',
+      info_unavailable_reason: eq.info_unavailable_reason || '',
+    })
+  }
+
+  async function saveEquip() {
+    if (!job?.property_id) return
+    setSavingEquip(true)
+    const payload = { ...equipForm, install_date: equipForm.install_date || null }
+    if (equipEditId && equipEditId !== 'new') await supabase.from('property_equipment').update(payload).eq('id', equipEditId)
+    else await supabase.from('property_equipment').insert({ ...payload, org_id: job.org_id, property_id: job.property_id, status: 'active' })
+    if (estimate?.id) { await syncEquipmentLine(estimate.id, job); await loadLineItems(estimate.id) }
+    await loadEquipList(job.property_id)
+    setSavingEquip(false); setEquipEditId(null); setEquipForm(blankEquip)
+  }
+
+  async function removeEquip(id) {
+    if (!window.confirm('Remove this equipment record?')) return
+    await supabase.from('property_equipment').delete().eq('id', id)
+    if (estimate?.id) { await syncEquipmentLine(estimate.id, job); await loadLineItems(estimate.id) }
+    await loadEquipList(job.property_id)
+  }
+
   useEffect(() => { loadJobAndEstimate() }, [jobId])
+
+  useEffect(() => { if (job?.property_id) loadEquipList(job.property_id) }, [job?.property_id])
 
   // Live discount decisions: when a supervisor approves/declines from The Tower,
   // reload so the estimate reflects it immediately (applied, or gone).
@@ -404,11 +448,58 @@ export default function TechEstimate({ profile }) {
       <div className="mobile-body">
         {/* Under the Estimate # header: Equipment on File + Current Diagnosis, both required */}
         <div className="section-card">
-          <div className="section-card-header"><span>Equipment on File</span></div>
+          <div className="section-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><span>Equipment on File</span>
+            {equipEditId === null && <button className="action-btn" style={{ flex: 'none', padding: '6px 12px' }} onClick={() => { setEquipEditId('new'); setEquipForm(blankEquip) }}>+ Add</button>}
+          </div>
           <div className="section-card-body">
-            {equipmentSummary
-              ? <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.5 }}>{equipmentSummary}</p>
-              : <p style={{ margin: 0, fontSize: 13, color: '#C0392B', fontWeight: 600 }}>Required — no equipment on file yet. Capture it on the job card before sending this estimate.</p>}
+            {equipList.length === 0 && equipEditId === null && (
+              <p style={{ margin: 0, fontSize: 13, color: '#C0392B', fontWeight: 600 }}>Required — no equipment on file yet. Add it here, or capture it on the job card.</p>
+            )}
+            {equipList.map((eq, i) => (
+              <div key={eq.id} style={{ borderTop: i ? '1px solid var(--border, #e2e6ea)' : 'none', padding: '10px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                  <strong style={{ fontSize: 14 }}>{eq.system_label || `System ${i + 1}`}</strong>
+                  <span style={{ display: 'flex', gap: 8 }}>
+                    <button className="action-btn" style={{ flex: 'none', padding: '5px 12px' }} onClick={() => startEditEquip(eq)}>Edit</button>
+                    <button className="remove-item-btn" onClick={() => removeEquip(eq.id)}>Remove</button>
+                  </span>
+                </div>
+                <div style={{ fontSize: 13, lineHeight: 1.5, marginTop: 4 }}>
+                  {eq.info_unavailable_reason
+                    ? <div style={{ color: '#C0392B', fontWeight: 600 }}>Info not available — {eq.info_unavailable_reason}</div>
+                    : <>
+                        <div><strong>Outdoor:</strong> {[eq.outdoor_brand, eq.outdoor_model].filter(Boolean).join(' ') || '—'}{eq.outdoor_serial ? ` (SN ${eq.outdoor_serial})` : ''}</div>
+                        <div><strong>Indoor:</strong> {[eq.indoor_brand, eq.indoor_model].filter(Boolean).join(' ') || '—'}{eq.indoor_serial ? ` (SN ${eq.indoor_serial})` : ''}</div>
+                        <div><strong>Furnace:</strong> {[eq.furnace_brand, eq.furnace_model].filter(Boolean).join(' ') || '—'}{eq.furnace_serial ? ` (SN ${eq.furnace_serial})` : ''}</div>
+                      </>}
+                </div>
+              </div>
+            ))}
+            {equipEditId !== null && (
+              <div style={{ borderTop: '1px solid var(--border, #e2e6ea)', paddingTop: 12, marginTop: 8 }}>
+                <div className="mobile-field"><label>System label</label><input value={equipForm.system_label} onChange={(e) => setEquipForm({ ...equipForm, system_label: e.target.value })} placeholder="e.g. Upstairs" /></div>
+                <div className="mobile-field"><label>Install date</label><input type="date" value={equipForm.install_date} onChange={(e) => setEquipForm({ ...equipForm, install_date: e.target.value })} /></div>
+                {['outdoor', 'indoor', 'furnace'].map((u) => (
+                  <div key={u} style={{ marginTop: 6 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, textTransform: 'capitalize', margin: '6px 0 2px' }}>{u}</div>
+                    <div className="mobile-field"><label>Brand</label><input value={equipForm[`${u}_brand`]} onChange={(e) => setEquipForm({ ...equipForm, [`${u}_brand`]: e.target.value })} /></div>
+                    <div className="mobile-field"><label>Model</label><input value={equipForm[`${u}_model`]} onChange={(e) => setEquipForm({ ...equipForm, [`${u}_model`]: e.target.value })} /></div>
+                    <div className="mobile-field"><label>Serial</label><input value={equipForm[`${u}_serial`]} onChange={(e) => setEquipForm({ ...equipForm, [`${u}_serial`]: e.target.value })} /></div>
+                  </div>
+                ))}
+                <div className="mobile-field"><label>If details are unavailable, why?</label>
+                  <select value={equipForm.info_unavailable_reason} onChange={(e) => setEquipForm({ ...equipForm, info_unavailable_reason: e.target.value })}>
+                    <option value="">— Details captured above —</option>
+                    <option value="Unable to read label">Unable to read label</option>
+                    <option value="Data plate missing">Data plate missing</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <button className="action-btn primary" style={{ flex: 'none', padding: '9px 20px' }} disabled={savingEquip} onClick={saveEquip}>{savingEquip ? 'Saving…' : equipEditId === 'new' ? 'Add System' : 'Save Changes'}</button>
+                  <button className="action-btn" style={{ flex: 'none', padding: '9px 20px' }} onClick={() => { setEquipEditId(null); setEquipForm(blankEquip) }}>Cancel</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <div className="section-card">
