@@ -16,6 +16,8 @@ async function geocodeAddress(address) {
   return null
 }
 
+const WLABEL = { '8_11': '8\u201311 AM', '10_1': '10 AM\u20131 PM', '12_3': '12\u20133 PM', '2_5': '2\u20135 PM', 'asap': 'ASAP' }
+
 const jobColor = (j) =>
   j.date_pending ? '#DC2626'
   : j.status === 'completed' ? '#9CA3AF'
@@ -34,6 +36,8 @@ export default function DispatchMap({ profile }) {
   const [date, setDate] = useState(todayLocal())
   const [jobs, setJobs] = useState([])
   const [techs, setTechs] = useState([])
+  const [pending, setPending] = useState([])
+  const [showUnscheduled, setShowUnscheduled] = useState(true)
   const [loading, setLoading] = useState(true)
   const [note, setNote] = useState('')
   const [mapReady, setMapReady] = useState(false)
@@ -93,6 +97,26 @@ export default function DispatchMap({ profile }) {
       .select('user_id, latitude, longitude, updated_at, users(full_name, calendar_color)')
       .eq('org_id', selectedOrg).gte('updated_at', cutoff)
     setTechs((tl || []).filter((t) => t.latitude != null))
+
+    // Unscheduled / needs-dispatch bookings — ANY date (mirrors the Needs Dispatch tray)
+    const { data: pend } = await supabase.from('jobs')
+      .select('id, job_date, requested_window, job_type, self_booked, property_id, properties(id, street_address, unit, city, state, zip, latitude, longitude, customers!properties_customer_id_fkey(display_name))')
+      .eq('org_id', selectedOrg).eq('date_pending', true).is('deleted_at', null).neq('status', 'cancelled')
+    const prows = (pend || []).map((j) => ({
+      id: j.id, job_date: j.job_date, requested_window: j.requested_window, job_type: j.job_type, self_booked: j.self_booked, property_id: j.property_id,
+      customer_name: j.properties?.customers?.display_name || 'Customer',
+      address: [j.properties?.street_address, j.properties?.city].filter(Boolean).join(', '),
+      fullAddress: [j.properties?.street_address, j.properties?.unit, j.properties?.city, j.properties?.state, j.properties?.zip].filter(Boolean).join(' '),
+      lat: j.properties?.latitude, lng: j.properties?.longitude,
+    }))
+    for (const j of prows) {
+      if ((j.lat == null || j.lng == null) && j.fullAddress) {
+        const g = await geocodeAddress(j.fullAddress)
+        if (g) { j.lat = g.lat; j.lng = g.lng; supabase.from('properties').update({ latitude: g.lat, longitude: g.lng }).eq('id', j.property_id).then(() => {}) }
+      }
+    }
+    setPending(prows)
+
     const missing = rows.filter((r) => r.lat == null).length
     setNote(missing ? `${missing} job(s) couldn't be pinned (address didn't geocode).` : '')
     setLoading(false)
@@ -107,6 +131,7 @@ export default function DispatchMap({ profile }) {
     layer.clearLayers()
     const pts = []
     for (const j of jobs) {
+      if (j.date_pending) continue
       if (j.lat == null || j.lng == null) continue
       const color = jobColor(j)
       const icon = window.L.divIcon({ className: '', iconSize: [20, 20], iconAnchor: [10, 10], html: `<div style="background:${color};width:18px;height:18px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)"></div>` })
@@ -123,8 +148,19 @@ export default function DispatchMap({ profile }) {
         .bindPopup(`<strong>${t.users?.full_name || 'Technician'}</strong><br>Updated ${ago} min ago`)
       pts.push([t.latitude, t.longitude])
     }
+    if (showUnscheduled) {
+      for (const p of pending) {
+        if (p.lat == null || p.lng == null) continue
+        const icon = window.L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11], html: `<div style="background:#DC2626;width:16px;height:16px;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.55);transform:rotate(45deg)"></div>` })
+        const when = p.job_date ? new Date(p.job_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : ''
+        const win = WLABEL[p.requested_window] || ''
+        window.L.marker([p.lat, p.lng], { icon }).addTo(layer)
+          .bindPopup(`<strong>\u23F3 ${p.customer_name}</strong><br>Needs dispatch${p.self_booked ? ' (portal booking)' : ''}<br>${win}${win && when ? ' &middot; ' : ''}${when}<br>${p.job_type || ''}<br>${p.address || ''}`)
+        pts.push([p.lat, p.lng])
+      }
+    }
     if (pts.length) { try { map.fitBounds(pts, { padding: [40, 40], maxZoom: 14 }) } catch { /* single/empty */ } }
-  }, [jobs, techs, mapReady])
+  }, [jobs, techs, pending, showUnscheduled, mapReady])
 
   return (
     <div>
@@ -140,6 +176,10 @@ export default function DispatchMap({ profile }) {
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
         <button className="logout-button" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
+        <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={showUnscheduled} onChange={(e) => setShowUnscheduled(e.target.checked)} />
+          Unscheduled bookings{pending.length ? ` (${pending.length})` : ''}
+        </label>
         <span style={{ fontSize: 13, color: 'var(--mist)' }}>{jobs.length} jobs &middot; {techs.length} techs on map</span>
         {note && <span style={{ fontSize: 13, color: '#b0342f' }}>{note}</span>}
       </div>
@@ -148,6 +188,7 @@ export default function DispatchMap({ profile }) {
         <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#DC2626', border: '2px solid #fff', verticalAlign: 'middle', marginRight: 5 }} />Unassigned / needs attention</span>
         <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#9CA3AF', border: '2px solid #fff', verticalAlign: 'middle', marginRight: 5 }} />Completed</span>
         <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#2F5DE3', border: '2px solid #fff', verticalAlign: 'middle', marginRight: 5 }} />Assigned (tech color)</span>
+        <span><span style={{ display: 'inline-block', width: 11, height: 11, background: '#DC2626', border: '2px solid #fff', transform: 'rotate(45deg)', verticalAlign: 'middle', marginRight: 6 }} />Unscheduled booking (any date)</span>
         <span><span style={{ display: 'inline-block', width: 12, height: 12, background: '#1f7a43', border: '2px solid #fff', transform: 'rotate(-45deg)', borderRadius: '50% 50% 50% 0', verticalAlign: 'middle', marginRight: 6 }} />Technician</span>
       </div>
     </div>
