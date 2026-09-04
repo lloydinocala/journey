@@ -4,6 +4,7 @@ import OrgPicker from './OrgPicker'
 import EmployeePayRates from './EmployeePayRates'
 import BusinessHours from './BusinessHours'
 import BookingRules from './BookingRules'
+import PayrollSettings from './PayrollSettings'
 import { browserTz, setActiveOrgTz, tzShortLabel } from './utils/tz'
 
 // The zones an HVAC contractor in the US is realistically in. IANA names carry
@@ -471,6 +472,9 @@ export default function Settings({ profile }) {
 
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Online booking rules</h3>
       <BookingRules orgId={selectedOrg} />
+
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Payroll pay period</h3>
+      <PayrollSettings orgId={selectedOrg} />
 
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Sales tax</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>

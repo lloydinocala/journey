@@ -5,6 +5,13 @@ import OrgPicker from './OrgPicker'
 
 // ---- helpers ---------------------------------------------------------------
 
+function periodStartOf(dateInput, startDow) {
+  const d = new Date(typeof dateInput === 'string' ? dateInput + 'T00:00:00' : dateInput)
+  const diff = (d.getDay() - startDow + 7) % 7
+  d.setDate(d.getDate() - diff)
+  const tz = d.getTimezoneOffset() * 60000
+  return new Date(d - tz).toISOString().slice(0, 10)
+}
 function mondayOf(date) {
   const d = new Date(date)
   const day = (d.getDay() + 6) % 7 // 0 = Monday
@@ -80,6 +87,8 @@ export default function PayrollCapture({ profile }) {
   const [loading, setLoading] = useState(true)
 
   const [weekStart, setWeekStart] = useState(mondayOf(new Date()))
+  const [startDow, setStartDow] = useState(1)
+  const [periodDays, setPeriodDays] = useState(7)
   const [employees, setEmployees] = useState([])
   const [weeks, setWeeks] = useState([])          // payroll_weeks for this org+week
   const [components, setComponents] = useState({}) // weekId -> {base, bonuses[], commissions[]}
@@ -100,9 +109,19 @@ export default function PayrollCapture({ profile }) {
     if (selectedOrg) loadAll()
   }, [selectedOrg, weekStart])
 
+  useEffect(() => {
+    if (!selectedOrg) return
+    supabase.from('organizations').select('pay_period_start_dow, pay_period_days').eq('id', selectedOrg).single().then(({ data }) => {
+      const dow = data?.pay_period_start_dow ?? 1
+      const days = data?.pay_period_days ?? 7
+      setStartDow(dow); setPeriodDays(days)
+      setWeekStart(periodStartOf(new Date(), dow))
+    })
+  }, [selectedOrg])
+
   async function loadAll() {
     setLoading(true)
-    const weekEnd = addDays(weekStart, 6)
+    const weekEnd = addDays(weekStart, periodDays - 1)
 
     const [empRes, weekRes] = await Promise.all([
       supabase.from('users').select('id, full_name, email, role').eq('org_id', selectedOrg).eq('is_active', true).order('full_name'),
@@ -131,7 +150,7 @@ export default function PayrollCapture({ profile }) {
     // Sum completed clock events (both clock_in and clock_out set) per employee
     // for this week — the actual compensable hours worked, for the legal
     // higher-of comparison against performance/piece pay.
-    const weekEndDate = addDays(weekStart, 6)
+    const weekEndDate = addDays(weekStart, periodDays - 1)
     const { data: clockData } = await supabase
       .from('time_clock_events')
       .select('id, user_id, clock_in, clock_out')
@@ -175,7 +194,7 @@ export default function PayrollCapture({ profile }) {
 
   async function startWeek(userId) {
     setBusy(true)
-    const weekEnd = addDays(weekStart, 6)
+    const weekEnd = addDays(weekStart, periodDays - 1)
     const { data, error } = await supabase.from('payroll_weeks').insert({
       org_id: selectedOrg,
       user_id: userId,
@@ -322,12 +341,12 @@ export default function PayrollCapture({ profile }) {
       </p>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0', flexWrap: 'wrap' }}>
-        <button className="logout-button" onClick={() => setWeekStart(addDays(weekStart, -7))}>&larr; Prev week</button>
+        <button className="logout-button" onClick={() => setWeekStart(addDays(weekStart, -periodDays))}>&larr; Prev period</button>
         <div style={{ fontWeight: 700 }}>
-          Week of {weekStart} &ndash; {addDays(weekStart, 6)}
+          Pay period {weekStart} &ndash; {addDays(weekStart, periodDays - 1)}
         </div>
-        <button className="logout-button" onClick={() => setWeekStart(addDays(weekStart, 7))}>Next week &rarr;</button>
-        <input type="date" value={weekStart} onChange={(e) => setWeekStart(mondayOf(e.target.value))} />
+        <button className="logout-button" onClick={() => setWeekStart(addDays(weekStart, periodDays))}>Next period &rarr;</button>
+        <input type="date" value={weekStart} onChange={(e) => setWeekStart(periodStartOf(e.target.value, startDow))} />
         <div style={{ marginLeft: 'auto', fontWeight: 800, fontSize: 16 }}>
           Week payroll owed: {money(orgTotal)}
         </div>
