@@ -25,6 +25,7 @@ import Jobs from './Jobs'
 import Settings from './Settings'
 import Team from './Team'
 import Calendar from './Calendar'
+import DispatchMap from './DispatchMap'
 import Pricebook from './Pricebook'
 import SystemsPricebook from './SystemsPricebook'
 import SpecialFeatures from './SpecialFeatures'
@@ -263,6 +264,7 @@ function AuthenticatedApp() {
         <Route path="/import/systems-pricebook" element={<EquipmentImport profile={profile} />} />
         <Route path="/import/tools" element={<ToolsImport profile={profile} />} />
         <Route path="/calendar" element={<Calendar profile={profile} />} />
+        <Route path="/dispatch-map" element={<DispatchMap profile={profile} />} />
         <Route path="/pricebook" element={<Pricebook profile={profile} />} />
         <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />
         <Route path="/special-features" element={<SpecialFeatures profile={profile} />} />

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
+import TechLocationReporter from './TechLocationReporter'
 import { supabase } from './utils/supabase'
 import { TERMS_VERSION, TERMS } from './techTerms'
 
@@ -52,7 +53,7 @@ export default function TechGate({ profile }) {
       </div>
     )
   }
-  if (state === 'ok') return <Outlet />
+  if (state === 'ok') return (<><TechLocationReporter profile={profile} /><Outlet /></>)
 
   return (
     <div className="mobile-shell job-card-v2 consent-shell">
