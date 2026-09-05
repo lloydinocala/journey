@@ -21,7 +21,7 @@ const FLAGS = [
   { key: 'create_system_estimate', short: 'Sys Est', title: 'Create a new-System Estimate', color: '#C8811B' },
   { key: 'red_tag', short: 'Red Tag', title: 'Red-tag the unit (safety)', color: '#C0392B' },
 ]
-const boolOf = (v) => { const s = String(v ?? '').trim().toLowerCase(); return s === 'true' || s === '1' || s === 'x' || s === 'yes' || s === 'y' || s === '\u2713' || s === 'checked' }
+const boolOf = (v) => { const s = String(v ?? '').trim().toLowerCase(); return s === 'true' || s === '1' || s === 'x' || s === 'yes' || s === 'y' || s === '✓' || s === 'checked' }
 
 function guessEquip(title) {
   const t = (title || '').toLowerCase()
@@ -174,7 +174,7 @@ export default function ChecklistTemplates({ profile }) {
             <button className="remove-item-btn" style={{ marginBottom: 6 }} onClick={() => delChecklist(editing)}>Delete</button>
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 10 }}>
-            Flags route the tech\u2019s finding: {FLAGS.map((f) => f.short).join(' \u00B7 ')}. Set item type to <b>Measure</b> to capture a reading (amp draw, superheat\u2026) with units + nameplate spec.
+            Flags route the tech’s finding: {FLAGS.map((f) => f.short).join(' · ')}. Set item type to <b>Measure</b> to capture a reading (amp draw, superheat…) with units + nameplate spec.
           </div>
         </div>
 
@@ -187,8 +187,8 @@ export default function ChecklistTemplates({ profile }) {
             </div>
             {items.filter((i) => i.section_id === sec.id).map((it) => (
               <div key={it.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 10, marginBottom: 8 }}>
-                <input value={it.inspection_task || ''} onChange={(e) => patchItem(it.id, 'inspection_task', e.target.value)} placeholder="Inspection Task \u2014 what to check" style={{ width: '100%', fontWeight: 600, padding: '7px 9px', border: '1px solid var(--border)', borderRadius: 8, boxSizing: 'border-box', marginBottom: 6 }} />
-                <input value={it.maintenance_task || ''} onChange={(e) => patchItem(it.id, 'maintenance_task', e.target.value || null)} placeholder="Maintenance Task \u2014 what to do (or a note)" style={{ width: '100%', padding: '7px 9px', border: '1px solid var(--border)', borderRadius: 8, boxSizing: 'border-box', marginBottom: 8, fontSize: 14 }} />
+                <input value={it.inspection_task || ''} onChange={(e) => patchItem(it.id, 'inspection_task', e.target.value)} placeholder="Inspection Task — what to check" style={{ width: '100%', fontWeight: 600, padding: '7px 9px', border: '1px solid var(--border)', borderRadius: 8, boxSizing: 'border-box', marginBottom: 6 }} />
+                <input value={it.maintenance_task || ''} onChange={(e) => patchItem(it.id, 'maintenance_task', e.target.value || null)} placeholder="Maintenance Task — what to do (or a note)" style={{ width: '100%', padding: '7px 9px', border: '1px solid var(--border)', borderRadius: 8, boxSizing: 'border-box', marginBottom: 8, fontSize: 14 }} />
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <select value={it.item_type} onChange={(e) => patchItem(it.id, 'item_type', e.target.value)} style={{ padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}>
                     <option value="check">Checkbox</option>
@@ -196,8 +196,8 @@ export default function ChecklistTemplates({ profile }) {
                   </select>
                   {it.item_type === 'measure' && (
                     <>
-                      <input value={it.record_units || ''} onChange={(e) => patchItem(it.id, 'record_units', e.target.value || null)} placeholder="Units (Amps, \u00B0F\u2026)" style={{ width: 120, padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }} />
-                      <input value={it.spec_label || ''} onChange={(e) => patchItem(it.id, 'spec_label', e.target.value || null)} placeholder="Spec (RLA/FLA\u2026)" style={{ width: 130, padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }} />
+                      <input value={it.record_units || ''} onChange={(e) => patchItem(it.id, 'record_units', e.target.value || null)} placeholder="Units (Amps, °F…)" style={{ width: 120, padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }} />
+                      <input value={it.spec_label || ''} onChange={(e) => patchItem(it.id, 'spec_label', e.target.value || null)} placeholder="Spec (RLA/FLA…)" style={{ width: 130, padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }} />
                     </>
                   )}
                   <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
@@ -207,12 +207,12 @@ export default function ChecklistTemplates({ profile }) {
                         {f.short}
                       </button>
                     ))}
-                    <button className="remove-item-btn" onClick={() => delItem(it.id)} title="Delete item">\u2715</button>
+                    <button className="remove-item-btn" onClick={() => delItem(it.id)} title="Delete item">✕</button>
                   </div>
                 </div>
               </div>
             ))}
-            {items.filter((i) => i.section_id === sec.id).length === 0 && <div style={{ fontSize: 13, color: 'var(--mist)' }}>No items yet \u2014 add one.</div>}
+            {items.filter((i) => i.section_id === sec.id).length === 0 && <div style={{ fontSize: 13, color: 'var(--mist)' }}>No items yet — add one.</div>}
           </div>
         ))}
         <button className="auth-button" style={{ width: 'auto' }} onClick={addSection}>+ Add section</button>
@@ -225,7 +225,7 @@ export default function ChecklistTemplates({ profile }) {
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <div className="page-header-bar"><h2>Checklists</h2></div>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 700 }}>
-        Build the checklists your techs follow on the job \u2014 grouped into sections, each item with an inspection task, a maintenance task, and routing flags. Import from Excel/CSV, or build by hand.
+        Build the checklists your techs follow on the job — grouped into sections, each item with an inspection task, a maintenance task, and routing flags. Import from Excel/CSV, or build by hand.
       </p>
       {isSuper && (
         <div style={{ marginBottom: 16, maxWidth: 340 }}>
@@ -236,13 +236,13 @@ export default function ChecklistTemplates({ profile }) {
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         <button className="auth-button" style={{ width: 'auto' }} onClick={newChecklist}>+ New checklist</button>
         <label className="logout-button" style={{ cursor: 'pointer' }}>
-          {busy ? 'Importing\u2026' : 'Import from Excel / CSV'}
+          {busy ? 'Importing…' : 'Import from Excel / CSV'}
           <input type="file" accept=".xlsx,.xls,.csv" onChange={onImport} disabled={busy} style={{ display: 'none' }} />
         </label>
         {importMsg && <span style={{ fontSize: 13, color: importMsg.startsWith('Import failed') ? '#b0342f' : '#1a7f37' }}>{importMsg}</span>}
       </div>
 
-      {loading ? <p style={{ color: 'var(--mist)' }}>Loading\u2026</p> : checklists.length === 0 ? (
+      {loading ? <p style={{ color: 'var(--mist)' }}>Loading…</p> : checklists.length === 0 ? (
         <div className="section-card" style={{ padding: 18 }}><p style={{ margin: 0 }}>No checklists yet. Import your Excel or create one.</p></div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
@@ -250,7 +250,7 @@ export default function ChecklistTemplates({ profile }) {
             <div key={cl.id} className="section-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
               <div>
                 <div style={{ fontWeight: 700 }}>{cl.name} {!cl.is_active && <span style={{ fontSize: 12, color: 'var(--mist)' }}>(inactive)</span>}</div>
-                <div style={{ fontSize: 12.5, color: 'var(--mist)' }}>{equipLabel(cl.equipment_type)} \u00B7 {cl.checklist_items?.[0]?.count ?? 0} items</div>
+                <div style={{ fontSize: 12.5, color: 'var(--mist)' }}>{equipLabel(cl.equipment_type)} · {cl.checklist_items?.[0]?.count ?? 0} items</div>
               </div>
               <button className="logout-button" onClick={() => openEditor(cl)}>Edit</button>
             </div>
