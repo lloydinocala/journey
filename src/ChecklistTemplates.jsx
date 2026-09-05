@@ -1,451 +1,262 @@
 import { useState, useEffect } from 'react'
+import * as XLSX from 'xlsx'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 
-const TYPES = [
-  { value: 'maintenance', label: 'Preventive Maintenance' },
-  { value: 'sales', label: 'Sales' },
-  { value: 'pre_install', label: 'Pre-Install' },
-  { value: 'service', label: 'Service Call' },
-]
 const EQUIPMENT = [
   { value: '', label: 'Any equipment' },
   { value: 'furnace', label: 'Gas Furnace' },
   { value: 'heat_pump', label: 'Heat Pump' },
+  { value: 'ac', label: 'AC / Split System' },
   { value: 'mini_split', label: 'Mini-Split' },
   { value: 'package', label: 'Package Unit' },
-  { value: 'ac', label: 'AC / Split System' },
 ]
-const typeLabel = (v) => (TYPES.find((t) => t.value === v) || {}).label || v
-const equipLabel = (v) => (EQUIPMENT.find((e) => e.value === (v || '')) || {}).label || v
+const equipLabel = (v) => (EQUIPMENT.find((e) => e.value === (v || '')) || {}).label || v || 'Any'
+
+// The five routing flags: what the app does with the tech's finding on this item.
+const FLAGS = [
+  { key: 'add_to_estimate', short: 'Estimate', title: 'Add to repair Estimate', color: '#2F5DE3' },
+  { key: 'add_to_report', short: 'Report', title: 'Add to customer Report', color: '#1F7A43' },
+  { key: 'system_health', short: 'Health', title: 'Feed System Health score', color: '#0E7C86' },
+  { key: 'create_system_estimate', short: 'Sys Est', title: 'Create a new-System Estimate', color: '#C8811B' },
+  { key: 'red_tag', short: 'Red Tag', title: 'Red-tag the unit (safety)', color: '#C0392B' },
+]
+const boolOf = (v) => { const s = String(v ?? '').trim().toLowerCase(); return s === 'true' || s === '1' || s === 'x' || s === 'yes' || s === 'y' || s === '\u2713' || s === 'checked' }
+
+function guessEquip(title) {
+  const t = (title || '').toLowerCase()
+  if (t.includes('furnace')) return 'furnace'
+  if (t.includes('heat pump')) return 'heat_pump'
+  if (t.includes('mini')) return 'mini_split'
+  if (t.includes('package')) return 'package'
+  if (t.includes('ac') || t.includes('split') || t.includes('condenser')) return 'ac'
+  return ''
+}
+
+// Parse an Excel/CSV in the Checklist layout -> { title, equipment_type, sections:[{name, items:[…]}] }
+async function parseChecklistFile(file) {
+  const buf = await file.arrayBuffer()
+  const wb = XLSX.read(buf, { type: 'array' })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '' })
+  let title = '', headerIdx = -1
+  for (let i = 0; i < rows.length; i++) {
+    const r = (rows[i] || []).map((c) => String(c ?? '').trim())
+    if (r.join('|').toLowerCase().includes('inspection task')) { headerIdx = i; break }
+    if (!title && r.filter(Boolean).length === 1 && r[0]) title = r[0]
+  }
+  if (headerIdx === -1) throw new Error('Could not find an "Inspection Task" header row in the file.')
+  const hdr = (rows[headerIdx] || []).map((c) => String(c ?? '').trim().toLowerCase())
+  const col = (needle) => hdr.findIndex((h) => h.includes(needle))
+  const ci = col('inspection'), cm = col('maintenance')
+  const cEst = col('add to estimate'), cRep = col('add to report'), cHea = col('system health'), cSys = col('create system'), cRed = col('red')
+  if (ci < 0) throw new Error('No "Inspection Task" column found.')
+  const sections = []; let cur = null
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const r = rows[i] || []
+    const insp = String(r[ci] ?? '').trim()
+    if (!insp) continue
+    const maint = cm >= 0 ? String(r[cm] ?? '').trim() : ''
+    const hasFlags = [cEst, cRep, cHea, cSys, cRed].some((idx) => idx >= 0 && String(r[idx] ?? '').trim() !== '')
+    if (!maint && !hasFlags) { cur = { name: insp, items: [] }; sections.push(cur); continue }
+    if (!cur) { cur = { name: 'General', items: [] }; sections.push(cur) }
+    cur.items.push({
+      inspection_task: insp, maintenance_task: maint || null,
+      add_to_estimate: cEst >= 0 && boolOf(r[cEst]),
+      add_to_report: cRep >= 0 ? boolOf(r[cRep]) : true,
+      system_health: cHea >= 0 && boolOf(r[cHea]),
+      create_system_estimate: cSys >= 0 && boolOf(r[cSys]),
+      red_tag: cRed >= 0 && boolOf(r[cRed]),
+    })
+  }
+  if (!sections.length) throw new Error('No items found under the header row.')
+  return { title: title || file.name.replace(/\.[^.]+$/, ''), equipment_type: guessEquip(title), sections }
+}
 
 export default function ChecklistTemplates({ profile }) {
-  const isSuperAdmin = profile.role === 'super_admin'
+  const isSuper = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
-  const [templates, setTemplates] = useState([])
+  const [checklists, setChecklists] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showArchived, setShowArchived] = useState(false)
-  const [openId, setOpenId] = useState(null)
+  const [editing, setEditing] = useState(null)     // checklist row being edited
+  const [sections, setSections] = useState([])
+  const [items, setItems] = useState([])           // flat; each has section_id
+  const [importMsg, setImportMsg] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  const [form, setForm] = useState({ name: '', subtitle: '', checklist_type: 'maintenance', equipment_type: '' })
-  const [saving, setSaving] = useState(false)
-  const [err, setErr] = useState('')
+  useEffect(() => { if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => { setOrgs(data || []); if (!selectedOrg && data?.length) setSelectedOrg(data[0].id) }) }, [])
+  useEffect(() => { if (selectedOrg) loadList() }, [selectedOrg])
 
-  useEffect(() => {
-    if (isSuperAdmin) {
-      supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
-        setOrgs(data || [])
-        if (!selectedOrg && data && data.length) setSelectedOrg(data[0].id)
-      })
-    }
-  }, [])
-
-  async function load(orgId) {
-    if (!orgId) return
+  async function loadList() {
     setLoading(true)
-    const { data } = await supabase
-      .from('checklist_templates')
-      .select('id, org_id, name, subtitle, description, checklist_type, equipment_type, offers_enabled, source_template_id, version, sort_order, is_active')
-      .or(`org_id.eq.${orgId},org_id.is.null`)
-      .order('sort_order')
-      .order('name')
-    setTemplates(data || [])
-    setLoading(false)
-  }
-  useEffect(() => { load(selectedOrg) }, [selectedOrg])
-
-  const systemTemplates = templates.filter((t) => t.org_id === null && t.is_active)
-  const myTemplates = templates.filter((t) => t.org_id === selectedOrg && (showArchived ? !t.is_active : t.is_active))
-
-  async function createTemplate(e) {
-    e.preventDefault()
-    setErr('')
-    if (!form.name.trim()) return
-    setSaving(true)
-    const { error } = await supabase.from('checklist_templates').insert({
-      org_id: selectedOrg,
-      name: form.name.trim(),
-      subtitle: form.subtitle.trim() || null,
-      checklist_type: form.checklist_type,
-      equipment_type: form.equipment_type || null,
-      version: 1,
-      sort_order: myTemplates.length,
-      is_active: true,
-    })
-    setSaving(false)
-    if (error) { setErr(error.message); return }
-    setForm({ name: '', subtitle: '', checklist_type: 'maintenance', equipment_type: '' })
-    load(selectedOrg)
+    const { data } = await supabase.from('checklists').select('id, name, equipment_type, is_active, checklist_items(count)').eq('org_id', selectedOrg).order('sort_order').order('name')
+    setChecklists(data || []); setLoading(false)
   }
 
-  async function cloneSystem(t) {
-    if (!window.confirm(`Make an editable copy of "${t.name}" for this organization?`)) return
-    const { data: created, error } = await supabase.from('checklist_templates').insert({
-      org_id: selectedOrg,
-      name: t.name,
-      subtitle: t.subtitle,
-      description: t.description,
-      checklist_type: t.checklist_type,
-      equipment_type: t.equipment_type,
-      offers_enabled: t.offers_enabled,
-      source_template_id: t.id,
-      version: t.version,
-      sort_order: myTemplates.length,
-      is_active: true,
-    }).select('id').single()
-    if (error) { setErr(error.message); return }
-    const { data: items } = await supabase
-      .from('checklist_template_items')
-      .select('sort_order, label, guidance, requires_photo, recommendation_internal, recommendation_customer')
-      .eq('template_id', t.id)
-      .eq('is_active', true)
-      .order('sort_order')
-    if (items && items.length) {
-      await supabase.from('checklist_template_items').insert(
-        items.map((it) => ({ ...it, template_id: created.id, org_id: selectedOrg, is_active: true }))
-      )
-    }
-    load(selectedOrg)
-    setOpenId(created.id)
+  async function openEditor(cl) {
+    const [{ data: secs }, { data: its }] = await Promise.all([
+      supabase.from('checklist_sections').select('*').eq('checklist_id', cl.id).order('sort_order'),
+      supabase.from('checklist_items').select('*').eq('checklist_id', cl.id).order('sort_order'),
+    ])
+    setSections(secs || []); setItems(its || []); setEditing(cl)
   }
 
-  async function toggleActive(t) {
-    const action = t.is_active ? 'archive' : 'reactivate'
-    if (!window.confirm(`${action === 'archive' ? 'Archive' : 'Reactivate'} the "${t.name}" checklist?`)) return
-    await supabase.from('checklist_templates').update({ is_active: !t.is_active }).eq('id', t.id)
-    load(selectedOrg)
+  async function newChecklist() {
+    const { data } = await supabase.from('checklists').insert({ org_id: selectedOrg, name: 'New Checklist' }).select().single()
+    if (data) { setSections([]); setItems([]); setEditing(data); loadList() }
   }
 
-  if (openId) {
-    return <TemplateEditor templateId={openId} orgId={selectedOrg} onBack={() => { setOpenId(null); load(selectedOrg) }} />
+  async function onImport(e) {
+    const file = e.target.files[0]; e.target.value = ''
+    if (!file || !selectedOrg) return
+    setBusy(true); setImportMsg('')
+    try {
+      const parsed = await parseChecklistFile(file)
+      const { data: cl } = await supabase.from('checklists').insert({ org_id: selectedOrg, name: parsed.title, equipment_type: parsed.equipment_type || null }).select().single()
+      let so = 0, io = 0
+      for (const sec of parsed.sections) {
+        const { data: s } = await supabase.from('checklist_sections').insert({ org_id: selectedOrg, checklist_id: cl.id, name: sec.name, sort_order: so++ }).select().single()
+        if (sec.items.length) {
+          await supabase.from('checklist_items').insert(sec.items.map((it) => ({ org_id: selectedOrg, checklist_id: cl.id, section_id: s.id, sort_order: io++, ...it })))
+        }
+      }
+      setImportMsg(`Imported "${parsed.title}" — ${parsed.sections.length} sections, ${parsed.sections.reduce((n, s) => n + s.items.length, 0)} items.`)
+      await loadList(); openEditor(cl)
+    } catch (err) { setImportMsg('Import failed: ' + (err.message || err)) }
+    setBusy(false)
   }
 
+  // ---- editor mutations (optimistic local + DB) ----
+  const patchChecklist = (field, val) => { setEditing((c) => ({ ...c, [field]: val })); supabase.from('checklists').update({ [field]: val, updated_at: new Date().toISOString() }).eq('id', editing.id).then(() => {}) }
+  async function addSection() {
+    const { data } = await supabase.from('checklist_sections').insert({ org_id: selectedOrg, checklist_id: editing.id, name: 'New Section', sort_order: sections.length }).select().single()
+    if (data) setSections((s) => [...s, data])
+  }
+  const patchSection = (id, name) => { setSections((s) => s.map((x) => x.id === id ? { ...x, name } : x)); supabase.from('checklist_sections').update({ name }).eq('id', id).then(() => {}) }
+  async function delSection(id) {
+    if (!window.confirm('Delete this section and its items?')) return
+    await supabase.from('checklist_sections').delete().eq('id', id)
+    setSections((s) => s.filter((x) => x.id !== id)); setItems((i) => i.filter((x) => x.section_id !== id))
+  }
+  async function addItem(sectionId) {
+    const n = items.filter((i) => i.section_id === sectionId).length
+    const { data } = await supabase.from('checklist_items').insert({ org_id: selectedOrg, checklist_id: editing.id, section_id: sectionId, sort_order: n, inspection_task: '', add_to_report: true }).select().single()
+    if (data) setItems((i) => [...i, data])
+  }
+  const patchItem = (id, field, val) => { setItems((its) => its.map((x) => x.id === id ? { ...x, [field]: val } : x)); supabase.from('checklist_items').update({ [field]: val }).eq('id', id).then(() => {}) }
+  async function delItem(id) { await supabase.from('checklist_items').delete().eq('id', id); setItems((i) => i.filter((x) => x.id !== id)) }
+  async function delChecklist(cl) {
+    if (!window.confirm(`Delete checklist "${cl.name}"? This cannot be undone.`)) return
+    await supabase.from('checklists').delete().eq('id', cl.id); setEditing(null); loadList()
+  }
+
+  // ---------------- EDITOR VIEW ----------------
+  if (editing) {
+    return (
+      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        <button className="logout-button" onClick={() => { setEditing(null); loadList() }} style={{ marginBottom: 14 }}>‹ All checklists</button>
+        <div className="section-card" style={{ padding: 16, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div className="field" style={{ marginBottom: 0, flex: 1, minWidth: 240 }}>
+              <label>Checklist name</label>
+              <input value={editing.name} onChange={(e) => patchChecklist('name', e.target.value)} />
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Equipment</label>
+              <select value={editing.equipment_type || ''} onChange={(e) => patchChecklist('equipment_type', e.target.value || null)}>
+                {EQUIPMENT.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+              </select>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, marginBottom: 8 }}>
+              <input type="checkbox" checked={editing.is_active} onChange={(e) => patchChecklist('is_active', e.target.checked)} /> Active
+            </label>
+            <button className="remove-item-btn" style={{ marginBottom: 6 }} onClick={() => delChecklist(editing)}>Delete</button>
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 10 }}>
+            Flags route the tech\u2019s finding: {FLAGS.map((f) => f.short).join(' \u00B7 ')}. Set item type to <b>Measure</b> to capture a reading (amp draw, superheat\u2026) with units + nameplate spec.
+          </div>
+        </div>
+
+        {sections.map((sec) => (
+          <div key={sec.id} className="section-card" style={{ padding: 14, marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <input value={sec.name} onChange={(e) => patchSection(sec.id, e.target.value)} style={{ fontWeight: 700, fontSize: 15, flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 8 }} />
+              <button className="logout-button" style={{ fontSize: 12 }} onClick={() => addItem(sec.id)}>+ Item</button>
+              <button className="remove-item-btn" onClick={() => delSection(sec.id)}>Delete section</button>
+            </div>
+            {items.filter((i) => i.section_id === sec.id).map((it) => (
+              <div key={it.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 10, marginBottom: 8 }}>
+                <input value={it.inspection_task || ''} onChange={(e) => patchItem(it.id, 'inspection_task', e.target.value)} placeholder="Inspection Task \u2014 what to check" style={{ width: '100%', fontWeight: 600, padding: '7px 9px', border: '1px solid var(--border)', borderRadius: 8, boxSizing: 'border-box', marginBottom: 6 }} />
+                <input value={it.maintenance_task || ''} onChange={(e) => patchItem(it.id, 'maintenance_task', e.target.value || null)} placeholder="Maintenance Task \u2014 what to do (or a note)" style={{ width: '100%', padding: '7px 9px', border: '1px solid var(--border)', borderRadius: 8, boxSizing: 'border-box', marginBottom: 8, fontSize: 14 }} />
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <select value={it.item_type} onChange={(e) => patchItem(it.id, 'item_type', e.target.value)} style={{ padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}>
+                    <option value="check">Checkbox</option>
+                    <option value="measure">Measure</option>
+                  </select>
+                  {it.item_type === 'measure' && (
+                    <>
+                      <input value={it.record_units || ''} onChange={(e) => patchItem(it.id, 'record_units', e.target.value || null)} placeholder="Units (Amps, \u00B0F\u2026)" style={{ width: 120, padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }} />
+                      <input value={it.spec_label || ''} onChange={(e) => patchItem(it.id, 'spec_label', e.target.value || null)} placeholder="Spec (RLA/FLA\u2026)" style={{ width: 130, padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }} />
+                    </>
+                  )}
+                  <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
+                    {FLAGS.map((f) => (
+                      <button key={f.key} type="button" onClick={() => patchItem(it.id, f.key, !it[f.key])} title={f.title}
+                        style={{ fontSize: 11.5, fontWeight: 700, padding: '5px 9px', borderRadius: 999, cursor: 'pointer', border: `1.5px solid ${it[f.key] ? f.color : 'var(--border)'}`, background: it[f.key] ? f.color : '#fff', color: it[f.key] ? '#fff' : 'var(--mist)' }}>
+                        {f.short}
+                      </button>
+                    ))}
+                    <button className="remove-item-btn" onClick={() => delItem(it.id)} title="Delete item">\u2715</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {items.filter((i) => i.section_id === sec.id).length === 0 && <div style={{ fontSize: 13, color: 'var(--mist)' }}>No items yet \u2014 add one.</div>}
+          </div>
+        ))}
+        <button className="auth-button" style={{ width: 'auto' }} onClick={addSection}>+ Add section</button>
+      </div>
+    )
+  }
+
+  // ---------------- LIST VIEW ----------------
   return (
-    <div>
-      <h2 className="page-title">Checklist Templates</h2>
-      <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: -8, marginBottom: 20 }}>
-        Build the checklists your techs run in the field. Start from a system template and make it your own, or create one from scratch. Each completed checklist is saved to the customer's record and emailed to them.
+    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+      <div className="page-header-bar"><h2>Checklists</h2></div>
+      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 700 }}>
+        Build the checklists your techs follow on the job \u2014 grouped into sections, each item with an inspection task, a maintenance task, and routing flags. Import from Excel/CSV, or build by hand.
       </p>
-
-      {isSuperAdmin && (
-        <div style={{ marginBottom: 20 }}>
+      {isSuper && (
+        <div style={{ marginBottom: 16, maxWidth: 340 }}>
           <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
           <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
         </div>
       )}
-
-      <form className="inline-form" onSubmit={createTemplate} style={{ marginBottom: 24, flexWrap: 'wrap' }}>
-        <div className="field">
-          <label htmlFor="tName">Checklist name</label>
-          <input id="tName" type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Heat Pump Tune-Up" required />
-        </div>
-        <div className="field" style={{ minWidth: 260 }}>
-          <label htmlFor="tSub">Subtitle (credibility line)</label>
-          <input id="tSub" type="text" value={form.subtitle} onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value }))} placeholder="e.g. Inspection performed to ANSI/ACCA standards" />
-        </div>
-        <div className="field">
-          <label htmlFor="tType">Type</label>
-          <select id="tType" value={form.checklist_type} onChange={(e) => setForm((f) => ({ ...f, checklist_type: e.target.value }))}>
-            {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="tEquip">Equipment</label>
-          <select id="tEquip" value={form.equipment_type} onChange={(e) => setForm((f) => ({ ...f, equipment_type: e.target.value }))}>
-            {EQUIPMENT.map((e2) => <option key={e2.value} value={e2.value}>{e2.label}</option>)}
-          </select>
-        </div>
-        <button className="auth-button" type="submit" disabled={saving}>{saving ? 'Adding…' : 'New checklist'}</button>
-      </form>
-      {err && <div className="auth-error">{err}</div>}
-
-      <h3 style={{ marginBottom: 6 }}>My checklists</h3>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'center' }}>
-        <label className="nav-link" style={{ cursor: 'pointer' }}>
-          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} style={{ marginRight: 6 }} />
-          Show archived
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button className="auth-button" style={{ width: 'auto' }} onClick={newChecklist}>+ New checklist</button>
+        <label className="logout-button" style={{ cursor: 'pointer' }}>
+          {busy ? 'Importing\u2026' : 'Import from Excel / CSV'}
+          <input type="file" accept=".xlsx,.xls,.csv" onChange={onImport} disabled={busy} style={{ display: 'none' }} />
         </label>
+        {importMsg && <span style={{ fontSize: 13, color: importMsg.startsWith('Import failed') ? '#b0342f' : '#1a7f37' }}>{importMsg}</span>}
       </div>
 
-      {loading ? (
-        <p style={{ color: 'var(--mist)' }}>Loading…</p>
-      ) : myTemplates.length === 0 ? (
-        <p style={{ color: 'var(--mist)', marginBottom: 28 }}>No checklists yet. Create one above, or copy a system template below.</p>
+      {loading ? <p style={{ color: 'var(--mist)' }}>Loading\u2026</p> : checklists.length === 0 ? (
+        <div className="section-card" style={{ padding: 18 }}><p style={{ margin: 0 }}>No checklists yet. Import your Excel or create one.</p></div>
       ) : (
-        <div style={{ display: 'grid', gap: 10, marginBottom: 28 }}>
-          {myTemplates.map((t) => (
-            <div key={t.id} style={{ border: '1px solid var(--line, #E2E6ED)', borderRadius: 8, padding: '12px 16px', background: 'var(--panel)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {checklists.map((cl) => (
+            <div key={cl.id} className="section-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontWeight: 600 }}>{t.name}{t.offers_enabled && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: '#0F6E56', background: '#E1F5EE', padding: '1px 6px', borderRadius: 4 }}>OFFERS ON</span>}</div>
-                <div style={{ fontSize: 12, color: 'var(--mist)' }}>{typeLabel(t.checklist_type)} · {equipLabel(t.equipment_type)}{t.source_template_id ? ' · copied from system' : ''}</div>
+                <div style={{ fontWeight: 700 }}>{cl.name} {!cl.is_active && <span style={{ fontSize: 12, color: 'var(--mist)' }}>(inactive)</span>}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--mist)' }}>{equipLabel(cl.equipment_type)} \u00B7 {cl.checklist_items?.[0]?.count ?? 0} items</div>
               </div>
-              <div className="grid-actions">
-                <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => setOpenId(t.id)}>Edit</button>
-                <button className="logout-button" onClick={() => toggleActive(t)}>{t.is_active ? 'Archive' : 'Reactivate'}</button>
-              </div>
+              <button className="logout-button" onClick={() => openEditor(cl)}>Edit</button>
             </div>
           ))}
         </div>
       )}
-
-      {systemTemplates.length > 0 && (
-        <>
-          <h3 style={{ marginBottom: 6 }}>System library</h3>
-          <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0, marginBottom: 12 }}>Journey's ready-made, standards-backed checklists. Copy one to customize it for your business — the original stays untouched.</p>
-          <div style={{ display: 'grid', gap: 10 }}>
-            {systemTemplates.map((t) => (
-              <div key={t.id} style={{ border: '1px solid var(--line, #E2E6ED)', borderRadius: 8, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--mist)' }}>{typeLabel(t.checklist_type)} · {equipLabel(t.equipment_type)}</div>
-                </div>
-                <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => cloneSystem(t)}>Copy &amp; customize</button>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-const emptyItem = { label: '', guidance: '', recommendation_internal: '', recommendation_customer: '', requires_photo: false }
-
-function TemplateEditor({ templateId, orgId, onBack }) {
-  const [tpl, setTpl] = useState(null)
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [meta, setMeta] = useState(null)
-  const [metaSaved, setMetaSaved] = useState(false)
-  const [newItem, setNewItem] = useState(emptyItem)
-  const [editingId, setEditingId] = useState(null)
-  const [editItem, setEditItem] = useState(emptyItem)
-  const [libraryItems, setLibraryItems] = useState([])
-  const [libPick, setLibPick] = useState('')
-
-  async function load() {
-    setLoading(true)
-    const { data: t } = await supabase.from('checklist_templates')
-      .select('id, name, subtitle, checklist_type, equipment_type, offers_enabled, source_template_id')
-      .eq('id', templateId).single()
-    setTpl(t)
-    setMeta({
-      name: t?.name || '', subtitle: t?.subtitle || '',
-      checklist_type: t?.checklist_type || 'maintenance',
-      equipment_type: t?.equipment_type || '', offers_enabled: !!t?.offers_enabled,
-    })
-    const { data: its } = await supabase.from('checklist_template_items')
-      .select('id, sort_order, label, guidance, requires_photo, recommendation_internal, recommendation_customer')
-      .eq('template_id', templateId).eq('is_active', true).order('sort_order')
-    setItems(its || [])
-    setLoading(false)
-  }
-  useEffect(() => { load() }, [templateId])
-
-  useEffect(() => {
-    supabase.from('checklist_templates').select('id, name').is('org_id', null).eq('is_active', true).then(async ({ data: sys }) => {
-      if (!sys || !sys.length) { setLibraryItems([]); return }
-      const { data: lib } = await supabase.from('checklist_template_items')
-        .select('label, guidance, requires_photo, template_id')
-        .in('template_id', sys.map((s) => s.id)).eq('is_active', true).order('label')
-      const seen = new Set()
-      const uniq = []
-      for (const it of lib || []) {
-        const key = it.label.trim().toLowerCase()
-        if (seen.has(key)) continue
-        seen.add(key); uniq.push(it)
-      }
-      setLibraryItems(uniq)
-    })
-  }, [])
-
-  async function saveMeta() {
-    await supabase.from('checklist_templates').update({
-      name: meta.name.trim(),
-      subtitle: meta.subtitle.trim() || null,
-      checklist_type: meta.checklist_type,
-      equipment_type: meta.equipment_type || null,
-      offers_enabled: meta.offers_enabled,
-    }).eq('id', templateId)
-    setMetaSaved(true)
-    setTimeout(() => setMetaSaved(false), 2000)
-    load()
-  }
-
-  async function addItem(data) {
-    if (!data.label.trim()) return
-    await supabase.from('checklist_template_items').insert({
-      template_id: templateId, org_id: orgId, sort_order: items.length,
-      label: data.label.trim(),
-      guidance: data.guidance.trim() || null,
-      recommendation_internal: data.recommendation_internal.trim() || null,
-      recommendation_customer: data.recommendation_customer.trim() || null,
-      requires_photo: !!data.requires_photo, is_active: true,
-    })
-    setNewItem(emptyItem)
-    load()
-  }
-
-  async function addFromLibrary() {
-    const it = libraryItems.find((l) => l.label === libPick)
-    if (!it) return
-    await addItem({ label: it.label, guidance: it.guidance || '', recommendation_internal: '', recommendation_customer: '', requires_photo: it.requires_photo })
-    setLibPick('')
-  }
-
-  function startEdit(it) {
-    setEditingId(it.id)
-    setEditItem({
-      label: it.label, guidance: it.guidance || '',
-      recommendation_internal: it.recommendation_internal || '',
-      recommendation_customer: it.recommendation_customer || '',
-      requires_photo: !!it.requires_photo,
-    })
-  }
-  async function saveEdit(id) {
-    await supabase.from('checklist_template_items').update({
-      label: editItem.label.trim(),
-      guidance: editItem.guidance.trim() || null,
-      recommendation_internal: editItem.recommendation_internal.trim() || null,
-      recommendation_customer: editItem.recommendation_customer.trim() || null,
-      requires_photo: !!editItem.requires_photo,
-    }).eq('id', id)
-    setEditingId(null)
-    load()
-  }
-  async function removeItem(it) {
-    if (!window.confirm(`Remove "${it.label}" from this checklist?`)) return
-    await supabase.from('checklist_template_items').update({ is_active: false }).eq('id', it.id)
-    load()
-  }
-  async function moveItem(it, dir) {
-    const idx = items.findIndex((x) => x.id === it.id)
-    const swap = dir === 'up' ? idx - 1 : idx + 1
-    if (swap < 0 || swap >= items.length) return
-    const other = items[swap]
-    await Promise.all([
-      supabase.from('checklist_template_items').update({ sort_order: other.sort_order }).eq('id', it.id),
-      supabase.from('checklist_template_items').update({ sort_order: it.sort_order }).eq('id', other.id),
-    ])
-    load()
-  }
-
-  if (loading || !meta) return <p style={{ color: 'var(--mist)' }}>Loading…</p>
-
-  const offersOn = meta.offers_enabled
-
-  return (
-    <div>
-      <button className="logout-button" style={{ marginBottom: 12 }} onClick={onBack}>← Back to checklists</button>
-      <h2 className="page-title" style={{ marginBottom: 4 }}>{tpl?.name}</h2>
-      {tpl?.source_template_id && <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 0 }}>Copied from a system template — edits here only affect your copy.</p>}
-
-      <div style={{ border: '1px solid var(--line, #E2E6ED)', borderRadius: 8, padding: 16, marginBottom: 24, background: 'var(--panel)' }}>
-        <div className="inline-form" style={{ flexWrap: 'wrap' }}>
-          <div className="field"><label>Name</label><input type="text" value={meta.name} onChange={(e) => setMeta((m) => ({ ...m, name: e.target.value }))} /></div>
-          <div className="field" style={{ minWidth: 280 }}><label>Subtitle</label><input type="text" value={meta.subtitle} onChange={(e) => setMeta((m) => ({ ...m, subtitle: e.target.value }))} placeholder="Shown to the customer under the title" /></div>
-          <div className="field"><label>Type</label>
-            <select value={meta.checklist_type} onChange={(e) => setMeta((m) => ({ ...m, checklist_type: e.target.value }))}>{TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</select>
-          </div>
-          <div className="field"><label>Equipment</label>
-            <select value={meta.equipment_type} onChange={(e) => setMeta((m) => ({ ...m, equipment_type: e.target.value }))}>{EQUIPMENT.map((e2) => <option key={e2.value} value={e2.value}>{e2.label}</option>)}</select>
-          </div>
-        </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, cursor: 'pointer' }}>
-          <input type="checkbox" checked={meta.offers_enabled} onChange={(e) => setMeta((m) => ({ ...m, offers_enabled: e.target.checked }))} />
-          <span>Show the recommendation / offer layer <span style={{ color: 'var(--mist)', fontSize: 12 }}>(when off, techs see only the inspection tasks — no upsell prompts, nothing to the customer)</span></span>
-        </label>
-        <div style={{ marginTop: 10 }}>
-          <button className="auth-button" style={{ width: 'auto', padding: '8px 18px', margin: 0 }} onClick={saveMeta}>Save details</button>
-          {metaSaved && <span style={{ marginLeft: 10, color: '#0F6E56', fontSize: 13 }}>Saved</span>}
-        </div>
-      </div>
-
-      <h3 style={{ marginBottom: 10 }}>Checklist items <span style={{ color: 'var(--mist)', fontSize: 13, fontWeight: 400 }}>({items.length})</span></h3>
-
-      {items.length === 0 && <p style={{ color: 'var(--mist)' }}>No items yet. Add one below, or pull from the library.</p>}
-      <div style={{ display: 'grid', gap: 8, marginBottom: 20 }}>
-        {items.map((it, idx) => editingId === it.id ? (
-          <div key={it.id} style={{ border: '1px solid var(--jc-blue, #2563EB)', borderRadius: 8, padding: 14 }}>
-            <ItemFields data={editItem} setData={setEditItem} offersOn={offersOn} />
-            <div style={{ marginTop: 8 }}>
-              <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(it.id)}>Save item</button>
-              <button className="logout-button" style={{ marginLeft: 8 }} onClick={() => setEditingId(null)}>Cancel</button>
-            </div>
-          </div>
-        ) : (
-          <div key={it.id} style={{ border: '1px solid var(--line, #E2E6ED)', borderRadius: 8, padding: '10px 14px', background: 'var(--panel)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>{it.label}{it.requires_photo && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: '#185FA5', background: '#E6F1FB', padding: '1px 6px', borderRadius: 4 }}>PHOTO</span>}</div>
-              {it.guidance && <div style={{ fontSize: 12, color: 'var(--mist)', marginTop: 2 }}>{it.guidance}</div>}
-              {it.recommendation_internal && (
-                <div style={{ fontSize: 12, marginTop: 4 }}>
-                  <span style={{ color: '#993C1D', fontWeight: 600 }}>Tech: {it.recommendation_internal}</span>
-                  {offersOn && it.recommendation_customer && <span style={{ color: 'var(--mist)' }}>  ·  Customer sees: “{it.recommendation_customer}”</span>}
-                </div>
-              )}
-            </div>
-            <div className="grid-actions">
-              <button className="logout-button" onClick={() => moveItem(it, 'up')} disabled={idx === 0} title="Move up">↑</button>
-              <button className="logout-button" onClick={() => moveItem(it, 'down')} disabled={idx === items.length - 1} title="Move down">↓</button>
-              <button className="logout-button" onClick={() => startEdit(it)}>Edit</button>
-              <button className="logout-button" onClick={() => removeItem(it)}>Remove</button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {libraryItems.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 20, flexWrap: 'wrap' }}>
-          <div className="field" style={{ minWidth: 320, marginBottom: 0 }}>
-            <label>Add from library</label>
-            <select value={libPick} onChange={(e) => setLibPick(e.target.value)}>
-              <option value="">Pick a standard item…</option>
-              {libraryItems.map((l) => <option key={l.label} value={l.label}>{l.label}</option>)}
-            </select>
-          </div>
-          <button className="auth-button" style={{ width: 'auto', padding: '8px 16px', margin: 0 }} disabled={!libPick} onClick={addFromLibrary}>Add</button>
-        </div>
-      )}
-
-      <div style={{ border: '1px dashed var(--line, #C9CED6)', borderRadius: 8, padding: 14 }}>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>Add a new item</div>
-        <ItemFields data={newItem} setData={setNewItem} offersOn={offersOn} />
-        <div style={{ marginTop: 8 }}>
-          <button className="auth-button" style={{ width: 'auto', padding: '6px 16px', margin: 0 }} onClick={() => addItem(newItem)} disabled={!newItem.label.trim()}>Add item</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ItemFields({ data, setData, offersOn }) {
-  const set = (k, v) => setData((d) => ({ ...d, [k]: v }))
-  return (
-    <div style={{ display: 'grid', gap: 8 }}>
-      <div className="field" style={{ marginBottom: 0 }}>
-        <label>Inspection task <span style={{ color: 'var(--mist)', fontWeight: 400 }}>(the customer sees this)</span></label>
-        <input type="text" value={data.label} onChange={(e) => set('label', e.target.value)} placeholder="e.g. Inspect air filters for accumulation" />
-      </div>
-      <div className="field" style={{ marginBottom: 0 }}>
-        <label>Tech guidance <span style={{ color: 'var(--mist)', fontWeight: 400 }}>(optional coaching, tech-only)</span></label>
-        <input type="text" value={data.guidance} onChange={(e) => set('guidance', e.target.value)} placeholder="e.g. Clean or replace if pressure drop exceeds design" />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label style={{ color: '#993C1D' }}>Tech prompt <span style={{ color: 'var(--mist)', fontWeight: 400 }}>(blunt, never shown to customer)</span></label>
-          <input type="text" value={data.recommendation_internal} onChange={(e) => set('recommendation_internal', e.target.value)} placeholder="e.g. Sell filter subscription" />
-        </div>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label>Customer recommendation <span style={{ color: 'var(--mist)', fontWeight: 400 }}>{offersOn ? '(soft, shown on report)' : '(shown when offers are on)'}</span></label>
-          <input type="text" value={data.recommendation_customer} onChange={(e) => set('recommendation_customer', e.target.value)} placeholder="e.g. We recommend a filter subscription" />
-        </div>
-      </div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
-        <input type="checkbox" checked={data.requires_photo} onChange={(e) => set('requires_photo', e.target.checked)} />
-        Require a photo on this item
-      </label>
     </div>
   )
 }
