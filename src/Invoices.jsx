@@ -51,7 +51,7 @@ export default function Invoices({ profile }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [invoices, setInvoices] = useState([])
-  const [editDiagId, setEditDiagId] = useState(null)
+  const [editDiagInv, setEditDiagInv] = useState(null)
   const [diagDraft, setDiagDraft] = useState('')
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
@@ -434,11 +434,11 @@ export default function Invoices({ profile }) {
 
   async function saveDiagnosis(inv) {
     const val = diagDraft
-    setEditDiagId(null)
-    if (!inv.job_id) return
-    if ((inv.jobs?.diagnosis_note || '') === (val || '')) return
-    await supabase.from('jobs').update({ diagnosis_note: val || null }).eq('id', inv.job_id)
-    setInvoices((prev) => prev.map((r) => (r.job_id === inv.job_id && r.jobs) ? { ...r, jobs: { ...r.jobs, diagnosis_note: val } } : r))
+    if (inv.job_id && (inv.jobs?.diagnosis_note || '') !== (val || '')) {
+      await supabase.from('jobs').update({ diagnosis_note: val || null }).eq('id', inv.job_id)
+      setInvoices((prev) => prev.map((r) => (r.job_id === inv.job_id && r.jobs) ? { ...r, jobs: { ...r.jobs, diagnosis_note: val } } : r))
+    }
+    setEditDiagInv(null)
   }
 
   function cellValue(inv, key) {
@@ -625,24 +625,13 @@ export default function Invoices({ profile }) {
                           <span className="status-pill status-canceled">Draft</span>
                         )
                       ) : col.key === 'diagnosis' ? (
-                        editDiagId === inv.id ? (
-                          <textarea
-                            autoFocus
-                            value={diagDraft}
-                            onChange={(e) => setDiagDraft(e.target.value)}
-                            onBlur={() => saveDiagnosis(inv)}
-                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveDiagnosis(inv) } else if (e.key === 'Escape') { setEditDiagId(null) } }}
-                            style={{ width: '100%', minHeight: 46, fontSize: 12, border: '1px solid var(--route-blue)', borderRadius: 4, padding: '4px 6px', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical' }}
-                          />
-                        ) : (
-                          <div
-                            onClick={() => { if (inv.job_id) { setDiagDraft(inv.jobs?.diagnosis_note || ''); setEditDiagId(inv.id) } }}
-                            title={inv.job_id ? 'Click to edit the diagnosis' : 'No job linked to this invoice'}
-                            style={{ cursor: inv.job_id ? 'text' : 'default', width: '100%', minHeight: '1.1em', whiteSpace: 'normal', overflow: 'hidden' }}
-                          >
-                            {inv.jobs?.diagnosis_note || (inv.job_id ? <span style={{ color: 'var(--mist)' }}>—</span> : '')}
-                          </div>
-                        )
+                        <div
+                          onClick={() => { if (inv.job_id) { setDiagDraft(inv.jobs?.diagnosis_note || ''); setEditDiagInv(inv) } }}
+                          title={inv.job_id ? 'Click to edit the diagnosis' : 'No job linked to this invoice'}
+                          style={{ cursor: inv.job_id ? 'pointer' : 'default', width: '100%', whiteSpace: 'normal', overflow: 'hidden' }}
+                        >
+                          {inv.jobs?.diagnosis_note || (inv.job_id ? <span style={{ color: 'var(--mist)' }}>—</span> : '')}
+                        </div>
                       ) : (
                         cellValue(inv, col.key)
                       )}
@@ -688,6 +677,29 @@ export default function Invoices({ profile }) {
           onClose={() => setNewItemMode(null)}
           onCreated={() => loadInvoices(selectedOrg)}
         />
+      )}
+
+      {editDiagInv && (
+        <div onClick={() => setEditDiagInv(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--surface, #fff)', borderRadius: 14, width: '100%', maxWidth: 640, boxShadow: '0 24px 60px rgba(0,0,0,.35)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+              <h3 style={{ margin: 0 }}>Diagnosis · {editDiagInv.invoice_number}</h3>
+              <div style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 3 }}>{customerName(editDiagInv)}{editDiagInv.jobs?.job_number ? ` · Job ${editDiagInv.jobs.job_number}` : ''} — updates the job's diagnosis everywhere it appears.</div>
+            </div>
+            <div style={{ padding: '18px 20px' }}>
+              <textarea autoFocus value={diagDraft} onChange={(e) => setDiagDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { saveDiagnosis(editDiagInv) } else if (e.key === 'Escape') { setEditDiagInv(null) } }}
+                placeholder="Enter the diagnosis…"
+                style={{ width: '100%', minHeight: 220, fontSize: 14, lineHeight: 1.5, border: '1px solid var(--border)', borderRadius: 8, padding: 12, boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical' }} />
+              <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
+                <button className="logout-button" onClick={() => setEditDiagInv(null)}>Cancel</button>
+                <button className="auth-button" style={{ width: 'auto' }} onClick={() => saveDiagnosis(editDiagInv)}>Save diagnosis</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {payFor && (
