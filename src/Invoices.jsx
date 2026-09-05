@@ -51,6 +51,8 @@ export default function Invoices({ profile }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [invoices, setInvoices] = useState([])
+  const [editDiagId, setEditDiagId] = useState(null)
+  const [diagDraft, setDiagDraft] = useState('')
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
   const [showArchived, setShowArchived] = useState(false)
@@ -430,6 +432,15 @@ export default function Invoices({ profile }) {
     if (scrollTableRef.current) scrollTableRef.current.scrollLeft = e.target.scrollLeft
   }
 
+  async function saveDiagnosis(inv) {
+    const val = diagDraft
+    setEditDiagId(null)
+    if (!inv.job_id) return
+    if ((inv.jobs?.diagnosis_note || '') === (val || '')) return
+    await supabase.from('jobs').update({ diagnosis_note: val || null }).eq('id', inv.job_id)
+    setInvoices((prev) => prev.map((r) => (r.job_id === inv.job_id && r.jobs) ? { ...r, jobs: { ...r.jobs, diagnosis_note: val } } : r))
+  }
+
   function cellValue(inv, key) {
     if (key === 'invoice_date') return inv.invoice_date
     if (key === 'invoice_number') return inv.invoice_number
@@ -612,6 +623,25 @@ export default function Invoices({ profile }) {
                           <span className="status-pill status-trial">Sent</span>
                         ) : (
                           <span className="status-pill status-canceled">Draft</span>
+                        )
+                      ) : col.key === 'diagnosis' ? (
+                        editDiagId === inv.id ? (
+                          <textarea
+                            autoFocus
+                            value={diagDraft}
+                            onChange={(e) => setDiagDraft(e.target.value)}
+                            onBlur={() => saveDiagnosis(inv)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveDiagnosis(inv) } else if (e.key === 'Escape') { setEditDiagId(null) } }}
+                            style={{ width: '100%', minHeight: 46, fontSize: 12, border: '1px solid var(--route-blue)', borderRadius: 4, padding: '4px 6px', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical' }}
+                          />
+                        ) : (
+                          <div
+                            onClick={() => { if (inv.job_id) { setDiagDraft(inv.jobs?.diagnosis_note || ''); setEditDiagId(inv.id) } }}
+                            title={inv.job_id ? 'Click to edit the diagnosis' : 'No job linked to this invoice'}
+                            style={{ cursor: inv.job_id ? 'text' : 'default', width: '100%', minHeight: '1.1em', whiteSpace: 'normal', overflow: 'hidden' }}
+                          >
+                            {inv.jobs?.diagnosis_note || (inv.job_id ? <span style={{ color: 'var(--mist)' }}>—</span> : '')}
+                          </div>
                         )
                       ) : (
                         cellValue(inv, col.key)
