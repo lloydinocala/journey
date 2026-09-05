@@ -48,6 +48,8 @@ async function parseChecklistFile(file) {
   const col = (needle) => hdr.findIndex((h) => h.includes(needle))
   const ci = col('inspection'), cm = col('maintenance')
   const cEst = col('add to estimate'), cRep = col('add to report'), cHea = col('system health'), cSys = col('create system'), cRed = col('red')
+  const colStrict = (needle) => { let i = hdr.findIndex((h) => h === needle); if (i < 0) i = hdr.findIndex((h) => h.startsWith(needle)); return i }
+  const cType = colStrict('type'), cUnit = colStrict('unit'), cSpec = colStrict('spec')
   if (ci < 0) throw new Error('No "Inspection Task" column found.')
   const sections = []; let cur = null
   for (let i = headerIdx + 1; i < rows.length; i++) {
@@ -55,11 +57,16 @@ async function parseChecklistFile(file) {
     const insp = String(r[ci] ?? '').trim()
     if (!insp) continue
     const maint = cm >= 0 ? String(r[cm] ?? '').trim() : ''
+    const typeVal = cType >= 0 ? String(r[cType] ?? '').trim() : ''
+    const unitVal = cUnit >= 0 ? String(r[cUnit] ?? '').trim() : ''
+    const specVal = cSpec >= 0 ? String(r[cSpec] ?? '').trim() : ''
     const hasFlags = [cEst, cRep, cHea, cSys, cRed].some((idx) => idx >= 0 && String(r[idx] ?? '').trim() !== '')
-    if (!maint && !hasFlags) { cur = { name: insp, items: [] }; sections.push(cur); continue }
+    if (!maint && !hasFlags && !typeVal && !unitVal && !specVal) { cur = { name: insp, items: [] }; sections.push(cur); continue }
     if (!cur) { cur = { name: 'General', items: [] }; sections.push(cur) }
     cur.items.push({
       inspection_task: insp, maintenance_task: maint || null,
+      item_type: typeVal.toLowerCase().startsWith('meas') ? 'measure' : 'check',
+      record_units: unitVal || null, spec_label: specVal || null,
       add_to_estimate: cEst >= 0 && boolOf(r[cEst]),
       add_to_report: cRep >= 0 ? boolOf(r[cRep]) : true,
       system_health: cHea >= 0 && boolOf(r[cHea]),
@@ -70,6 +77,30 @@ async function parseChecklistFile(file) {
   if (!sections.length) throw new Error('No items found under the header row.')
   return { title: title || file.name.replace(/\.[^.]+$/, ''), equipment_type: guessEquip(title), sections }
 }
+
+const EXPORT_HEADER = ['Inspection Task', 'Maintenance Task', 'Type', 'Units', 'Spec', 'Add to Estimate', 'Add to Report', 'System Health', 'Create System Estimate', 'Red Tag']
+function checklistToRows(name, sections, items) {
+  const rows = [[name], [], EXPORT_HEADER]
+  for (const sec of [...sections].sort((a, b) => a.sort_order - b.sort_order)) {
+    rows.push([sec.name])
+    for (const it of items.filter((i) => i.section_id === sec.id).sort((a, b) => a.sort_order - b.sort_order)) {
+      rows.push([
+        it.inspection_task || '', it.maintenance_task || '',
+        it.item_type === 'measure' ? 'Measure' : 'Check', it.record_units || '', it.spec_label || '',
+        it.add_to_estimate ? 'TRUE' : 'FALSE', it.add_to_report ? 'TRUE' : 'FALSE', it.system_health ? 'TRUE' : 'FALSE',
+        it.create_system_estimate ? 'TRUE' : 'FALSE', it.red_tag ? 'TRUE' : 'FALSE',
+      ])
+    }
+  }
+  return rows
+}
+function downloadRowsXlsx(rows, filename) {
+  const ws = XLSX.utils.aoa_to_sheet(rows)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Checklist')
+  XLSX.writeFile(wb, filename)
+}
+const safeName = (n) => (n || 'checklist').replace(/[^\w\- ]+/g, '').trim() || 'checklist'
 
 export default function ChecklistTemplates({ profile }) {
   const isSuper = profile.role === 'super_admin'
@@ -82,6 +113,7 @@ export default function ChecklistTemplates({ profile }) {
   const [items, setItems] = useState([])           // flat; each has section_id
   const [importMsg, setImportMsg] = useState('')
   const [busy, setBusy] = useState(false)
+  const [replacing, setReplacing] = useState(false)
 
   useEffect(() => { if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => { setOrgs(data || []); if (!selectedOrg && data?.length) setSelectedOrg(data[0].id) }) }, [])
   useEffect(() => { if (selectedOrg) loadList() }, [selectedOrg])
@@ -121,6 +153,72 @@ export default function ChecklistTemplates({ profile }) {
       }
       setImportMsg(`Imported "${parsed.title}" — ${parsed.sections.length} sections, ${parsed.sections.reduce((n, s) => n + s.items.length, 0)} items.`)
       await loadList(); openEditor(cl)
+    } catch (err) { setImportMsg('Import failed: ' + (err.message || err)) }
+    setBusy(false)
+  }
+
+  // Import a file INTO the open checklist: replace its sections/items but keep the
+  // same checklist id (so the trip-charge link stays intact). Also refreshes name.
+  async function onReplaceImport(e) {
+    const file = e.target.files[0]; e.target.value = ''
+    if (!file || !editing) return
+    if (!window.confirm('Replace ALL sections & items in this checklist with the file\u2019s contents? The checklist and its trip-charge link stay the same.')) return
+    setReplacing(true); setImportMsg('')
+    try {
+      const parsed = await parseChecklistFile(file)
+      await supabase.from('checklist_items').delete().eq('checklist_id', editing.id)
+      await supabase.from('checklist_sections').delete().eq('checklist_id', editing.id)
+      let so = 0, io = 0
+      for (const sec of parsed.sections) {
+        const { data: sc } = await supabase.from('checklist_sections').insert({ org_id: selectedOrg, checklist_id: editing.id, name: sec.name, sort_order: so++ }).select().single()
+        if (sec.items.length) await supabase.from('checklist_items').insert(sec.items.map((it) => ({ org_id: selectedOrg, checklist_id: editing.id, section_id: sc.id, sort_order: io++, ...it })))
+      }
+      const patch = { name: parsed.title || editing.name, equipment_type: parsed.equipment_type || editing.equipment_type, updated_at: new Date().toISOString() }
+      await supabase.from('checklists').update(patch).eq('id', editing.id)
+      setEditing((c) => ({ ...c, ...patch }))
+      const [{ data: secs }, { data: its }] = await Promise.all([
+        supabase.from('checklist_sections').select('*').eq('checklist_id', editing.id).order('sort_order'),
+        supabase.from('checklist_items').select('*').eq('checklist_id', editing.id).order('sort_order'),
+      ])
+      setSections(secs || []); setItems(its || [])
+      setImportMsg(`Replaced with "${parsed.title}" \u2014 ${parsed.sections.length} sections, ${parsed.sections.reduce((n, x) => n + x.items.length, 0)} items.`)
+    } catch (err) { setImportMsg('Import failed: ' + (err.message || err)) }
+    setReplacing(false)
+  }
+
+  async function exportById(cl) {
+    const [{ data: secs }, { data: its }] = await Promise.all([
+      supabase.from('checklist_sections').select('*').eq('checklist_id', cl.id).order('sort_order'),
+      supabase.from('checklist_items').select('*').eq('checklist_id', cl.id).order('sort_order'),
+    ])
+    downloadRowsXlsx(checklistToRows(cl.name, secs || [], its || []), safeName(cl.name) + '.xlsx')
+  }
+  function exportCurrent() { downloadRowsXlsx(checklistToRows(editing.name, sections, items), safeName(editing.name) + '.xlsx') }
+  function downloadTemplate() {
+    const rows = [
+      ['My Checklist Name'], [], EXPORT_HEADER,
+      ['Section Name (a row with ONLY this first cell is a section header)'],
+      ['What to check', 'What to do / a note', 'Check', '', '', 'FALSE', 'TRUE', 'FALSE', 'FALSE', 'FALSE'],
+      ['Compressor amp draw', 'Record actual vs. nameplate', 'Measure', 'Amps', 'RLA/FLA', 'FALSE', 'TRUE', 'TRUE', 'TRUE', 'FALSE'],
+    ]
+    downloadRowsXlsx(rows, 'checklist-template.xlsx')
+  }
+  async function importReplace(e) {
+    const file = e.target.files[0]; e.target.value = ''
+    if (!file || !editing) return
+    setBusy(true); setImportMsg('')
+    try {
+      const parsed = await parseChecklistFile(file)
+      await supabase.from('checklist_items').delete().eq('checklist_id', editing.id)
+      await supabase.from('checklist_sections').delete().eq('checklist_id', editing.id)
+      await supabase.from('checklists').update({ name: parsed.title, equipment_type: parsed.equipment_type || editing.equipment_type, updated_at: new Date().toISOString() }).eq('id', editing.id)
+      let so = 0, io = 0
+      for (const sec of parsed.sections) {
+        const { data: sc } = await supabase.from('checklist_sections').insert({ org_id: selectedOrg, checklist_id: editing.id, name: sec.name, sort_order: so++ }).select().single()
+        if (sec.items.length) await supabase.from('checklist_items').insert(sec.items.map((it) => ({ org_id: selectedOrg, checklist_id: editing.id, section_id: sc.id, sort_order: io++, ...it })))
+      }
+      setImportMsg(`Replaced with "${parsed.title}" \u2014 ${parsed.sections.length} sections, ${parsed.sections.reduce((n, x) => n + x.items.length, 0)} items.`)
+      openEditor({ ...editing, name: parsed.title, equipment_type: parsed.equipment_type || editing.equipment_type })
     } catch (err) { setImportMsg('Import failed: ' + (err.message || err)) }
     setBusy(false)
   }
@@ -169,10 +267,21 @@ export default function ChecklistTemplates({ profile }) {
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, marginBottom: 8 }}>
               <input type="checkbox" checked={editing.is_active} onChange={(e) => patchChecklist('is_active', e.target.checked)} /> Active
             </label>
+            <button className="logout-button" style={{ marginBottom: 6 }} onClick={exportCurrent}>Export</button>
+            <label className="logout-button" style={{ marginBottom: 6, cursor: 'pointer' }}>{busy ? 'Importing\u2026' : 'Import (replace)'}<input type="file" accept=".xlsx,.xls,.csv" onChange={importReplace} disabled={busy} style={{ display: 'none' }} /></label>
             <button className="remove-item-btn" style={{ marginBottom: 6 }} onClick={() => delChecklist(editing)}>Delete</button>
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 10 }}>
+            {importMsg && <span style={{ display: 'block', marginBottom: 8, color: importMsg.startsWith('Import failed') ? '#b0342f' : '#1a7f37' }}>{importMsg}</span>}
             Flags route the tech’s finding: {FLAGS.map((f) => f.short).join(' · ')}. Set item type to <b>Measure</b> to capture a reading (amp draw, superheat…) with units + nameplate spec.
+          </div>
+          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <label className="logout-button" style={{ cursor: 'pointer' }}>
+              {replacing ? 'Importing…' : 'Import file (replace items)'}
+              <input type="file" accept=".xlsx,.xls,.csv" onChange={onReplaceImport} disabled={replacing} style={{ display: 'none' }} />
+            </label>
+            <span style={{ fontSize: 12, color: 'var(--mist)' }}>Fills this checklist from a file, keeping its trip-charge link.</span>
+            {importMsg && <span style={{ fontSize: 13, color: importMsg.startsWith('Import failed') ? '#b0342f' : '#1a7f37' }}>{importMsg}</span>}
           </div>
         </div>
 
@@ -237,6 +346,7 @@ export default function ChecklistTemplates({ profile }) {
           {busy ? 'Importing…' : 'Import from Excel / CSV'}
           <input type="file" accept=".xlsx,.xls,.csv" onChange={onImport} disabled={busy} style={{ display: 'none' }} />
         </label>
+        <button className="logout-button" onClick={downloadTemplate}>Download blank template</button>
         {importMsg && <span style={{ fontSize: 13, color: importMsg.startsWith('Import failed') ? '#b0342f' : '#1a7f37' }}>{importMsg}</span>}
       </div>
 
@@ -250,7 +360,10 @@ export default function ChecklistTemplates({ profile }) {
                 <div style={{ fontWeight: 700 }}>{cl.name} {!cl.is_active && <span style={{ fontSize: 12, color: 'var(--mist)' }}>(inactive)</span>}</div>
                 <div style={{ fontSize: 12.5, color: 'var(--mist)' }}>{equipLabel(cl.equipment_type)} · {cl.checklist_items?.[0]?.count ?? 0} items</div>
               </div>
-              <button className="logout-button" onClick={() => openEditor(cl)}>Edit</button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="logout-button" onClick={() => exportById(cl)}>Export</button>
+                <button className="logout-button" onClick={() => openEditor(cl)}>Edit</button>
+              </div>
             </div>
           ))}
         </div>
