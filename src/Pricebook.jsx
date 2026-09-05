@@ -37,6 +37,7 @@ export default function Pricebook({ profile }) {
   const [selectedServiceId, setSelectedServiceId] = useState(null)
   const [selectedServiceInfo, setSelectedServiceInfo] = useState(null)
   const [variants, setVariants] = useState([])
+  const [checklists, setChecklists] = useState([])
   const [loadingVariants, setLoadingVariants] = useState(false)
 
   const [newLocation, setNewLocation] = useState(LOCATIONS[0])
@@ -86,13 +87,24 @@ export default function Pricebook({ profile }) {
       })
   }, [selectedOrg])
 
+  async function loadChecklistOptions(orgId) {
+    const { data } = await supabase.from('checklists').select('id, name').eq('org_id', orgId).eq('is_active', true).order('name')
+    setChecklists(data || [])
+  }
+
+  async function setServiceChecklist(serviceId, checklistId) {
+    await supabase.from('services').update({ checklist_id: checklistId || null }).eq('id', serviceId)
+    loadServices(selectedOrg)
+  }
+
   async function loadServices(orgId) {
+    loadChecklistOptions(orgId)
     if (!orgId) return
     setLoadingServices(true)
     const data = await fetchAllRows(() => {
       let q = supabase
         .from('services')
-        .select('id, category, name, is_tax_exempt, is_active')
+        .select('id, category, name, is_tax_exempt, is_active, checklist_id')
         .eq('org_id', orgId)
       if (statusFilter === 'active') q = q.eq('is_active', true)
       else if (statusFilter === 'archived') q = q.eq('is_active', false)
@@ -725,6 +737,18 @@ async function loadVariants(serviceId) {
         <div ref={variantsPanelRef} style={{ marginTop: 32 }}>
           <h3 style={{ fontSize: 16, marginBottom: 4 }}>{selectedServiceInfo?.category} — {selectedServiceInfo?.name}</h3>
           <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0, marginBottom: 16 }}>Price variants for this service</p>
+
+          <div style={{ marginBottom: 20, maxWidth: 480 }}>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Checklist for this trip charge</label>
+            <select value={selectedServiceInfo?.checklist_id || ''} onChange={(e) => setServiceChecklist(selectedServiceId, e.target.value)}
+              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, minWidth: 300 }}>
+              <option value="">— No checklist —</option>
+              {checklists.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <div style={{ fontSize: 12, color: 'var(--mist)', marginTop: 5, maxWidth: 460 }}>
+              When set, this becomes a checklist visit: the tech performs this checklist in place of a diagnosis, and its name is what the customer sees on the report.
+            </div>
+          </div>
 
           <form className="inline-form" onSubmit={handleAddVariant} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
             <div className="field">
