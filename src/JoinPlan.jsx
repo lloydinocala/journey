@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 
 export default function JoinPlan() {
@@ -13,6 +13,8 @@ export default function JoinPlan() {
   const [checkoutError, setCheckoutError] = useState('')
 
   const checkoutStatus = searchParams.get('checkout')
+  const nav = useNavigate()
+  const goBack = () => { if (window.history.length > 1) nav(-1); else nav('/portal') }
 
   useEffect(() => {
     supabase.functions
@@ -53,8 +55,9 @@ export default function JoinPlan() {
 
   if (error || !data) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C0392B' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', justifyContent: 'center', color: '#C0392B' }}>
         {error || 'Plans not found.'}
+        <button onClick={goBack} style={{ background: 'none', border: '1px solid #C0392B', color: '#C0392B', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>‹ Back</button>
       </div>
     )
   }
@@ -69,6 +72,7 @@ export default function JoinPlan() {
         <div style={{ maxWidth: 480, margin: '0 auto', background: 'white', borderRadius: 12, padding: 40, textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
           <h2 style={{ color: primary }}>You're all set!</h2>
           <p style={{ color: '#64748B' }}>Your maintenance plan is confirmed. {org?.name || 'We'}'ll be in touch to schedule your first visit.</p>
+          <a href="/portal" style={{ display: 'inline-block', marginTop: 18, background: primary, color: '#fff', padding: '10px 24px', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>Back to my account</a>
         </div>
       </div>
     )
@@ -77,6 +81,7 @@ export default function JoinPlan() {
   return (
     <div style={{ minHeight: '100vh', padding: '40px 20px', background: '#EEF1F6' }}>
       <div style={{ maxWidth: 700, margin: '0 auto' }}>
+        <button onClick={goBack} style={{ background: 'none', border: 'none', color: primary, fontSize: 15, fontWeight: 600, cursor: 'pointer', padding: '0 0 14px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>‹ Back</button>
         <div style={{ background: 'white', borderRadius: 12, padding: 32, marginBottom: 20, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
           {org?.logo_url ? (
             <img src={org.logo_url} alt={org.name} style={{ maxHeight: 60, maxWidth: 200, marginBottom: 10, display: 'block' }} />
