@@ -33,6 +33,8 @@ function boldEquipmentLines(text) {
 
 export default function InvoiceDocument({ data, footer }) {
   const { invoice, org, job, property, customer, lineItems, technicians } = data
+  const diagnosisItems = (lineItems || []).filter((li) => li.category === 'DIAGNOSIS')
+  const bodyItems = (lineItems || []).filter((li) => li.category !== 'DIAGNOSIS')
   const primary = org?.brand_primary_color || '#2F5DE3'
   const isEstimate = invoice.kind === 'estimate'
   const docLabel = isEstimate ? 'Estimate' : 'Invoice'
@@ -144,6 +146,15 @@ export default function InvoiceDocument({ data, footer }) {
         {docLabel.toUpperCase()} {invoice.invoice_number}
       </div>
 
+      {diagnosisItems.length > 0 && (
+        <div style={{ border: '1px solid #E2E6EA', borderLeft: `4px solid ${primary}`, background: '#FbFcFe', borderRadius: 6, padding: '10px 14px', marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: '#7A8290', marginBottom: 4 }}>Diagnosis</div>
+          {diagnosisItems.map((d, i) => (
+            <div key={i} style={{ fontSize: 13.5, lineHeight: 1.5, whiteSpace: 'pre-wrap', color: '#1a2733' }}>{(d.description || '').replace(/^Diagnosis:\s*/i, '')}</div>
+          ))}
+        </div>
+      )}
+
       {!isEstimate && invoice.pre_approved_by && (
         <div style={{ border: '1px solid #1F7A43', color: '#1F7A43', background: '#F0F9F4', padding: '8px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
           Repair Pre-Approved by: {invoice.pre_approved_by}
@@ -157,7 +168,7 @@ export default function InvoiceDocument({ data, footer }) {
           <div style={{ flex: 1, textAlign: 'right' }}>Unit Price</div>
           <div style={{ flex: 1, textAlign: 'right' }}>Amount</div>
         </div>
-        {lineItems.filter((li) => !(li.is_custom && li.custom_status === 'pending')).map((li, idx) => (
+        {bodyItems.filter((li) => !(li.is_custom && li.custom_status === 'pending')).map((li, idx) => (
           <div
             key={idx}
             style={{
