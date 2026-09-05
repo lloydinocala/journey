@@ -21,6 +21,7 @@ const COLUMNS = [
   { key: 'customer', label: 'Customer', required: true, width: 150 },
   { key: 'segment', label: 'Segment', width: 70 },
   { key: 'customer_mobile', label: 'Customer Mobile', width: 120 },
+  { key: 'diagnosis', label: 'Diagnosis', width: 260 },
   // The first line item is always the Trip Charge (sort_order 1); the rest are
   // the real line items, numbered from 1.
   ...Array.from({ length: LINE_ITEM_COUNT }, (_, i) => ({
@@ -117,7 +118,7 @@ export default function Invoices({ profile }) {
     if (jobIds.length) {
       const { data: jobs } = await supabase
         .from('jobs')
-        .select('id, job_number, segment, status, properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) ), job_technicians ( sort_order, users ( full_name ) )')
+        .select('id, job_number, segment, status, diagnosis_note, properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) ), job_technicians ( sort_order, users ( full_name ) )')
         .in('id', jobIds)
       jobById = Object.fromEntries((jobs || []).map((j) => [j.id, j]))
     }
@@ -436,6 +437,7 @@ export default function Invoices({ profile }) {
     if (key === 'segment') return inv.jobs?.segment ?? ''
     if (key === 'customer') return customerName(inv)
     if (key === 'customer_mobile') return customerMobile(inv)
+    if (key === 'diagnosis') return inv.jobs?.diagnosis_note || ''
     if (key.startsWith('line_item_')) {
       const idx = parseInt(key.replace('line_item_', ''), 10) - 1
       return lineItemAt(inv, idx)
