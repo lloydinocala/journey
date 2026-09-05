@@ -5,11 +5,10 @@ import OrgPicker from './OrgPicker'
 
 const EQUIPMENT = [
   { value: '', label: 'Any equipment' },
-  { value: 'furnace', label: 'Gas Furnace' },
-  { value: 'heat_pump', label: 'Heat Pump' },
-  { value: 'ac', label: 'AC / Split System' },
-  { value: 'mini_split', label: 'Mini-Split' },
+  { value: 'gas_furnace', label: 'Gas Furnace' },   // gas furnace + AC
+  { value: 'split_system', label: 'Split System' },  // all-electric: heat pump or AC
   { value: 'package', label: 'Package Unit' },
+  { value: 'mini_split', label: 'Mini-Split' },
 ]
 const equipLabel = (v) => (EQUIPMENT.find((e) => e.value === (v || '')) || {}).label || v || 'Any'
 
@@ -25,11 +24,10 @@ const boolOf = (v) => { const s = String(v ?? '').trim().toLowerCase(); return s
 
 function guessEquip(title) {
   const t = (title || '').toLowerCase()
-  if (t.includes('furnace')) return 'furnace'
-  if (t.includes('heat pump')) return 'heat_pump'
+  if (t.includes('furnace')) return 'gas_furnace'
   if (t.includes('mini')) return 'mini_split'
   if (t.includes('package')) return 'package'
-  if (t.includes('ac') || t.includes('split') || t.includes('condenser')) return 'ac'
+  if (t.includes('heat pump') || t.includes('split') || t.includes('condenser') || t.includes(' ac')) return 'split_system'
   return ''
 }
 
