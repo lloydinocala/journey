@@ -33,7 +33,7 @@ function boldEquipmentLines(text) {
 
 export default function InvoiceDocument({ data, footer }) {
   const { invoice, org, job, property, customer, lineItems, technicians } = data
-  const diagnosisItems = (lineItems || []).filter((li) => li.category === 'DIAGNOSIS')
+  const diagText = ((job?.diagnosis_note || '').trim()) || (((lineItems || []).find((li) => li.category === 'DIAGNOSIS')?.description || '').replace(/^Diagnosis:\s*/i, '').trim())
   const bodyItems = (lineItems || []).filter((li) => li.category !== 'DIAGNOSIS')
   const primary = org?.brand_primary_color || '#2F5DE3'
   const isEstimate = invoice.kind === 'estimate'
@@ -146,12 +146,10 @@ export default function InvoiceDocument({ data, footer }) {
         {docLabel.toUpperCase()} {invoice.invoice_number}
       </div>
 
-      {diagnosisItems.length > 0 && (
+      {diagText && (
         <div style={{ border: '1px solid #E2E6EA', borderLeft: `4px solid ${primary}`, background: '#FbFcFe', borderRadius: 6, padding: '10px 14px', marginBottom: 20 }}>
           <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: '#7A8290', marginBottom: 4 }}>Diagnosis</div>
-          {diagnosisItems.map((d, i) => (
-            <div key={i} style={{ fontSize: 13.5, lineHeight: 1.5, whiteSpace: 'pre-wrap', color: '#1a2733' }}>{(d.description || '').replace(/^Diagnosis:\s*/i, '')}</div>
-          ))}
+          <div style={{ fontSize: 13.5, lineHeight: 1.5, whiteSpace: 'pre-wrap', color: '#1a2733' }}>{diagText}</div>
         </div>
       )}
 
