@@ -48,7 +48,7 @@ export default function CustomerPortal() {
     // so each subscriber's customers install THAT contractor's name/icon/colors.
     const brandName = org?.name || 'Customer Portal'
     const brandColor = org?.brand_primary_color || '#4E95D9'
-    const iconSrc = org?.logo_url || '/portal-icon.png'
+    const iconSrc = org?.app_icon_url || org?.logo_url || '/portal-icon.png'
     const manifest = {
       name: brandName, short_name: brandName,
       start_url: '/portal', scope: '/portal', display: 'standalone',
@@ -96,7 +96,7 @@ export default function CustomerPortal() {
         .eq('is_active', true)
       const { data: o } = await supabase
         .from('organizations')
-        .select('name, logo_url, brand_primary_color')
+        .select('name, logo_url, app_icon_url, brand_primary_color')
         .eq('id', cust.org_id).maybeSingle()
       if (!live) return
       setProperties(props || [])

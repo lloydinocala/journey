@@ -48,6 +48,9 @@ export default function Settings({ profile }) {
   const [taxSaved, setTaxSaved] = useState(false)
 
  const [logoUrl, setLogoUrl] = useState('')
+  const [appIconUrl, setAppIconUrl] = useState('')
+  const [uploadingIcon, setUploadingIcon] = useState(false)
+  const [iconError, setIconError] = useState('')
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [logoError, setLogoError] = useState('')
   const [brandPrimary, setBrandPrimary] = useState('#2F5DE3')
@@ -103,7 +106,7 @@ export default function Settings({ profile }) {
     if (!orgId) return
     const { data } = await supabase
       .from('organizations')
-    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, discount_self_approve, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, google_review_url, license_number, payment_terms_days, logo_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
+    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, discount_self_approve, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, google_review_url, license_number, payment_terms_days, logo_url, app_icon_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
       .eq('id', orgId)
       .single()
     if (data) {
@@ -124,6 +127,7 @@ export default function Settings({ profile }) {
       setLicenseNumber(data.license_number || '')
       setPaymentTermsDays(String(data.payment_terms_days))
      setLogoUrl(data.logo_url || '')
+    setAppIconUrl(data.app_icon_url || '')
     setBrandPrimary(data.brand_primary_color || '#2F5DE3')
       setBrandAccent(data.brand_accent_color || '#B8720A')
       setStripeAccountId(data.stripe_account_id)
@@ -187,6 +191,21 @@ export default function Settings({ profile }) {
     await supabase.from('organizations').update({ logo_url: newUrl }).eq('id', selectedOrg)
     setLogoUrl(newUrl)
     setUploadingLogo(false)
+    e.target.value = ''
+  }
+
+  async function handleAppIconUpload(e) {
+    const file = e.target.files[0]
+    if (!file || !selectedOrg) return
+    setIconError(''); setUploadingIcon(true)
+    const ext = file.name.split('.').pop()
+    const path = selectedOrg + '/app-icon.' + ext
+    const up = await supabase.storage.from('org-logos').upload(path, file, { upsert: true })
+    if (up.error) { setIconError(up.error.message); setUploadingIcon(false); return }
+    const newUrl = supabase.storage.from('org-logos').getPublicUrl(path).data.publicUrl + '?t=' + Date.now()
+    await supabase.from('organizations').update({ app_icon_url: newUrl }).eq('id', selectedOrg)
+    setAppIconUrl(newUrl)
+    setUploadingIcon(false)
     e.target.value = ''
   }
 
@@ -332,6 +351,21 @@ export default function Settings({ profile }) {
           <input type="file" accept="image/*" onChange={handleLogoUpload} disabled={uploadingLogo || !selectedOrg} />
           {uploadingLogo && <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 4 }}>Uploading…</p>}
           {logoError && <p style={{ color: '#C0392B', fontSize: 13, marginTop: 4 }}>{logoError}</p>}
+        </div>
+      </div>
+
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>App Icon</h3>
+      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 16 }}>
+        The icon customers see when they install your portal on their phone. Use a <strong>square PNG, 512&times;512</strong> for the crispest result. Falls back to your logo if not set.
+      </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
+        {appIconUrl && (
+          <img src={appIconUrl} alt="App icon" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 14, border: '1px solid var(--border)' }} />
+        )}
+        <div>
+          <input type="file" accept="image/*" onChange={handleAppIconUpload} disabled={uploadingIcon || !selectedOrg} />
+          {uploadingIcon && <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 4 }}>Uploading…</p>}
+          {iconError && <p style={{ color: '#C0392B', fontSize: 13, marginTop: 4 }}>{iconError}</p>}
         </div>
       </div>
 
