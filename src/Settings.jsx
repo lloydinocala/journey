@@ -23,6 +23,7 @@ export default function Settings({ profile }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [jobTypes, setJobTypes] = useState([])
+  const [checklists, setChecklists] = useState([])
   const [loading, setLoading] = useState(true)
   const [newType, setNewType] = useState('')
   const [saving, setSaving] = useState(false)
@@ -89,10 +90,12 @@ export default function Settings({ profile }) {
     setLoading(true)
     const { data } = await supabase
       .from('job_types')
-      .select('id, name, sort_order, is_active')
+      .select('id, name, sort_order, is_active, checklist_id')
       .eq('org_id', orgId)
       .order('sort_order')
     setJobTypes(data || [])
+    const { data: cls } = await supabase.from('checklists').select('id, name').eq('org_id', orgId).eq('is_active', true).order('name')
+    setChecklists(cls || [])
     setLoading(false)
   }
 
@@ -286,6 +289,10 @@ export default function Settings({ profile }) {
   async function toggleActive(id, current) {
     await supabase.from('job_types').update({ is_active: !current }).eq('id', id)
     loadJobTypes(selectedOrg)
+  }
+  async function setTypeChecklist(id, checklistId) {
+    await supabase.from('job_types').update({ checklist_id: checklistId || null }).eq('id', id)
+    setJobTypes((ts) => ts.map((t) => (t.id === id ? { ...t, checklist_id: checklistId || null } : t)))
   }
 
   function startEdit(t) {
@@ -542,8 +549,9 @@ export default function Settings({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div className="grid-table" style={{ gridTemplateColumns: '1.5fr 1fr 1.5fr' }}>
+        <div className="grid-table" style={{ gridTemplateColumns: '1.4fr 1.7fr 0.8fr 1.3fr' }}>
           <div className="grid-cell grid-head">Name</div>
+          <div className="grid-cell grid-head">Checklist</div>
           <div className="grid-cell grid-head">Status</div>
           <div className="grid-cell grid-head"></div>
 
@@ -552,6 +560,12 @@ export default function Settings({ profile }) {
               <>
                 <div className="grid-cell">
                   <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                </div>
+                <div className="grid-cell">
+                  <select value={t.checklist_id || ''} onChange={(e) => setTypeChecklist(t.id, e.target.value)} style={{ maxWidth: '100%' }}>
+                    <option value="">— No checklist —</option>
+                    {checklists.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
                 </div>
                 <div className="grid-cell">
                   <span className={`status-pill ${t.is_active ? 'status-active' : 'status-canceled'}`}>
@@ -566,6 +580,12 @@ export default function Settings({ profile }) {
             ) : (
               <>
                 <div className="grid-cell">{t.name}</div>
+                <div className="grid-cell">
+                  <select value={t.checklist_id || ''} onChange={(e) => setTypeChecklist(t.id, e.target.value)} style={{ maxWidth: '100%' }}>
+                    <option value="">— No checklist —</option>
+                    {checklists.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
                 <div className="grid-cell">
                   <span className={`status-pill ${t.is_active ? 'status-active' : 'status-canceled'}`}>
                     {t.is_active ? 'Active' : 'Off'}
