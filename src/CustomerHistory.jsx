@@ -189,6 +189,14 @@ export default function CustomerHistory({ profile }) {
     setLoading(false)
   }
 
+  async function deleteAttachment(a) {
+    if (!window.confirm(`Delete "${a.caption || a.file_name || 'this file'}"? This cannot be undone.`)) return
+    if (a.file_path) { try { await supabase.storage.from('job-photos').remove([a.file_path]) } catch (_) { /* ignore storage errors */ } }
+    await supabase.from('attachments').delete().eq('id', a.id)
+    setAttachments((list) => list.filter((x) => x.id !== a.id))
+    setPhotoUrls((u) => { const n = { ...u }; delete n[a.id]; return n })
+  }
+
   // Warranty helpers (shared logic in ./Warranty). Month-precise; parts from the
   // manufacture date unless we installed it, labor/refrigerant 1 yr from install.
   const WARR_PILL_STYLE = (state) => ({
@@ -759,7 +767,9 @@ export default function CustomerHistory({ profile }) {
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
               {attachments.map((a) => (
-                <div key={a.id} style={{ width: 180 }}>
+                <div key={a.id} style={{ width: 180, position: 'relative' }}>
+                  <button className="no-print" onClick={() => deleteAttachment(a)} title="Delete"
+                    style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none', borderRadius: 6, width: 24, height: 24, cursor: 'pointer', fontSize: 13, lineHeight: '20px', padding: 0 }}>✕</button>
                   {a.category === 'photo' && photoUrls[a.id] ? (
                     <img
                       src={photoUrls[a.id]}
