@@ -38,6 +38,8 @@ export default function TechEstimate({ profile }) {
   const [job, setJob] = useState(null)
   const [estimate, setEstimate] = useState(null)
   const [lineItems, setLineItems] = useState([])
+  const [findings, setFindings] = useState([])
+  const [pullingFindings, setPullingFindings] = useState(false)
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState([])
   const [equipList, setEquipList] = useState([])
@@ -166,6 +168,29 @@ export default function TechEstimate({ profile }) {
   async function loadLineItems(estimateId) {
     const { data } = await supabase.from('invoice_line_items').select('*').eq('invoice_id', estimateId).order('sort_order')
     setLineItems(data || [])
+  }
+
+  async function loadFindings() {
+    const { data: run } = await supabase.from('checklist_runs').select('id').eq('job_id', jobId).maybeSingle()
+    if (!run) { setFindings([]); return }
+    const { data: res } = await supabase.from('checklist_results')
+      .select('inspection_task, maintenance_task, section_name, create_system_estimate, red_tag')
+      .eq('run_id', run.id).eq('status', 'problem').eq('add_to_estimate', true).order('sort_order')
+    setFindings(res || [])
+  }
+  useEffect(() => { if (jobId) loadFindings() }, [jobId])
+  async function pullFindings(items) {
+    if (!estimate || !items.length) return
+    setPullingFindings(true)
+    let sort = lineItems.length > 0 ? Math.max(...lineItems.map((li) => li.sort_order)) + 1 : 1
+    const rows = items.map((f) => ({
+      invoice_id: estimate.id, org_id: job.org_id,
+      description: (f.maintenance_task || f.inspection_task || 'Recommended repair'),
+      unit_price: 0, quantity: 1, taxable: true, is_custom: true, sort_order: sort++, category: 'CHECKLIST FINDINGS',
+    }))
+    await supabase.from('invoice_line_items').insert(rows)
+    setPullingFindings(false)
+    loadLineItems(estimate.id)
   }
 
   async function syncEquipmentLine(estimateId, jobData) {
@@ -561,6 +586,35 @@ export default function TechEstimate({ profile }) {
             ))}
           </div>
         </div>
+
+        {(() => {
+          const pulled = new Set(lineItems.filter((li) => li.category === 'CHECKLIST FINDINGS').map((li) => li.description))
+          const unpulled = findings.filter((f) => !pulled.has(f.maintenance_task || f.inspection_task || 'Recommended repair'))
+          if (unpulled.length === 0) return null
+          return (
+            <div className="section-card">
+              <div className="section-card-header"><span>Checklist Findings</span></div>
+              <div className="section-card-body">
+                <p className="jc-muted-note" style={{ marginBottom: 10 }}>Flagged as problems on the checklist. Add to the estimate, then price each line.</p>
+                {unpulled.map((f, i) => (
+                  <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid #F1F4F8', fontSize: 13.5 }}>
+                    <strong>{f.inspection_task}</strong>
+                    {f.maintenance_task && <div style={{ color: 'var(--mist)', fontSize: 12.5 }}>{f.maintenance_task}</div>}
+                    {(f.create_system_estimate || f.red_tag) && (
+                      <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                        {f.create_system_estimate && <span style={{ fontSize: 11, fontWeight: 700, color: '#C8811B' }}>suggests replacement</span>}
+                        {f.red_tag && <span style={{ fontSize: 11, fontWeight: 700, color: '#C0392B' }}>RED TAG</span>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <button className="action-btn primary" style={{ marginTop: 12, padding: '9px 20px', flex: 'none' }} onClick={() => pullFindings(unpulled)} disabled={pullingFindings}>
+                  {pullingFindings ? 'Adding…' : `Add ${unpulled.length} finding${unpulled.length > 1 ? 's' : ''} to estimate`}
+                </button>
+              </div>
+            </div>
+          )
+        })()}
 
         <div className="section-card">
           <div className="section-card-header"><span>Add Service</span></div>
