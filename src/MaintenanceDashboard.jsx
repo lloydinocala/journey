@@ -48,7 +48,7 @@ export default function MaintenanceDashboard({ profile }) {
       supabase.from('properties').select('id, street_address, unit, city, customer_id').eq('org_id', orgId),
       supabase.from('customers').select('id, display_name').eq('org_id', orgId),
       supabase.from('maintenance_agreement_tiers').select('id, name').eq('org_id', orgId),
-      supabase.from('jobs').select('id, job_number, completed_at, property_id, customer_id').eq('org_id', orgId).eq('status', 'completed').gte('completed_at', since).order('completed_at', { ascending: false }),
+      supabase.from('jobs').select('id, job_number, completed_at, property_id, customer_id').eq('org_id', orgId).eq('status', 'completed').is('deleted_at', null).gte('completed_at', since).order('completed_at', { ascending: false }),
     ])
 
     const propMap = Object.fromEntries((props || []).map((p) => [p.id, p]))

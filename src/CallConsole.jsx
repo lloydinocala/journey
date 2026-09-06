@@ -53,7 +53,7 @@ export default function CallConsole({ profile }) {
         supabase.from('properties').select('id, street_address, unit, city, state, zip').eq('customer_id', selected.id),
         supabase.from('maintenance_agreements').select('status, billing_cycle, tier:maintenance_agreement_tiers(name)').eq('customer_id', selected.id).eq('status', 'active'),
         supabase.from('jobs').select('id, job_number, job_date, status, job_type, date_pending').eq('customer_id', selected.id).is('deleted_at', null).neq('status', 'cancelled').order('job_date', { ascending: false }).limit(6),
-        supabase.from('invoices').select('amount_due, paid_at, kind').eq('bills_to_customer_id', selected.id).eq('kind', 'invoice').is('paid_at', null),
+        supabase.from('invoices').select('amount_due, paid_at, kind').eq('bills_to_customer_id', selected.id).eq('kind', 'invoice').is('deleted_at', null).is('paid_at', null),
       ])
       const properties = props.data || []
       const propIds = properties.map((p) => p.id)

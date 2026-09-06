@@ -21,7 +21,7 @@ export default function MarketingReviews({ profile }) {
         .select('*').eq('org_id', orgId).order('created_at', { ascending: false }).limit(25)
       setRequests(reqs || [])
       const { count } = await supabase.from('jobs')
-        .select('*', { count: 'exact', head: true }).eq('org_id', orgId).not('completed_at', 'is', null)
+        .select('*', { count: 'exact', head: true }).eq('org_id', orgId).is('deleted_at', null).not('completed_at', 'is', null)
       setCompletedJobs(count || 0)
     }
     load()
