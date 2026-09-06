@@ -221,6 +221,23 @@ export default function TechJobCard({ profile }) {
 
   // Diagnosis (forced-chain keystone) — voice-to-text and manual text are co-equal inputs.
   const [diagnosisNote, setDiagnosisNote] = useState('')
+  const [linkedChecklist, setLinkedChecklist] = useState(null)
+  const [checklistRunStatus, setChecklistRunStatus] = useState(null)
+  useEffect(() => {
+    if (!job?.job_type || !job?.org_id) { setLinkedChecklist(null); setChecklistRunStatus(null); return }
+    let live = true
+    ;(async () => {
+      const { data: jt } = await supabase.from('job_types').select('checklist_id, checklists(id, name)').eq('org_id', job.org_id).eq('name', job.job_type).maybeSingle()
+      if (!live) return
+      const cl = jt?.checklists || null
+      setLinkedChecklist(cl)
+      if (cl) {
+        const { data: r } = await supabase.from('checklist_runs').select('status').eq('job_id', job.id).maybeSingle()
+        if (live) setChecklistRunStatus(r?.status || null)
+      } else setChecklistRunStatus(null)
+    })()
+    return () => { live = false }
+  }, [job?.job_type, job?.org_id, job?.id])
   const [diagnosisSaved, setDiagnosisSaved] = useState(true)
   const [listening, setListening] = useState(false)
   const recognitionRef = useRef(null)
@@ -444,8 +461,9 @@ export default function TechJobCard({ profile }) {
   const canBuildInvoice = invoiceBlockers.length === 0
   // ---- per-job-type matrix: which spine tasks show + what the middle gate is ----
   const jtCfg = jobTypeConfig(job?.job_type)
-  const showDiagnosis = jtCfg.middle === 'diagnosis'   // repair-style
-  const showChecklist = jtCfg.middle === 'checklist'   // maintenance
+  const showLinkedChecklist = !!linkedChecklist
+  const showDiagnosis = jtCfg.middle === 'diagnosis' && !showLinkedChecklist   // repair-style
+  const showChecklist = jtCfg.middle === 'checklist' && !showLinkedChecklist   // maintenance (legacy)
   const showServiceEstimate = jtCfg.showServiceEstimate
   // Maintenance uses the customer's plan-tier checklist, or Basic when no plan is on record.
   const maintChecklistName = plan?.maintenance_agreement_tiers?.name || 'Basic'
@@ -1252,6 +1270,21 @@ export default function TechJobCard({ profile }) {
         </div>
 
         {/* Diagnosis (Repair-style) — locked until Equipment is done; unlocks the Service Estimate */}
+        {showLinkedChecklist && (
+          <div className="jc-task">
+            <div className="jc-task-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ fontWeight: 700 }}>Checklist — {linkedChecklist.name}</span>
+              {checklistRunStatus === 'completed' && <span className="jc-done-line">✓ Completed</span>}
+            </div>
+            <div className="jc-task-body">
+              <p className="jc-muted-note" style={{ marginBottom: 8 }}>Work this system&apos;s checklist in place of a diagnosis. Items you mark as a problem that are flagged for the estimate will build the estimate.</p>
+              <button className="action-btn" style={{ padding: '10px 22px' }} onClick={() => navigate(`/tech/checklist/${job.id}`)}>
+                {checklistRunStatus === 'completed' ? 'Review checklist' : checklistRunStatus === 'in_progress' ? 'Continue checklist' : 'Run checklist'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {showDiagnosis && <>
         {diagnosisLocked && <LockNote text={lockReason.diagnosis} />}
         <div className="jc-task">

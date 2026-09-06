@@ -34,6 +34,7 @@ import SpecialFeatures from './SpecialFeatures'
 import SystemEstimateSetup from './SystemEstimateSetup'
 import PMChecklists from './PMChecklists'
 import TechPMChecklist from './TechPMChecklist'
+import TechChecklistRun from './TechChecklistRun'
 import DiscountCatalog from './DiscountCatalog'
 import OnCallSchedule from './OnCallSchedule'
 import RolesConfig from './RolesConfig'
@@ -227,6 +228,7 @@ function AuthenticatedApp() {
         <Route path="/tech/invoice-view/:invoiceId" element={<TechInvoiceView profile={profile} />} />
         <Route path="/tech/messages/:jobId" element={<TechMessages profile={profile} />} />
         <Route path="/tech/pm-checklist/:instanceId" element={<TechPMChecklist profile={profile} />} />
+        <Route path="/tech/checklist/:jobId" element={<TechChecklistRun profile={profile} />} />
       </Route>
       {/* Rewards-HVAC · employee self-service portal — any logged-in employee, own data only (RLS) */}
       <Route path="/my" element={<MyPortal profile={profile} />} />
