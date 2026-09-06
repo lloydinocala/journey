@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      selfDestroying: true,   // TEMP: remove the stuck SW cache everywhere (auto, on next load). Re-add a proper SW with Level-2 offline later.
       registerType: 'autoUpdate',
       injectRegister: false,   // we register manually so we can show an update prompt
       manifest: false,         // keep our own manifest.json + portal.webmanifest (portal swaps its own)
