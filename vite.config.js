@@ -10,11 +10,20 @@ export default defineConfig({
       injectRegister: false,   // we register manually so we can show an update prompt
       manifest: false,         // keep our own manifest.json + portal.webmanifest (portal swaps its own)
       workbox: {
-        // Precache the built app shell so both apps load instantly and open offline.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,woff2}'],
+        // Precache hashed assets for instant/offline loads. HTML is fetched fresh
+        // (NetworkFirst) so per-host branding in index.html is never stale; falls
+        // back to cache only when offline.
+        globPatterns: ['**/*.{js,css,ico,png,svg,webmanifest,woff2}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/functions\//],
         cleanupOutdatedCaches: true,
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: { cacheName: 'html', networkTimeoutSeconds: 3 },
+          },
+        ],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         // No runtime caching of Supabase API/functions — data must stay live (offline data is Level 2).
       },
