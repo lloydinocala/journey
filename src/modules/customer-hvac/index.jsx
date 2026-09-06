@@ -5,6 +5,8 @@ import './portal.css'
 import CustomerLogin from './CustomerLogin'
 import CustomerHome from './CustomerHome'
 import CustomerRecords from './CustomerRecords'
+import CustomerReports from './CustomerReports'
+import CustomerReportView from './CustomerReportView'
 import CustomerRequest from './CustomerRequest'
 import CustomerPlan from './CustomerPlan'
 import CustomerSchedule from './CustomerSchedule'
@@ -140,6 +142,8 @@ export default function CustomerPortal() {
         <Routes>
           <Route index element={<CustomerHome customer={customer} properties={properties} activePropertyId={activePropertyId} setActivePropertyId={setActivePropertyId} />} />
           <Route path="records" element={<CustomerRecords customer={customer} properties={properties} />} />
+          <Route path="reports" element={<CustomerReports />} />
+          <Route path="report/:runId" element={<CustomerReportView />} />
           <Route path="equipment" element={<CustomerEquipment customer={customer} properties={properties} activePropertyId={activePropertyId} />} />
           <Route path="schedule" element={<CustomerSchedule />} />
           <Route path="book/:type" element={<CustomerBook customer={customer} properties={properties} activePropertyId={activePropertyId} />} />

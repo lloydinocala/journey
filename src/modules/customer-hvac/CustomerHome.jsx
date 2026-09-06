@@ -42,6 +42,7 @@ export default function CustomerHome({ customer, properties, activePropertyId, s
     { k: 'schedule', tone: '', label: 'Schedule My Appointment', sub: 'Repair, tune-up, or estimate — booked in a minute', to: '/portal/schedule' },
     { k: 'plan', tone: 'pm', label: 'Preventive Maintenance', sub: 'Protect your comfort, avoid surprise breakdowns', to: '/portal/plan' },
     { k: 'records', tone: '', label: 'Access My Service Records', sub: 'Every visit, invoice & estimate in one place', to: '/portal/records' },
+    { k: 'reports', tone: '', label: 'View My Service Reports', sub: 'Your maintenance reports & system health', to: '/portal/reports' },
     { k: 'filter', tone: '', label: 'Order My AC Filters', sub: 'The exact filter for your system, delivered', to: '/portal/filters' },
     { k: 'quincy', tone: 'q', label: 'Ask Quincy: Why?', sub: 'Your AI helper for anything about your home’s air', to: '/portal/quincy' },
   ]
