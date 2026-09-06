@@ -6,14 +6,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      selfDestroying: true,   // TEMP: remove the stuck SW cache everywhere (auto, on next load). Re-add a proper SW with Level-2 offline later.
-      registerType: 'autoUpdate',
-      injectRegister: false,   // we register manually so we can show an update prompt
-      manifest: false,         // keep our own manifest.json + portal.webmanifest (portal swaps its own)
+      registerType: 'autoUpdate',   // new worker activates immediately (skipWaiting + clientsClaim)
+      injectRegister: false,        // we register + auto-reload in main.jsx
+      manifest: false,              // keep our own manifest.json + portal.webmanifest
       workbox: {
-        // Precache hashed assets for instant/offline loads. HTML is fetched fresh
-        // (NetworkFirst) so per-host branding in index.html is never stale; falls
-        // back to cache only when offline.
+        // Precache the HASHED assets (immutable) so the app is installable + works offline.
+        // HTML is NOT precached — it's fetched NetworkFirst so it always points at the
+        // latest asset hashes (this is what prevents stale bundles).
         globPatterns: ['**/*.{js,css,ico,png,svg,webmanifest,woff2}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/functions\//],
@@ -21,12 +20,12 @@ export default defineConfig({
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.mode === 'navigate',
-            handler: 'NetworkFirst',
+            handler: 'NetworkFirst',            // always fetch fresh HTML online; cache only as offline fallback
             options: { cacheName: 'html', networkTimeoutSeconds: 3 },
           },
         ],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
-        // No runtime caching of Supabase API/functions — data must stay live (offline data is Level 2).
+        // No caching of Supabase API/functions — data stays live.
       },
       devOptions: { enabled: false },
     }),
