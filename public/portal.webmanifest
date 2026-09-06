@@ -1,13 +1,23 @@
 {
   "name": "Air-Care Connect",
   "short_name": "Air-Care",
-  "start_url": "/portal",
-  "scope": "/portal",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#EAF4FB",
   "theme_color": "#4E95D9",
   "icons": [
-    { "src": "/portal-icon.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/portal-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    {
+      "src": "/portal-icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/portal-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
   ]
 }

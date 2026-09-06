@@ -58,9 +58,10 @@ export default function CustomerPortal() {
         { src: iconSrc, sizes: '512x512', type: 'image/png', purpose: 'any' },
       ],
     }
-    const blobUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }))
+    // Note: install name/icon come from the static manifest set in index.html (browsers
+    // ignore JS-swapped manifests for install). Here we only set in-app title/theme/icon.
+    void manifest
     const restores = [
-      setLink('manifest', blobUrl),
       setLink('apple-touch-icon', iconSrc),
       setMeta('apple-mobile-web-app-title', brandName),
       setMeta('apple-mobile-web-app-capable', 'yes'),
@@ -68,7 +69,7 @@ export default function CustomerPortal() {
     ]
     const prevTitle = document.title
     document.title = brandName
-    return () => { restores.forEach(r => r && r()); URL.revokeObjectURL(blobUrl); document.title = prevTitle }
+    return () => { restores.forEach(r => r && r()); document.title = prevTitle }
   }, [org])
 
   useEffect(() => {

@@ -18,6 +18,22 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        var portalHosts = ['portal.journey-hvac.app', 'air-careconnect.app'];
+        if (portalHosts.indexOf(location.hostname) !== -1) {
+          var m = document.querySelector('link[rel="manifest"]');
+          if (m) m.setAttribute('href', '/portal.webmanifest');
+          var ati = document.querySelector('link[rel="apple-touch-icon"]');
+          if (ati) ati.setAttribute('href', '/portal-icon.png');
+          var meta = document.createElement('meta');
+          meta.setAttribute('name', 'apple-mobile-web-app-title');
+          meta.setAttribute('content', 'Air-Care Connect');
+          document.head.appendChild(meta);
+          document.title = 'Air-Care Connect';
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
