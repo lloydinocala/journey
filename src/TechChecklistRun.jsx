@@ -53,7 +53,7 @@ export default function TechChecklistRun({ profile }) {
         org_id: j.org_id, run_id: existing.id, item_id: it.id, sort_order: idx,
         section_name: secMap[it.section_id]?.name || '', inspection_task: it.inspection_task, maintenance_task: it.maintenance_task,
         item_type: it.item_type, record_units: it.record_units, spec_label: it.spec_label,
-        add_to_estimate: it.add_to_estimate, system_health: it.system_health, create_system_estimate: it.create_system_estimate, red_tag: it.red_tag,
+        add_to_estimate: it.add_to_estimate, add_to_report: it.add_to_report, system_health: it.system_health, create_system_estimate: it.create_system_estimate, red_tag: it.red_tag,
       }))
       if (rows.length) await supabase.from('checklist_results').insert(rows)
     }

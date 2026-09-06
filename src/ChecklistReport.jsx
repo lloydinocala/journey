@@ -3,7 +3,7 @@
 export default function ChecklistReport({ data }) {
   const { run, job, org, property, customer, technicians, results } = data || {}
   const primary = org?.brand_primary_color || '#102A43'
-  const reportItems = (results || []).filter((r) => r.add_to_report)
+  const reportItems = (results || [])  // customer sees every inspected item
   const redTags = reportItems.filter((r) => r.status === 'problem' && r.red_tag)
 
   const groups = []
@@ -12,7 +12,7 @@ export default function ChecklistReport({ data }) {
     if (!g || g.name !== r.section_name) { g = { name: r.section_name, rows: [] }; groups.push(g) }
     g.rows.push(r)
   }
-  const statusView = (s) => s === 'ok' ? { t: 'Good', c: '#16A34A' } : s === 'problem' ? { t: 'Needs attention', c: '#C0392B' } : s === 'na' ? { t: 'N/A', c: '#6B7280' } : { t: '—', c: '#9CA3AF' }
+  const statusView = (s) => s === 'ok' ? { t: 'Good', c: '#16A34A' } : s === 'problem' ? { t: 'Needs attention', c: '#C0392B' } : s === 'na' ? { t: 'N/A', c: '#6B7280' } : { t: 'Not checked', c: '#9CA3AF' }
   const addr = property ? [[property.street_address, property.unit].filter(Boolean).join(' '), property.city, [property.state, property.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ') : ''
   const dt = run?.completed_at ? new Date(run.completed_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : ''
 
