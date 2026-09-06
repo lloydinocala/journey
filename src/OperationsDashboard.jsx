@@ -84,7 +84,7 @@ export default function OperationsDashboard({ profile }) {
         .select('id, invoice_number, kind, estimate_type, sent_at, approval_status, approved_at, job_total, total_paid, paid_at, job_id, property_id, bills_to_customer_id')
         .eq('org_id', orgId).is('deleted_at', null).eq('is_archived', false),
       supabase.from('jobs')
-        .select('id, job_number, status, date_pending, job_date, completed_at, customer_id')
+        .select('id, job_number, status, date_pending, self_booked, job_date, completed_at, customer_id')
         .eq('org_id', orgId).is('deleted_at', null),
       supabase.from('maintenance_agreements')
         .select('id, next_visit_due_date, status, customer_id')
@@ -151,7 +151,7 @@ export default function OperationsDashboard({ profile }) {
     // "To schedule" = jobs that genuinely need a date: unscheduled or date-pending.
     // "incomplete" jobs already have a date and are simply not finished yet — that's an
     // open-work state, not a scheduling gap, so it must not inflate this count.
-    const toSchedule = jobs.filter((j) => (j.status === 'unscheduled' || j.date_pending))
+    const toSchedule = jobs.filter((j) => (j.status === 'unscheduled' || j.date_pending) && !j.self_booked)
       .filter((j) => j.status !== 'canceled' && j.status !== 'completed')
       .map((j) => ({ id: j.id, num: j.job_number, cust: cname(j.customer_id), days: daysSince(j.job_date), link: `/jobs?job=${j.id}` }))
 
