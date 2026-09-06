@@ -13,7 +13,7 @@ export default defineConfig({
         // Precache the HASHED assets (immutable) so the app is installable + works offline.
         // HTML is NOT precached — it's fetched NetworkFirst so it always points at the
         // latest asset hashes (this is what prevents stale bundles).
-        globPatterns: ['**/*.{js,css,ico,png,svg,webmanifest,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,woff2}'],  // include html so navigateFallback (offline) has it
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/functions\//],
         cleanupOutdatedCaches: true,
