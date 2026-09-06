@@ -22,6 +22,7 @@ export default function CustomerPortal() {
   const [customer, setCustomer] = useState(undefined) // undefined=loading, null=unrecognized
   const [properties, setProperties] = useState([])
   const [activePropertyId, setActivePropertyId] = useState(null)
+  const [org, setOrg] = useState(null)
 
   // Give the homeowner portal its OWN installable identity while mounted, so the
   // phone treats it as a separate app from the staff (Tech) app on the same domain:
@@ -43,17 +44,32 @@ export default function CustomerPortal() {
       el.setAttribute('content', content)
       return () => { if (prev != null) el.setAttribute('content', prev); else if (created) el.remove() }
     }
+    // Brand the installable portal to the customer's OWN contractor (their org),
+    // so each subscriber's customers install THAT contractor's name/icon/colors.
+    const brandName = org?.name || 'Customer Portal'
+    const brandColor = org?.brand_primary_color || '#4E95D9'
+    const iconSrc = org?.logo_url || '/portal-icon.png'
+    const manifest = {
+      name: brandName, short_name: brandName,
+      start_url: '/portal', scope: '/portal', display: 'standalone',
+      background_color: '#EAF4FB', theme_color: brandColor,
+      icons: [
+        { src: iconSrc, sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: iconSrc, sizes: '512x512', type: 'image/png', purpose: 'any' },
+      ],
+    }
+    const blobUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }))
     const restores = [
-      setLink('manifest', '/portal.webmanifest'),
-      setLink('apple-touch-icon', '/portal-icon.png'),
-      setMeta('apple-mobile-web-app-title', 'Air-Care Connect'),
+      setLink('manifest', blobUrl),
+      setLink('apple-touch-icon', iconSrc),
+      setMeta('apple-mobile-web-app-title', brandName),
       setMeta('apple-mobile-web-app-capable', 'yes'),
-      setMeta('theme-color', '#4E95D9'),
+      setMeta('theme-color', brandColor),
     ]
     const prevTitle = document.title
-    document.title = 'Air-Care Connect'
-    return () => { restores.forEach(r => r && r()); document.title = prevTitle }
-  }, [])
+    document.title = brandName
+    return () => { restores.forEach(r => r && r()); URL.revokeObjectURL(blobUrl); document.title = prevTitle }
+  }, [org])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -78,9 +94,14 @@ export default function CustomerPortal() {
         .from('properties')
         .select('id, street_address, unit, city, state, zip')
         .eq('is_active', true)
+      const { data: o } = await supabase
+        .from('organizations')
+        .select('name, logo_url, brand_primary_color')
+        .eq('id', cust.org_id).maybeSingle()
       if (!live) return
       setProperties(props || [])
       setCustomer(cust)
+      setOrg(o || null)
     })()
     return () => { live = false }
   }, [session])
