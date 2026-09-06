@@ -22,7 +22,7 @@ function Pill({ tone, children }) {
 export default function FilterOrders({ profile }) {
   const isSuperAdmin = profile?.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => (typeof localStorage !== 'undefined' && localStorage.getItem('journey_viewing_org')) || profile?.org_id || '')
   const [orders, setOrders] = useState(null)
   const [tab, setTab] = useState('open') // 'open' | 'fulfilled' | 'all'
 
