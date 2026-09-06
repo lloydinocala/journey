@@ -105,7 +105,7 @@ export default function Invoices({ profile }) {
     const { data: invRows } = await supabase
       .from('invoices')
       .select(`
-        id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
+        id, org_id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
         discount_amount, discount_type, deposit, amount_due, total_paid, balance,
         profit, profit_pct, paid_at, sent_at, sent_count, last_sent_to, is_archived
       `)
