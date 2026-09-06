@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import AiAssist from './AiAssist'
 import { useParams, Link } from 'react-router-dom'
+import ReceivePayment from './ReceivePayment'
 import { supabase } from './utils/supabase'
 import { warrantyFor, decodeSerial } from './Warranty'
 
@@ -10,6 +11,7 @@ export default function CustomerHistory({ profile }) {
   const { customerId } = useParams()
 
   const [customer, setCustomer] = useState(null)
+  const [receiving, setReceiving] = useState(false)
   const [properties, setProperties] = useState([])
   const [jobs, setJobs] = useState([])
   const [invoices, setInvoices] = useState([])
@@ -397,9 +399,15 @@ export default function CustomerHistory({ profile }) {
 
       <div className="ch-printable">
         <div className="page-header-bar">
-          <h2>{customer.display_name}</h2>
-          {customer.is_banned && <span className="badge" style={{ background: '#a33', color: '#fff' }}>Do Not Service</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h2>{customer.display_name}</h2>
+            {customer.is_banned && <span className="badge" style={{ background: '#a33', color: '#fff' }}>Do Not Service</span>}
+          </div>
+          <button className="auth-button" style={{ width: 'auto' }} onClick={() => setReceiving(true)}>Receive Payment</button>
         </div>
+        {receiving && (
+          <ReceivePayment profile={profile} orgId={customer.org_id} customerId={customer.id} customerName={customer.display_name} onClose={() => setReceiving(false)} onRecorded={loadAll} />
+        )}
         {customer.is_banned && customer.banned_reason && (
           <p style={{ color: '#a33', marginTop: -8 }}>Reason: {customer.banned_reason}</p>
         )}
