@@ -54,7 +54,7 @@ export default function OperationsDashboard({ profile }) {
   useEffect(() => {
     if (selectedOrg) {
       supabase.from('invoices').select('id', { count: 'exact', head: true })
-        .eq('org_id', selectedOrg).eq('is_filter_order', true).eq('is_archived', false).is('filter_fulfilled_at', null)
+        .eq('org_id', selectedOrg).eq('is_filter_order', true).eq('is_archived', false).is('deleted_at', null).is('filter_fulfilled_at', null)
         .then(({ count }) => setOpenFilterOrders(count || 0))
       supabase.from('jobs').select('id', { count: 'exact', head: true })
         .eq('org_id', selectedOrg).eq('self_booked', true).eq('date_pending', true).is('deleted_at', null).neq('status', 'cancelled')

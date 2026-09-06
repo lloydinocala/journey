@@ -36,7 +36,7 @@ export default function FilterOrders({ profile }) {
     setOrders(null)
     const { data: inv } = await supabase.from('invoices')
       .select('id, invoice_number, amount_due, paid_at, sent_at, created_at, filter_fulfilled_at, bills_to_customer_id, property_id, invoice_line_items(description, quantity, unit_price, sort_order)')
-      .eq('org_id', orgId).eq('is_filter_order', true).eq('is_archived', false)
+      .eq('org_id', orgId).eq('is_filter_order', true).eq('is_archived', false).is('deleted_at', null)
       .order('created_at', { ascending: false })
     const rows = inv || []
     const custIds = [...new Set(rows.map((r) => r.bills_to_customer_id).filter(Boolean))]
