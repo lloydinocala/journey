@@ -51,6 +51,7 @@ import NewFollowupEstimate from './NewFollowupEstimate'
 import Estimates from './Estimates'
 import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
+import PublicChecklistReport from './PublicChecklistReport'
 import JoinPlan from './JoinPlan'
 import ServiceHub from './ServiceHub'
 import CustomerPortal from './modules/customer-hvac'
@@ -347,6 +348,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/view-invoice/:invoiceId" element={<PublicInvoice />} />
+        <Route path="/view-report/:runId" element={<PublicChecklistReport />} />
         <Route path="/join-plan/:propertyId" element={<JoinPlan />} />
         <Route path="/r/:token" element={<ServiceHub />} />
         <Route path="/portal/*" element={<CustomerPortal />} />
