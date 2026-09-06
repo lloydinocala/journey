@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import ReceivePayment from './ReceivePayment'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import { exportToCSV } from './utils/csvExport'
@@ -63,6 +64,7 @@ export default function Invoices({ profile }) {
   const [newItemMode, setNewItemMode] = useState(null)
   const [sendingId, setSendingId] = useState(null)
   const [payFor, setPayFor] = useState(null)
+  const [receiving, setReceiving] = useState(false)
   const [payAmount, setPayAmount] = useState('')
   const [payMethod, setPayMethod] = useState('cash')
   const [payCheck, setPayCheck] = useState('')
@@ -486,7 +488,10 @@ export default function Invoices({ profile }) {
           <h2>Invoices</h2>
           <span className="badge">{invoices.length.toLocaleString()} total</span>
         </div>
-        <NewItemDropdown onSelect={setNewItemMode} />
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button className="auth-button" style={{ width: 'auto' }} onClick={() => setReceiving(true)}>Receive Payment</button>
+          <NewItemDropdown onSelect={setNewItemMode} />
+        </div>
       </div>
 
       {isSuperAdmin && (
@@ -700,6 +705,10 @@ export default function Invoices({ profile }) {
             </div>
           </div>
         </div>
+      )}
+
+      {receiving && (
+        <ReceivePayment profile={profile} orgId={selectedOrg} onClose={() => setReceiving(false)} onRecorded={() => loadInvoices(selectedOrg)} />
       )}
 
       {payFor && (
