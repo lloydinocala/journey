@@ -471,7 +471,7 @@ export default function TechJobCard({ profile }) {
   // completion isn't wired until the checklist engine ships, so on Maintenance the estimate
   // unlocks after Equipment for now (flagged); it becomes the checklist gate later.
   const checklistComplete = pmInstances.length > 0 && pmInstances.every((i) => i.status === 'completed')
-  const middleGateDone = showDiagnosis ? diagnosisDone : (showChecklist ? (pmInstances.length === 0 || checklistComplete) : true)
+  const middleGateDone = showDiagnosis ? diagnosisDone : showLinkedChecklist ? (checklistRunStatus === 'completed') : (showChecklist ? (pmInstances.length === 0 || checklistComplete) : true)
 
   // START-OF-WORK GROUP: Equipment on File · Diagnosis · Pre-Work Photos are freely orderable —
   // the tech may begin with any one, and that first tap auto-starts the job clock. Only the

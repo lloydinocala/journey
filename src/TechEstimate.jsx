@@ -174,7 +174,7 @@ export default function TechEstimate({ profile }) {
     const { data: run } = await supabase.from('checklist_runs').select('id').eq('job_id', jobId).maybeSingle()
     if (!run) { setFindings([]); return }
     const { data: res } = await supabase.from('checklist_results')
-      .select('inspection_task, maintenance_task, section_name, create_system_estimate, red_tag')
+      .select('inspection_task, maintenance_task, section_name, create_system_estimate, red_tag, notes, value_recorded, record_units')
       .eq('run_id', run.id).eq('status', 'problem').eq('add_to_estimate', true).order('sort_order')
     setFindings(res || [])
   }
@@ -183,11 +183,16 @@ export default function TechEstimate({ profile }) {
     if (!estimate || !items.length) return
     setPullingFindings(true)
     let sort = lineItems.length > 0 ? Math.max(...lineItems.map((li) => li.sort_order)) + 1 : 1
-    const rows = items.map((f) => ({
-      invoice_id: estimate.id, org_id: job.org_id,
-      description: (f.maintenance_task || f.inspection_task || 'Recommended repair'),
-      unit_price: 0, quantity: 1, taxable: true, is_custom: true, sort_order: sort++, category: 'CHECKLIST FINDINGS',
-    }))
+    const rows = items.map((f) => {
+      const bits = [f.inspection_task]
+      if (f.value_recorded) bits.push(`[${f.value_recorded}${f.record_units ? ' ' + f.record_units : ''}]`)
+      if (f.notes) bits.push(`— ${f.notes}`)
+      return {
+        invoice_id: estimate.id, org_id: job.org_id,
+        description: bits.filter(Boolean).join(' '),
+        unit_price: 0, quantity: 1, taxable: true, is_custom: true, sort_order: sort++, category: 'CHECKLIST FINDINGS',
+      }
+    })
     await supabase.from('invoice_line_items').insert(rows)
     setPullingFindings(false)
     loadLineItems(estimate.id)
@@ -600,6 +605,8 @@ export default function TechEstimate({ profile }) {
                   <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid #F1F4F8', fontSize: 13.5 }}>
                     <strong>{f.inspection_task}</strong>
                     {f.maintenance_task && <div style={{ color: 'var(--mist)', fontSize: 12.5 }}>{f.maintenance_task}</div>}
+                    {f.value_recorded && <div style={{ color: '#334155', fontSize: 12.5 }}>Reading: <b>{f.value_recorded}{f.record_units ? ` ${f.record_units}` : ''}</b></div>}
+                    {f.notes && <div style={{ color: '#1a2733', fontSize: 12.5, fontStyle: 'italic' }}>Tech notes: {f.notes}</div>}
                     {(f.create_system_estimate || f.red_tag) && (
                       <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
                         {f.create_system_estimate && <span style={{ fontSize: 11, fontWeight: 700, color: '#C8811B' }}>suggests replacement</span>}
