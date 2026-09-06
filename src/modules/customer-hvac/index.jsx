@@ -94,14 +94,11 @@ export default function CustomerPortal() {
         .from('properties')
         .select('id, street_address, unit, city, state, zip')
         .eq('is_active', true)
-      const { data: o } = await supabase
-        .from('organizations')
-        .select('name, logo_url, app_icon_url, brand_primary_color')
-        .eq('id', cust.org_id).maybeSingle()
+      const { data: brand } = await supabase.rpc('get_my_org_branding')
       if (!live) return
       setProperties(props || [])
       setCustomer(cust)
-      setOrg(o || null)
+      setOrg(Array.isArray(brand) ? (brand[0] || null) : (brand || null))
     })()
     return () => { live = false }
   }, [session])
