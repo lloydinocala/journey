@@ -10,6 +10,28 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0B3041">
+    <script>
+      /* Host-aware install branding — MUST run in <head> before the browser/iOS
+         reads the title/manifest/apple-touch-icon for "Add to Home Screen". */
+      (function () {
+        var portalHosts = ['portal.journey-hvac.app', 'air-careconnect.app'];
+        if (portalHosts.indexOf(location.hostname) !== -1) {
+          var m = document.querySelector('link[rel="manifest"]');
+          if (m) m.setAttribute('href', '/portal.webmanifest');
+          var ati = document.querySelector('link[rel="apple-touch-icon"]');
+          if (ati) ati.setAttribute('href', '/portal-icon.png');
+          var t = document.createElement('meta');
+          t.setAttribute('name', 'apple-mobile-web-app-title');
+          t.setAttribute('content', 'Air-Care Connect');
+          document.head.appendChild(t);
+          var cap = document.createElement('meta');
+          cap.setAttribute('name', 'apple-mobile-web-app-capable');
+          cap.setAttribute('content', 'yes');
+          document.head.appendChild(cap);
+          document.title = 'Air-Care Connect';
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -18,22 +40,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      (function () {
-        var portalHosts = ['portal.journey-hvac.app', 'air-careconnect.app'];
-        if (portalHosts.indexOf(location.hostname) !== -1) {
-          var m = document.querySelector('link[rel="manifest"]');
-          if (m) m.setAttribute('href', '/portal.webmanifest');
-          var ati = document.querySelector('link[rel="apple-touch-icon"]');
-          if (ati) ati.setAttribute('href', '/portal-icon.png');
-          var meta = document.createElement('meta');
-          meta.setAttribute('name', 'apple-mobile-web-app-title');
-          meta.setAttribute('content', 'Air-Care Connect');
-          document.head.appendChild(meta);
-          document.title = 'Air-Care Connect';
-        }
-      })();
-    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
