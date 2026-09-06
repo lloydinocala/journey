@@ -9,6 +9,7 @@ const EQUIPMENT = [
   { value: 'split_system', label: 'Split System' },  // all-electric: heat pump or AC
   { value: 'package', label: 'Package Unit' },
   { value: 'mini_split', label: 'Mini-Split' },
+  { value: 'side_discharge', label: 'Side-Discharge' },
 ]
 const equipLabel = (v) => (EQUIPMENT.find((e) => e.value === (v || '')) || {}).label || v || 'Any'
 
@@ -27,6 +28,7 @@ function guessEquip(title) {
   if (t.includes('furnace')) return 'gas_furnace'
   if (t.includes('mini')) return 'mini_split'
   if (t.includes('package')) return 'package'
+  if (t.includes('side')) return 'side_discharge'
   if (t.includes('heat pump') || t.includes('split') || t.includes('condenser') || t.includes(' ac')) return 'split_system'
   return ''
 }
