@@ -765,28 +765,44 @@ export default function CustomerHistory({ profile }) {
           {attachments.length === 0 ? (
             <p style={{ color: 'var(--mist)' }}>No photos or attachments on file.</p>
           ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-              {attachments.map((a) => (
-                <div key={a.id} style={{ width: 180, position: 'relative' }}>
-                  <button className="no-print" onClick={() => deleteAttachment(a)} title="Delete"
-                    style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none', borderRadius: 6, width: 24, height: 24, cursor: 'pointer', fontSize: 13, lineHeight: '20px', padding: 0 }}>✕</button>
-                  {a.category === 'photo' && photoUrls[a.id] ? (
-                    <img
-                      src={photoUrls[a.id]}
-                      alt={a.caption || a.file_name}
-                      onClick={() => setLightbox({ url: photoUrls[a.id], caption: a.caption, date: a.taken_at })}
-                      style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd', cursor: 'zoom-in' }}
-                    />
-                  ) : (
-                    <div style={{ width: '100%', height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #ddd', borderRadius: 6, color: 'var(--mist)' }}>
-                      {a.file_name}
-                    </div>
-                  )}
-                  <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--mist)' }}>{formatDate(a.taken_at)}</p>
-                  {a.caption && <p style={{ margin: '2px 0 0', fontSize: 12 }}>{a.caption}</p>}
+            (() => {
+              const jobById = Object.fromEntries(jobs.map((j) => [j.id, j]))
+              const groups = []; const seen = {}
+              for (const a of attachments) {
+                const key = a.job_id || 'none'
+                if (!seen[key]) { seen[key] = { jobId: a.job_id, job: jobById[a.job_id] || null, items: [] }; groups.push(seen[key]) }
+                seen[key].items.push(a)
+              }
+              groups.sort((g1, g2) => (!g1.job ? 1 : !g2.job ? -1 : new Date(g2.job.job_date || 0) - new Date(g1.job.job_date || 0)))
+              return groups.map((g) => (
+                <div key={g.jobId || 'none'} style={{ marginBottom: 18 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8, paddingBottom: 4, borderBottom: '1px solid var(--border)' }}>
+                    {g.job
+                      ? <Link to={`/jobs?job=${g.jobId}`} style={{ color: '#2E7FC4', textDecoration: 'none' }}>{g.job.job_number}{g.job.segment > 1 ? `-${g.job.segment}` : ''}</Link>
+                      : <span style={{ color: 'var(--mist)' }}>Unassigned</span>}
+                    {g.job && <span style={{ fontWeight: 400, color: 'var(--mist)' }}>{' · '}{formatDate(g.job.job_date)}{g.job.job_type ? ' · ' + g.job.job_type : ''}</span>}
+                    <span style={{ fontWeight: 400, color: 'var(--mist)' }}>{'  ·  '}{g.items.length} photo{g.items.length === 1 ? '' : 's'}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                    {g.items.map((a) => (
+                      <div key={a.id} style={{ width: 180, position: 'relative' }}>
+                        <button className="no-print" onClick={() => deleteAttachment(a)} title="Delete"
+                          style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none', borderRadius: 6, width: 24, height: 24, cursor: 'pointer', fontSize: 13, lineHeight: '20px', padding: 0 }}>✕</button>
+                        {a.category === 'photo' && photoUrls[a.id] ? (
+                          <img src={photoUrls[a.id]} alt={a.caption || a.file_name}
+                            onClick={() => setLightbox({ url: photoUrls[a.id], caption: a.caption, date: a.taken_at })}
+                            style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd', cursor: 'zoom-in' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #ddd', borderRadius: 6, color: 'var(--mist)' }}>{a.file_name}</div>
+                        )}
+                        <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--mist)' }}>{formatDate(a.taken_at)}</p>
+                        {a.caption && <p style={{ margin: '2px 0 0', fontSize: 12 }}>{a.caption}</p>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+              ))
+            })()
           )}
         </div>
       </div>
