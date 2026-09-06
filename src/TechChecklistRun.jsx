@@ -13,6 +13,8 @@ export default function TechChecklistRun({ profile }) {
   const [openNotes, setOpenNotes] = useState({})
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
+  const [emailing, setEmailing] = useState(false)
+  const [emailMsg, setEmailMsg] = useState('')
 
   useEffect(() => { load() }, [jobId])
 
@@ -69,6 +71,13 @@ export default function TechChecklistRun({ profile }) {
   async function complete() {
     await supabase.from('checklist_runs').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', run.id)
     navigate(-1)
+  }
+  async function emailReport() {
+    setEmailing(true); setEmailMsg('')
+    const { data, error } = await supabase.functions.invoke('send-checklist-report-email', { body: { runId: run.id } })
+    setEmailing(false)
+    if (error || data?.error) setEmailMsg(data?.error || 'Could not send.')
+    else setEmailMsg(data?.sentEmail ? 'Report emailed \u2713' : data?.sentSms ? 'Report texted \u2713' : 'Sent \u2713')
   }
   async function reopen() {
     await supabase.from('checklist_runs').update({ status: 'in_progress', completed_at: null }).eq('id', run.id)
@@ -155,9 +164,15 @@ export default function TechChecklistRun({ profile }) {
       ))}
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--surface,#fff)', borderTop: '1px solid var(--border)', padding: 12, display: 'flex', gap: 10, justifyContent: 'center' }}>
-        {done
-          ? <button className="jc-btn ghost" onClick={reopen}>Re-open checklist</button>
-          : <button className="action-btn" style={{ padding: '12px 28px', fontWeight: 700 }} onClick={complete}>Complete checklist ({addressed}/{results.length})</button>}
+        {done ? (
+          <>
+            <button className="jc-btn ghost" onClick={reopen}>Re-open</button>
+            <button className="action-btn" style={{ padding: '12px 24px', fontWeight: 700 }} onClick={emailReport} disabled={emailing}>{emailing ? 'Sending\u2026' : 'Email report'}</button>
+            {emailMsg && <span style={{ alignSelf: 'center', fontSize: 13, fontWeight: 600, color: emailMsg.includes('\u2713') ? '#16A34A' : '#C0392B' }}>{emailMsg}</span>}
+          </>
+        ) : (
+          <button className="action-btn" style={{ padding: '12px 28px', fontWeight: 700 }} onClick={complete}>Complete checklist ({addressed}/{results.length})</button>
+        )}
       </div>
     </div>
   )

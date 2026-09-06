@@ -31,6 +31,20 @@ export default function CustomerHistory({ profile }) {
   const [lightbox, setLightbox] = useState(null)
 
   const [contacts, setContacts] = useState([])
+  const [reports, setReports] = useState([])
+  const [reportMsg, setReportMsg] = useState({})
+  useEffect(() => {
+    if (!customerId) return
+    supabase.from('checklist_runs')
+      .select('id, checklist_name, status, completed_at, jobs!inner(job_number, customer_id)')
+      .eq('jobs.customer_id', customerId).order('completed_at', { ascending: false, nullsFirst: false })
+      .then(({ data }) => setReports(data || []))
+  }, [customerId])
+  async function emailReport(runId) {
+    setReportMsg((m) => ({ ...m, [runId]: 'Sending…' }))
+    const { data, error } = await supabase.functions.invoke('send-checklist-report-email', { body: { runId } })
+    setReportMsg((m) => ({ ...m, [runId]: (error || data?.error) ? (data?.error || 'Failed') : (data?.sentEmail ? 'Emailed ✓' : data?.sentSms ? 'Texted ✓' : 'Sent ✓') }))
+  }
   const [editContactId, setEditContactId] = useState(null)
   const [cName, setCName] = useState('')
   const [cTitle, setCTitle] = useState('')
@@ -661,6 +675,34 @@ export default function CustomerHistory({ profile }) {
                         {inv.kind === 'estimate'
                           ? inv.approval_status
                           : inv.paid_at ? 'Paid' : 'Unpaid'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginBottom: 28 }}>
+          <h3 style={{ marginBottom: 10 }}>Service Reports</h3>
+          {reports.length === 0 ? (
+            <p style={{ color: 'var(--mist)' }}>No maintenance reports yet.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead><tr><th>Report</th><th>Job</th><th>Date</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  {reports.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.checklist_name}</td>
+                      <td>{r.jobs?.job_number}</td>
+                      <td>{r.completed_at ? formatDate(r.completed_at) : '—'}</td>
+                      <td>{r.status === 'completed' ? 'Completed' : 'In progress'}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <a href={`/view-report/${r.id}`} target="_blank" rel="noreferrer" className="logout-button" style={{ fontSize: 12, padding: '3px 10px', textDecoration: 'none' }}>View / PDF</a>
+                        <button className="logout-button" style={{ fontSize: 12, padding: '3px 10px', marginLeft: 6 }} onClick={() => emailReport(r.id)}>Email</button>
+                        {reportMsg[r.id] && <span style={{ fontSize: 12, marginLeft: 6, color: reportMsg[r.id].includes('✓') ? '#1a7f37' : '#b0342f' }}>{reportMsg[r.id]}</span>}
                       </td>
                     </tr>
                   ))}
