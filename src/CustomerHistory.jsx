@@ -165,7 +165,7 @@ export default function CustomerHistory({ profile }) {
       if (propIds.length) orClauses.push(`property_id.in.(${propIds.join(',')})`)
       if (jobIds.length) orClauses.push(`job_id.in.(${jobIds.join(',')})`)
       const { data: permitRows } = await supabase.from('permits')
-        .select('id, job_id, authority_name, permit_number, status, application_date, issue_date, ahri_number, filled_form_path, filled_form_name, jobs(job_number)')
+        .select('id, job_id, permit_number, issue_date, inspection_approved_date, jobs(job_number)')
         .or(orClauses.join(',')).order('created_at', { ascending: false })
       setPermits(permitRows || [])
     } else { setPermits([]) }
@@ -198,12 +198,6 @@ export default function CustomerHistory({ profile }) {
     setPhotoUrls(Object.fromEntries(urlEntries))
 
     setLoading(false)
-  }
-
-  async function downloadPermit(p) {
-    if (!p.filled_form_path) return
-    const { data } = await supabase.storage.from('job-photos').createSignedUrl(p.filled_form_path, 300, { download: p.filled_form_name || 'permit.pdf' })
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
   }
 
   async function deleteAttachment(a) {
@@ -722,18 +716,14 @@ export default function CustomerHistory({ profile }) {
           <h3 style={{ marginBottom: 10 }}>Permits</h3>
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
-              <thead><tr><th>Authority</th><th>Job</th><th>Permit #</th><th>Status</th><th>Applied</th><th>Issued</th><th>AHRI #</th><th></th></tr></thead>
+              <thead><tr><th>Job</th><th>Permit #</th><th>Permit Date</th><th>Inspection Approved</th></tr></thead>
               <tbody>
                 {permits.map((p) => (
                   <tr key={p.id}>
-                    <td>{p.authority_name || '—'}</td>
                     <td>{p.jobs?.job_number || '—'}</td>
                     <td>{p.permit_number || '—'}</td>
-                    <td style={{ textTransform: 'capitalize' }}>{(p.status || '').replace('_', ' ')}</td>
-                    <td>{p.application_date ? formatDate(p.application_date) : '—'}</td>
                     <td>{p.issue_date ? formatDate(p.issue_date) : '—'}</td>
-                    <td>{p.ahri_number || '—'}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{p.filled_form_path && <button className="logout-button" style={{ fontSize: 12, padding: '3px 10px' }} onClick={() => downloadPermit(p)}>PDF ↓</button>}</td>
+                    <td>{p.inspection_approved_date ? formatDate(p.inspection_approved_date) : '—'}</td>
                   </tr>
                 ))}
               </tbody>
