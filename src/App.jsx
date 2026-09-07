@@ -18,6 +18,7 @@ import PayrollCapture from './PayrollCapture'
 import TimeClock from './TimeClock'
 import EmployeePayroll from './EmployeePayroll'
 import Vendors from './Vendors'
+import BuildingAuthorities from './BuildingAuthorities'
 import Tasks from './Tasks'
 import VendorDetail from './VendorDetail'
 import Properties from './Properties'
@@ -250,6 +251,7 @@ function AuthenticatedApp() {
         <Route path="/time-clock" element={<TimeClock profile={profile} />} />
         <Route path="/payroll/employee/:userId" element={<EmployeePayroll profile={profile} />} />
         <Route path="/vendors" element={<Vendors profile={profile} />} />
+        <Route path="/building-authorities" element={<BuildingAuthorities profile={profile} />} />
         <Route path="/vendors/:vendorId" element={<VendorDetail profile={profile} />} />
         <Route path="/properties" element={<Properties profile={profile} />} />
         <Route path="/jobs" element={<Jobs profile={profile} />} />

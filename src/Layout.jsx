@@ -28,6 +28,7 @@ const CATEGORIES = [
     { label: 'System Estimates', path: '/system-estimates' },
     { label: 'Warranty Registrations', path: '/warranty-registrations' },
     { label: 'Vendors', path: '/vendors' },
+    { label: 'Building Authorities', path: '/building-authorities' },
     { label: 'Text Archive', path: '/text-archive' },
     { label: 'Filter Orders', path: '/filter-orders' },
     { label: 'Filter Subscriptions', path: '/filter-subscriptions' },
