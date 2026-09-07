@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import PermitPanel from './PermitPanel'
 import { supabase } from './utils/supabase'
 import RoutingSummary from './RoutingSummary'
 
@@ -724,6 +725,7 @@ export default function SystemEstimate({ profile }) {
           </div>
         </>
       )}
+      {job && <PermitPanel jobId={job.id} orgId={job.org_id} propertyId={job.property_id} profile={profile} />}
     </div>
   )
 }
