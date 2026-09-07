@@ -725,7 +725,7 @@ export default function SystemEstimate({ profile }) {
           </div>
         </>
       )}
-      {job && <PermitPanel jobId={job.id} orgId={job.org_id} propertyId={job.property_id} profile={profile} />}
+      {job && <PermitPanel estimateId={estimate?.id} jobId={job.id} orgId={job.org_id} propertyId={job.property_id} profile={profile} />}
     </div>
   )
 }

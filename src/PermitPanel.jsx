@@ -15,7 +15,7 @@ const money = (v) => '$' + (Number(v) || 0).toFixed(2)
 // Full permit workflow for one job: pick the building authority, open/download its
 // application, upload the completed one, email it, and record dates/number/AHRI/status.
 // Renders nothing unless the org has permit tracking enabled.
-export default function PermitPanel({ jobId, orgId, propertyId, profile }) {
+export default function PermitPanel({ estimateId, jobId, orgId, propertyId, profile }) {
   const [enabled, setEnabled] = useState(null)   // org.track_permits
   const [authorities, setAuthorities] = useState([])
   const [permit, setPermit] = useState(null)
@@ -32,14 +32,16 @@ export default function PermitPanel({ jobId, orgId, propertyId, profile }) {
   }, [orgId])
 
   useEffect(() => {
-    if (!jobId || enabled !== true) return
-    supabase.from('permits').select('*').eq('job_id', jobId).order('created_at', { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
+    if (enabled !== true || (!estimateId && !jobId)) return
+    let q = supabase.from('permits').select('*')
+    q = estimateId ? q.eq('estimate_id', estimateId) : q.eq('job_id', jobId)
+    q.order('created_at', { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
       if (data) {
         setPermit(data)
         setF({ building_authority_id: data.building_authority_id || '', authority_name: data.authority_name || '', permit_number: data.permit_number || '', status: data.status || 'not_applied', application_date: data.application_date || '', issue_date: data.issue_date || '', fee: data.fee ?? '', ahri_number: data.ahri_number || '', notes: data.notes || '' })
       }
     })
-  }, [jobId, enabled])
+  }, [estimateId, jobId, enabled])
 
   if (enabled !== true) return null
 
@@ -48,7 +50,7 @@ export default function PermitPanel({ jobId, orgId, propertyId, profile }) {
   async function save() {
     setSaving(true); setMsg('')
     const payload = {
-      org_id: orgId, job_id: jobId, property_id: propertyId || null,
+      org_id: orgId, estimate_id: estimateId || null, job_id: jobId || null, property_id: propertyId || null,
       building_authority_id: f.building_authority_id || null,
       authority_name: authority ? authority.name : (f.authority_name.trim() || null),
       permit_number: f.permit_number.trim() || null, status: f.status,
@@ -66,7 +68,7 @@ export default function PermitPanel({ jobId, orgId, propertyId, profile }) {
       id = data.id; setPermit(data)
     }
     // keep the authority on the job too (so the dashboard + job know it)
-    if (f.building_authority_id) await supabase.from('jobs').update({ building_authority_id: f.building_authority_id }).eq('id', jobId)
+    if (f.building_authority_id && jobId) await supabase.from('jobs').update({ building_authority_id: f.building_authority_id }).eq('id', jobId)
     setSaving(false); setMsg('Saved.')
     // refresh
     const { data: fresh } = await supabase.from('permits').select('*').eq('id', id).single()
@@ -86,7 +88,7 @@ export default function PermitPanel({ jobId, orgId, propertyId, profile }) {
     if (!id) { await save(); id = permit?.id }
     if (!id) { setMsg('Save the permit first.'); return }
     setSaving(true); setMsg('')
-    const path = `permits/${jobId}/${id}.pdf`
+    const path = `permits/${orgId}/${id}.pdf`
     const up = await supabase.storage.from('job-photos').upload(path, filledFile, { upsert: true, contentType: 'application/pdf' })
     if (up.error) { setMsg(up.error.message); setSaving(false); return }
     await supabase.from('permits').update({ filled_form_path: path, filled_form_name: filledFile.name, updated_at: new Date().toISOString() }).eq('id', id)

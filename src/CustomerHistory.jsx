@@ -159,10 +159,14 @@ export default function CustomerHistory({ profile }) {
     }
 
     const jobIds = (jobsRes.data || []).map((j) => j.id)
-    if (jobIds.length > 0) {
+    const propIds = (propsRes.data || []).map((pr) => pr.id)
+    if (propIds.length > 0 || jobIds.length > 0) {
+      const orClauses = []
+      if (propIds.length) orClauses.push(`property_id.in.(${propIds.join(',')})`)
+      if (jobIds.length) orClauses.push(`job_id.in.(${jobIds.join(',')})`)
       const { data: permitRows } = await supabase.from('permits')
         .select('id, job_id, authority_name, permit_number, status, application_date, issue_date, ahri_number, filled_form_path, filled_form_name, jobs(job_number)')
-        .in('job_id', jobIds).order('created_at', { ascending: false })
+        .or(orClauses.join(',')).order('created_at', { ascending: false })
       setPermits(permitRows || [])
     } else { setPermits([]) }
     let attachmentRows = []
