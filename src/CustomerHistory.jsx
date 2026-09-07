@@ -27,6 +27,7 @@ export default function CustomerHistory({ profile }) {
   const [offerMsg, setOfferMsg] = useState('')
   const [billingHistory, setBillingHistory] = useState({})
   const [attachments, setAttachments] = useState([])
+  const [permits, setPermits] = useState([])
   const [photoUrls, setPhotoUrls] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -158,6 +159,12 @@ export default function CustomerHistory({ profile }) {
     }
 
     const jobIds = (jobsRes.data || []).map((j) => j.id)
+    if (jobIds.length > 0) {
+      const { data: permitRows } = await supabase.from('permits')
+        .select('id, job_id, authority_name, permit_number, status, application_date, issue_date, ahri_number, filled_form_path, filled_form_name, jobs(job_number)')
+        .in('job_id', jobIds).order('created_at', { ascending: false })
+      setPermits(permitRows || [])
+    } else { setPermits([]) }
     let attachmentRows = []
     if (jobIds.length > 0) {
       const { data } = await supabase
@@ -187,6 +194,12 @@ export default function CustomerHistory({ profile }) {
     setPhotoUrls(Object.fromEntries(urlEntries))
 
     setLoading(false)
+  }
+
+  async function downloadPermit(p) {
+    if (!p.filled_form_path) return
+    const { data } = await supabase.storage.from('job-photos').createSignedUrl(p.filled_form_path, 300, { download: p.filled_form_name || 'permit.pdf' })
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
   }
 
   async function deleteAttachment(a) {
@@ -699,6 +712,31 @@ export default function CustomerHistory({ profile }) {
             </div>
           )}
         </div>
+
+        {permits.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <h3 style={{ marginBottom: 10 }}>Permits</h3>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="data-table">
+              <thead><tr><th>Authority</th><th>Job</th><th>Permit #</th><th>Status</th><th>Applied</th><th>Issued</th><th>AHRI #</th><th></th></tr></thead>
+              <tbody>
+                {permits.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.authority_name || '—'}</td>
+                    <td>{p.jobs?.job_number || '—'}</td>
+                    <td>{p.permit_number || '—'}</td>
+                    <td style={{ textTransform: 'capitalize' }}>{(p.status || '').replace('_', ' ')}</td>
+                    <td>{p.application_date ? formatDate(p.application_date) : '—'}</td>
+                    <td>{p.issue_date ? formatDate(p.issue_date) : '—'}</td>
+                    <td>{p.ahri_number || '—'}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{p.filled_form_path && <button className="logout-button" style={{ fontSize: 12, padding: '3px 10px' }} onClick={() => downloadPermit(p)}>PDF ↓</button>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        )}
 
         <div style={{ marginBottom: 28 }}>
           <h3 style={{ marginBottom: 10 }}>Service Reports</h3>
