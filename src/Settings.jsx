@@ -548,7 +548,8 @@ export default function Settings({ profile }) {
             Supervisors may approve their own discount requests
           </label>
         </div>
-        <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 0 }}>
+        <h3 style={{ fontSize: 16, margin: '18px 0 8px' }}>Permits</h3>
+        <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
           <label style={{ marginBottom: 0, cursor: 'pointer' }}>
             <input
               type="checkbox"
@@ -556,9 +557,12 @@ export default function Settings({ profile }) {
               onChange={(e) => { setTrackPermits(e.target.checked); supabase.from('organizations').update({ track_permits: e.target.checked }).eq('id', selectedOrg) }}
               style={{ marginRight: 6 }}
             />
-            Track installation permits (Building Authorities + permit records on jobs)
+            Track installation permits
           </label>
         </div>
+        <p style={{ fontSize: 12.5, color: 'var(--mist)', margin: '0 0 4px' }}>
+          When on, a Permit section appears on System Estimates and permits show on the Customer Profile. Manage offices under Building Authorities.
+        </p>
         <div className="field">
           <label htmlFor="taxRate">Sales tax rate (%)</label>
           <input id="taxRate" type="number" step="0.001" value={salesTaxRate} onChange={(e) => setSalesTaxRate(e.target.value)} style={{ width: 100 }} />
