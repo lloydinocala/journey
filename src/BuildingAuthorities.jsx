@@ -3,7 +3,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import StatusFilter from './StatusFilter'
 
-const blank = { name: '', address: '', city: '', state: '', zip: '', phone: '', email: '', online_form_url: '', notes: '' }
+const blank = { name: '', address: '', city: '', state: '', zip: '', phone: '', email: '', website_url: '', online_form_url: '', noc_required: false, noc_url: '', notes: '' }
 const linkUrl = (u) => (u ? (/^https?:\/\//i.test(u) ? u : 'https://' + u) : null)
 
 export default function BuildingAuthorities({ profile }) {
@@ -32,7 +32,7 @@ export default function BuildingAuthorities({ profile }) {
 
   function startAdd() { setForm(blank); setEditingId(null); setPdfFile(null); setErr(''); setShowForm(true) }
   function startEdit(a) {
-    setForm({ name: a.name || '', address: a.address || '', city: a.city || '', state: a.state || '', zip: a.zip || '', phone: a.phone || '', email: a.email || '', online_form_url: a.online_form_url || '', notes: a.notes || '' })
+    setForm({ name: a.name || '', address: a.address || '', city: a.city || '', state: a.state || '', zip: a.zip || '', phone: a.phone || '', email: a.email || '', website_url: a.website_url || '', online_form_url: a.online_form_url || '', noc_required: !!a.noc_required, noc_url: a.noc_url || '', notes: a.notes || '' })
     setEditingId(a.id); setPdfFile(null); setErr(''); setShowForm(true)
   }
 
@@ -43,7 +43,8 @@ export default function BuildingAuthorities({ profile }) {
     const payload = {
       org_id: selectedOrg, name: form.name.trim(),
       address: form.address.trim() || null, city: form.city.trim() || null, state: form.state.trim() || null, zip: form.zip.trim() || null,
-      phone: form.phone.trim() || null, email: form.email.trim() || null, online_form_url: form.online_form_url.trim() || null, notes: form.notes.trim() || null,
+      phone: form.phone.trim() || null, email: form.email.trim() || null, website_url: form.website_url.trim() || null,
+      online_form_url: form.online_form_url.trim() || null, noc_required: !!form.noc_required, noc_url: form.noc_url.trim() || null, notes: form.notes.trim() || null,
     }
     let id = editingId
     if (editingId) {
@@ -79,6 +80,10 @@ export default function BuildingAuthorities({ profile }) {
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 720 }}>
         The permitting offices you work with — county and city building departments. Store each one's contact info, its online-application link, and/or a blank PDF application, so pulling a permit on a job is one click.
       </p>
+      <div style={{ marginBottom: 16 }}>
+        <a className="logout-button" style={{ textDecoration: 'none', width: 'auto' }} href="https://www.ahridirectory.org/" target="_blank" rel="noreferrer">AHRI Directory ↗</a>
+        <span style={{ fontSize: 12.5, color: 'var(--mist)', marginLeft: 8 }}>Look up equipment AHRI certificate numbers (recorded on the permit).</span>
+      </div>
 
       {isSuper && (
         <div style={{ marginBottom: 16, maxWidth: 340 }}>
@@ -106,7 +111,14 @@ export default function BuildingAuthorities({ profile }) {
             <div className="field" style={{ marginBottom: 0, width: 60 }}><label>State</label><input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} /></div>
             <div className="field" style={{ marginBottom: 0, width: 90 }}><label>ZIP</label><input value={form.zip} onChange={(e) => setForm({ ...form, zip: e.target.value })} /></div>
           </div>
-          <div className="field" style={{ marginTop: 8 }}><label>Online application link (if the form is fillable online)</label><input value={form.online_form_url} onChange={(e) => setForm({ ...form, online_form_url: e.target.value })} placeholder="https://county.gov/permits/apply" /></div>
+          <div className="field" style={{ marginTop: 8 }}><label>Website</label><input value={form.website_url} onChange={(e) => setForm({ ...form, website_url: e.target.value })} placeholder="https://county.gov/building" /></div>
+          <div className="field" style={{ marginBottom: 0 }}><label>Online application link (if the form is fillable online)</label><input value={form.online_form_url} onChange={(e) => setForm({ ...form, online_form_url: e.target.value })} placeholder="https://county.gov/permits/apply" /></div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginTop: 8, flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
+              <input type="checkbox" checked={form.noc_required} onChange={(e) => setForm({ ...form, noc_required: e.target.checked })} /> Requires Notice of Commencement
+            </label>
+            <div className="field" style={{ marginBottom: 0, flex: 1, minWidth: 220 }}><label>Notice of Commencement link/form</label><input value={form.noc_url} onChange={(e) => setForm({ ...form, noc_url: e.target.value })} placeholder="https://…" /></div>
+          </div>
           <div className="field" style={{ marginBottom: 0 }}>
             <label>Blank application PDF (if they use a downloadable form)</label>
             <input type="file" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files[0] || null)} />
@@ -134,10 +146,13 @@ export default function BuildingAuthorities({ profile }) {
                     {[a.address, a.city, [a.state, a.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
                     {a.phone ? `  ·  ${a.phone}` : ''}{a.email ? `  ·  ${a.email}` : ''}
                   </div>
+                  {a.noc_required && <div style={{ fontSize: 12, color: '#C8811B', fontWeight: 700, marginTop: 2 }}>Requires Notice of Commencement</div>}
                   {a.notes && <div style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 2 }}>{a.notes}</div>}
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {a.website_url && <a className="logout-button" style={{ textDecoration: 'none', fontSize: 12, padding: '4px 10px' }} href={linkUrl(a.website_url)} target="_blank" rel="noreferrer">Website ↗</a>}
                   {a.online_form_url && <a className="logout-button" style={{ textDecoration: 'none', fontSize: 12, padding: '4px 10px' }} href={linkUrl(a.online_form_url)} target="_blank" rel="noreferrer">Online form ↗</a>}
+                  {a.noc_url && <a className="logout-button" style={{ textDecoration: 'none', fontSize: 12, padding: '4px 10px' }} href={linkUrl(a.noc_url)} target="_blank" rel="noreferrer">NOC form ↗</a>}
                   {a.blank_form_path && <button className="logout-button" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => downloadBlank(a)}>Blank PDF ↓</button>}
                   <button className="logout-button" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => startEdit(a)}>Edit</button>
                   <button className="logout-button" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => toggleActive(a)}>{a.is_active ? 'Archive' : 'Restore'}</button>
