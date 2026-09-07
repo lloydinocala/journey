@@ -43,6 +43,7 @@ export default function Settings({ profile }) {
 
   const [taxableByDefault, setTaxableByDefault] = useState(false)
   const [discountSelfApprove, setDiscountSelfApprove] = useState(true)
+  const [trackPermits, setTrackPermits] = useState(false)
   const [salesTaxRate, setSalesTaxRate] = useState('0')
   const [savingTax, setSavingTax] = useState(false)
   const [taxSaved, setTaxSaved] = useState(false)
@@ -106,7 +107,7 @@ export default function Settings({ profile }) {
     if (!orgId) return
     const { data } = await supabase
       .from('organizations')
-    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, discount_self_approve, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, google_review_url, license_number, payment_terms_days, logo_url, app_icon_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
+    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, discount_self_approve, track_permits, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, google_review_url, license_number, payment_terms_days, logo_url, app_icon_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
       .eq('id', orgId)
       .single()
     if (data) {
@@ -115,6 +116,7 @@ export default function Settings({ profile }) {
       setTimezone(data.timezone || browserTz())
       setTaxableByDefault(data.services_taxable_by_default)
       setDiscountSelfApprove(data.discount_self_approve !== false)
+      setTrackPermits(!!data.track_permits)
       setSalesTaxRate(String(data.sales_tax_rate))
       setBizStreet(data.business_street || '')
       setBizCity(data.business_city || '')
@@ -544,6 +546,17 @@ export default function Settings({ profile }) {
               style={{ marginRight: 6 }}
             />
             Supervisors may approve their own discount requests
+          </label>
+        </div>
+        <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 0 }}>
+          <label style={{ marginBottom: 0, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={trackPermits}
+              onChange={(e) => { setTrackPermits(e.target.checked); supabase.from('organizations').update({ track_permits: e.target.checked }).eq('id', selectedOrg) }}
+              style={{ marginRight: 6 }}
+            />
+            Track installation permits (Building Authorities + permit records on jobs)
           </label>
         </div>
         <div className="field">
