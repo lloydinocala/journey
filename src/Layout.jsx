@@ -282,11 +282,11 @@ export default function Layout({ profile }) {
           ))}
           <div className="rail-spacer" />
           {!isSuperAdmin && profile?.id && profile?.org_id && (
-            <div style={{ marginBottom: 12, maxWidth: '100%', overflow: 'hidden' }}>
+            <div style={{ marginBottom: 12, width: '100%' }}>
               <ClockWidget userId={profile.id} orgId={profile.org_id} variant="desktop" />
             </div>
           )}
-          {isSuperAdmin && <span className="badge" style={{ marginBottom: 12, maxWidth: '100%', whiteSpace: 'normal', textAlign: 'center', fontSize: 10.5, lineHeight: 1.2, boxSizing: 'border-box' }}>Super Admin</span>}
+          {isSuperAdmin && <div style={{ marginBottom: 12, fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', color: 'var(--amber, #B8720A)', textAlign: 'center', lineHeight: 1.2, width: '100%' }}>SUPER<br />ADMIN</div>}
           <button className="rail-item" onClick={() => window.location.reload(true)}>Refresh</button>
           <button className="rail-item" onClick={handleLogout}>Sign out</button>
         </div>
