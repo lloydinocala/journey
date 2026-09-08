@@ -41,6 +41,8 @@ export default function PermitWorkflow({ profile }) {
   const [property, setProperty] = useState(null)
   const [customer, setCustomer] = useState(null)
   const [estimate, setEstimate] = useState(null)
+  const [job, setJob] = useState(null)
+  const [inspections, setInspections] = useState([])
   const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -63,6 +65,10 @@ export default function PermitWorkflow({ profile }) {
     ])
     setPermits(prm || []); setAuthority(auth); setProperty(prop); setCustomer(cust); setEstimate(est); setVendors(vend || [])
     if (auth?.county_id) { const { data: c } = await supabase.from('counties').select('*').eq('id', auth.county_id).single(); setCounty(c) }
+    const jobId0 = est?.spawned_job_id || est?.converted_to_job_id || p.job_id
+    if (jobId0) { const { data: j } = await supabase.from('jobs').select('id, job_number, status').eq('id', jobId0).single(); setJob(j) }
+    const { data: insp } = await supabase.from('permit_inspections').select('*').eq('package_id', packageId).order('created_at')
+    setInspections(insp || [])
     setLoading(false)
   }
 
@@ -133,6 +139,32 @@ export default function PermitWorkflow({ profile }) {
     await supabase.from('properties').update(patch).eq('id', property.id)
     setProperty({ ...property, ...patch })
     setSaving(false)
+  }
+
+  async function reloadInspections() {
+    const { data } = await supabase.from('permit_inspections').select('*').eq('package_id', packageId).order('created_at')
+    setInspections(data || [])
+  }
+  async function scheduleInspection(pm, date, isReschedule) {
+    if (!date) return
+    setSaving(true)
+    await supabase.from('permit_inspections').insert({ org_id: orgId, permit_id: pm.id, package_id: pkg.id, job_id: job?.id || null, scheduled_date: date, result: 'pending', is_reschedule: !!isReschedule })
+    await reloadInspections(); setSaving(false)
+  }
+  async function setInspectionResult(insp, result) {
+    setSaving(true)
+    await supabase.from('permit_inspections').update({ result }).eq('id', insp.id)
+    if (result === 'pass') {
+      await supabase.from('permits').update({ finaled: true, status: 'closed', updated_at: new Date().toISOString() }).eq('id', insp.permit_id)
+      // if every permit in the package is now finaled, complete the package
+      const { data: prm } = await supabase.from('permits').select('id, finaled').eq('package_id', pkg.id)
+      if ((prm || []).length && prm.every((x) => x.finaled)) {
+        await supabase.from('permit_packages').update({ status: 'complete', updated_at: new Date().toISOString() }).eq('id', pkg.id)
+        setPkg({ ...pkg, status: 'complete' })
+      }
+      setPermits((ps) => ps.map((x) => (x.id === insp.permit_id ? { ...x, finaled: true, status: 'closed' } : x)))
+    }
+    await reloadInspections(); setSaving(false)
   }
 
   if (loading) return <div style={{ maxWidth: 1000, margin: '0 auto' }}><p style={{ color: 'var(--mist)' }}>Loading…</p></div>
@@ -281,6 +313,52 @@ export default function PermitWorkflow({ profile }) {
           </div>
         ))}
       </StepCard>
+
+      {/* STEP 9 — Inspections (separate; only after the install is completed) */}
+      <div className="section-card" style={{ padding: 16, marginBottom: 14, marginTop: 22, borderTop: '3px solid var(--border)' }}>
+        <h3 style={{ margin: '0 0 4px', fontSize: 15 }}>Step 9: Schedule Inspections</h3>
+        {job?.status !== 'completed' ? (
+          <p style={{ color: 'var(--mist)', fontSize: 13, margin: 0 }}>Available once the install job is marked completed{job ? ` (job ${job.job_number} is currently "${job.status || 'unknown'}")` : ''}. Inspections are the last step to close out the permit.</p>
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+              {authority?.inspection_scheduling_url && <a className="logout-button" style={{ textDecoration: 'none', fontSize: 12 }} href={linkUrl(authority.inspection_scheduling_url)} target="_blank" rel="noreferrer">Schedule inspection online ↗</a>}
+              {authority?.phone && <span style={{ fontSize: 12, color: 'var(--mist)' }}>or call {authority.phone}{authority.phone_extension ? ' x' + authority.phone_extension : ''}</span>}
+            </div>
+            {permits.map((pm) => {
+              const rows = inspections.filter((i) => i.permit_id === pm.id)
+              const passed = rows.some((r) => r.result === 'pass')
+              const pending = rows.find((r) => r.result === 'pending')
+              const lastFailed = rows.length > 0 && rows[rows.length - 1].result === 'fail'
+              return (
+                <div key={pm.id} style={{ borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 10 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{pm.system_label} · Permit {pm.permit_number || '—'} {passed && <span style={{ color: '#1a7f37' }}>· PASSED ✓</span>}</div>
+                  {rows.map((r, idx) => (
+                    <div key={r.id} style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 6, fontSize: 13 }}>
+                      <span style={{ color: 'var(--mist)', width: 90 }}>{r.is_reschedule ? 'Re-sched' : 'Scheduled'}</span>
+                      <span>{r.scheduled_date || '—'}</span>
+                      {r.result === 'pending' ? (
+                        <>
+                          <button className="auth-button" style={{ width: 'auto', fontSize: 12, padding: '3px 12px' }} disabled={saving} onClick={() => setInspectionResult(r, 'pass')}>Pass</button>
+                          <button className="logout-button" style={{ fontSize: 12, padding: '3px 12px', color: '#B00020', borderColor: '#F0B4B4' }} disabled={saving} onClick={() => setInspectionResult(r, 'fail')}>Fail</button>
+                        </>
+                      ) : (
+                        <span style={{ fontWeight: 700, color: r.result === 'pass' ? '#1a7f37' : '#C0392B' }}>{r.result === 'pass' ? 'PASS' : 'FAIL'}</span>
+                      )}
+                    </div>
+                  ))}
+                  {!passed && !pending && (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 8 }}>
+                      <div style={{ width: 170 }}><label style={L}>{lastFailed ? 'Re-schedule date' : 'Schedule date'}</label><input style={I} type="date" id={`insp-${pm.id}`} /></div>
+                      <button className="logout-button" style={{ fontSize: 12 }} disabled={saving} onClick={() => scheduleInspection(pm, document.getElementById(`insp-${pm.id}`).value, lastFailed)}>{lastFailed ? 'Re-schedule' : 'Schedule'}</button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </>
+        )}
+      </div>
     </div>
   )
 }
