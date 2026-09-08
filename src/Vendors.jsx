@@ -12,7 +12,7 @@ function vendorSiteUrl(url) {
 
 const blankForm = {
   name: '', phone: '', email: '', website: '', account_number: '', billing_type: '',
-  sales_rep_name: '', sales_rep_phone: '', street_address: '', city: '', state: '', zip: '', notes: '',
+  sales_rep_name: '', sales_rep_phone: '', street_address: '', city: '', state: '', zip: '', notes: '', is_recorder: false,
 }
 
 export default function Vendors({ profile }) {
@@ -90,6 +90,7 @@ export default function Vendors({ profile }) {
       state: form.state.trim() || null,
       zip: form.zip.trim() || null,
       notes: form.notes.trim() || null,
+      is_recorder: !!form.is_recorder,
     })
     setSaving(false)
     if (insErr) {
@@ -182,6 +183,12 @@ export default function Vendors({ profile }) {
           <div className="field" style={{ minWidth: 220 }}>
             <label>Notes</label>
             <input type="text" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="optional" />
+          </div>
+          <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label style={{ marginBottom: 0, cursor: 'pointer' }}>
+              <input type="checkbox" checked={form.is_recorder} onChange={(e) => setForm({ ...form, is_recorder: e.target.checked })} style={{ marginRight: 6 }} />
+              This vendor is a Recorder (for NOC recording)
+            </label>
           </div>
           <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto' }}>
             {saving ? 'Adding…' : 'Add vendor'}
