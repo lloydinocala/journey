@@ -28,8 +28,6 @@ const CATEGORIES = [
     { label: 'System Estimates', path: '/system-estimates' },
     { label: 'Warranty Registrations', path: '/warranty-registrations' },
     { label: 'Vendors', path: '/vendors' },
-    { label: 'Building Authorities', path: '/building-authorities' },
-    { label: 'Permits', path: '/permits' },
     { label: 'Text Archive', path: '/text-archive' },
     { label: 'Filter Orders', path: '/filter-orders' },
     { label: 'Filter Subscriptions', path: '/filter-subscriptions' },
@@ -58,6 +56,10 @@ const CATEGORIES = [
     { label: 'Payroll Capture', path: '/payroll' },
     { label: 'Sign-In Log', path: '/session-log' },
     { label: 'Settings', path: '/settings' },
+  ]},
+  { key: 'permitting', label: 'Permitting', items: [
+    { label: 'Permits', path: '/permits' },
+    { label: 'Building Authorities', path: '/building-authorities' },
   ]},
   // Bulk Import is now a tile dashboard (/import). Clicking the rail entry opens it;
   // the individual import tools live as cards there instead of a long nav dropdown.
@@ -101,6 +103,7 @@ function getCategoryForPath(pathname) {
   if (pathname === '/' || pathname === '/home') return null
   if (pathname.startsWith('/financials')) return 'financials'
   if (pathname.startsWith('/admin')) return 'admin'
+  if (pathname.startsWith('/permits') || pathname.startsWith('/building-authorities')) return 'permitting'
   if (pathname.startsWith('/maintenance')) return 'maintenance'
   if (pathname.startsWith('/calendar') || pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/text-archive') || pathname.startsWith('/filter-orders') || pathname.startsWith('/filter-subscriptions') || pathname.startsWith('/dispatch-map') || pathname.startsWith('/call') || pathname.startsWith('/service-requests')) return 'operations'
   if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog')) return 'financials'
