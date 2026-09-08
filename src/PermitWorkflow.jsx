@@ -45,6 +45,7 @@ export default function PermitWorkflow({ profile }) {
   const [inspections, setInspections] = useState([])
   const [vendors, setVendors] = useState([])
   const [vendorBrandMap, setVendorBrandMap] = useState({})
+  const [nocThreshold, setNocThreshold] = useState(15000)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const orgId = profile.org_id
@@ -56,7 +57,7 @@ export default function PermitWorkflow({ profile }) {
     const { data: p } = await supabase.from('permit_packages').select('*').eq('id', packageId).single()
     if (!p) { setLoading(false); return }
     setPkg(p)
-    const [{ data: prm }, { data: auth }, { data: prop }, { data: cust }, { data: est }, { data: vend }, { data: vbrands }] = await Promise.all([
+    const [{ data: prm }, { data: auth }, { data: prop }, { data: cust }, { data: est }, { data: vend }, { data: vbrands }, { data: orgRow }] = await Promise.all([
       supabase.from('permits').select('*').eq('package_id', packageId).order('system_label'),
       p.building_authority_id ? supabase.from('building_authorities').select('*').eq('id', p.building_authority_id).single() : Promise.resolve({ data: null }),
       p.property_id ? supabase.from('properties').select('*').eq('id', p.property_id).single() : Promise.resolve({ data: null }),
@@ -64,6 +65,7 @@ export default function PermitWorkflow({ profile }) {
       p.estimate_id ? supabase.from('invoices').select('id, invoice_number, spawned_job_id, converted_to_job_id, job_total').eq('id', p.estimate_id).single() : Promise.resolve({ data: null }),
       supabase.from('vendors').select('id, name, phone').eq('org_id', p.org_id).eq('is_active', true).order('name'),
       supabase.from('vendor_brands').select('vendor_id, brand, is_preferred').eq('org_id', p.org_id),
+      supabase.from('organizations').select('noc_threshold').eq('id', p.org_id).single(),
     ])
     const bmap = {}
     ;(vbrands || []).forEach((r) => {
@@ -72,6 +74,7 @@ export default function PermitWorkflow({ profile }) {
       e.ids.push(r.vendor_id); if (r.is_preferred) e.preferred = r.vendor_id
     })
     setVendorBrandMap(bmap)
+    setNocThreshold(Number(orgRow?.noc_threshold ?? 15000))
     const seeded = (prm || []).map((pm) => {
       if (pm.act_vendor_id || !pm.req_brand) return pm
       const info = bmap[(pm.req_brand || '').trim().toUpperCase()]
@@ -338,18 +341,25 @@ export default function PermitWorkflow({ profile }) {
 
       {/* STEP 6 — Apply for NOC */}
       <StepCard n={6} current={cur} title="Apply for Notice of Commencement" onNext={() => advance(7)} saving={saving}>
-        {authority?.noc_required ? (
-          <>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-              {authority?.noc_url && <a className="logout-button" style={{ textDecoration: 'none', fontSize: 12 }} href={linkUrl(authority.noc_url)} target="_blank" rel="noreferrer">NOC form ↗</a>}
-              <a className="logout-button" style={{ textDecoration: 'none', fontSize: 12 }} href={SEJDA_URL} target="_blank" rel="noreferrer">Open PDF filler ↗</a>
-            </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div style={{ width: 170 }}><label style={L}>Date notarized</label><input style={I} type="date" value={permits[0]?.noc_notarized_date || ''} onChange={(e) => setPermitLocal(permits[0].id, { noc_notarized_date: e.target.value })} onBlur={() => savePermit(permits[0].id, { noc_notarized_date: permits[0].noc_notarized_date || null })} /></div>
-              <span style={{ fontSize: 12, color: 'var(--mist)' }}>Recorder: {county?.recorder_vendor_id ? (vendors.find((v) => v.id === county.recorder_vendor_id)?.name || '—') : 'none set on county'} — send-to-recorder wired next phase</span>
-            </div>
-          </>
-        ) : <p style={{ color: 'var(--mist)', fontSize: 13 }}>This authority does not require a Notice of Commencement. You can skip to the next step.</p>}
+        {(() => {
+          const total = Number(estimate?.job_total || 0)
+          const byPrice = total >= nocThreshold
+          const nocRequired = byPrice || !!authority?.noc_required
+          if (!nocRequired) return <p style={{ color: 'var(--mist)', fontSize: 13, margin: 0 }}>Estimate {money(total)} is below the {money(nocThreshold)} Florida threshold, so a Notice of Commencement isn’t required. Skip to the next step.</p>
+          return (
+            <>
+              <p style={{ fontSize: 12.5, margin: '0 0 8px', fontWeight: 600, color: byPrice ? '#B8860B' : 'var(--mist)' }}>{byPrice ? `Estimate ${money(total)} is at or above the ${money(nocThreshold)} threshold — a Notice of Commencement is required.` : 'This authority requires a Notice of Commencement regardless of price.'}</p>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                {authority?.noc_url && <a className="logout-button" style={{ textDecoration: 'none', fontSize: 12 }} href={linkUrl(authority.noc_url)} target="_blank" rel="noreferrer">NOC form ↗</a>}
+                <a className="logout-button" style={{ textDecoration: 'none', fontSize: 12 }} href={SEJDA_URL} target="_blank" rel="noreferrer">Open PDF filler ↗</a>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <div style={{ width: 170 }}><label style={L}>Date notarized</label><input style={I} type="date" value={permits[0]?.noc_notarized_date || ''} onChange={(e) => setPermitLocal(permits[0].id, { noc_notarized_date: e.target.value })} onBlur={() => savePermit(permits[0].id, { noc_notarized_date: permits[0].noc_notarized_date || null })} /></div>
+                <span style={{ fontSize: 12, color: 'var(--mist)' }}>Recorder: {county?.recorder_vendor_id ? (vendors.find((v) => v.id === county.recorder_vendor_id)?.name || '—') : 'none set on county'} — send-to-recorder wired next phase</span>
+              </div>
+            </>
+          )
+        })()}
       </StepCard>
 
       {/* STEP 7 — Receive & record permit */}

@@ -26,18 +26,31 @@ export default function BuildingAuthorities({ profile }) {
   const [editingCountyId, setEditingCountyId] = useState(null)
   const [showCountyForm, setShowCountyForm] = useState(false)
   const [countySaving, setCountySaving] = useState(false)
+  const [nocThreshold, setNocThreshold] = useState('')
+  const [nocSaving, setNocSaving] = useState(false)
+  const [nocSaved, setNocSaved] = useState(false)
 
   useEffect(() => { if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || [])) }, [])
   useEffect(() => { if (selectedOrg) load() }, [selectedOrg])
 
   async function load() {
     setLoading(true)
-    const [{ data }, { data: cty }, { data: rec }] = await Promise.all([
+    const [{ data }, { data: cty }, { data: rec }, { data: orgRow }] = await Promise.all([
       supabase.from('building_authorities').select('*').eq('org_id', selectedOrg).order('name'),
       supabase.from('counties').select('*').eq('org_id', selectedOrg).order('name'),
       supabase.from('vendors').select('id, name').eq('org_id', selectedOrg).eq('is_recorder', true).eq('is_active', true).order('name'),
+      supabase.from('organizations').select('noc_threshold').eq('id', selectedOrg).single(),
     ])
-    setRows(data || []); setCounties(cty || []); setRecorderVendors(rec || []); setLoading(false)
+    setRows(data || []); setCounties(cty || []); setRecorderVendors(rec || [])
+    setNocThreshold(String(orgRow?.noc_threshold ?? 15000)); setLoading(false)
+  }
+
+  async function saveNocThreshold() {
+    const val = Number(nocThreshold)
+    if (Number.isNaN(val) || val < 0) return
+    setNocSaving(true); setNocSaved(false)
+    await supabase.from('organizations').update({ noc_threshold: val }).eq('id', selectedOrg)
+    setNocSaving(false); setNocSaved(true); setTimeout(() => setNocSaved(false), 2500)
   }
 
   function startAdd() { setForm(blank); setEditingId(null); setPdfFile(null); setErr(''); setShowForm(true) }
@@ -106,6 +119,17 @@ export default function BuildingAuthorities({ profile }) {
       <div style={{ marginBottom: 16 }}>
         <a className="logout-button" style={{ textDecoration: 'none', width: 'auto' }} href="https://www.ahridirectory.org/" target="_blank" rel="noreferrer">AHRI Directory ↗</a>
         <span style={{ fontSize: 12.5, color: 'var(--mist)', marginLeft: 8 }}>Look up equipment AHRI certificate numbers (recorded on the permit).</span>
+      </div>
+
+      <div className="section-card" style={{ padding: 16, marginBottom: 16 }}>
+        <h3 style={{ margin: '0 0 6px', fontSize: 16 }}>Permit Settings</h3>
+        <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--mist)', maxWidth: 620 }}>Notice of Commencement threshold. In Florida a NOC is required on jobs at or above this contract price; the permit workflow flags it automatically from the estimate total. Change it only if the statute or your jurisdiction differs.</p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span style={{ fontSize: 14 }}>NOC required at or above $</span>
+          <input type="number" step="500" min="0" value={nocThreshold} onChange={(e) => setNocThreshold(e.target.value)} style={{ width: 130, padding: '7px 9px', border: '1px solid var(--border)', borderRadius: 8 }} />
+          <button className="auth-button" style={{ width: 'auto', padding: '7px 16px', margin: 0 }} disabled={nocSaving} onClick={saveNocThreshold}>{nocSaving ? 'Saving…' : 'Save'}</button>
+          {nocSaved && <span style={{ fontSize: 12, color: '#1a7f37', fontWeight: 700 }}>Saved ✓</span>}
+        </div>
       </div>
 
       <div className="section-card" style={{ padding: 16, marginBottom: 16 }}>
