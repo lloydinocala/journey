@@ -43,7 +43,7 @@ export default function Permits({ profile }) {
     const [{ data: ests }, { data: pkgs }] = await Promise.all([
       supabase.from('invoices')
         .select('id, invoice_number, bills_to_customer_id, property_id, building_authority_id, job_total, spawned_job_id, converted_to_job_id')
-        .eq('org_id', selectedOrg).eq('estimate_type', 'system').eq('approval_status', 'approved').eq('is_archived', false).is('deleted_at', null),
+        .eq('org_id', selectedOrg).eq('estimate_type', 'system').ilike('approval_status', 'approved').eq('is_archived', false).is('deleted_at', null),
       supabase.from('permit_packages').select('*').eq('org_id', selectedOrg).neq('status', 'cancelled'),
     ])
     const estimates = ests || []
