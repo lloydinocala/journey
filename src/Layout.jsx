@@ -29,6 +29,7 @@ const CATEGORIES = [
     { label: 'Warranty Registrations', path: '/warranty-registrations' },
     { label: 'Vendors', path: '/vendors' },
     { label: 'Building Authorities', path: '/building-authorities' },
+    { label: 'Permits', path: '/permits' },
     { label: 'Text Archive', path: '/text-archive' },
     { label: 'Filter Orders', path: '/filter-orders' },
     { label: 'Filter Subscriptions', path: '/filter-subscriptions' },
