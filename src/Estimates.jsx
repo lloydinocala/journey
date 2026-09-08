@@ -620,10 +620,11 @@ export default function Estimates({ profile }) {
                   <button className="logout-button" onClick={() => addToIncompleteJobs(est)}>
                     + Incomplete
                   </button>
-                  {/* Only offer converting an approved estimate into a Service Call when the
-                      work still needs scheduling — hide it once no job was spawned AND the
-                      estimate's own job is already completed (work was done in place, invoiced). */}
-                  {est.approval_status === 'Approved' && !est.result_job && est.jobs?.status !== 'completed' && (
+                  {/* Offer conversion for any approved estimate not yet turned into a job.
+                      result_job (spawned/converted) guards against double-converting. The parent
+                      job's status is intentionally NOT a gate: an add-on estimate approved after
+                      the original job was completed still needs its own schedulable segment/job. */}
+                  {est.approval_status === 'Approved' && !est.result_job && (
                     <button className="logout-button" style={{ color: 'var(--route-blue, #1B3A6B)', fontWeight: 700 }} onClick={() => openConvert(est)}>
                       → Service Call
                     </button>
