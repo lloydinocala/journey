@@ -9,7 +9,10 @@ export default function PermitPanel({ estimateId, jobId, orgId, propertyId, prof
   const [permit, setPermit] = useState(null)
   const [authorityId, setAuthorityId] = useState('')
   const [manualName, setManualName] = useState('')
+  const [savedAuthorityId, setSavedAuthorityId] = useState('')
+  const [savedManual, setSavedManual] = useState('')
   const [saving, setSaving] = useState(false)
+  const [justSaved, setJustSaved] = useState(false)
 
   useEffect(() => {
     if (!orgId) return
@@ -22,19 +25,26 @@ export default function PermitPanel({ estimateId, jobId, orgId, propertyId, prof
     let q = supabase.from('permits').select('*')
     q = estimateId ? q.eq('estimate_id', estimateId) : q.eq('job_id', jobId)
     q.order('created_at', { ascending: false }).limit(1).maybeSingle().then(({ data }) => {
-      if (data) { setPermit(data); setAuthorityId(data.building_authority_id || ''); setManualName(data.authority_name && !data.building_authority_id ? data.authority_name : '') }
+      if (data) {
+        setPermit(data)
+        const aid = data.building_authority_id || ''
+        const man = data.authority_name && !data.building_authority_id ? data.authority_name : ''
+        setAuthorityId(aid); setManualName(man); setSavedAuthorityId(aid); setSavedManual(man)
+      }
     })
   }, [estimateId, jobId, enabled])
 
   if (enabled !== true) return null
 
-  async function persist(newAuthorityId, newManual) {
-    setSaving(true)
-    const a = authorities.find((x) => x.id === newAuthorityId) || null
+  const dirty = authorityId !== savedAuthorityId || manualName.trim() !== savedManual.trim()
+
+  async function persist() {
+    setSaving(true); setJustSaved(false)
+    const a = authorities.find((x) => x.id === authorityId) || null
     const payload = {
       org_id: orgId, estimate_id: estimateId || null, job_id: jobId || null, property_id: propertyId || null,
-      building_authority_id: newAuthorityId || null,
-      authority_name: a ? a.name : (newManual?.trim() || null),
+      building_authority_id: authorityId || null,
+      authority_name: a ? a.name : (manualName?.trim() || null),
       updated_at: new Date().toISOString(),
     }
     if (permit?.id) {
@@ -44,8 +54,11 @@ export default function PermitPanel({ estimateId, jobId, orgId, propertyId, prof
       const { data } = await supabase.from('permits').insert({ ...payload, status: 'not_applied' }).select().single()
       if (data) setPermit(data)
     }
-    if (newAuthorityId && jobId) await supabase.from('jobs').update({ building_authority_id: newAuthorityId }).eq('id', jobId)
-    setSaving(false)
+    // Carry the authority onto the estimate (and job) so the permit package picks it up on creation.
+    if (estimateId) await supabase.from('invoices').update({ building_authority_id: authorityId || null }).eq('id', estimateId)
+    if (jobId) await supabase.from('jobs').update({ building_authority_id: authorityId || null }).eq('id', jobId)
+    setSavedAuthorityId(authorityId); setSavedManual(manualName.trim())
+    setSaving(false); setJustSaved(true); setTimeout(() => setJustSaved(false), 2500)
   }
 
   const I = { padding: '7px 9px', border: '1px solid var(--border)', borderRadius: 8, width: '100%' }
@@ -56,7 +69,7 @@ export default function PermitPanel({ estimateId, jobId, orgId, propertyId, prof
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div style={{ flex: 1, minWidth: 240 }}>
           <label style={{ display: 'block', fontSize: 12, color: 'var(--mist)', marginBottom: 3 }}>Which authority permits this address?</label>
-          <select style={I} value={authorityId} onChange={(e) => { setAuthorityId(e.target.value); setManualName(''); persist(e.target.value, '') }}>
+          <select style={I} value={authorityId} onChange={(e) => { setAuthorityId(e.target.value); if (e.target.value) setManualName('') }}>
             <option value="">— Select or enter manually —</option>
             {authorities.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
@@ -64,10 +77,13 @@ export default function PermitPanel({ estimateId, jobId, orgId, propertyId, prof
         {!authorityId && (
           <div style={{ flex: 1, minWidth: 200 }}>
             <label style={{ display: 'block', fontSize: 12, color: 'var(--mist)', marginBottom: 3 }}>…or type a one-off</label>
-            <input style={I} value={manualName} onChange={(e) => setManualName(e.target.value)} onBlur={() => persist('', manualName)} placeholder="One-off authority" />
+            <input style={I} value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="One-off authority" />
           </div>
         )}
-        {saving && <span style={{ fontSize: 12, color: 'var(--mist)' }}>Saving…</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button className="auth-button" style={{ width: 'auto', padding: '8px 18px', opacity: dirty && !saving ? 1 : 0.6 }} disabled={!dirty || saving} onClick={persist}>{saving ? 'Saving…' : 'Save'}</button>
+          {justSaved && !dirty && <span style={{ fontSize: 12, color: '#1a7f37', fontWeight: 700 }}>Saved ✓</span>}
+        </div>
       </div>
     </div>
   )

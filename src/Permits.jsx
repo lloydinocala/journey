@@ -109,15 +109,20 @@ export default function Permits({ profile }) {
 
   async function startPackage(est) {
     setStarting(est.id)
+    let authId = est.building_authority_id || null
+    if (!authId) {
+      const { data: pr } = await supabase.from('permits').select('building_authority_id').eq('estimate_id', est.id).not('building_authority_id', 'is', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      authId = pr?.building_authority_id || null
+    }
     const { data: pkg, error } = await supabase.from('permit_packages').insert({
       org_id: selectedOrg, estimate_id: est.id, property_id: est.property_id || null, customer_id: est.bills_to_customer_id || null,
-      building_authority_id: est.building_authority_id || null, current_step: 1, status: 'in_progress',
+      building_authority_id: authId, current_step: 1, status: 'in_progress',
     }).select().single()
     if (error) { setStarting(''); alert(error.message); return }
     const eq = est.equip || {}
     await supabase.from('permits').insert({
       org_id: selectedOrg, package_id: pkg.id, estimate_id: est.id, property_id: est.property_id || null,
-      building_authority_id: est.building_authority_id || null, system_label: 'System 1', status: 'not_applied',
+      building_authority_id: authId, system_label: 'System 1', status: 'not_applied',
       req_brand: eq.brand || null, req_condenser_model: eq.condenser || null, req_ahu_model: eq.ahu || null, req_furnace_model: eq.furnace || null, req_ahri: eq.ahri || null,
     })
     nav(`/permits/${pkg.id}`)
