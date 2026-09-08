@@ -145,6 +145,18 @@ export default function PermitWorkflow({ profile }) {
     const { data } = await supabase.from('permit_inspections').select('*').eq('package_id', packageId).order('created_at')
     setInspections(data || [])
   }
+  async function markInstallComplete() {
+    if (!window.confirm('Mark the install complete for permitting? This lets you schedule inspections. It does NOT change the install job\'s status in dispatch.')) return
+    setSaving(true)
+    const ts = new Date().toISOString()
+    await supabase.from('permit_packages').update({ install_completed_at: ts, updated_at: ts }).eq('id', pkg.id)
+    setPkg((x) => ({ ...x, install_completed_at: ts })); setSaving(false)
+  }
+  async function undoInstallComplete() {
+    setSaving(true)
+    await supabase.from('permit_packages').update({ install_completed_at: null, updated_at: new Date().toISOString() }).eq('id', pkg.id)
+    setPkg((x) => ({ ...x, install_completed_at: null })); setSaving(false)
+  }
   async function scheduleInspection(pm, date, isReschedule) {
     if (!date) return
     setSaving(true)
@@ -317,10 +329,19 @@ export default function PermitWorkflow({ profile }) {
       {/* STEP 9 — Inspections (separate; only after the install is completed) */}
       <div className="section-card" style={{ padding: 16, marginBottom: 14, marginTop: 22, borderTop: '3px solid var(--border)' }}>
         <h3 style={{ margin: '0 0 4px', fontSize: 15 }}>Step 9: Schedule Inspections</h3>
-        {job?.status !== 'completed' ? (
-          <p style={{ color: 'var(--mist)', fontSize: 13, margin: 0 }}>Available once the install job is marked completed{job ? ` (job ${job.job_number} is currently "${job.status || 'unknown'}")` : ''}. Inspections are the last step to close out the permit.</p>
+        {!(job?.status === 'completed' || pkg?.install_completed_at) ? (
+          <div>
+            <p style={{ color: 'var(--mist)', fontSize: 13, margin: '0 0 10px' }}>Inspections open once the install is complete{job ? ` — install job ${job.job_number} is currently "${job.status || 'unknown'}"` : ' (no linked install job on this estimate)'}. When the equipment is installed, mark it complete to schedule inspections.</p>
+            <button className="auth-button" style={{ width: 'auto', fontSize: 13, padding: '6px 16px' }} disabled={saving} onClick={markInstallComplete}>Mark install complete</button>
+          </div>
         ) : (
           <>
+            {pkg?.install_completed_at && job?.status !== 'completed' && (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8, fontSize: 12, color: 'var(--mist)' }}>
+                <span>Install marked complete {new Date(pkg.install_completed_at).toLocaleDateString()} (permitting only)</span>
+                <button className="logout-button" style={{ fontSize: 11, padding: '2px 8px' }} disabled={saving} onClick={undoInstallComplete}>Undo</button>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
               {authority?.inspection_scheduling_url && <a className="logout-button" style={{ textDecoration: 'none', fontSize: 12 }} href={linkUrl(authority.inspection_scheduling_url)} target="_blank" rel="noreferrer">Schedule inspection online ↗</a>}
               {authority?.phone && <span style={{ fontSize: 12, color: 'var(--mist)' }}>or call {authority.phone}{authority.phone_extension ? ' x' + authority.phone_extension : ''}</span>}

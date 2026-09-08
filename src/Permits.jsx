@@ -93,7 +93,7 @@ export default function Permits({ profile }) {
         customer: custById[p.customer_id] || null, invoice: invByJob[jobId] || null,
         permits: permitsByPkg[p.id] || [], insp: inspByPkg[p.id] || [],
       }
-      if (jstatus === 'completed') insp2.push(enriched)
+      if (jstatus === 'completed' || p.install_completed_at) insp2.push(enriched)
       else prog.push(enriched)
     })
     // failed-inspection helper
