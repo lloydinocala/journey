@@ -129,27 +129,24 @@ export default function ClockWidget({ userId, orgId, variant = 'mobile', onChang
   if (loading) return null
 
   if (variant === 'desktop') {
+    const btn = { width: '100%', padding: '6px 4px', margin: 0, fontSize: 12, boxSizing: 'border-box', whiteSpace: 'nowrap' }
     if (!openShift) {
       return (
-        <button className="auth-button" style={{ width: 'auto', padding: '6px 16px', margin: 0 }} disabled={busy} onClick={clockIn}>
-          Clock In
-        </button>
+        <button className="auth-button" style={btn} disabled={busy} onClick={clockIn}>Clock In</button>
       )
     }
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 13, color: 'var(--mist)' }}>
-          {openBreak ? <>On lunch · <strong>{elapsed(openBreak.break_start)}</strong></> : <>Clocked in · <strong>{elapsed(openShift.clock_in)}</strong></>}
-          {longOpen && <span style={{ color: 'var(--alert-orange)', marginLeft: 6 }}>⚠</span>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', padding: '0 6px', boxSizing: 'border-box' }}>
+        <span style={{ fontSize: 11, color: 'var(--mist)', textAlign: 'center', lineHeight: 1.25 }}>
+          {openBreak ? <>On lunch<br /><strong>{elapsed(openBreak.break_start)}</strong></> : <>Clocked in<br /><strong>{elapsed(openShift.clock_in)}</strong></>}
+          {longOpen && <span style={{ color: 'var(--alert-orange)', marginLeft: 4 }}>⚠</span>}
         </span>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {openBreak ? (
-            <button className="auth-button" style={{ width: 'auto', padding: '5px 12px', margin: 0 }} disabled={busy} onClick={() => endBreak(false)}>End Lunch</button>
-          ) : (
-            <button className="logout-button" disabled={busy} onClick={startBreak}>Start Lunch</button>
-          )}
-          <button className="logout-button" disabled={busy} onClick={clockOut}>Clock Out</button>
-        </div>
+        {openBreak ? (
+          <button className="auth-button" style={btn} disabled={busy} onClick={() => endBreak(false)}>End Lunch</button>
+        ) : (
+          <button className="logout-button" style={btn} disabled={busy} onClick={startBreak}>Start Lunch</button>
+        )}
+        <button className="logout-button" style={btn} disabled={busy} onClick={clockOut}>Clock Out</button>
       </div>
     )
   }
