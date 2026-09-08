@@ -3,7 +3,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import StatusFilter from './StatusFilter'
 
-const blank = { name: '', address: '', city: '', state: '', zip: '', phone: '', email: '', website_url: '', online_form_url: '', noc_required: false, noc_url: '', notes: '', county_id: '', phone_extension: '', inspection_scheduling_url: '' }
+const blank = { name: '', address: '', city: '', state: '', zip: '', phone: '', email: '', website_url: '', online_form_url: '', noc_required: false, noc_url: '', notes: '', county_id: '', phone_extension: '', inspection_scheduling_url: '', inspection_scheduling_phone: '' }
 const linkUrl = (u) => (u ? (/^https?:\/\//i.test(u) ? u : 'https://' + u) : null)
 
 export default function BuildingAuthorities({ profile }) {
@@ -55,7 +55,7 @@ export default function BuildingAuthorities({ profile }) {
 
   function startAdd() { setForm(blank); setEditingId(null); setPdfFile(null); setErr(''); setShowForm(true) }
   function startEdit(a) {
-    setForm({ name: a.name || '', address: a.address || '', city: a.city || '', state: a.state || '', zip: a.zip || '', phone: a.phone || '', email: a.email || '', website_url: a.website_url || '', online_form_url: a.online_form_url || '', noc_required: !!a.noc_required, noc_url: a.noc_url || '', notes: a.notes || '', county_id: a.county_id || '', phone_extension: a.phone_extension || '', inspection_scheduling_url: a.inspection_scheduling_url || '' })
+    setForm({ name: a.name || '', address: a.address || '', city: a.city || '', state: a.state || '', zip: a.zip || '', phone: a.phone || '', email: a.email || '', website_url: a.website_url || '', online_form_url: a.online_form_url || '', noc_required: !!a.noc_required, noc_url: a.noc_url || '', notes: a.notes || '', county_id: a.county_id || '', phone_extension: a.phone_extension || '', inspection_scheduling_url: a.inspection_scheduling_url || '', inspection_scheduling_phone: a.inspection_scheduling_phone || '' })
     setEditingId(a.id); setPdfFile(null); setErr(''); setShowForm(true)
   }
 
@@ -68,7 +68,7 @@ export default function BuildingAuthorities({ profile }) {
       address: form.address.trim() || null, city: form.city.trim() || null, state: form.state.trim() || null, zip: form.zip.trim() || null,
       phone: form.phone.trim() || null, email: form.email.trim() || null, website_url: form.website_url.trim() || null,
       online_form_url: form.online_form_url.trim() || null, noc_required: !!form.noc_required, noc_url: form.noc_url.trim() || null, notes: form.notes.trim() || null,
-      county_id: form.county_id || null, phone_extension: form.phone_extension.trim() || null, inspection_scheduling_url: form.inspection_scheduling_url.trim() || null,
+      county_id: form.county_id || null, phone_extension: form.phone_extension.trim() || null, inspection_scheduling_url: form.inspection_scheduling_url.trim() || null, inspection_scheduling_phone: form.inspection_scheduling_phone.trim() || null,
     }
     let id = editingId
     if (editingId) {
@@ -195,6 +195,7 @@ export default function BuildingAuthorities({ profile }) {
           </div>
           <div className="field" style={{ marginTop: 8 }}><label>Website</label><input value={form.website_url} onChange={(e) => setForm({ ...form, website_url: e.target.value })} placeholder="https://county.gov/building" /></div>
           <div className="field" style={{ marginBottom: 0 }}><label>Inspection scheduling URL</label><input value={form.inspection_scheduling_url} onChange={(e) => setForm({ ...form, inspection_scheduling_url: e.target.value })} placeholder="https://…" /></div>
+          <div className="field" style={{ marginBottom: 0 }}><label>Inspection scheduling phone (call-in, if not online)</label><input value={form.inspection_scheduling_phone} onChange={(e) => setForm({ ...form, inspection_scheduling_phone: e.target.value })} placeholder="(352) 555-0100" /></div>
           <div className="field" style={{ marginBottom: 0 }}><label>Online application link (if the form is fillable online)</label><input value={form.online_form_url} onChange={(e) => setForm({ ...form, online_form_url: e.target.value })} placeholder="https://county.gov/permits/apply" /></div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginTop: 8, flexWrap: 'wrap' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
@@ -228,6 +229,7 @@ export default function BuildingAuthorities({ profile }) {
                   <div style={{ fontSize: 13, color: 'var(--mist)', marginTop: 2 }}>
                     {[a.address, a.city, [a.state, a.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
                     {a.phone ? `  ·  ${a.phone}${a.phone_extension ? ' x' + a.phone_extension : ''}` : ''}{a.email ? `  ·  ${a.email}` : ''}
+                    {a.inspection_scheduling_phone ? `  ·  inspections: ${a.inspection_scheduling_phone}` : ''}
                     {a.county_id ? `  ·  ${counties.find((c) => c.id === a.county_id)?.name || ''}` : ''}
                   </div>
                   {a.noc_required && <div style={{ fontSize: 12, color: '#C8811B', fontWeight: 700, marginTop: 2 }}>Requires Notice of Commencement</div>}

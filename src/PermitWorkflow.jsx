@@ -437,7 +437,9 @@ export default function PermitWorkflow({ profile }) {
             )}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
               {authority?.inspection_scheduling_url && <a className="logout-button" style={{ textDecoration: 'none', fontSize: 12 }} href={linkUrl(authority.inspection_scheduling_url)} target="_blank" rel="noreferrer">Schedule inspection online ↗</a>}
-              {authority?.phone && <span style={{ fontSize: 12, color: 'var(--mist)' }}>or call {authority.phone}{authority.phone_extension ? ' x' + authority.phone_extension : ''}</span>}
+              {authority?.inspection_scheduling_phone
+                ? <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Call to schedule inspection: {authority.inspection_scheduling_phone}</span>
+                : authority?.phone && <span style={{ fontSize: 12, color: 'var(--mist)' }}>or call {authority.phone}{authority.phone_extension ? ' x' + authority.phone_extension : ''}</span>}
             </div>
             {permits.map((pm) => {
               const rows = inspections.filter((i) => i.permit_id === pm.id)
