@@ -142,6 +142,21 @@ export default function PermitWorkflow({ profile }) {
     if (data?.signedUrl) window.open(data.signedUrl, '_blank')
   }
 
+  async function callAction(action, okMsg) {
+    setSaving(true)
+    const { data, error } = await supabase.functions.invoke('permit-package-actions', { body: { package_id: pkg.id, action } })
+    setSaving(false)
+    if (error) {
+      let msg = error.message
+      try { const j = await error.context.json(); if (j?.error) msg = j.error } catch (_) {}
+      alert(msg); return null
+    }
+    if (data?.error) { alert(data.error); return null }
+    if (okMsg) alert(okMsg)
+    await load()
+    return data
+  }
+
   // ---- Step 2: confirm/schedule the (already spawned) job ----
   async function confirmJob() {
     const jobId = estimate?.spawned_job_id || estimate?.converted_to_job_id || pkg.job_id
@@ -336,7 +351,7 @@ export default function PermitWorkflow({ profile }) {
             <label className="logout-button" style={{ fontSize: 12, cursor: 'pointer' }}>{pm.application_doc_path ? 'Replace application' : 'Upload completed application'}<input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadDoc(pm, 'application', e.target.files[0], 'application_doc_path')} /></label>
           </div>
         ))}
-        <p style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 8 }}>Emailing/printing the full package (application + AHRI + NOC) is wired in the next phase.</p>
+        <p style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 8 }}>Upload each completed application here. The full package is emailed to the building authority in Step 8.</p>
       </StepCard>
 
       {/* STEP 6 — Apply for NOC */}
@@ -355,7 +370,13 @@ export default function PermitWorkflow({ profile }) {
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <div style={{ width: 170 }}><label style={L}>Date notarized</label><input style={I} type="date" value={permits[0]?.noc_notarized_date || ''} onChange={(e) => setPermitLocal(permits[0].id, { noc_notarized_date: e.target.value })} onBlur={() => savePermit(permits[0].id, { noc_notarized_date: permits[0].noc_notarized_date || null })} /></div>
-                <span style={{ fontSize: 12, color: 'var(--mist)' }}>Recorder: {county?.recorder_vendor_id ? (vendors.find((v) => v.id === county.recorder_vendor_id)?.name || '—') : 'none set on county'} — send-to-recorder wired next phase</span>
+                {permits[0]?.noc_doc_path && <button className="logout-button" style={{ fontSize: 12 }} onClick={() => viewDoc(permits[0].noc_doc_path, 'noc.pdf')}>View NOC ↓</button>}
+                <label className="logout-button" style={{ fontSize: 12, cursor: 'pointer' }}>{permits[0]?.noc_doc_path ? 'Replace NOC' : 'Upload notarized NOC'}<input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadDoc(permits[0], 'noc', e.target.files[0], 'noc_doc_path')} /></label>
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, color: 'var(--mist)' }}>Recorder: {county?.recorder_vendor_id ? (vendors.find((v) => v.id === county.recorder_vendor_id)?.name || '—') : 'none set on county'}</span>
+                <button className="auth-button" style={{ width: 'auto', fontSize: 12, padding: '6px 14px' }} disabled={saving || !permits[0]?.noc_doc_path} onClick={() => callAction('recorder', 'NOC emailed to the recorder for recording.')}>Send NOC to recorder</button>
+                {permits[0]?.noc_sent_at && <span style={{ fontSize: 12, color: '#1a7f37' }}>Sent to recorder {new Date(permits[0].noc_sent_at).toLocaleDateString()}</span>}
               </div>
             </>
           )
@@ -384,6 +405,18 @@ export default function PermitWorkflow({ profile }) {
             {pm.ahri_cert_path ? <button className="logout-button" style={{ fontSize: 12 }} onClick={() => viewDoc(pm.ahri_cert_path, 'ahri.pdf')}>Print AHRI ↗</button> : <span style={{ fontSize: 12, color: 'var(--mist)' }}>no AHRI cert</span>}
           </div>
         ))}
+        <div style={{ borderTop: '1px solid var(--border)', marginTop: 14, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button className="auth-button" style={{ width: 'auto', fontSize: 12, padding: '7px 16px' }} disabled={saving || !authority?.email} onClick={() => callAction('authority', 'Application package emailed to the building authority.')}>Email package to {authority?.name || 'authority'}</button>
+            {!authority?.email && <span style={{ fontSize: 12, color: '#B8860B' }}>No authority email on file — add one on Building Authorities.</span>}
+            {pkg.application_sent_at && <span style={{ fontSize: 12, color: '#1a7f37' }}>Emailed {new Date(pkg.application_sent_at).toLocaleDateString()}</span>}
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button className="auth-button" style={{ width: 'auto', fontSize: 12, padding: '7px 16px' }} disabled={saving} onClick={() => callAction('archive', 'Permit documents filed to the customer record.')}>Copy to permanent record</button>
+            <span style={{ fontSize: 11.5, color: 'var(--mist)', maxWidth: 360 }}>Files the permit + AHRI (+ NOC) onto the customer & property so they live permanently. The temp package is auto-purged 30 days after this.</span>
+            {pkg.copied_to_permanent_at && <span style={{ fontSize: 12, color: '#1a7f37' }}>Filed {new Date(pkg.copied_to_permanent_at).toLocaleDateString()}</span>}
+          </div>
+        </div>
       </StepCard>
 
       {/* STEP 9 — Inspections (separate; only after the install is completed) */}

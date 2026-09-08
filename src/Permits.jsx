@@ -105,6 +105,12 @@ export default function Permits({ profile }) {
     setInProgress(prog)
     setAwaitingInspection(insp2)
     setLoading(false)
+    // opportunistic, throttled once/day: purge temp files of packages archived >30d ago
+    try {
+      const k = 'permit_sweep_' + selectedOrg
+      const today = new Date().toISOString().slice(0, 10)
+      if (localStorage.getItem(k) !== today) { localStorage.setItem(k, today); supabase.functions.invoke('permit-temp-sweep', { body: {} }).catch(() => {}) }
+    } catch (_) {}
   }
 
   async function startPackage(est) {
