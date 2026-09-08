@@ -860,6 +860,17 @@ html { overflow-x: hidden; }
   flex: 1;
 }
 
+/* Anything in the rail (Super Admin badge, clock) must fit the 92px rail, not spill */
+.sidebar-rail .badge {
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+  font-size: 10.5px;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+.sidebar-rail > * { max-width: 100%; }
+
 .sidebar-panel {
   width: 222px;
   background: var(--panel);
