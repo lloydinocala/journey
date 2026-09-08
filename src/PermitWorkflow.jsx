@@ -221,7 +221,29 @@ export default function PermitWorkflow({ profile }) {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 180 }}>
                 <label style={L}>Vendor (actual)</label>
-                <select style={I} value={pm.act_vendor_id || ''} onChange={(e) => setPermitLocal(pm.id, { act_vendor_id: e.target.value, _vendorAutofilled: false })}><option value="">—</option>{vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select>
+                {(() => {
+                  const info = pm.req_brand ? vendorBrandMap[(pm.req_brand || '').trim().toUpperCase()] : null
+                  const carrierIds = info ? info.ids : []
+                  const carriers = vendors.filter((v) => carrierIds.includes(v.id))
+                  const others = vendors.filter((v) => !carrierIds.includes(v.id))
+                  return (
+                    <select style={I} value={pm.act_vendor_id || ''} onChange={(e) => setPermitLocal(pm.id, { act_vendor_id: e.target.value, _vendorAutofilled: false })}>
+                      <option value="">—</option>
+                      {carriers.length > 0 ? (
+                        <>
+                          <optgroup label={`Carries ${pm.req_brand}`}>
+                            {carriers.map((v) => <option key={v.id} value={v.id}>{info.preferred === v.id ? '★ ' : ''}{v.name}</option>)}
+                          </optgroup>
+                          <optgroup label="Other vendors">
+                            {others.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                          </optgroup>
+                        </>
+                      ) : (
+                        vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)
+                      )}
+                    </select>
+                  )
+                })()}
                 {(() => {
                   if (!pm.req_brand) return null
                   const info = vendorBrandMap[(pm.req_brand || '').trim().toUpperCase()]
