@@ -31,6 +31,7 @@ export default function Vendors({ profile }) {
   const [editingId, setEditingId] = useState(null)
   const [editWebsite, setEditWebsite] = useState('')
   const [savingRow, setSavingRow] = useState(false)
+  const [brandsByVendor, setBrandsByVendor] = useState({})
 
   function startEditRow(v) {
     setEditingId(v.id)
@@ -63,6 +64,11 @@ export default function Vendors({ profile }) {
       supabase.from('vendors').select('*').eq('org_id', orgId).order('name')
     )
     setVendors(data)
+    const { data: vb } = await supabase.from('vendor_brands').select('vendor_id, brand, is_preferred').eq('org_id', orgId)
+    const map = {}
+    ;(vb || []).forEach((r) => { (map[r.vendor_id] = map[r.vendor_id] || []).push(r) })
+    Object.values(map).forEach((arr) => arr.sort((a, b) => (b.is_preferred - a.is_preferred) || a.brand.localeCompare(b.brand)))
+    setBrandsByVendor(map)
     setLoading(false)
   }
 
@@ -218,6 +224,7 @@ export default function Vendors({ profile }) {
               <th>Website</th>
               <th>Account #</th>
               <th>Sales Rep</th>
+              <th>Brands</th>
             </tr>
           </thead>
           <tbody>
@@ -248,10 +255,19 @@ export default function Vendors({ profile }) {
                 </td>
                 <td>{v.account_number || '—'}</td>
                 <td>{v.sales_rep_name || '—'}</td>
+                <td>
+                  {(brandsByVendor[v.id] || []).length === 0 ? <span style={{ color: 'var(--mist)' }}>—</span> : (
+                    <span style={{ display: 'inline-flex', gap: 5, flexWrap: 'wrap' }}>
+                      {(brandsByVendor[v.id] || []).map((b) => (
+                        <span key={b.brand} title={b.is_preferred ? 'Preferred source' : ''} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: b.is_preferred ? '#FFF6D6' : 'var(--surface-2, #f1f1f1)', border: b.is_preferred ? '1px solid #E6C200' : '1px solid var(--border)', fontWeight: b.is_preferred ? 700 : 400 }}>{b.is_preferred ? '★ ' : ''}{b.brand}</span>
+                      ))}
+                    </span>
+                  )}
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan="7" style={{ color: 'var(--mist)' }}>No vendors found.</td></tr>
+              <tr><td colSpan="8" style={{ color: 'var(--mist)' }}>No vendors found.</td></tr>
             )}
           </tbody>
         </table>

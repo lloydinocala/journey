@@ -44,6 +44,7 @@ export default function PermitWorkflow({ profile }) {
   const [job, setJob] = useState(null)
   const [inspections, setInspections] = useState([])
   const [vendors, setVendors] = useState([])
+  const [vendorBrandMap, setVendorBrandMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const orgId = profile.org_id
@@ -55,15 +56,30 @@ export default function PermitWorkflow({ profile }) {
     const { data: p } = await supabase.from('permit_packages').select('*').eq('id', packageId).single()
     if (!p) { setLoading(false); return }
     setPkg(p)
-    const [{ data: prm }, { data: auth }, { data: prop }, { data: cust }, { data: est }, { data: vend }] = await Promise.all([
+    const [{ data: prm }, { data: auth }, { data: prop }, { data: cust }, { data: est }, { data: vend }, { data: vbrands }] = await Promise.all([
       supabase.from('permits').select('*').eq('package_id', packageId).order('system_label'),
       p.building_authority_id ? supabase.from('building_authorities').select('*').eq('id', p.building_authority_id).single() : Promise.resolve({ data: null }),
       p.property_id ? supabase.from('properties').select('*').eq('id', p.property_id).single() : Promise.resolve({ data: null }),
       p.customer_id ? supabase.from('customers').select('id, display_name, primary_phone, secondary_phone').eq('id', p.customer_id).single() : Promise.resolve({ data: null }),
       p.estimate_id ? supabase.from('invoices').select('id, invoice_number, spawned_job_id, converted_to_job_id, job_total').eq('id', p.estimate_id).single() : Promise.resolve({ data: null }),
       supabase.from('vendors').select('id, name, phone').eq('org_id', p.org_id).eq('is_active', true).order('name'),
+      supabase.from('vendor_brands').select('vendor_id, brand, is_preferred').eq('org_id', p.org_id),
     ])
-    setPermits(prm || []); setAuthority(auth); setProperty(prop); setCustomer(cust); setEstimate(est); setVendors(vend || [])
+    const bmap = {}
+    ;(vbrands || []).forEach((r) => {
+      const k = (r.brand || '').trim().toUpperCase(); if (!k) return
+      const e = bmap[k] || (bmap[k] = { preferred: null, ids: [] })
+      e.ids.push(r.vendor_id); if (r.is_preferred) e.preferred = r.vendor_id
+    })
+    setVendorBrandMap(bmap)
+    const seeded = (prm || []).map((pm) => {
+      if (pm.act_vendor_id || !pm.req_brand) return pm
+      const info = bmap[(pm.req_brand || '').trim().toUpperCase()]
+      if (!info) return pm
+      const pick = info.preferred || (info.ids.length === 1 ? info.ids[0] : '')
+      return pick ? { ...pm, act_vendor_id: pick, _vendorAutofilled: true } : pm
+    })
+    setPermits(seeded); setAuthority(auth); setProperty(prop); setCustomer(cust); setEstimate(est); setVendors(vend || [])
     if (auth?.county_id) { const { data: c } = await supabase.from('counties').select('*').eq('id', auth.county_id).single(); setCounty(c) }
     const jobId0 = est?.spawned_job_id || est?.converted_to_job_id || p.job_id
     if (jobId0) { const { data: j } = await supabase.from('jobs').select('id, job_number, status').eq('id', jobId0).single(); setJob(j) }
@@ -203,7 +219,19 @@ export default function PermitWorkflow({ profile }) {
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{pm.system_label} {pm.po_number && <span style={{ color: '#1a7f37', fontWeight: 400 }}>· PO {pm.po_number} ordered</span>}</div>
             <div style={{ fontSize: 12, color: 'var(--mist)', marginBottom: 6 }}>Requested: {pm.req_brand} {pm.req_condenser_model} / {pm.req_ahu_model} / {pm.req_furnace_model} · AHRI {pm.req_ahri || '—'}</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <div style={{ minWidth: 180 }}><label style={L}>Vendor (actual)</label><select style={I} value={pm.act_vendor_id || ''} onChange={(e) => setPermitLocal(pm.id, { act_vendor_id: e.target.value })}><option value="">—</option>{vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select></div>
+              <div style={{ minWidth: 180 }}>
+                <label style={L}>Vendor (actual)</label>
+                <select style={I} value={pm.act_vendor_id || ''} onChange={(e) => setPermitLocal(pm.id, { act_vendor_id: e.target.value, _vendorAutofilled: false })}><option value="">—</option>{vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select>
+                {(() => {
+                  if (!pm.req_brand) return null
+                  const info = vendorBrandMap[(pm.req_brand || '').trim().toUpperCase()]
+                  const base = { fontSize: 11, marginTop: 3 }
+                  if (!info) return <div style={{ ...base, color: 'var(--mist)' }}>No vendor tagged for {pm.req_brand}</div>
+                  if (info.preferred) return <div style={{ ...base, color: '#1a7f37' }}>{pm._vendorAutofilled ? 'Auto-filled — ' : ''}preferred for {pm.req_brand}</div>
+                  if (info.ids.length === 1) return <div style={{ ...base, color: '#1a7f37' }}>{pm._vendorAutofilled ? 'Auto-filled — ' : ''}only vendor for {pm.req_brand}</div>
+                  return <div style={{ ...base, color: '#B8860B' }}>{info.ids.length} vendors carry {pm.req_brand} — pick one</div>
+                })()}
+              </div>
               <div style={{ width: 150 }}><label style={L}>Condenser (actual)</label><input style={I} value={pm.act_condenser_model || ''} onChange={(e) => setPermitLocal(pm.id, { act_condenser_model: e.target.value })} placeholder={pm.req_condenser_model || ''} /></div>
               <div style={{ width: 150 }}><label style={L}>AHU/Coil (actual)</label><input style={I} value={pm.act_ahu_model || ''} onChange={(e) => setPermitLocal(pm.id, { act_ahu_model: e.target.value })} placeholder={pm.req_ahu_model || ''} /></div>
               <div style={{ width: 150 }}><label style={L}>Furnace (actual)</label><input style={I} value={pm.act_furnace_model || ''} onChange={(e) => setPermitLocal(pm.id, { act_furnace_model: e.target.value })} placeholder={pm.req_furnace_model || ''} /></div>
