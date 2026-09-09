@@ -133,10 +133,9 @@ export default function TechInvoiceView({ profile }) {
       setSendError(`Add at least one service or custom item before sending this ${isEst ? 'estimate' : 'invoice'}. (The trip charge alone doesn't count.)`)
       return
     }
-    if (isEst && !invoiceRow?.approved_at && invoiceRow?.job_id) {
-      setSendError('Record the customer’s signature — or a note such as “declined” — in Customer Approval below before sending the estimate.')
-      return
-    }
+    // Estimates may be sent while still Pending so the customer can review and approve
+    // remotely. Capturing a signature/decision in Customer Approval is optional here,
+    // not a precondition to sending — otherwise every sent estimate goes out pre-approved.
     // Invoices carry no signature or payment gate. Verification photos (required to
     // build the invoice) are the proof of work; sending and collecting payment are
     // independent — send first or take payment first, in person or by link.
