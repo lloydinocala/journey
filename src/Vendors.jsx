@@ -29,22 +29,36 @@ export default function Vendors({ profile }) {
   const [error, setError] = useState('')
 
   const [editingId, setEditingId] = useState(null)
-  const [editWebsite, setEditWebsite] = useState('')
+  const [editRow, setEditRow] = useState({})
   const [savingRow, setSavingRow] = useState(false)
   const [brandsByVendor, setBrandsByVendor] = useState({})
 
   function startEditRow(v) {
     setEditingId(v.id)
-    setEditWebsite(v.website || '')
+    setEditRow({
+      name: v.name || '', phone: v.phone || '', email: v.email || '',
+      website: v.website || '', account_number: v.account_number || '', sales_rep_name: v.sales_rep_name || '',
+    })
   }
+  function setField(k, val) { setEditRow((r) => ({ ...r, [k]: val })) }
 
   async function saveRow(id) {
+    const name = (editRow.name || '').trim()
+    if (!name) { setError('Vendor name is required.'); return }
     setSavingRow(true)
-    await supabase.from('vendors').update({ website: editWebsite.trim() || null }).eq('id', id)
+    await supabase.from('vendors').update({
+      name,
+      phone: (editRow.phone || '').trim() || null,
+      email: (editRow.email || '').trim() || null,
+      website: (editRow.website || '').trim() || null,
+      account_number: (editRow.account_number || '').trim() || null,
+      sales_rep_name: (editRow.sales_rep_name || '').trim() || null,
+    }).eq('id', id)
     setSavingRow(false)
     setEditingId(null)
     loadVendors(selectedOrg)
   }
+  const ci = { width: '100%', minWidth: 90, padding: '4px 6px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }
 
   const isSuperAdmin = profile.role === 'super_admin'
 
@@ -243,18 +257,28 @@ export default function Vendors({ profile }) {
                     </>
                   )}
                 </td>
-                <td><Link to={`/vendors/${v.id}`}>{v.name}</Link></td>
-                <td>{v.phone || '—'}</td>
-                <td>{v.email || '—'}</td>
+                <td>{editingId === v.id
+                  ? <input type="text" value={editRow.name} onChange={(e) => setField('name', e.target.value)} style={{ ...ci, minWidth: 130 }} />
+                  : <Link to={`/vendors/${v.id}`}>{v.name}</Link>}</td>
+                <td>{editingId === v.id
+                  ? <input type="tel" value={editRow.phone} onChange={(e) => setField('phone', e.target.value)} style={ci} />
+                  : (v.phone || '—')}</td>
+                <td>{editingId === v.id
+                  ? <input type="email" value={editRow.email} onChange={(e) => setField('email', e.target.value)} style={{ ...ci, minWidth: 150 }} />
+                  : (v.email || '—')}</td>
                 <td>
                   {editingId === v.id ? (
-                    <input type="text" value={editWebsite} onChange={(e) => setEditWebsite(e.target.value)} placeholder="e.g. acme.com" style={{ minWidth: 160 }} />
+                    <input type="text" value={editRow.website} onChange={(e) => setField('website', e.target.value)} placeholder="e.g. acme.com" style={{ ...ci, minWidth: 140 }} />
                   ) : v.website ? (
                     <a href={vendorSiteUrl(v.website)} target="_blank" rel="noreferrer">{v.website}</a>
                   ) : '—'}
                 </td>
-                <td>{v.account_number || '—'}</td>
-                <td>{v.sales_rep_name || '—'}</td>
+                <td>{editingId === v.id
+                  ? <input type="text" value={editRow.account_number} onChange={(e) => setField('account_number', e.target.value)} style={ci} />
+                  : (v.account_number || '—')}</td>
+                <td>{editingId === v.id
+                  ? <input type="text" value={editRow.sales_rep_name} onChange={(e) => setField('sales_rep_name', e.target.value)} style={{ ...ci, minWidth: 120 }} />
+                  : (v.sales_rep_name || '—')}</td>
                 <td>
                   {(brandsByVendor[v.id] || []).length === 0 ? <span style={{ color: 'var(--mist)' }}>—</span> : (
                     <span style={{ display: 'inline-flex', gap: 5, flexWrap: 'wrap' }}>
@@ -263,6 +287,7 @@ export default function Vendors({ profile }) {
                       ))}
                     </span>
                   )}
+                  {editingId === v.id && <div style={{ marginTop: 3 }}><Link to={`/vendors/${v.id}`} style={{ fontSize: 11 }}>edit brands on profile →</Link></div>}
                 </td>
               </tr>
             ))}
