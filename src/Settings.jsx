@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { LANDING_OPTIONS } from './utils/landing'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import EmployeePayRates from './EmployeePayRates'
@@ -28,6 +29,9 @@ export default function Settings({ profile }) {
   const [newType, setNewType] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [landing, setLanding] = useState(profile.default_landing || '')
+  const [savingLanding, setSavingLanding] = useState(false)
+  const [landingSaved, setLandingSaved] = useState(false)
 
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
@@ -275,6 +279,12 @@ export default function Settings({ profile }) {
     setHoursSaved(true)
   }
 
+  async function saveLanding() {
+    setSavingLanding(true); setLandingSaved(false)
+    await supabase.from('users').update({ default_landing: landing || null }).eq('id', profile.id)
+    setSavingLanding(false); setLandingSaved(true); setTimeout(() => setLandingSaved(false), 2500)
+  }
+
   async function saveTimezone(e) {
     e.preventDefault()
     setSavingTz(true)
@@ -338,6 +348,18 @@ export default function Settings({ profile }) {
           <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
         </div>
       )}
+
+      <div className="section-card" style={{ padding: 16, marginBottom: 24, maxWidth: 560 }}>
+        <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>Your starting page</h3>
+        <p style={{ color: 'var(--mist)', fontSize: 13.5, margin: '0 0 12px' }}>Where the app opens for you when you sign in. This applies only to you — everyone can pick their own.</p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select value={landing} onChange={(e) => setLanding(e.target.value)} style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, minWidth: 260 }}>
+            {LANDING_OPTIONS.map((o) => <option key={o.path} value={o.path}>{o.label}</option>)}
+          </select>
+          <button className="auth-button" style={{ width: 'auto', padding: '8px 18px', margin: 0 }} disabled={savingLanding} onClick={saveLanding}>{savingLanding ? 'Saving…' : 'Save'}</button>
+          {landingSaved && <span style={{ fontSize: 12, color: '#1a7f37', fontWeight: 700 }}>Saved ✓</span>}
+        </div>
+      </div>
 
       <EmployeePayRates orgId={selectedOrg} />
 

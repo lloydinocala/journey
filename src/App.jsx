@@ -23,6 +23,7 @@ import Permits from './Permits'
 import PermitWorkflow from './PermitWorkflow'
 import Tasks from './Tasks'
 import ToDo from './ToDo'
+import { LANDING_PATHS } from './utils/landing'
 import VendorDetail from './VendorDetail'
 import Properties from './Properties'
 import Jobs from './Jobs'
@@ -153,7 +154,7 @@ function AuthenticatedApp() {
     }
     supabase
       .from('users')
-      .select('id, full_name, role, org_id, is_field_supervisor')
+      .select('id, full_name, role, org_id, is_field_supervisor, default_landing')
       .eq('id', session.user.id)
       .single()
       .then(async (userRes) => {
@@ -241,6 +242,7 @@ function AuthenticatedApp() {
         {/* <Route path="/rewards-hvac" element={<PayrollDashboard />} /> */}  {/* TODO: re-enable with the import above when Payroll module is finished */}
            <Route path="/" element={
      profile.role === 'tech' ? <Navigate to="/tech" replace />
+       : (profile.default_landing && LANDING_PATHS.has(profile.default_landing)) ? <Navigate to={profile.default_landing} replace />
        : profile.role === 'super_admin' ? <OperationsDashboard profile={profile} />
        : can(profile, 'view_home_dashboard') ? <OrgHome profile={profile} />
             : <OperationsDashboard profile={profile} />
