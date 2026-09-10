@@ -22,6 +22,7 @@ import BuildingAuthorities from './BuildingAuthorities'
 import Permits from './Permits'
 import PermitWorkflow from './PermitWorkflow'
 import Tasks from './Tasks'
+import ToDo from './ToDo'
 import VendorDetail from './VendorDetail'
 import Properties from './Properties'
 import Jobs from './Jobs'
@@ -249,6 +250,7 @@ function AuthenticatedApp() {
         <Route path="/text-archive" element={<TextArchive profile={profile} />} />
         <Route path="/jobs-management" element={<JobsManagement profile={profile} />} />
         <Route path="/tasks" element={<Tasks profile={profile} />} />
+        <Route path="/to-do" element={<ToDo profile={profile} />} />
         <Route path="/payroll" element={<PayrollCapture profile={profile} />} />
         <Route path="/time-clock" element={<TimeClock profile={profile} />} />
         <Route path="/payroll/employee/:userId" element={<EmployeePayroll profile={profile} />} />

@@ -28,6 +28,7 @@ export default function NewItemDropdown({ onSelect }) {
         <div className="org-picker-list">
           <div className="org-picker-item" onClick={() => choose('job')}>New Job</div>
           <div className="org-picker-item" onClick={() => choose('task')}>New Task</div>
+          <div className="org-picker-item" onClick={() => { setOpen(false); navigate('/to-do') }}>New To-Do Item</div>
           <div className="org-picker-item" onClick={() => choose('continueJob')}>Continue an Existing Job</div>
           <div className="org-picker-item" onClick={() => choose('customer')}>New Customer</div>
           <div className="org-picker-item" onClick={() => choose('property')}>New Property</div>
