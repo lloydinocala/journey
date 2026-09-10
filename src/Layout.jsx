@@ -35,7 +35,8 @@ const CATEGORIES = [
     { label: 'Filter Orders', path: '/filter-orders' },
     { label: 'Filter Subscriptions', path: '/filter-subscriptions' },
   ]},
-  { key: 'maintenance', label: 'Maintenance', items: [
+  { label: 'Maintenance Station', path: '/maintenance-station', perm: 'view_maintenance_dashboard' },
+    { key: 'maintenance', label: 'Maintenance', items: [
     { label: 'Maintenance Dashboard', path: '/maintenance-dashboard', perm: 'view_maintenance_dashboard' },
     { label: 'Maintenance Agreements', path: '/maintenance-agreements' },
     { label: 'Maintenance Due', path: '/maintenance-due' },
@@ -104,6 +105,7 @@ const HEADER_DASH = {
 
 function getCategoryForPath(pathname) {
   if (pathname.startsWith('/train-station')) return 'start'
+  if (pathname.startsWith('/maintenance-station')) return 'financials'
   if (pathname === '/' || pathname === '/home') return null
   if (pathname.startsWith('/financials')) return 'financials'
   if (pathname.startsWith('/admin')) return 'admin'
