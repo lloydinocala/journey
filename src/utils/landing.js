@@ -3,6 +3,7 @@
 // The Train Station will be added here once its route exists.
 export const LANDING_OPTIONS = [
   { path: '', label: 'Company home (default for your role)' },
+  { path: '/train-station', label: 'The Train Station' },
   { path: '/call', label: 'Call Console' },
   { path: '/dispatch-map', label: 'Dispatch Map' },
   { path: '/calendar', label: 'Calendar' },

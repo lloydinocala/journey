@@ -13,6 +13,9 @@ import { REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV } from './modules
 import { MARKETING_NAV } from './modules/marketing-hvac'
 
 const CATEGORIES = [
+  { key: 'start', label: 'Start', items: [
+    { label: 'Train Station', path: '/train-station' },
+  ] },
   { key: 'operations', label: 'Operations', items: [
     { label: 'Operations Dashboard', path: '/operations' },
     { label: 'Call Console', path: '/call' },
@@ -100,6 +103,7 @@ const HEADER_DASH = {
 }
 
 function getCategoryForPath(pathname) {
+  if (pathname.startsWith('/train-station')) return 'start'
   if (pathname === '/' || pathname === '/home') return null
   if (pathname.startsWith('/financials')) return 'financials'
   if (pathname.startsWith('/admin')) return 'admin'
