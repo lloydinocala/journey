@@ -90,6 +90,7 @@ const PERSONAL_CATEGORY = { key: 'personal', label: 'Personal', items: [
 // still expands its panel). Sections whose key is absent here just expand.
 const DASH_BY_KEY = {
   start: '/train-station',
+  'inventory-central': '/elements',
   operations: '/operations',
   maintenance: '/maintenance-dashboard',
   financials: '/financials',
@@ -111,18 +112,65 @@ const HEADER_DASH = {
   'Fleet Management': '/fleet',
 }
 
-// The Train Station's sub-stations. These come OFF the main rail and live under
-// the Train Station: listed in its submenu, and reachable from its task tiles.
-const TRAIN_STATIONS = [
-  { key: 'work', label: 'Jobs & Customers', path: '/jobs-dash' },
-  { key: 'dispatch', label: 'Dispatch Station', path: '/dispatch' },
-  { key: 'maintenance', label: 'Maintenance Station', path: '/maintenance-station' },
-  { key: 'permitting', label: 'Permitting Station', path: '/permits' },
-  { key: 'refrigerant', label: '608 Refrigeration Compliance', path: '/refrigerant' },
-  { key: 'import', label: 'Data Import', path: '/import' },
-]
-const NESTED_KEYS = new Set(TRAIN_STATIONS.map((s) => s.key))
-const STATION_LABEL = Object.fromEntries(TRAIN_STATIONS.map((s) => [s.key, s.label]))
+// Hubs group sub-stations that come OFF the main rail and live under the hub:
+// the hub's submenu lists its stations; a station's submenu leads with a
+// Back-to-hub link. Two hubs today: the Train Station and Inventory Central.
+const HUBS = {
+  start: {
+    label: 'Train Station', path: '/train-station',
+    stations: [
+      { key: 'work', label: 'Jobs & Customers', path: '/jobs-dash' },
+      { key: 'dispatch', label: 'Dispatch Station', path: '/dispatch' },
+      { key: 'maintenance', label: 'Maintenance Station', path: '/maintenance-station' },
+      { key: 'permitting', label: 'Permitting Station', path: '/permits' },
+      { key: 'refrigerant', label: '608 Refrigeration Compliance', path: '/refrigerant' },
+      { key: 'import', label: 'Data Import', path: '/import' },
+    ],
+  },
+  'inventory-central': {
+    label: 'Inventory Central', path: '/elements',
+    stations: [
+      { key: 'stock-purchasing', label: 'Stock & Purchasing', path: '/elements/stock' },
+      { key: 'insights-planning', label: 'Insights & Planning', path: '/elements/valuation' },
+      { key: 'fleet', label: 'Fleet Dashboard', path: '/fleet' },
+      { key: 'supplies', label: 'Non-Inventory Supplies', path: '/supplies' },
+      { key: 'tools', label: 'Tools Dashboard', path: '/tools' },
+    ],
+  },
+}
+const HUB_KEYS = new Set(Object.keys(HUBS))
+const NESTED_KEYS = new Set(Object.values(HUBS).flatMap((h) => h.stations.map((st) => st.key)))
+const STATION_TO_HUB = {}
+const STATION_LABEL = {}
+for (const [hk, h] of Object.entries(HUBS)) for (const st of h.stations) { STATION_TO_HUB[st.key] = hk; STATION_LABEL[st.key] = st.label }
+
+// Inventory Central + its two split inventory sub-stations (Fleet/Supplies/Tools
+// are their existing module navs, just nested under this hub now).
+const INVENTORY_CENTRAL_NAV = { key: 'inventory-central', label: 'Inventory Central', items: [] }
+const STOCK_PURCHASING_NAV = { key: 'stock-purchasing', label: 'Stock & Purchasing', items: [
+  { label: 'Locations', path: '/elements/locations' },
+  { label: 'Item Catalog', path: '/elements/items' },
+  { label: 'Stock & Receiving', path: '/elements/stock' },
+  { label: 'Cycle Counts', path: '/elements/cycle-counts' },
+  { label: 'Replenishment', path: '/elements/replenishment' },
+  { label: 'Purchase Orders', path: '/elements/purchasing' },
+  { label: 'Special Orders', path: '/elements/special-orders' },
+  { label: 'Vendor Invoices (A/P)', path: '/elements/ap' },
+  { label: 'Vendors', path: '/vendors' },
+  { label: 'Vendor Cross-Reference', path: '/elements/vendor-crossref' },
+  { label: 'Record Parts Used', path: '/elements/parts-used' },
+  { label: 'Inventory Health', path: '/elements/health' },
+  { label: 'Inventory Settings', path: '/elements/settings' },
+] }
+const INSIGHTS_PLANNING_NAV = { key: 'insights-planning', label: 'Insights & Planning', items: [
+  { label: 'Service → Part Mapping', path: '/elements/service-map' },
+  { label: 'Parts Usage', path: '/elements/usage' },
+  { label: 'Job Costing', path: '/elements/job-costing' },
+  { label: 'Inventory Variance', path: '/elements/variance' },
+  { label: 'Inventory Valuation', path: '/elements/valuation' },
+  { label: 'Demand Forecast', path: '/elements/forecast' },
+] }
+const INSIGHTS_PATHS = ['/elements/service-map', '/elements/usage', '/elements/job-costing', '/elements/variance', '/elements/valuation', '/elements/forecast']
 
 function getCategoryForPath(pathname) {
   if (pathname.startsWith('/train-station')) return 'start'
@@ -137,7 +185,9 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/operations')) return 'operations'
   if (pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog')) return 'import'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
-  if (pathname.startsWith('/elements') || pathname.startsWith('/vendors')) return 'elements'
+  if (pathname === '/elements' || pathname === '/elements/') return 'inventory-central'
+  if (INSIGHTS_PATHS.some((x) => pathname.startsWith(x))) return 'insights-planning'
+  if (pathname.startsWith('/elements') || pathname.startsWith('/vendors')) return 'stock-purchasing'
   if (pathname.startsWith('/fleet')) return 'fleet'
   if (pathname.startsWith('/refrigerant')) return 'refrigerant'
   if (pathname.startsWith('/supplies')) return 'supplies'
@@ -168,7 +218,7 @@ export default function Layout({ profile }) {
   const showTools = notTech && (isSuperAdmin || profile?.toolsEntitled)
   // Refrigerant/EPA compliance is core (Section 608 applies to all work), so it
   // rides alongside Inventory + Fleet for any non-tech office role — no gate.
-  const withInvFleet = showElements ? [...CATEGORIES, ELEMENTS_NAV, ELEMENTS_FLEET_NAV, REFRIGERANT_NAV, SUPPLIES_NAV] : CATEGORIES
+  const withInvFleet = showElements ? [...CATEGORIES, INVENTORY_CENTRAL_NAV, STOCK_PURCHASING_NAV, INSIGHTS_PLANNING_NAV, ELEMENTS_FLEET_NAV, REFRIGERANT_NAV, SUPPLIES_NAV] : CATEGORIES
   const withElements = showTools ? [...withInvFleet, TOOLS_NAV] : withInvFleet
   const withHR = showHR ? [...withElements, REWARDS_HR_NAV] : withElements
   // Payroll staff work the employee pay/tax profile too, so surface Employees at
@@ -300,7 +350,7 @@ export default function Layout({ profile }) {
             Home
           </Link>
           {allCategories.filter((cat) => !NESTED_KEYS.has(cat.key)).map((cat) => {
-            const active = cat.key === 'start' ? (expandedCategory === 'start' || NESTED_KEYS.has(expandedCategory)) : expandedCategory === cat.key
+            const active = HUB_KEYS.has(cat.key) ? (expandedCategory === cat.key || STATION_TO_HUB[expandedCategory] === cat.key) : expandedCategory === cat.key
             return (
               <button
                 key={cat.key}
@@ -325,31 +375,31 @@ export default function Layout({ profile }) {
           <button className="rail-item" onClick={handleLogout}>Sign out</button>
         </div>
 
-        {(expandedCategory === 'start' || NESTED_KEYS.has(expandedCategory) || (activeCategoryData && activeCategoryData.items.length > 0)) && (
+        {(HUB_KEYS.has(expandedCategory) || NESTED_KEYS.has(expandedCategory) || (activeCategoryData && activeCategoryData.items.length > 0)) && (
           panelCollapsed ? (
             <button className="sidebar-panel-reopen" onClick={() => setPanelCollapsed(false)} title="Show menu" aria-label="Show menu">›</button>
           ) : (
           <div className="sidebar-panel">
             {NESTED_KEYS.has(expandedCategory) && (
               <button
-                onClick={() => { setExpandedCategory('start'); navigate('/train-station') }}
+                onClick={() => { const hk = STATION_TO_HUB[expandedCategory]; setExpandedCategory(hk); navigate(HUBS[hk].path) }}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--sky, #2F5DE3)', fontWeight: 700, fontSize: 13, padding: '2px 0 10px', textAlign: 'left' }}
               >
-                {'←'} Back to Train Station
+                {'←'} Back to {HUBS[STATION_TO_HUB[expandedCategory]].label}
               </button>
             )}
             <div className="sidebar-panel-head">
-              <h3 style={{ margin: 0 }}>{expandedCategory === 'start' ? 'Train Station' : (STATION_LABEL[expandedCategory] || activeCategoryData?.label)}</h3>
+              <h3 style={{ margin: 0 }}>{HUB_KEYS.has(expandedCategory) ? HUBS[expandedCategory].label : (STATION_LABEL[expandedCategory] || activeCategoryData?.label)}</h3>
               <button className="sidebar-panel-toggle" onClick={() => setPanelCollapsed(true)} title="Hide menu" aria-label="Hide menu">‹</button>
             </div>
-            {expandedCategory === 'start' ? (
-              TRAIN_STATIONS.map((s) => (
+            {HUB_KEYS.has(expandedCategory) ? (
+              HUBS[expandedCategory].stations.map((st) => (
                 <Link
-                  key={s.key}
-                  to={s.path}
-                  className={'sidebar-panel-link' + (resolveCat(location.pathname) === s.key ? ' active' : '')}
+                  key={st.key}
+                  to={st.path}
+                  className={'sidebar-panel-link' + (resolveCat(location.pathname) === st.key ? ' active' : '')}
                 >
-                  {s.label}
+                  {st.label}
                 </Link>
               ))
             ) : (
