@@ -7,6 +7,7 @@ import { toolsDashboardData, getToolsSettings, upsertToolsSettings } from './too
 import { useOrgSelector, OrgBar, EnabledPill } from './shared'
 import { can } from '../../utils/permissions'
 import StationShell, { StationKpi } from '../../StationShell'
+import { useSignals } from '../../signals/useSignals'
 import QuincyBrief from '../../QuincyBrief'
 
 const money0 = (n) => (n == null || isNaN(n) ? '—' : `$${Math.round(Number(n)).toLocaleString()}`)
@@ -55,19 +56,11 @@ export default function ToolsDashboard({ profile }) {
 
   const flaggedAlert = !!d && d.flaggedCount > 0
   const nav = useNavigate()
+  const sig = useSignals({ station: 'tools' }, org.selectedOrg, nav)
   const isSuper = profile?.role === 'super_admin'
   const opsAdmin = isSuper || can(profile, 'view_operational_metrics')
   const ownerAdmin = isSuper || can(profile, 'view_owner_metrics')
-  const toolSignals = d ? [
-    { key: 'maint', name: 'Needs maintenance', n: d.flaggedCount, tone: 'red', line: d.flaggedCount ? `${d.flaggedCount} tool${d.flaggedCount === 1 ? '' : 's'} flagged on inspection` : 'all clear', cta: 'Open maintenance', onClick: () => nav('/tools/maintenance') },
-    { key: 'followup', name: 'Follow-up overdue', n: d.followUpCount, tone: 'red', line: d.followUpCount ? `${d.followUpCount} past anticipated return to service` : 'none overdue', cta: 'Open maintenance', onClick: () => nav('/tools/maintenance') },
-    { key: 'rentals', name: 'Rentals overdue', n: d.rentalsOverdueCount, tone: 'red', line: d.rentalsOverdueCount ? `${d.rentalsOverdueCount} past return-by date` : 'none overdue', cta: 'Open orders', onClick: () => nav('/tools/orders') },
-    { key: 'reconcile', name: 'Charges to reconcile', n: d.unreconciledChargeCount, tone: 'amber', line: d.unreconciledChargeCount ? `${d.unreconciledChargeCount} unmatched card charge${d.unreconciledChargeCount === 1 ? '' : 's'}` : 'all matched', cta: 'Open reconcile', onClick: () => nav('/tools/reconcile') },
-    { key: 'onorder', name: 'Tools on order', n: d.onOrderCount, tone: 'amber', line: d.onOrderCount ? `${d.onOrderCount} PO${d.onOrderCount === 1 ? '' : 's'} awaiting receipt` : 'no open POs', cta: 'Open orders', onClick: () => nav('/tools/orders') },
-  ] : []
-  const toolNeed = toolSignals.filter((x) => x.n > 0)
-  const toolTotal = toolNeed.reduce((a, x) => a + x.n, 0)
-  const toolSub = toolTotal > 0 ? (<>Tools needing attention — <b style={{ color: 'inherit' }}>{toolTotal}</b> across {toolNeed.length} area{toolNeed.length === 1 ? '' : 's'}.</>) : "Every tool is in service or accounted for."
+  const toolSub = sig.loading ? 'Checking tools…' : sig.total > 0 ? (<>Tools needing attention — <b style={{ color: 'inherit' }}>{sig.total}</b> across {sig.needing.length} area{sig.needing.length === 1 ? '' : 's'}.</>) : "Every tool is in service or accounted for."
   const toolOwnerCards = d ? <StationKpi label="Tool value on hand" big={money0(d.totalCost)} sub="total purchase cost" tone="opp" onClick={() => nav('/tools/catalog')} /> : null
   const toolOpsCards = d ? (<>
     <StationKpi label="In the shop" big={String(d.inShop)} sub="available to deploy" onClick={() => nav('/tools/catalog')} />
@@ -117,8 +110,8 @@ export default function ToolsDashboard({ profile }) {
           officeTitle="Your tools & equipment tasks"
           adminTitle="Tools health"
           officeSubtitle={toolSub}
-          loading={loading && !d}
-          signals={toolSignals}
+          loading={sig.loading}
+          signals={sig.signals}
           opsAdmin={opsAdmin} ownerAdmin={ownerAdmin}
           opsCards={toolOpsCards} ownerCards={toolOwnerCards}
           emptyHint="Nothing flagged, no overdue returns, and orders are current."

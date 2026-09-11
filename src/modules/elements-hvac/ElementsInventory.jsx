@@ -12,6 +12,7 @@ import { useOrgSelector, OrgBar, EnabledPill, DisabledNotice } from './shared'
 import QuincyBrief from '../../QuincyBrief'
 import { can } from '../../utils/permissions'
 import StationShell, { StationKpi } from '../../StationShell'
+import { useSignals } from '../../signals/useSignals'
 
 const money0 = (n) => (n == null || isNaN(n) ? '—' : `$${Math.round(Number(n)).toLocaleString()}`)
 const signed0 = (n) => {
@@ -117,17 +118,13 @@ export default function ElementsInventory({ profile }) {
   )
 
   const nav = useNavigate()
+  const sig = useSignals({ station: 'stock-purchasing' }, org.selectedOrg, nav)
   const m = metrics
   const lowAlert = !!m && m.lowStock > 0
   const isSuper = profile?.role === 'super_admin'
   const opsAdmin = isSuper || can(profile, 'view_operational_metrics')
   const ownerAdmin = isSuper || can(profile, 'view_owner_metrics')
-  const invSignals = m ? [
-    { key: 'low', name: 'Reorder — low stock', n: m.lowStock, tone: 'red', line: m.lowStock ? `${m.lowStock} item${m.lowStock === 1 ? '' : 's'} at or under reorder point` : 'everything above reorder', cta: 'Open replenishment', onClick: () => nav('/elements/replenishment') },
-    { key: 'po', name: 'Open POs to receive', n: m.openPoCount, tone: 'amber', line: m.openPoCount ? `${money0(m.openPoValue)} on order${m.openPoNext ? ` · next ${fmtDate(m.openPoNext)}` : ''}` : 'none awaiting receipt', cta: 'Open purchase orders', onClick: () => nav('/elements/purchasing') },
-  ] : []
-  const invNeedTotal = invSignals.filter((x) => x.n > 0).reduce((a, x) => a + x.n, 0)
-  const officeSub = invNeedTotal > 0 ? (<>Stock &amp; purchasing work — <b style={{ color: 'inherit' }}>{invNeedTotal}</b> item{invNeedTotal === 1 ? '' : 's'} need a hand.</>) : "You're all caught up — inventory's in good shape."
+  const officeSub = sig.loading ? 'Checking inventory…' : sig.total > 0 ? (<>Stock &amp; purchasing work — <b style={{ color: 'inherit' }}>{sig.total}</b> item{sig.total === 1 ? '' : 's'} need a hand.</>) : "You're all caught up — inventory's in good shape."
   const ownerCards = m ? (<>
     <StationKpi label="Inventory value" big={money0(m.valValue)} sub={`${m.valParts} part${m.valParts === 1 ? '' : 's'} on hand`} tone="opp" onClick={() => nav('/elements/valuation')} />
     <StationKpi label="Variance (90 days)" big={signed0(m.varNet)} sub={m.varCount ? `${m.varCount} exception${m.varCount === 1 ? '' : 's'}` : 'no exceptions'} tone={m.varNet < 0 ? 'alert' : undefined} onClick={() => nav('/elements/variance')} />
@@ -166,8 +163,8 @@ export default function ElementsInventory({ profile }) {
           officeTitle="Your inventory tasks"
           adminTitle="Inventory health"
           officeSubtitle={officeSub}
-          loading={loading && !m}
-          signals={invSignals}
+          loading={sig.loading}
+          signals={sig.signals}
           opsAdmin={opsAdmin} ownerAdmin={ownerAdmin}
           opsCards={opsCards} ownerCards={ownerCards}
           emptyHint="Stock levels, open POs, and variance are all in line."
