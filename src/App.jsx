@@ -25,6 +25,7 @@ import Tasks from './Tasks'
 import ToDo from './ToDo'
 import TrainStation from './TrainStation'
 import MaintenanceStation from './MaintenanceStation'
+import DispatchStation from './DispatchStation'
 import { LANDING_PATHS } from './utils/landing'
 import VendorDetail from './VendorDetail'
 import Properties from './Properties'
@@ -257,6 +258,7 @@ function AuthenticatedApp() {
         <Route path="/to-do" element={<ToDo profile={profile} />} />
         <Route path="/train-station" element={<TrainStation profile={profile} />} />
         <Route path="/maintenance-station" element={<MaintenanceStation profile={profile} />} />
+        <Route path="/dispatch" element={<DispatchStation profile={profile} />} />
         <Route path="/payroll" element={<PayrollCapture profile={profile} />} />
         <Route path="/time-clock" element={<TimeClock profile={profile} />} />
         <Route path="/payroll/employee/:userId" element={<EmployeePayroll profile={profile} />} />
