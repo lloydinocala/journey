@@ -89,6 +89,7 @@ const PERSONAL_CATEGORY = { key: 'personal', label: 'Personal', items: [
 // Clicking a section title in the rail opens that section's dashboard (and
 // still expands its panel). Sections whose key is absent here just expand.
 const DASH_BY_KEY = {
+  start: '/train-station',
   operations: '/operations',
   maintenance: '/maintenance-dashboard',
   financials: '/financials',
@@ -109,6 +110,19 @@ const HEADER_DASH = {
   'Inventory Management': '/elements',
   'Fleet Management': '/fleet',
 }
+
+// The Train Station's sub-stations. These come OFF the main rail and live under
+// the Train Station: listed in its submenu, and reachable from its task tiles.
+const TRAIN_STATIONS = [
+  { key: 'work', label: 'Jobs & Customers', path: '/jobs-dash' },
+  { key: 'dispatch', label: 'Dispatch Station', path: '/dispatch' },
+  { key: 'maintenance', label: 'Maintenance Station', path: '/maintenance-station' },
+  { key: 'permitting', label: 'Permitting Station', path: '/permits' },
+  { key: 'refrigerant', label: 'Refrigerant Records', path: '/refrigerant' },
+  { key: 'import', label: 'Data Import', path: '/import' },
+]
+const NESTED_KEYS = new Set(TRAIN_STATIONS.map((s) => s.key))
+const STATION_LABEL = Object.fromEntries(TRAIN_STATIONS.map((s) => [s.key, s.label]))
 
 function getCategoryForPath(pathname) {
   if (pathname.startsWith('/train-station')) return 'start'
@@ -285,18 +299,21 @@ export default function Layout({ profile }) {
           <Link to="/home" className={'rail-item' + (location.pathname === '/home' ? ' active' : '')}>
             Home
           </Link>
-          {allCategories.map((cat) => (
-            <button
-              key={cat.key}
-              className={'rail-item' + (expandedCategory === cat.key ? ' active' : '')}
-              onClick={() => {
-                setExpandedCategory(cat.key)
-                if (DASH_BY_KEY[cat.key]) navigate(DASH_BY_KEY[cat.key])
-              }}
-            >
-              {cat.label}
-            </button>
-          ))}
+          {allCategories.filter((cat) => !NESTED_KEYS.has(cat.key)).map((cat) => {
+            const active = cat.key === 'start' ? (expandedCategory === 'start' || NESTED_KEYS.has(expandedCategory)) : expandedCategory === cat.key
+            return (
+              <button
+                key={cat.key}
+                className={'rail-item' + (active ? ' active' : '')}
+                onClick={() => {
+                  setExpandedCategory(cat.key)
+                  if (DASH_BY_KEY[cat.key]) navigate(DASH_BY_KEY[cat.key])
+                }}
+              >
+                {cat.label}
+              </button>
+            )
+          })}
           <div className="rail-spacer" />
           {!isSuperAdmin && profile?.id && profile?.org_id && (
             <div style={{ marginBottom: 12, width: '100%' }}>
@@ -308,40 +325,60 @@ export default function Layout({ profile }) {
           <button className="rail-item" onClick={handleLogout}>Sign out</button>
         </div>
 
-        {activeCategoryData && activeCategoryData.items.length > 0 && (
+        {(expandedCategory === 'start' || NESTED_KEYS.has(expandedCategory) || (activeCategoryData && activeCategoryData.items.length > 0)) && (
           panelCollapsed ? (
             <button className="sidebar-panel-reopen" onClick={() => setPanelCollapsed(false)} title="Show menu" aria-label="Show menu">›</button>
           ) : (
           <div className="sidebar-panel">
+            {NESTED_KEYS.has(expandedCategory) && (
+              <button
+                onClick={() => { setExpandedCategory('start'); navigate('/train-station') }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--sky, #2F5DE3)', fontWeight: 700, fontSize: 13, padding: '2px 0 10px', textAlign: 'left' }}
+              >
+                {'←'} Back to Train Station
+              </button>
+            )}
             <div className="sidebar-panel-head">
-              <h3 style={{ margin: 0 }}>{activeCategoryData.label}</h3>
+              <h3 style={{ margin: 0 }}>{expandedCategory === 'start' ? 'Train Station' : (STATION_LABEL[expandedCategory] || activeCategoryData?.label)}</h3>
               <button className="sidebar-panel-toggle" onClick={() => setPanelCollapsed(true)} title="Hide menu" aria-label="Hide menu">‹</button>
             </div>
-            {activeCategoryData.items.filter((item) => !item.perm || isSuperAdmin || can(profile, item.perm)).map((item) => (
-              item.header ? (
-                HEADER_DASH[item.header] ? (
-                  <Link
-                    key={item.header}
-                    to={HEADER_DASH[item.header]}
-                    style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8A93A6', fontWeight: 700, margin: '16px 0 4px', textDecoration: 'none', cursor: 'pointer' }}
-                  >
-                    {item.header}
-                  </Link>
-                ) : (
-                  <div key={item.header} style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8A93A6', fontWeight: 700, margin: '16px 0 4px' }}>
-                    {item.header}
-                  </div>
-                )
-              ) : (
+            {expandedCategory === 'start' ? (
+              TRAIN_STATIONS.map((s) => (
                 <Link
-                  key={item.path}
-                  to={item.path}
-                  className={'sidebar-panel-link' + (location.pathname.startsWith(item.path) ? ' active' : '')}
+                  key={s.key}
+                  to={s.path}
+                  className={'sidebar-panel-link' + (resolveCat(location.pathname) === s.key ? ' active' : '')}
                 >
-                  {item.label}
+                  {s.label}
                 </Link>
-              )
-            ))}
+              ))
+            ) : (
+              (activeCategoryData?.items || []).filter((item) => !item.perm || isSuperAdmin || can(profile, item.perm)).map((item) => (
+                item.header ? (
+                  HEADER_DASH[item.header] ? (
+                    <Link
+                      key={item.header}
+                      to={HEADER_DASH[item.header]}
+                      style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8A93A6', fontWeight: 700, margin: '16px 0 4px', textDecoration: 'none', cursor: 'pointer' }}
+                    >
+                      {item.header}
+                    </Link>
+                  ) : (
+                    <div key={item.header} style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8A93A6', fontWeight: 700, margin: '16px 0 4px' }}>
+                      {item.header}
+                    </div>
+                  )
+                ) : (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={'sidebar-panel-link' + (location.pathname.startsWith(item.path) ? ' active' : '')}
+                  >
+                    {item.label}
+                  </Link>
+                )
+              ))
+            )}
           </div>
           )
         )}
