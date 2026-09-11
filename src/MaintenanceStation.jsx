@@ -17,6 +17,10 @@ const ACCENT = {
 }
 const GREEN = '#2E7D52', GREEN_BG = '#EAF3EC', GREEN_LINE = '#CADFCF', BRAND = '#176E7A', FAINT = '#98A2AD'
 const money = (n) => '$' + (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const INCENTIVES = ['One month free', '10% off the first year', 'A free first visit', 'No incentive — just reach out']
+const defaultWinbackMsg = (name) => `Hi ${(name || 'there').split(' ')[0]}, we'd love to have you back on a maintenance plan to keep your system protected and running its best. Take a look at the options below and pick up right where you left off.`
+const L2 = { display: 'block', fontSize: 12, color: '#6B7684', fontWeight: 600, marginBottom: 5 }
+const IN2 = { width: '100%', padding: '9px 11px', border: '1px solid var(--border)', borderRadius: 9, fontSize: 13.5, fontFamily: 'inherit', boxSizing: 'border-box', color: 'var(--ink, #1C2430)', background: '#fff' }
 
 const d7 = () => new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
 const d30 = () => new Date(Date.now() - 30 * 86400000).toISOString()
@@ -64,7 +68,7 @@ export default function MaintenanceStation({ profile }) {
   const [loading, setLoading] = useState(true)
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
-  const [wb, setWb] = useState({ open: false, loading: false, list: [], sending: null, sentIds: [], sentMsg: '' })
+  const [wb, setWb] = useState({ open: false, loading: false, list: [], sending: null, sentIds: [], sentMsg: '', picked: null, incentive: INCENTIVES[0], msg: '', channel: 'email' })
   const firstName = (profile.full_name || '').trim().split(' ')[0] || 'there'
 
   useEffect(() => { if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || [])) }, [isSuper])
@@ -91,7 +95,8 @@ export default function MaintenanceStation({ profile }) {
     setLoading(false)
   }
 
-  function openWinback() { setWb({ open: true, loading: true, list: [], sending: null, sentIds: [], sentMsg: '' }); loadLapsed() }
+  function openWinback() { setWb({ open: true, loading: true, list: [], sending: null, sentIds: [], sentMsg: '', picked: null, incentive: INCENTIVES[0], msg: '', channel: 'email' }); loadLapsed() }
+  function pickProp(pp) { setWb((w) => ({ ...w, picked: pp, incentive: INCENTIVES[0], msg: defaultWinbackMsg(pp.customer), channel: 'email', sentMsg: '' })) }
   async function loadLapsed() {
     const org = selectedOrg
     const { data: rows } = await supabase.from('property_maintenance_status').select('property_id, customer_id, last_offered_at').eq('org_id', org).eq('status', 'lapsed')
@@ -111,11 +116,12 @@ export default function MaintenanceStation({ profile }) {
     setWb((w) => ({ ...w, loading: false, list }))
   }
   async function sendWb(p) {
+    const incentive = wb.incentive && !wb.incentive.startsWith('No incentive') ? wb.incentive : ''
     setWb((w) => ({ ...w, sending: p.property_id, sentMsg: '' }))
-    const { data, error } = await supabase.functions.invoke('send-agreement-options-email', { body: { propertyId: p.property_id } })
+    const { data, error } = await supabase.functions.invoke('send-agreement-options-email', { body: { propertyId: p.property_id, message: wb.msg, incentive } })
     if (error || data?.error) { setWb((w) => ({ ...w, sending: null, sentMsg: 'Could not send — check the customer has an email on file.' })); return }
-    await supabase.from('maintenance_offers').insert({ org_id: selectedOrg, property_id: p.property_id, customer_id: p.customer_id, offered_by: profile?.id || null, channel: 'email', notes: 'win-back' })
-    setWb((w) => ({ ...w, sending: null, sentIds: [...w.sentIds, p.property_id], sentMsg: data?.sentTo ? `Win-back sent to ${data.sentTo}.` : 'Win-back sent.' }))
+    await supabase.from('maintenance_offers').insert({ org_id: selectedOrg, property_id: p.property_id, customer_id: p.customer_id, offered_by: profile?.id || null, channel: 'email', notes: 'win-back' + (incentive ? ' · ' + incentive : '') })
+    setWb((w) => ({ ...w, sending: null, sentIds: [...w.sentIds, p.property_id], picked: null, sentMsg: data?.sentTo ? `Win-back sent to ${data.sentTo}.` : 'Win-back sent.' }))
     load()
   }
 
@@ -228,26 +234,45 @@ export default function MaintenanceStation({ profile }) {
               <button onClick={() => { setWb((w) => ({ ...w, open: false })); load() }} style={{ border: 'none', background: 'transparent', fontSize: 20, cursor: 'pointer', color: FAINT, lineHeight: 1 }}>×</button>
             </div>
             <div style={{ padding: '14px 20px 20px' }}>
-              <p style={{ margin: '0 0 12px', fontSize: 13.5, color: 'var(--mist)' }}>Send each customer their plan options with a one-tap link to re-join. It emails the offer and logs it. They stay lapsed until they actually sign back up — this just gets the offer in front of them.</p>
-              {wb.loading ? <div style={{ color: FAINT, fontSize: 13 }}>Loading…</div> : wb.list.length === 0 ? <div style={{ color: GREEN, fontWeight: 600, fontSize: 13.5 }}>No lapsed plans right now.</div> : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {wb.list.map((p) => {
-                    const sent = wb.sentIds.includes(p.property_id)
-                    return (
-                      <div key={p.property_id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 14.5 }}>{p.customer}</div>
-                          <div style={{ fontSize: 12.5, color: FAINT, marginTop: 1 }}>{p.addr}{p.last_offered_at && !sent ? ` · last offered ${new Date(p.last_offered_at).toLocaleDateString()}` : ''}</div>
-                        </div>
-                        {sent ? <span style={{ fontSize: 12.5, color: GREEN, fontWeight: 700, whiteSpace: 'nowrap' }}>✓ Sent</span> : (
-                          <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '7px 14px', fontSize: 13, whiteSpace: 'nowrap' }} disabled={wb.sending === p.property_id} onClick={() => sendWb(p)}>{wb.sending === p.property_id ? 'Sending…' : 'Send win-back'}</button>
-                        )}
-                      </div>
-                    )
-                  })}
+              {wb.picked ? (
+                <div>
+                  <button onClick={() => setWb((w) => ({ ...w, picked: null }))} style={{ border: 'none', background: 'transparent', color: BRAND, cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0, marginBottom: 10 }}>‹ Back to list</button>
+                  <div style={{ background: 'var(--surface-2, #f6f7f9)', borderRadius: 10, padding: '10px 12px', marginBottom: 14, fontSize: 13 }}><b>{wb.picked.customer}</b> · {wb.picked.addr}</div>
+                  <label style={L2}>Comeback offer</label>
+                  <select value={wb.incentive} onChange={(e) => setWb((w) => ({ ...w, incentive: e.target.value }))} style={IN2}>{INCENTIVES.map((o) => <option key={o} value={o}>{o}</option>)}</select>
+                  <label style={{ ...L2, marginTop: 12 }}>Message</label>
+                  <textarea rows={4} value={wb.msg} onChange={(e) => setWb((w) => ({ ...w, msg: e.target.value }))} style={{ ...IN2, resize: 'vertical', lineHeight: 1.4 }} />
+                  <label style={{ ...L2, marginTop: 12 }}>Send by</label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button onClick={() => setWb((w) => ({ ...w, channel: 'email' }))} style={{ border: `1px solid ${wb.channel === 'email' ? BRAND : 'var(--border)'}`, background: wb.channel === 'email' ? BRAND : '#fff', color: wb.channel === 'email' ? '#fff' : 'var(--ink,#1C2430)', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Email</button>
+                    <button disabled title="Texting coming soon" style={{ border: '1px solid var(--border)', background: '#f3f4f6', color: '#aab2bd', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 500, cursor: 'not-allowed' }}>Text</button>
+                    <span style={{ fontSize: 11.5, color: FAINT }}>Texting coming soon</span>
+                  </div>
+                  <button className="auth-button" style={{ width: '100%', margin: '18px 0 0', padding: '11px', fontSize: 14 }} disabled={!!wb.sending} onClick={() => sendWb(wb.picked)}>{wb.sending ? 'Sending…' : 'Send win-back offer'}</button>
+                  {wb.sentMsg && <div style={{ marginTop: 12, fontSize: 13, color: wb.sentMsg.startsWith('Could') ? '#B5462F' : GREEN, fontWeight: 600 }}>{wb.sentMsg}</div>}
+                </div>
+              ) : (
+                <div>
+                  <p style={{ margin: '0 0 12px', fontSize: 13.5, color: 'var(--mist)' }}>Pick a customer to write their win-back. It emails your message and offer with the plans and a one-tap re-join link. They stay lapsed until they actually sign back up.</p>
+                  {wb.loading ? <div style={{ color: FAINT, fontSize: 13 }}>Loading…</div> : wb.list.length === 0 ? <div style={{ color: GREEN, fontWeight: 600, fontSize: 13.5 }}>No lapsed plans right now.</div> : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {wb.list.map((p) => {
+                        const sent = wb.sentIds.includes(p.property_id)
+                        return (
+                          <button key={p.property_id} onClick={() => !sent && pickProp(p)} style={{ textAlign: 'left', cursor: sent ? 'default' : 'pointer', background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                            <span>
+                              <span style={{ fontWeight: 700, fontSize: 14.5, display: 'block' }}>{p.customer}</span>
+                              <span style={{ fontSize: 12.5, color: FAINT }}>{p.addr}{p.last_offered_at && !sent ? ` · last offered ${new Date(p.last_offered_at).toLocaleDateString()}` : ''}</span>
+                            </span>
+                            {sent ? <span style={{ fontSize: 12.5, color: GREEN, fontWeight: 700, whiteSpace: 'nowrap' }}>✓ Sent</span> : <span style={{ fontSize: 13, fontWeight: 700, color: BRAND, whiteSpace: 'nowrap' }}>Write win-back ›</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {wb.sentMsg && <div style={{ marginTop: 12, fontSize: 13, color: wb.sentMsg.startsWith('Could') ? '#B5462F' : GREEN, fontWeight: 600 }}>{wb.sentMsg}</div>}
                 </div>
               )}
-              {wb.sentMsg && <div style={{ marginTop: 12, fontSize: 13, color: wb.sentMsg.startsWith('Could') ? '#B5462F' : GREEN, fontWeight: 600 }}>{wb.sentMsg}</div>}
             </div>
           </div>
         </div>
