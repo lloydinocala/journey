@@ -19,6 +19,7 @@ const CATEGORIES = [
   { key: 'dispatch', label: 'Dispatch', items: [
     { label: 'Dispatch Station', path: '/dispatch' },
     { label: 'Call Console', path: '/call' },
+    { label: 'Call Log', path: '/call-log' },
     { label: 'Service Requests', path: '/service-requests' },
     { label: 'Calendar', path: '/calendar' },
     { label: 'Dispatch Map', path: '/dispatch-map' },
