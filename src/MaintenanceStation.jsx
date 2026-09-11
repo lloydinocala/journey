@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
+import OrgPicker from './OrgPicker'
 
 // The Maintenance Station — a domain station (same family as the Train Station).
 // STAGE 2: office view (tasks). STAGE 3: owner/admin faces — the SAME signals, framed
@@ -51,7 +52,6 @@ const REGISTRY = [
 
 export default function MaintenanceStation({ profile }) {
   const nav = useNavigate()
-  const org = profile.org_id
   const isSuper = profile?.role === 'super_admin'
   const allowed = isSuper || can(profile, 'view_maintenance_dashboard')
   const opsAdmin = isSuper || can(profile, 'view_operational_metrics')
@@ -62,11 +62,15 @@ export default function MaintenanceStation({ profile }) {
   const [counts, setCounts] = useState({})
   const [admin, setAdmin] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [orgs, setOrgs] = useState([])
+  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
   const firstName = (profile.full_name || '').trim().split(' ')[0] || 'there'
 
-  useEffect(() => { if (allowed) load() }, [org])
+  useEffect(() => { if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || [])) }, [isSuper])
+  useEffect(() => { if (allowed && selectedOrg) load(); else if (allowed && !selectedOrg) setLoading(false) }, [allowed, selectedOrg])
 
   async function load() {
+    const org = selectedOrg
     setLoading(true)
     const results = await Promise.all(REGISTRY.map(async (t) => {
       try { const { count, error } = await t.q(org); return [t.key, error ? null : (count || 0)] } catch { return [t.key, null] }
@@ -111,6 +115,13 @@ export default function MaintenanceStation({ profile }) {
                   : <>You're all caught up — no maintenance work is waiting.</>}
           </p>
         </div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        {isSuper && (
+          <div>
+            <div style={{ fontSize: 11.5, color: FAINT, marginBottom: 4, textAlign: 'right' }}>Organization</div>
+            <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+          </div>
+        )}
         {hasAdmin && (
           <div>
             <div style={{ fontSize: 11.5, color: FAINT, marginBottom: 4, textAlign: 'right' }}>Viewing as</div>
@@ -121,9 +132,12 @@ export default function MaintenanceStation({ profile }) {
             </div>
           </div>
         )}
+        </div>
       </div>
 
-      {view === 'admin' ? (
+      {isSuper && !selectedOrg ? (
+        <div style={{ marginTop: 26, color: FAINT, fontSize: 14 }}>Select an organization above to load its Maintenance Station.</div>
+      ) : view === 'admin' ? (
         <AdminView opsAdmin={opsAdmin} ownerAdmin={ownerAdmin} lapsed={lapsed} admin={admin} loading={loading} onWork={() => setView('office')} />
       ) : (
         <>
