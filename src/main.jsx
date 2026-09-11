@@ -26,6 +26,39 @@ if ('serviceWorker' in navigator) {
   })
 }
 
+// Belt-and-suspenders version check: the SW auto-update lifecycle is flaky in
+// practice (a normal refresh serves the cached bundle). This compares the running
+// build to the deployed index.html directly; on a mismatch it force-unregisters
+// the worker + clears caches + reloads — guaranteeing the newest code loads.
+const BUILD_ID = __BUILD_ID__
+let __updating = false
+async function forceUpdate() {
+  if (__updating) return
+  __updating = true
+  try {
+    if ('serviceWorker' in navigator) {
+      const rs = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(rs.map((r) => r.unregister()))
+    }
+    if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))) }
+  } catch (e) { /* ignore */ }
+  window.location.reload()
+}
+async function checkVersion() {
+  if (!BUILD_ID || __updating) return
+  try {
+    const res = await fetch('/index.html?_v=' + Date.now(), { cache: 'no-store' })
+    if (!res.ok) return
+    const html = await res.text()
+    const mm = html.match(/name="build-id" content="(\d+)"/)
+    const deployed = mm ? mm[1] : null
+    if (deployed && deployed !== BUILD_ID) forceUpdate()
+  } catch (e) { /* offline / ignore */ }
+}
+window.addEventListener('focus', checkVersion)
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion() })
+setInterval(checkVersion, 60 * 1000)
+
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() { updateSW(true) },   // new version available -> update + reload

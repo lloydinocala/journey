@@ -2,9 +2,13 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const BUILD_ID = String(Date.now())
+
 export default defineConfig({
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   plugins: [
     react(),
+    { name: 'inject-build-id', transformIndexHtml() { return [{ tag: 'meta', attrs: { name: 'build-id', content: BUILD_ID }, injectTo: 'head' }] } },
     VitePWA({
       registerType: 'autoUpdate',   // new worker activates immediately (skipWaiting + clientsClaim)
       injectRegister: false,        // we register + auto-reload in main.jsx
