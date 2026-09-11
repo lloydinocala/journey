@@ -64,6 +64,7 @@ export default function MaintenanceStation({ profile }) {
   const [loading, setLoading] = useState(true)
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [wb, setWb] = useState({ open: false, loading: false, list: [], sending: null, sentIds: [], sentMsg: '' })
   const firstName = (profile.full_name || '').trim().split(' ')[0] || 'there'
 
   useEffect(() => { if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || [])) }, [isSuper])
@@ -88,6 +89,34 @@ export default function MaintenanceStation({ profile }) {
       } catch { setAdmin(null) }
     }
     setLoading(false)
+  }
+
+  function openWinback() { setWb({ open: true, loading: true, list: [], sending: null, sentIds: [], sentMsg: '' }); loadLapsed() }
+  async function loadLapsed() {
+    const org = selectedOrg
+    const { data: rows } = await supabase.from('property_maintenance_status').select('property_id, customer_id, last_offered_at').eq('org_id', org).eq('status', 'lapsed')
+    const propIds = (rows || []).map((r) => r.property_id)
+    const custIds = [...new Set((rows || []).map((r) => r.customer_id).filter(Boolean))]
+    const [{ data: props }, { data: custs }] = await Promise.all([
+      propIds.length ? supabase.from('properties').select('id, street_address, city').in('id', propIds) : Promise.resolve({ data: [] }),
+      custIds.length ? supabase.from('customers').select('id, display_name').in('id', custIds) : Promise.resolve({ data: [] }),
+    ])
+    const pMap = Object.fromEntries((props || []).map((p) => [p.id, p]))
+    const cMap = Object.fromEntries((custs || []).map((c) => [c.id, c]))
+    const list = (rows || []).map((r) => ({
+      property_id: r.property_id, customer_id: r.customer_id, last_offered_at: r.last_offered_at,
+      customer: cMap[r.customer_id]?.display_name || 'Customer',
+      addr: [pMap[r.property_id]?.street_address, pMap[r.property_id]?.city].filter(Boolean).join(', ') || 'Property',
+    }))
+    setWb((w) => ({ ...w, loading: false, list }))
+  }
+  async function sendWb(p) {
+    setWb((w) => ({ ...w, sending: p.property_id, sentMsg: '' }))
+    const { data, error } = await supabase.functions.invoke('send-agreement-options-email', { body: { propertyId: p.property_id } })
+    if (error || data?.error) { setWb((w) => ({ ...w, sending: null, sentMsg: 'Could not send — check the customer has an email on file.' })); return }
+    await supabase.from('maintenance_offers').insert({ org_id: selectedOrg, property_id: p.property_id, customer_id: p.customer_id, offered_by: profile?.id || null, channel: 'email', notes: 'win-back' })
+    setWb((w) => ({ ...w, sending: null, sentIds: [...w.sentIds, p.property_id], sentMsg: data?.sentTo ? `Win-back sent to ${data.sentTo}.` : 'Win-back sent.' }))
+    load()
   }
 
   if (!allowed) return <div style={{ padding: '24px' }}><p style={{ color: FAINT }}>You don't have access to the Maintenance Station.</p></div>
@@ -138,7 +167,7 @@ export default function MaintenanceStation({ profile }) {
       {isSuper && !selectedOrg ? (
         <div style={{ marginTop: 26, color: FAINT, fontSize: 14 }}>Select an organization above to load its Maintenance Station.</div>
       ) : view === 'admin' ? (
-        <AdminView opsAdmin={opsAdmin} ownerAdmin={ownerAdmin} lapsed={lapsed} admin={admin} loading={loading} onWork={() => setView('office')} />
+        <AdminView opsAdmin={opsAdmin} ownerAdmin={ownerAdmin} lapsed={lapsed} admin={admin} loading={loading} onWork={openWinback} />
       ) : (
         <>
           <div style={{ marginTop: 26 }}>
@@ -156,7 +185,7 @@ export default function MaintenanceStation({ profile }) {
                 {needs.map((t) => {
                   const a = ACCENT[t.tone] || ACCENT.amber; const n = counts[t.key] || 0
                   return (
-                    <div key={t.key} onClick={() => nav(t.href)} style={{ ...card, borderLeft: `3px solid ${a.fg}`, padding: '15px 16px 13px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 124 }}>
+                    <div key={t.key} onClick={() => (t.key === 'lapsed' ? openWinback() : nav(t.href))} style={{ ...card, borderLeft: `3px solid ${a.fg}`, padding: '15px 16px 13px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 124 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: 15, fontWeight: 700 }}>{t.name}</span>
                         <span style={{ minWidth: 30, height: 30, padding: '0 9px', borderRadius: 999, background: a.bg, color: a.fg, border: `1px solid ${a.line}`, fontWeight: 800, fontSize: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{n}</span>
@@ -188,6 +217,39 @@ export default function MaintenanceStation({ profile }) {
         <div style={{ marginTop: 30, paddingTop: 14, borderTop: '1px dashed var(--border)', fontSize: 12.5, color: FAINT, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ width: 8, height: 8, borderRadius: 999, background: '#B5462F' }} />
           One signal — <b style={{ color: 'var(--mist)' }}>lapsed plans ({lapsed})</b> — is a <b style={{ color: 'var(--mist)' }}>task</b> for the office and a <b style={{ color: 'var(--mist)' }}>retention flag</b> for the owner. Flip the toggle to see the same number reframed.
+        </div>
+      )}
+
+      {wb.open && (
+        <div onClick={() => { setWb((w) => ({ ...w, open: false })); load() }} style={{ position: 'fixed', inset: 0, background: 'rgba(20,26,34,.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 60 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 480, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 24px 60px rgba(20,26,34,.28)' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>Win back lapsed plans</div>
+              <button onClick={() => { setWb((w) => ({ ...w, open: false })); load() }} style={{ border: 'none', background: 'transparent', fontSize: 20, cursor: 'pointer', color: FAINT, lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ padding: '14px 20px 20px' }}>
+              <p style={{ margin: '0 0 12px', fontSize: 13.5, color: 'var(--mist)' }}>Send each customer their plan options with a one-tap link to re-join. It emails the offer and logs it. They stay lapsed until they actually sign back up — this just gets the offer in front of them.</p>
+              {wb.loading ? <div style={{ color: FAINT, fontSize: 13 }}>Loading…</div> : wb.list.length === 0 ? <div style={{ color: GREEN, fontWeight: 600, fontSize: 13.5 }}>No lapsed plans right now.</div> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {wb.list.map((p) => {
+                    const sent = wb.sentIds.includes(p.property_id)
+                    return (
+                      <div key={p.property_id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 14.5 }}>{p.customer}</div>
+                          <div style={{ fontSize: 12.5, color: FAINT, marginTop: 1 }}>{p.addr}{p.last_offered_at && !sent ? ` · last offered ${new Date(p.last_offered_at).toLocaleDateString()}` : ''}</div>
+                        </div>
+                        {sent ? <span style={{ fontSize: 12.5, color: GREEN, fontWeight: 700, whiteSpace: 'nowrap' }}>✓ Sent</span> : (
+                          <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '7px 14px', fontSize: 13, whiteSpace: 'nowrap' }} disabled={wb.sending === p.property_id} onClick={() => sendWb(p)}>{wb.sending === p.property_id ? 'Sending…' : 'Send win-back'}</button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              {wb.sentMsg && <div style={{ marginTop: 12, fontSize: 13, color: wb.sentMsg.startsWith('Could') ? '#B5462F' : GREEN, fontWeight: 600 }}>{wb.sentMsg}</div>}
+            </div>
+          </div>
         </div>
       )}
     </div>
