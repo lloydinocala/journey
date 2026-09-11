@@ -118,7 +118,7 @@ const TRAIN_STATIONS = [
   { key: 'dispatch', label: 'Dispatch Station', path: '/dispatch' },
   { key: 'maintenance', label: 'Maintenance Station', path: '/maintenance-station' },
   { key: 'permitting', label: 'Permitting Station', path: '/permits' },
-  { key: 'refrigerant', label: 'Refrigerant Records', path: '/refrigerant' },
+  { key: 'refrigerant', label: '608 Refrigeration Compliance', path: '/refrigerant' },
   { key: 'import', label: 'Data Import', path: '/import' },
 ]
 const NESTED_KEYS = new Set(TRAIN_STATIONS.map((s) => s.key))

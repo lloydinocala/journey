@@ -89,8 +89,8 @@ export default function RefrigerantDashboard({ profile }) {
 
       <div style={{ margin: '4px 0 22px' }}>
         <StationShell
-          eyebrow="Refrigerant Station"
-          officeTitle="Your refrigerant compliance"
+          eyebrow="608 Refrigeration Compliance"
+          officeTitle="Your refrigerant records"
           adminTitle="Refrigerant health"
           officeSubtitle={refSub}
           loading={loading && !d}

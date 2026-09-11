@@ -16,7 +16,7 @@ export const REFRIGERANT_ROUTES = [
 
 export const REFRIGERANT_NAV = {
   key: 'refrigerant',
-  label: 'Refrigerant',
+  label: '608 Refrigeration Compliance',
   items: [
     { label: 'Refrigerant Dashboard', path: '/refrigerant' },
     { label: 'Usage Log', path: '/refrigerant/log' },
