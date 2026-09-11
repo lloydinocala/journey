@@ -3,13 +3,15 @@
 // each card links to its full screen. Below that: identity stats and the
 // navigation cards for the rest of the module.
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   getSettings, listItems, listLocations, listMaps,
   listReplenishment, listPurchaseOrders, valuation, variance,
 } from './data'
 import { useOrgSelector, OrgBar, EnabledPill, DisabledNotice } from './shared'
 import QuincyBrief from '../../QuincyBrief'
+import { can } from '../../utils/permissions'
+import StationShell, { StationKpi } from '../../StationShell'
 
 const money0 = (n) => (n == null || isNaN(n) ? '—' : `$${Math.round(Number(n)).toLocaleString()}`)
 const signed0 = (n) => {
@@ -114,8 +116,23 @@ export default function ElementsInventory({ profile }) {
     </Link>
   )
 
+  const nav = useNavigate()
   const m = metrics
   const lowAlert = !!m && m.lowStock > 0
+  const isSuper = profile?.role === 'super_admin'
+  const opsAdmin = isSuper || can(profile, 'view_operational_metrics')
+  const ownerAdmin = isSuper || can(profile, 'view_owner_metrics')
+  const invSignals = m ? [
+    { key: 'low', name: 'Reorder — low stock', n: m.lowStock, tone: 'red', line: m.lowStock ? `${m.lowStock} item${m.lowStock === 1 ? '' : 's'} at or under reorder point` : 'everything above reorder', cta: 'Open replenishment', onClick: () => nav('/elements/replenishment') },
+    { key: 'po', name: 'Open POs to receive', n: m.openPoCount, tone: 'amber', line: m.openPoCount ? `${money0(m.openPoValue)} on order${m.openPoNext ? ` · next ${fmtDate(m.openPoNext)}` : ''}` : 'none awaiting receipt', cta: 'Open purchase orders', onClick: () => nav('/elements/purchasing') },
+  ] : []
+  const invNeedTotal = invSignals.filter((x) => x.n > 0).reduce((a, x) => a + x.n, 0)
+  const officeSub = invNeedTotal > 0 ? (<>Stock &amp; purchasing work — <b style={{ color: 'inherit' }}>{invNeedTotal}</b> item{invNeedTotal === 1 ? '' : 's'} need a hand.</>) : "You're all caught up — inventory's in good shape."
+  const ownerCards = m ? (<>
+    <StationKpi label="Inventory value" big={money0(m.valValue)} sub={`${m.valParts} part${m.valParts === 1 ? '' : 's'} on hand`} tone="opp" onClick={() => nav('/elements/valuation')} />
+    <StationKpi label="Variance (90 days)" big={signed0(m.varNet)} sub={m.varCount ? `${m.varCount} exception${m.varCount === 1 ? '' : 's'}` : 'no exceptions'} tone={m.varNet < 0 ? 'alert' : undefined} onClick={() => nav('/elements/variance')} />
+  </>) : null
+  const opsCards = m ? <StationKpi label="Variance exceptions (90d)" big={String(m.varCount)} sub="discrepancies posted" tone={m.varCount > 0 ? 'alert' : undefined} onClick={() => nav('/elements/variance')} /> : null
   const nextTxt = m && m.openPoNext ? `Next delivery ${fmtDate(m.openPoNext) || '—'}` : (m && m.openPoCount > 0 ? 'No delivery date set' : 'None awaiting delivery')
 
   return (
@@ -143,37 +160,18 @@ export default function ElementsInventory({ profile }) {
       </div>
       <DisabledNotice enabled={stats.enabled} />
 
-      {/* At a glance — the four reports */}
-      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--mist)', textTransform: 'uppercase', letterSpacing: 0.4, margin: '4px 0 8px' }}>At a glance</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 12, marginBottom: 24 }}>
-        <Metric
-          to="/elements/replenishment"
-          label="Low stock"
-          value={loading && !m ? '…' : String(m ? m.lowStock : 0)}
-          sub={m && m.lowStock > 0 ? 'at or under reorder point' : 'everything above reorder'}
-          accent={lowAlert ? '#B00020' : '#0B7A3B'}
-          alert={lowAlert}
-        />
-        <Metric
-          to="/elements/purchasing"
-          label="Open purchase orders"
-          value={loading && !m ? '…' : String(m ? m.openPoCount : 0)}
-          sub={m ? (m.openPoCount > 0 ? `${nextTxt} · ${money0(m.openPoValue)} on order` : 'None awaiting delivery') : ''}
-          accent="#1B3A6B"
-        />
-        <Metric
-          to="/elements/variance"
-          label="Variance (90 days)"
-          value={loading && !m ? '…' : signed0(m ? m.varNet : 0)}
-          sub={m ? (m.varCount > 0 ? `${m.varCount} exception${m.varCount === 1 ? '' : 's'}` : 'no exceptions') : ''}
-          accent={m && m.varNet < 0 ? '#B00020' : '#132A4C'}
-        />
-        <Metric
-          to="/elements/valuation"
-          label="Inventory value"
-          value={loading && !m ? '…' : money0(m ? m.valValue : 0)}
-          sub={m ? `${m.valParts} part${m.valParts === 1 ? '' : 's'} in stock` : ''}
-          accent="#132A4C"
+      <div style={{ margin: '4px 0 24px' }}>
+        <StationShell
+          eyebrow="Inventory Station"
+          officeTitle="Your inventory tasks"
+          adminTitle="Inventory health"
+          officeSubtitle={officeSub}
+          loading={loading && !m}
+          signals={invSignals}
+          opsAdmin={opsAdmin} ownerAdmin={ownerAdmin}
+          opsCards={opsCards} ownerCards={ownerCards}
+          emptyHint="Stock levels, open POs, and variance are all in line."
+          fanoutNote={<>Variance is <b style={{ color: 'var(--mist)' }}>a discrepancy to reconcile</b> for the office and <b style={{ color: 'var(--mist)' }}>dollars on your books</b> for you — same source, two views.</>}
         />
       </div>
 
