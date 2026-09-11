@@ -135,31 +135,82 @@ export default function Permits({ profile }) {
   }
 
   const failedCount = awaitingInspection.filter((e) => e.failed).length
+  const awaitingNonFailed = Math.max(0, awaitingInspection.length - failedCount)
+  const PBRAND = '#176E7A'
+  const P_TILES = [
+    { key: 'approved', name: 'Approved — start the permit', n: approved.length, tone: 'amber', line: `${approved.length} approved estimate${approved.length === 1 ? '' : 's'} not yet started`, cta: 'See estimates ↓', anchor: 'p-approved' },
+    { key: 'inprogress', name: 'In progress', n: inProgress.length, tone: 'amber', line: `${inProgress.length} package${inProgress.length === 1 ? '' : 's'} mid-workflow`, cta: 'Resume ↓', anchor: 'p-inprogress' },
+    { key: 'inspection', name: 'Awaiting inspection', n: awaitingNonFailed, tone: 'amber', line: `${awaitingNonFailed} install${awaitingNonFailed === 1 ? '' : 's'} ready to schedule`, cta: 'Schedule ↓', anchor: 'p-inspect' },
+    { key: 'failed', name: 'Failed — reschedule', n: failedCount, tone: 'red', line: `${failedCount} inspection${failedCount === 1 ? '' : 's'} to re-book`, cta: 'Reschedule ↓', anchor: 'p-inspect' },
+  ]
+  const pNeeds = P_TILES.filter((t) => t.n > 0)
+  const pHandled = P_TILES.filter((t) => t.n === 0)
+  const pTotal = pNeeds.reduce((sm, t) => sm + t.n, 0)
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-      <div className="page-header-bar"><h2>Permits</h2></div>
-
-      {isSuper && (
-        <div style={{ marginBottom: 14, maxWidth: 340 }}>
-          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
-          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: 0.3, color: PBRAND }}>Permitting Station</div>
+          <h2 style={{ fontSize: 25, fontWeight: 800, letterSpacing: -0.5, margin: '4px 0 0' }}>Your permitting tasks</h2>
+          <p style={{ margin: '7px 0 0', fontSize: 15, color: 'var(--mist)', maxWidth: 600 }}>
+            {loading ? 'Checking what needs attention…' : pTotal > 0
+              ? <>Permits moving through the pipeline — <b style={{ color: 'inherit' }}>{pTotal}</b> across {pNeeds.length} area{pNeeds.length === 1 ? '' : 's'} need a hand.</>
+              : <>You're all caught up — no permits are waiting on you.</>}
+          </p>
         </div>
-      )}
-
-      {loading ? <p style={{ color: 'var(--mist)' }}>Loading…</p> : (
-        <>
-          {/* Tiles */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 22 }}>
-            <Tile label="Approved — awaiting start" value={approved.length} color="#2E7FC4" />
-            <Tile label="In progress" value={inProgress.length} color="#C8811B" />
-            <Tile label="Installed — awaiting inspection" value={awaitingInspection.length} />
-            <Tile label="Failed — needs reschedule" value={failedCount} color={failedCount ? '#C0392B' : undefined} />
+        {isSuper && (
+          <div>
+            <div style={{ fontSize: 11.5, color: '#98A2AD', marginBottom: 4, textAlign: 'right' }}>Organization</div>
+            <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
           </div>
+        )}
+      </div>
+
+      {loading ? <p style={{ color: 'var(--mist)', marginTop: 20 }}>Loading…</p> : (
+        <>
+          <div style={{ marginTop: 24 }}>
+            <div style={{ marginBottom: 12 }}><h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2, margin: 0 }}>Needs a hand</h3><p style={{ margin: '3px 0 0', fontSize: 12.5, color: '#98A2AD' }}>Permits with work waiting. Each tile jumps to the list below.</p></div>
+            {pNeeds.length === 0 ? (
+              <div style={{ background: '#EAF3EC', border: '1px solid #CADFCF', borderRadius: 12, padding: '20px', display: 'flex', gap: 13, alignItems: 'center' }}>
+                <span style={{ width: 32, height: 32, borderRadius: 999, background: '#fff', border: '1px solid #CADFCF', color: '#2E7D52', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>✓</span>
+                <div><div style={{ fontWeight: 700, fontSize: 15 }}>Nothing needs a hand right now.</div><div style={{ fontSize: 13.5, color: 'var(--mist)', marginTop: 2 }}>No permits are waiting to start, resume, or inspect.</div></div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(258px, 1fr))', gap: 14 }}>
+                {pNeeds.map((t) => {
+                  const a = t.tone === 'red' ? { fg: '#B5462F', bg: '#FBECE8', line: '#EAC5BC' } : { fg: '#9C6A12', bg: '#FAF2E0', line: '#EAD3A0' }
+                  return (
+                    <div key={t.key} onClick={() => document.getElementById(t.anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })} style={{ background: '#fff', border: '1px solid var(--border)', borderLeft: `3px solid ${a.fg}`, borderRadius: 12, padding: '15px 16px 13px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 124 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 15, fontWeight: 700 }}>{t.name}</span>
+                        <span style={{ minWidth: 30, height: 30, padding: '0 9px', borderRadius: 999, background: a.bg, color: a.fg, border: `1px solid ${a.line}`, fontWeight: 800, fontSize: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{t.n}</span>
+                      </div>
+                      <div style={{ fontSize: 14, color: 'var(--mist)', lineHeight: 1.4, flex: 1 }}>{t.line}</div>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: PBRAND }}>{t.cta}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+          {pHandled.length > 0 && (
+            <div style={{ marginTop: 26 }}>
+              <div style={{ marginBottom: 12 }}><h3 style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.2, margin: 0 }}>Handled</h3><p style={{ margin: '3px 0 0', fontSize: 12.5, color: '#98A2AD' }}>Watching, nothing pending.</p></div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+                {pHandled.map((t) => (
+                  <span key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid var(--border)', borderRadius: 999, padding: '7px 13px', fontSize: 13.5 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: 999, background: '#2E7D52' }} />{t.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          <div style={{ marginTop: 30, paddingTop: 6, borderTop: '1px dashed var(--border)' }} />
 
           {/* In progress / resume */}
           {inProgress.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
+            <div id="p-inprogress" style={{ marginBottom: 24 }}>
               <h3 style={{ fontSize: 15, marginBottom: 8 }}>In progress</h3>
               <div style={{ display: 'grid', gap: 8 }}>
                 {inProgress.map((p) => (
@@ -176,7 +227,7 @@ export default function Permits({ profile }) {
           )}
 
           {/* Approved / not started */}
-          <h3 style={{ fontSize: 15, marginBottom: 8 }}>New System Estimates — Approved / Not Scheduled</h3>
+          <h3 id="p-approved" style={{ fontSize: 15, marginBottom: 8, scrollMarginTop: 12 }}>New System Estimates — Approved / Not Scheduled</h3>
           {approved.length === 0 ? (
             <div className="section-card" style={{ padding: 18, marginBottom: 24 }}><p style={{ margin: 0 }}>No approved estimates waiting to be processed.</p></div>
           ) : (
@@ -198,7 +249,7 @@ export default function Permits({ profile }) {
           )}
 
           {/* Installs completed / not inspected */}
-          <h3 style={{ fontSize: 15, marginBottom: 8 }}>Installs Completed / Not Inspected</h3>
+          <h3 id="p-inspect" style={{ fontSize: 15, marginBottom: 8, scrollMarginTop: 12 }}>Installs Completed / Not Inspected</h3>
           {awaitingInspection.length === 0 ? (
             <div className="section-card" style={{ padding: 18 }}><p style={{ margin: 0 }}>No installed jobs awaiting inspection.</p></div>
           ) : (
