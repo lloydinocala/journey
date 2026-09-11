@@ -21,10 +21,10 @@ export default function InventoryCentral({ profile }) {
   const { signals, loading, total, needing } = useSignals({ hub: 'inventory-central' }, selectedOrg, nav)
 
   const sub = loading
-    ? 'Checking every inventory area\u2026'
+    ? 'Checking every inventory area…'
     : total > 0
-      ? (<>Across stock, fleet &amp; tools \u2014 <b style={{ color: 'inherit' }}>{total}</b> across {needing.length} area{needing.length === 1 ? '' : 's'} need a hand.</>)
-      : 'All of inventory is watched and clear \u2014 nothing needs a hand right now.'
+      ? (<>Across stock, fleet &amp; tools — <b style={{ color: 'inherit' }}>{total}</b> across {needing.length} area{needing.length === 1 ? '' : 's'} need a hand.</>)
+      : 'All of inventory is watched and clear — nothing needs a hand right now.'
 
   return (
     <div style={{ padding: '22px 24px 70px' }}>
