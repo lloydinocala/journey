@@ -10,18 +10,22 @@ function vendorSiteUrl(url) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`
 }
 
+const VENDOR_CATEGORIES = ['Parts & Supplies', 'Fleet — Fuel', 'Fleet — Maintenance', 'Subcontractor', 'Other']
+const FLEET_CATEGORIES = ['Fleet — Fuel', 'Fleet — Maintenance']
+
 const blankForm = {
   name: '', phone: '', email: '', website: '', account_number: '', billing_type: '',
-  sales_rep_name: '', sales_rep_phone: '', street_address: '', city: '', state: '', zip: '', notes: '', is_recorder: false,
+  sales_rep_name: '', sales_rep_phone: '', street_address: '', city: '', state: '', zip: '', notes: '', is_recorder: false, category: 'Parts & Supplies',
 }
 
-export default function Vendors({ profile }) {
+export default function Vendors({ profile, scope }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState(['Active'])
   const [searchText, setSearchText] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('All')
 
   const [showAddForm, setShowAddForm] = useState(false)
   const [form, setForm] = useState(blankForm)
@@ -38,6 +42,7 @@ export default function Vendors({ profile }) {
     setEditRow({
       name: v.name || '', phone: v.phone || '', email: v.email || '',
       website: v.website || '', account_number: v.account_number || '', sales_rep_name: v.sales_rep_name || '',
+      category: v.category || 'Parts & Supplies',
     })
   }
   function setField(k, val) { setEditRow((r) => ({ ...r, [k]: val })) }
@@ -53,6 +58,7 @@ export default function Vendors({ profile }) {
       website: (editRow.website || '').trim() || null,
       account_number: (editRow.account_number || '').trim() || null,
       sales_rep_name: (editRow.sales_rep_name || '').trim() || null,
+      category: editRow.category || 'Parts & Supplies',
     }).eq('id', id)
     setSavingRow(false)
     setEditingId(null)
@@ -111,6 +117,7 @@ export default function Vendors({ profile }) {
       zip: form.zip.trim() || null,
       notes: form.notes.trim() || null,
       is_recorder: !!form.is_recorder,
+      category: form.category || 'Parts & Supplies',
     })
     setSaving(false)
     if (insErr) {
@@ -129,14 +136,22 @@ export default function Vendors({ profile }) {
     loadVendors(selectedOrg)
   }
 
-  const filtered = vendors.filter((v) => statusFilter.includes(v.is_active ? 'Active' : 'Archived') && (!searchText || v.name.toLowerCase().includes(searchText.toLowerCase())))
+  const filtered = vendors.filter((v) => {
+    if (!statusFilter.includes(v.is_active ? 'Active' : 'Archived')) return false
+    if (searchText && !v.name.toLowerCase().includes(searchText.toLowerCase())) return false
+    const cat = v.category || 'Parts & Supplies'
+    if (scope === 'fleet') return FLEET_CATEGORIES.includes(cat)
+    if (categoryFilter === 'All') return true
+    if (categoryFilter === 'Fleet') return FLEET_CATEGORIES.includes(cat)
+    return cat === categoryFilter
+  })
 
   return (
     <div>
       <div className="page-header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <h2>Vendors</h2>
-          <span className="badge">{vendors.length.toLocaleString()} total</span>
+          <h2>{scope === 'fleet' ? 'Fleet Vendors' : 'Vendors'}</h2>
+          <span className="badge">{filtered.length.toLocaleString()} shown</span>
         </div>
         <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => setShowAddForm(!showAddForm)}>
           {showAddForm ? 'Cancel' : '+ New Vendor'}
@@ -155,6 +170,12 @@ export default function Vendors({ profile }) {
           <div className="field">
             <label>Vendor Name</label>
             <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          </div>
+          <div className="field">
+            <label>Category</label>
+            <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+              {VENDOR_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
           <div className="field">
             <label>Phone</label>
@@ -223,6 +244,16 @@ export default function Vendors({ profile }) {
           <input type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Vendor name…" />
         </div>
         <StatusFilter options={['Active', 'Archived']} value={statusFilter} onChange={setStatusFilter} />
+        {scope !== 'fleet' && (
+          <div className="field" style={{ marginBottom: 0, minWidth: 190 }}>
+            <label>Category</label>
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+              <option value="All">All categories</option>
+              <option value="Fleet">Fleet (fuel + maintenance)</option>
+              {VENDOR_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -233,6 +264,7 @@ export default function Vendors({ profile }) {
             <tr>
               <th></th>
               <th>Name</th>
+              <th>Category</th>
               <th>Phone</th>
               <th>Email</th>
               <th>Website</th>
@@ -260,6 +292,9 @@ export default function Vendors({ profile }) {
                 <td>{editingId === v.id
                   ? <input type="text" value={editRow.name} onChange={(e) => setField('name', e.target.value)} style={{ ...ci, minWidth: 130 }} />
                   : <Link to={`/vendors/${v.id}`}>{v.name}</Link>}</td>
+                <td>{editingId === v.id
+                  ? <select value={editRow.category} onChange={(e) => setField('category', e.target.value)} style={{ ...ci, minWidth: 130 }}>{VENDOR_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+                  : <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 10, whiteSpace: 'nowrap', background: FLEET_CATEGORIES.includes(v.category) ? '#EAF2FB' : 'var(--surface-2, #f1f1f1)', border: '1px solid var(--border)' }}>{v.category || 'Parts & Supplies'}</span>}</td>
                 <td>{editingId === v.id
                   ? <input type="tel" value={editRow.phone} onChange={(e) => setField('phone', e.target.value)} style={ci} />
                   : (v.phone || '—')}</td>
@@ -292,7 +327,7 @@ export default function Vendors({ profile }) {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan="8" style={{ color: 'var(--mist)' }}>No vendors found.</td></tr>
+              <tr><td colSpan="9" style={{ color: 'var(--mist)' }}>No vendors found.</td></tr>
             )}
           </tbody>
         </table>

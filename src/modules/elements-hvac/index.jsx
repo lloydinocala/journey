@@ -72,6 +72,7 @@ export const ELEMENTS_NAV = {
     { label: 'Special Orders', path: '/elements/special-orders' },
     { label: 'Vendor Invoices (A/P)', path: '/elements/ap' },
     { label: 'Vendor Cross-Reference', path: '/elements/vendor-crossref' },
+    { label: 'Vendors', path: '/vendors' },
     { label: 'Service → Part Mapping', path: '/elements/service-map' },
     { label: 'Record Parts Used', path: '/elements/parts-used' },
     { label: 'Parts Usage', path: '/elements/usage' },
@@ -107,6 +108,7 @@ export const ELEMENTS_FLEET_NAV = {
     { label: 'Routes & GPS', path: '/fleet/routes' },
     { label: 'Inspections', path: '/fleet/inspections' },
     { label: 'Insurance & Documents', path: '/fleet/insurance' },
+    { label: 'Fleet Vendors', path: '/fleet/vendors' },
   ],
 }
 

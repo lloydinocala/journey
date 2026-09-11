@@ -39,7 +39,6 @@ const CATEGORIES = [
   ]},
   { key: 'operations', label: 'Operations', items: [
     { label: 'Operations Dashboard', path: '/operations' },
-    { label: 'Vendors', path: '/vendors' },
   ]},
   { key: 'maintenance', label: 'Maintenance', items: [
     { label: 'Maintenance Station', path: '/maintenance-station', perm: 'view_maintenance_dashboard' },
@@ -134,10 +133,10 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/maintenance') || pathname.startsWith('/filter-subscriptions')) return 'maintenance'
   if (pathname.startsWith('/dispatch') || pathname.startsWith('/call') || pathname.startsWith('/service-requests') || pathname.startsWith('/calendar') || pathname.startsWith('/filter-orders') || pathname.startsWith('/text-archive')) return 'dispatch'
   if (pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/customers') || pathname.startsWith('/properties') || pathname.startsWith('/estimate') || pathname.startsWith('/system-estimates') || pathname.startsWith('/invoice')) return 'work'
-  if (pathname.startsWith('/operations') || pathname.startsWith('/vendors')) return 'operations'
+  if (pathname.startsWith('/operations')) return 'operations'
   if (pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog')) return 'financials'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
-  if (pathname.startsWith('/elements')) return 'elements'
+  if (pathname.startsWith('/elements') || pathname.startsWith('/vendors')) return 'elements'
   if (pathname.startsWith('/fleet')) return 'fleet'
   if (pathname.startsWith('/refrigerant')) return 'refrigerant'
   if (pathname.startsWith('/supplies')) return 'supplies'

@@ -267,6 +267,7 @@ function AuthenticatedApp() {
         <Route path="/time-clock" element={<TimeClock profile={profile} />} />
         <Route path="/payroll/employee/:userId" element={<EmployeePayroll profile={profile} />} />
         <Route path="/vendors" element={<Vendors profile={profile} />} />
+        <Route path="/fleet/vendors" element={<Vendors profile={profile} scope="fleet" />} />
         <Route path="/building-authorities" element={<BuildingAuthorities profile={profile} />} />
         <Route path="/permits" element={<Permits profile={profile} />} />
         <Route path="/permits/:packageId" element={<PermitWorkflow profile={profile} />} />
