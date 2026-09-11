@@ -3,9 +3,11 @@
 // their leak threshold (30-day repair clock), cylinders on hand and awaiting
 // reclaim/disposal — plus the QuincyAI briefing scoped to refrigerant compliance.
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { dashboardData } from './refrigerantData'
 import { useOrgSelector, OrgBar } from '../elements-hvac/shared'
+import { can } from '../../utils/permissions'
+import StationShell, { StationKpi } from '../../StationShell'
 import QuincyBrief from '../../QuincyBrief'
 
 const lbs = (n) => (n == null || isNaN(n) ? '—' : `${Number(n).toLocaleString(undefined, { maximumFractionDigits: 1 })} lb`)
@@ -45,6 +47,22 @@ export default function RefrigerantDashboard({ profile }) {
 
   const overAlert = !!d && d.overThresholdCount > 0
   const reclaimAlert = !!d && d.awaitingReclaimCount > 0
+  const nav = useNavigate()
+  const isSuper = profile?.role === 'super_admin'
+  const opsAdmin = isSuper || can(profile, 'view_operational_metrics')
+  const refSignals = d ? [
+    { key: 'over', name: 'Systems over leak threshold', n: d.overThresholdCount, tone: 'red', line: d.overThresholdCount ? `${d.overThresholdCount} covered system${d.overThresholdCount === 1 ? '' : 's'} — repair within 30 days` : 'all covered systems OK', cta: 'Record a repair', onClick: () => nav('/refrigerant/log') },
+    { key: 'reclaim', name: 'Cylinders awaiting reclaim', n: d.awaitingReclaimCount, tone: 'amber', line: d.awaitingReclaimCount ? `${d.awaitingReclaimCount} recovered — send to reclaim or disposal` : 'nothing waiting', cta: 'Open cylinders', onClick: () => nav('/refrigerant/cylinders') },
+  ] : []
+  const refNeed = refSignals.filter((x) => x.n > 0)
+  const refTotal = refNeed.reduce((a, x) => a + x.n, 0)
+  const refSub = refTotal > 0 ? (<>EPA compliance needs a hand — <b style={{ color: 'inherit' }}>{refTotal}</b> across {refNeed.length} area{refNeed.length === 1 ? '' : 's'}.</>) : "Compliant — no leaks over threshold, nothing awaiting reclaim."
+  const refOpsCards = d ? (<>
+    <StationKpi label="Over leak threshold" big={String(d.overThresholdCount)} sub={d.overThresholdCount ? 'repair within 30 days' : 'all OK'} tone={d.overThresholdCount > 0 ? 'alert' : undefined} onClick={() => nav('/refrigerant/systems')} />
+    <StationKpi label="Added (90 days)" big={lbs(d.added90)} sub="charged into systems" onClick={() => nav('/refrigerant/log')} />
+    <StationKpi label="Recovered (90 days)" big={lbs(d.recovered90)} sub="pulled back out" onClick={() => nav('/refrigerant/log')} />
+    <StationKpi label="Cylinders on hand" big={String(d.cylinderCount)} sub={`${lbs(d.onHandLbs)} total`} onClick={() => nav('/refrigerant/cylinders')} />
+  </>) : null
 
   return (
     <div>
@@ -69,14 +87,19 @@ export default function RefrigerantDashboard({ profile }) {
         }} />
       </div>
 
-      {/* At a glance */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 12, marginBottom: 20 }}>
-        <Metric to="/refrigerant/systems" label="Systems tracked" value={loading && !d ? '…' : String(d ? d.systemsTracked : 0)} sub="with a refrigerant profile" accent="#132A4C" />
-        <Metric to="/refrigerant/log" label="Added (90 days)" value={loading && !d ? '…' : lbs(d ? d.added90 : 0)} sub="charged into systems" accent="#1B3A6B" />
-        <Metric to="/refrigerant/log" label="Recovered (90 days)" value={loading && !d ? '…' : lbs(d ? d.recovered90 : 0)} sub="pulled back out" accent="#0B7A3B" />
-        <Metric to="/refrigerant/systems" label="Over leak threshold" value={loading && !d ? '…' : String(d ? d.overThresholdCount : 0)} sub={overAlert ? 'repair within 30 days' : 'all covered systems OK'} accent={overAlert ? '#B00020' : '#0B7A3B'} alert={overAlert} />
-        <Metric to="/refrigerant/cylinders" label="Cylinders on hand" value={loading && !d ? '…' : String(d ? d.cylinderCount : 0)} sub={d ? `${lbs(d.onHandLbs)} total` : ''} accent="#132A4C" />
-        <Metric to="/refrigerant/cylinders" label="Awaiting reclaim" value={loading && !d ? '…' : String(d ? d.awaitingReclaimCount : 0)} sub={reclaimAlert ? 'recovered — send out' : 'nothing waiting'} accent={reclaimAlert ? '#B8720A' : '#0B7A3B'} alert={reclaimAlert} />
+      <div style={{ margin: '4px 0 22px' }}>
+        <StationShell
+          eyebrow="Refrigerant Station"
+          officeTitle="Your refrigerant compliance"
+          adminTitle="Refrigerant health"
+          officeSubtitle={refSub}
+          loading={loading && !d}
+          signals={refSignals}
+          opsAdmin={opsAdmin}
+          opsCards={refOpsCards}
+          emptyHint="Every covered system is under threshold and no cylinders are waiting."
+          fanoutNote={opsAdmin ? (<>A system over threshold is <b style={{ color: 'var(--mist)' }}>a repair to log</b> for the tech and <b style={{ color: 'var(--mist)' }}>a compliance metric</b> for you.</>) : null}
+        />
       </div>
 
       {/* Covered systems over threshold — 30-day repair clock */}
