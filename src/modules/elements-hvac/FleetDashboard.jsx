@@ -2,12 +2,13 @@
 // Adds a Compliance panel: insurance & document expirations and inspection-due
 // flags, computed from the insurance/legal + inspection-config data layers.
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { dashboardData, latestOdometersByVehicle, FLAG_COLORS } from './fleetData'
 import { listTechnicians } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 import { listPolicies, listDocuments, expiryStatus, docTypeLabel } from './fleetLegalData'
 import { getSettings, lastInspectionsByVehicle, inspectionDue } from './fleetInspectData'
+import StationShell from '../../StationShell'
 import QuincyBrief from '../../QuincyBrief'
 
 const pillColor = (state) => (state === 'overdue' ? FLAG_COLORS.red : state === 'due_soon' ? FLAG_COLORS.amber : '#16A34A')
@@ -70,6 +71,17 @@ export default function FleetDashboard({ profile }) {
   const totalAmber = rows.reduce((s, r) => s + r.amberFlags, 0)
   const compRed = compliance.filter((c) => c.color === 'red').length
   const compAmber = compliance.filter((c) => c.color === 'amber').length
+  const nav = useNavigate()
+  const inspItems = compliance.filter((c) => /inspection/i.test(c.label))
+  const legalItems = compliance.filter((c) => !/inspection/i.test(c.label))
+  const fleetSignals = [
+    { key: 'inspect', name: 'Inspections due', n: inspItems.length, tone: inspItems.some((c) => c.color === 'red') ? 'red' : 'amber', line: inspItems.length ? `${inspItems.length} vehicle inspection${inspItems.length === 1 ? '' : 's'} due or overdue` : 'all inspections current', cta: 'Open inspections', onClick: () => nav('/fleet/inspections') },
+    { key: 'legal', name: 'Insurance & documents', n: legalItems.length, tone: legalItems.some((c) => c.color === 'red') ? 'red' : 'amber', line: legalItems.length ? `${legalItems.length} policy or document${legalItems.length === 1 ? '' : 's'} expiring or expired` : 'all current', cta: 'Open insurance & docs', onClick: () => nav('/fleet/insurance') },
+    { key: 'flags', name: 'Vehicle flags', n: totalRed + totalAmber, tone: totalRed > 0 ? 'red' : 'amber', line: (totalRed + totalAmber) ? `${totalRed} red · ${totalAmber} amber — fuel, MPG & meter` : 'no vehicle flags', cta: 'Open vehicles', onClick: () => nav('/fleet/vehicles') },
+  ]
+  const fleetNeed = fleetSignals.filter((x) => x.n > 0)
+  const fleetTotal = fleetNeed.reduce((a, x) => a + x.n, 0)
+  const fleetSub = fleetTotal > 0 ? (<>Fleet issues to handle — <b style={{ color: 'inherit' }}>{fleetTotal}</b> across {fleetNeed.length} area{fleetNeed.length === 1 ? '' : 's'}.</>) : "Every vehicle is current — no flags."
 
   return (
     <div>
@@ -90,15 +102,15 @@ export default function FleetDashboard({ profile }) {
         }} />
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '12px 18px' }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: FLAG_COLORS.red }}>{totalRed + compRed}</div>
-          <div style={{ fontSize: 12, color: 'var(--mist)' }}>Red flags — act now</div>
-        </div>
-        <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '12px 18px' }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: FLAG_COLORS.amber }}>{totalAmber + compAmber}</div>
-          <div style={{ fontSize: 12, color: 'var(--mist)' }}>Amber flags — worth a look</div>
-        </div>
+      <div style={{ margin: '4px 0 22px' }}>
+        <StationShell
+          eyebrow="Fleet Station"
+          officeTitle="Your fleet tasks"
+          officeSubtitle={fleetSub}
+          loading={loading && rows.length === 0}
+          signals={fleetSignals}
+          emptyHint="Inspections, insurance, and every vehicle are in the clear."
+        />
       </div>
 
       {/* Compliance: insurance, documents, inspections */}
