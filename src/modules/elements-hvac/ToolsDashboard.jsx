@@ -2,9 +2,11 @@
 // At-a-glance tool health — where tools are, what's flagged, what's in the shop —
 // plus the QuincyAI briefing scoped to tools. Enable toggle lives here too.
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { toolsDashboardData, getToolsSettings, upsertToolsSettings } from './toolsData'
 import { useOrgSelector, OrgBar, EnabledPill } from './shared'
+import { can } from '../../utils/permissions'
+import StationShell, { StationKpi } from '../../StationShell'
 import QuincyBrief from '../../QuincyBrief'
 
 const money0 = (n) => (n == null || isNaN(n) ? '—' : `$${Math.round(Number(n)).toLocaleString()}`)
@@ -52,6 +54,25 @@ export default function ToolsDashboard({ profile }) {
   )
 
   const flaggedAlert = !!d && d.flaggedCount > 0
+  const nav = useNavigate()
+  const isSuper = profile?.role === 'super_admin'
+  const opsAdmin = isSuper || can(profile, 'view_operational_metrics')
+  const ownerAdmin = isSuper || can(profile, 'view_owner_metrics')
+  const toolSignals = d ? [
+    { key: 'maint', name: 'Needs maintenance', n: d.flaggedCount, tone: 'red', line: d.flaggedCount ? `${d.flaggedCount} tool${d.flaggedCount === 1 ? '' : 's'} flagged on inspection` : 'all clear', cta: 'Open maintenance', onClick: () => nav('/tools/maintenance') },
+    { key: 'followup', name: 'Follow-up overdue', n: d.followUpCount, tone: 'red', line: d.followUpCount ? `${d.followUpCount} past anticipated return to service` : 'none overdue', cta: 'Open maintenance', onClick: () => nav('/tools/maintenance') },
+    { key: 'rentals', name: 'Rentals overdue', n: d.rentalsOverdueCount, tone: 'red', line: d.rentalsOverdueCount ? `${d.rentalsOverdueCount} past return-by date` : 'none overdue', cta: 'Open orders', onClick: () => nav('/tools/orders') },
+    { key: 'reconcile', name: 'Charges to reconcile', n: d.unreconciledChargeCount, tone: 'amber', line: d.unreconciledChargeCount ? `${d.unreconciledChargeCount} unmatched card charge${d.unreconciledChargeCount === 1 ? '' : 's'}` : 'all matched', cta: 'Open reconcile', onClick: () => nav('/tools/reconcile') },
+    { key: 'onorder', name: 'Tools on order', n: d.onOrderCount, tone: 'amber', line: d.onOrderCount ? `${d.onOrderCount} PO${d.onOrderCount === 1 ? '' : 's'} awaiting receipt` : 'no open POs', cta: 'Open orders', onClick: () => nav('/tools/orders') },
+  ] : []
+  const toolNeed = toolSignals.filter((x) => x.n > 0)
+  const toolTotal = toolNeed.reduce((a, x) => a + x.n, 0)
+  const toolSub = toolTotal > 0 ? (<>Tools needing attention — <b style={{ color: 'inherit' }}>{toolTotal}</b> across {toolNeed.length} area{toolNeed.length === 1 ? '' : 's'}.</>) : "Every tool is in service or accounted for."
+  const toolOwnerCards = d ? <StationKpi label="Tool value on hand" big={money0(d.totalCost)} sub="total purchase cost" tone="opp" onClick={() => nav('/tools/catalog')} /> : null
+  const toolOpsCards = d ? (<>
+    <StationKpi label="In the shop" big={String(d.inShop)} sub="available to deploy" onClick={() => nav('/tools/catalog')} />
+    <StationKpi label="In maintenance" big={String(d.inMaintenance)} sub="in the shop for repair" tone={d.inMaintenance > 0 ? 'alert' : undefined} onClick={() => nav('/tools/maintenance')} />
+  </>) : null
 
   return (
     <div>
@@ -90,25 +111,18 @@ export default function ToolsDashboard({ profile }) {
         </div>
       )}
 
-      {/* At a glance */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 12, marginBottom: 20 }}>
-        <Metric to="/tools/catalog" label="Total tools" value={loading && !d ? '…' : String(d ? d.total : 0)} sub="in the catalog" accent="#132A4C" />
-        <Metric to="/tools/catalog" label="In the shop" value={loading && !d ? '…' : String(d ? d.inShop : 0)} sub="available to deploy" accent="#0B7A3B" />
-        <Metric to="/tools/catalog" label="On trucks / techs" value={loading && !d ? '…' : String(d ? d.assigned : 0)} sub="currently assigned" accent="#1B3A6B" />
-        <Metric to="/tools/maintenance" label="Needs maintenance" value={loading && !d ? '…' : String(d ? d.flaggedCount : 0)} sub={flaggedAlert ? 'flagged on inspection' : 'all clear'} accent={flaggedAlert ? '#B00020' : '#0B7A3B'} alert={flaggedAlert} />
-        <Metric to="/tools/maintenance" label="In maintenance" value={loading && !d ? '…' : String(d ? d.inMaintenance : 0)} sub="in the shop for repair" accent={d && d.inMaintenance > 0 ? '#B8720A' : '#132A4C'} />
-        <Metric to="/tools/maintenance" label="Follow-up needed" value={loading && !d ? '…' : String(d ? d.followUpCount : 0)} sub={d && d.followUpCount > 0 ? 'past anticipated return' : 'none overdue'} accent={d && d.followUpCount > 0 ? '#B00020' : '#0B7A3B'} alert={!!d && d.followUpCount > 0} />
-        <Metric to="/tools/orders" label="Rentals overdue" value={loading && !d ? '…' : String(d ? d.rentalsOverdueCount : 0)} sub={d && d.rentalsOverdueCount > 0 ? 'past return-by date' : 'none overdue'} accent={d && d.rentalsOverdueCount > 0 ? '#B00020' : '#0B7A3B'} alert={!!d && d.rentalsOverdueCount > 0} />
-        <Metric to="/tools/reconcile" label="Charges to reconcile" value={loading && !d ? '…' : String(d ? d.unreconciledChargeCount : 0)} sub={d && d.unreconciledChargeCount > 0 ? 'unmatched card charges' : 'all matched'} accent={d && d.unreconciledChargeCount > 0 ? '#B8720A' : '#0B7A3B'} alert={!!d && d.unreconciledChargeCount > 0} />
-        <Metric to="/tools/orders" label="Tools on order" value={loading && !d ? '…' : String(d ? d.onOrderCount : 0)} sub={d && d.onOrderCount > 0 ? 'PO awaiting receipt' : 'no open POs'} accent={d && d.onOrderCount > 0 ? '#1B3A6B' : '#0B7A3B'} />
-      </div>
-
-      {/* Value on hand (plain total cost; bookkeeping handles depreciation) */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
-        <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', minWidth: 160 }}>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#1B3A6B' }}>{d ? money0(d.totalCost) : '—'}</div>
-          <div style={{ fontSize: 12, color: 'var(--mist)' }}>Total purchase cost on hand</div>
-        </div>
+      <div style={{ margin: '4px 0 24px' }}>
+        <StationShell
+          eyebrow="Tools Station"
+          officeTitle="Your tools & equipment tasks"
+          adminTitle="Tools health"
+          officeSubtitle={toolSub}
+          loading={loading && !d}
+          signals={toolSignals}
+          opsAdmin={opsAdmin} ownerAdmin={ownerAdmin}
+          opsCards={toolOpsCards} ownerCards={toolOwnerCards}
+          emptyHint="Nothing flagged, no overdue returns, and orders are current."
+        />
       </div>
 
       {/* Follow-up needed — past anticipated return-to-service date */}
