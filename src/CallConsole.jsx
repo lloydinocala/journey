@@ -270,9 +270,12 @@ export default function CallConsole({ profile }) {
           )}
           {matchedCaller && (
             <div className="section-card" style={{ padding: 18, marginTop: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-                <h3 style={{ margin: 0, fontSize: 16 }}>Log this call</h3>
-                <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>{new Date().toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · {profile?.full_name || 'you'}</span>
+              <h3 style={{ margin: '0 0 10px', fontSize: 16 }}>Log this call</h3>
+              <div style={{ background: 'var(--surface-2, #f6f7f9)', borderRadius: 8, padding: '11px 13px', marginBottom: 12, fontSize: 13.5, display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 14, rowGap: 5 }}>
+                <span style={{ color: 'var(--mist)' }}>Caller</span><span style={{ fontWeight: 700 }}>{matchedCaller.name || 'Unknown'}</span>
+                <span style={{ color: 'var(--mist)' }}>Phone</span><span>{matchedCaller.phone || phone || '—'}</span>
+                <span style={{ color: 'var(--mist)' }}>Time</span><span>{new Date().toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                <span style={{ color: 'var(--mist)' }}>Taken by</span><span>{profile?.full_name || 'you'}</span>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
                 {PURPOSES.map((pp) => (
