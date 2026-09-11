@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import { useSignals } from './signals/useSignals'
 
-// The Train Station — a landing/triage screen. Every tile is a door; no work is
-// done here. Alert-capable ("teeth") areas each run a real "what's wrong" count.
-// value>0 → "Needs a hand"; value===0 → "Handled". Tiles travel between the two
-// on their own as the underlying work changes elsewhere. Per-org Alerts/Off in Edit.
+// The Train Station — the top hub. Every tile now comes from the shared signal
+// registry (useSignals({ hub: 'start' })), so it rolls up exactly the domains under
+// it: Dispatch, Jobs, Maintenance, Permitting, 608. Inventory and Marketing live
+// under their own hubs now and no longer appear here. Per-org Alerts/Off (Edit)
+// still applies, keyed on each signal.
 
 const ACCENT = {
   amber: { fg: '#9C6A12', bg: '#FAF2E0', line: '#EAD3A0' },
@@ -13,77 +15,31 @@ const ACCENT = {
 }
 const GREEN = '#2E7D52', GREEN_BG = '#EAF3EC', GREEN_LINE = '#CADFCF', BRAND = '#176E7A', FAINT = '#98A2AD'
 
-// Each tile owns its own count query. Add tiles here as their data firms up.
-const REGISTRY = [
-  { key: 'ar', name: 'Accounts Receivable', href: '/financials', tone: 'red',
-    line: (n) => `${n} invoice${n === 1 ? '' : 's'} with a balance owing`,
-    q: (org) => supabase.from('invoices').select('*', { count: 'exact', head: true }).eq('org_id', org).eq('kind', 'invoice').gt('balance', 0).is('deleted_at', null) },
-  { key: 'service_requests', name: 'Service Requests', href: '/service-requests', tone: 'amber',
-    line: (n) => `${n} new request${n === 1 ? '' : 's'} to review`,
-    q: (org) => supabase.from('service_requests').select('*', { count: 'exact', head: true }).eq('org_id', org).eq('status', 'pending') },
-  { key: 'estimates', name: 'Estimates to convert', href: '/estimates', tone: 'amber',
-    line: (n) => `${n} approved, not yet turned into a job`,
-    q: (org) => supabase.from('invoices').select('*', { count: 'exact', head: true }).eq('org_id', org).eq('kind', 'estimate').ilike('approval_status', 'approved').is('spawned_job_id', null).is('converted_to_job_id', null).is('deleted_at', null).eq('is_archived', false) },
-  { key: 'estimates_sent', name: 'Estimates out', href: '/estimates', tone: 'amber',
-    line: (n) => `${n} sent, awaiting a customer decision`,
-    q: (org) => supabase.from('invoices').select('*', { count: 'exact', head: true }).eq('org_id', org).eq('kind', 'estimate').not('sent_at', 'is', null).is('deleted_at', null).eq('is_archived', false).or('approval_status.eq.Pending,approval_status.is.null') },
-  { key: 'jobs', name: 'Jobs to schedule', href: '/calendar', tone: 'amber',
-    line: (n) => `${n} approved job${n === 1 ? '' : 's'} not on the calendar`,
-    q: (org) => supabase.from('jobs').select('*', { count: 'exact', head: true }).eq('org_id', org).eq('status', 'unscheduled') },
-  { key: 'permits', name: 'Permitting', href: '/permits', tone: 'amber',
-    line: (n) => `${n} permit package${n === 1 ? '' : 's'} in progress`,
-    q: (org) => supabase.from('permit_packages').select('*', { count: 'exact', head: true }).eq('org_id', org).eq('status', 'in_progress') },
-  { key: 'maintenance', name: 'Maintenance', href: '/maintenance-dashboard', tone: 'amber',
-    line: (n) => `${n} PM visit${n === 1 ? '' : 's'} due`,
-    q: (org) => supabase.from('maintenance_visits').select('*', { count: 'exact', head: true }).eq('org_id', org).eq('status', 'due') },
-  { key: 'inventory', name: 'Inventory', href: '/elements/purchasing', tone: 'amber',
-    line: (n) => `${n} purchase order${n === 1 ? '' : 's'} awaiting receipt`,
-    q: (org) => supabase.from('elements_purchase_orders').select('*', { count: 'exact', head: true }).eq('org_id', org).eq('status', 'ordered').is('received_at', null) },
-  { key: 'marketing', name: 'Marketing', href: '/marketing/queue', tone: 'amber',
-    line: (n) => `${n} item${n === 1 ? '' : 's'} waiting for your approval`,
-    q: (org) => supabase.from('marketing_content_items').select('*', { count: 'exact', head: true }).eq('org_id', org).eq('status', 'pending_review') },
-  { key: 'todos', name: 'To-Dos', href: '/to-do', tone: 'amber',
-    line: (n) => `${n} open on the office list`,
-    q: (org) => supabase.from('office_reminders').select('*', { count: 'exact', head: true }).eq('org_id', org).eq('done', false) },
-]
-
 export default function TrainStation({ profile }) {
   const nav = useNavigate()
   const org = profile.org_id
   const [modes, setModes] = useState({})
-  const [counts, setCounts] = useState({})
-  const [loading, setLoading] = useState(true)
   const [edit, setEdit] = useState(false)
   const firstName = (profile.full_name || '').trim().split(' ')[0] || 'there'
 
-  useEffect(() => { load() }, [org])
+  const { defs, counts, loading } = useSignals({ hub: 'start' }, org, nav)
 
-  async function load() {
-    setLoading(true)
-    const { data: cfg } = await supabase.from('train_station_tiles').select('area_key, mode').eq('org_id', org)
-    const m = {}; REGISTRY.forEach((t) => { m[t.key] = 'alerts' }); (cfg || []).forEach((r) => { m[r.area_key] = r.mode })
-    setModes(m)
-    const enabled = REGISTRY.filter((t) => m[t.key] !== 'off')
-    const results = await Promise.all(enabled.map(async (t) => {
-      try { const { count, error } = await t.q(org); return [t.key, error ? null : (count || 0)] } catch { return [t.key, null] }
-    }))
-    setCounts(Object.fromEntries(results))
-    setLoading(false)
-  }
+  useEffect(() => {
+    if (!org) return
+    supabase.from('train_station_tiles').select('area_key, mode').eq('org_id', org).then(({ data }) => {
+      const m = {}; (data || []).forEach((r) => { m[r.area_key] = r.mode }); setModes(m)
+    })
+  }, [org])
 
   async function setMode(key, mode) {
     setModes((x) => ({ ...x, [key]: mode }))
     await supabase.from('train_station_tiles').upsert({ org_id: org, area_key: key, mode, updated_at: new Date().toISOString() }, { onConflict: 'org_id,area_key' })
-    if (mode === 'alerts' && counts[key] === undefined) {
-      const t = REGISTRY.find((r) => r.key === key)
-      try { const { count, error } = await t.q(org); setCounts((x) => ({ ...x, [key]: error ? null : (count || 0) })) } catch { setCounts((x) => ({ ...x, [key]: null })) }
-    }
   }
 
-  const enabled = REGISTRY.filter((t) => modes[t.key] !== 'off')
+  const enabled = defs.filter((t) => modes[t.key] !== 'off')
   const needs = enabled.filter((t) => (counts[t.key] || 0) > 0)
   const handled = enabled.filter((t) => counts[t.key] === 0)
-  const offTiles = REGISTRY.filter((t) => modes[t.key] === 'off')
+  const offTiles = defs.filter((t) => modes[t.key] === 'off')
   const totalPending = needs.reduce((n, t) => n + (counts[t.key] || 0), 0)
 
   const card = { background: '#fff', border: '1px solid var(--border)', borderRadius: 12 }

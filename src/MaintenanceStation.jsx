@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import { useSignals } from './signals/useSignals'
 import { can } from './utils/permissions'
 import OrgPicker from './OrgPicker'
 
@@ -63,13 +64,15 @@ export default function MaintenanceStation({ profile }) {
   const hasAdmin = opsAdmin || ownerAdmin
 
   const [view, setView] = useState('office')
-  const [counts, setCounts] = useState({})
   const [admin, setAdmin] = useState(null)
   const [loading, setLoading] = useState(true)
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
   const [wb, setWb] = useState({ open: false, loading: false, list: [], sending: null, sentIds: [], sentMsg: '', picked: null, incentive: INCENTIVES[0], msg: '', channel: 'email' })
   const firstName = (profile.full_name || '').trim().split(' ')[0] || 'there'
+  const sig = useSignals({ station: 'maintenance' }, selectedOrg, nav)
+  const MAINT_KEYMAP = { lapsed: 'maint-lapsed', offered: 'maint-offered', postjob: 'maint-postjob', filters: 'maint-filters-due', visits: 'maint-visits-due' }
+  const counts = Object.fromEntries(REGISTRY.map((t) => [t.key, sig.counts[MAINT_KEYMAP[t.key]]]))
 
   useEffect(() => { if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || [])) }, [isSuper])
   useEffect(() => { if (allowed && selectedOrg) load(); else if (allowed && !selectedOrg) setLoading(false) }, [allowed, selectedOrg])
@@ -77,10 +80,6 @@ export default function MaintenanceStation({ profile }) {
   async function load() {
     const org = selectedOrg
     setLoading(true)
-    const results = await Promise.all(REGISTRY.map(async (t) => {
-      try { const { count, error } = await t.q(org); return [t.key, error ? null : (count || 0)] } catch { return [t.key, null] }
-    }))
-    setCounts(Object.fromEntries(results))
     if (hasAdmin) {
       try {
         const [{ count: activeN }, { count: neverN }, { data: agmts }] = await Promise.all([
@@ -178,7 +177,7 @@ export default function MaintenanceStation({ profile }) {
         <>
           <div style={{ marginTop: 26 }}>
             <SectionHead title="Needs a hand" hint="Recurring-revenue work on a clock. Each tile opens the task." />
-            {!loading && needs.length === 0 ? (
+            {!sig.loading && needs.length === 0 ? (
               <div style={{ background: GREEN_BG, border: `1px solid ${GREEN_LINE}`, borderRadius: 12, padding: '20px', display: 'flex', gap: 13, alignItems: 'center' }}>
                 <span style={{ width: 32, height: 32, borderRadius: 999, background: '#fff', border: `1px solid ${GREEN_LINE}`, color: GREEN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>✓</span>
                 <div>
