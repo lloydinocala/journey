@@ -40,11 +40,3 @@ const updateSW = registerSW({
   },
 })
 
-// --- visible build stamp (temporary diagnostic) ---
-try {
-  const s = document.createElement('div')
-  s.textContent = 'build STATION-CHECK 2355'
-  s.style.cssText = 'position:fixed;bottom:2px;left:5px;font:11px monospace;color:#0a7;z-index:2147483647;background:#fff;padding:1px 5px;border:1px solid #0a7;border-radius:4px;opacity:.9;pointer-events:none'
-  window.addEventListener('DOMContentLoaded', () => document.body.appendChild(s))
-  if (document.readyState !== 'loading') document.body.appendChild(s)
-} catch (e) {}
