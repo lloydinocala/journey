@@ -27,10 +27,16 @@ export default function CallConsole({ profile }) {
   const [logging, setLogging] = useState(false)
   const [loggedMsg, setLoggedMsg] = useState('')
   const [callHistory, setCallHistory] = useState([])
+  const [vendors, setVendors] = useState([])
+  const [vendorMatch, setVendorMatch] = useState(null)
 
   useEffect(() => {
     if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
   }, [isSuper])
+
+  useEffect(() => {
+    if (selectedOrg) supabase.from('vendors').select('id, name, phone').eq('org_id', selectedOrg).then(({ data }) => setVendors(data || []))
+  }, [selectedOrg])
 
   const digits = phone.replace(/\D/g, '')
 
@@ -75,10 +81,22 @@ export default function CallConsole({ profile }) {
   }, [selected])
 
   useEffect(() => {
+    if (selected || !matches || matches.length !== 0 || digits.length < 7) { setVendorMatch(null); return }
+    const vm = vendors.find((v) => { const vd = (v.phone || '').replace(/\D/g, ''); return vd.length >= 7 && (vd.endsWith(digits) || (digits.length >= 10 && vd.slice(-10) === digits.slice(-10))) })
+    setVendorMatch(vm || null)
+  }, [matches, digits, vendors, selected])
+
+  useEffect(() => {
     setPurpose(''); setCallerName(''); setLoggedMsg('')
-    if (selected?.id) supabase.from('call_logs').select('id, called_at, purpose, taken_by_name').eq('customer_id', selected.id).order('called_at', { ascending: false }).limit(8).then(({ data }) => setCallHistory(data || []))
-    else setCallHistory([])
-  }, [selected?.id])
+    ;(async () => {
+      let q = null
+      if (selected?.id) q = supabase.from('call_logs').select('id, called_at, purpose, taken_by_name').eq('customer_id', selected.id)
+      else if (vendorMatch?.id) q = supabase.from('call_logs').select('id, called_at, purpose, taken_by_name').eq('vendor_id', vendorMatch.id)
+      if (!q) { setCallHistory([]); return }
+      const { data } = await q.order('called_at', { ascending: false }).limit(8)
+      setCallHistory(data || [])
+    })()
+  }, [selected?.id, vendorMatch?.id])
 
   async function saveNote() {
     const t = noteBody.trim(); if (!t || !selectedOrg) return
@@ -88,17 +106,28 @@ export default function CallConsole({ profile }) {
   }
 
   const PURPOSES = ['Book service', 'Reschedule', 'Billing question', 'Status update', 'General question', 'Vendor / supplier']
+  const matchedCaller = selected
+    ? { customer_id: selected.id, vendor_id: null, name: selected.display_name, phone: selected.primary_phone || phone }
+    : vendorMatch
+      ? { customer_id: null, vendor_id: vendorMatch.id, name: vendorMatch.name, phone: vendorMatch.phone || phone }
+      : null
   async function logCall() {
     if (!purpose.trim() || !selectedOrg) return
     setLogging(true)
+    const c = matchedCaller || { customer_id: null, vendor_id: null, name: callerName.trim() || null, phone }
     await supabase.from('call_logs').insert({
-      org_id: selectedOrg, customer_id: selected?.id || null,
-      phone: selected?.primary_phone || phone, caller_name: selected?.display_name || callerName.trim() || null,
+      org_id: selectedOrg, customer_id: c.customer_id, vendor_id: c.vendor_id,
+      phone: c.phone || phone, caller_name: c.name,
       purpose: purpose.trim(), direction: 'inbound',
       taken_by: profile?.user_id || null, taken_by_name: profile?.full_name || null,
     })
     setLogging(false); setLoggedMsg('Call logged.'); setPurpose(''); setCallerName('')
-    if (selected?.id) { const { data } = await supabase.from('call_logs').select('id, called_at, purpose, taken_by_name').eq('customer_id', selected.id).order('called_at', { ascending: false }).limit(8); setCallHistory(data || []) }
+    const cid = selected?.id, vid = vendorMatch?.id
+    if (cid || vid) {
+      const base = supabase.from('call_logs').select('id, called_at, purpose, taken_by_name')
+      const { data } = await (cid ? base.eq('customer_id', cid) : base.eq('vendor_id', vid)).order('called_at', { ascending: false }).limit(8)
+      setCallHistory(data || [])
+    }
     setTimeout(() => setLoggedMsg(''), 2800)
   }
 
@@ -144,7 +173,7 @@ export default function CallConsole({ profile }) {
         <div style={{ marginTop: 16 }}>
           {searching && <p style={{ color: 'var(--mist)' }}>Searching…</p>}
 
-          {!searching && matches && matches.length === 0 && (
+          {!searching && matches && matches.length === 0 && !vendorMatch && (
             <div className="section-card" style={{ padding: 18 }}>
               <p style={{ margin: '0 0 12px', fontWeight: 600 }}>No customer found for that number.</p>
               <Link className="auth-button" style={{ width: 'auto', display: 'inline-block', textDecoration: 'none', padding: '9px 18px' }} to="/customers">Add a new customer</Link>
@@ -172,7 +201,6 @@ export default function CallConsole({ profile }) {
           )}
 
           {selected && (
-            <>
             <div className="section-card" style={{ padding: 20, borderLeft: selected.is_banned ? '4px solid #C0392B' : '4px solid var(--sky, #2F5DE3)' }}>
               {selected.is_banned && (
                 <div style={{ background: '#FDECEC', color: '#B0342F', border: '1px solid #F5C6C6', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontWeight: 700, fontSize: 14 }}>
@@ -227,7 +255,20 @@ export default function CallConsole({ profile }) {
                 </>
               )}
             </div>
-
+          )}
+          {!selected && vendorMatch && (
+            <div className="section-card" style={{ padding: 20, borderLeft: '4px solid #9C6A12' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: '#9C6A12' }}>Vendor / supplier</div>
+                  <div style={{ fontSize: 22, fontWeight: 800 }}>{vendorMatch.name}</div>
+                  {vendorMatch.phone && <div style={{ marginTop: 4, fontSize: 14.5 }}>📞 {vendorMatch.phone}</div>}
+                </div>
+                <Link className="auth-button" style={{ width: 'auto', textDecoration: 'none', padding: '10px 20px', flex: 'none' }} to={`/vendors/${vendorMatch.id}`}>Open vendor →</Link>
+              </div>
+            </div>
+          )}
+          {matchedCaller && (
             <div className="section-card" style={{ padding: 18, marginTop: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
                 <h3 style={{ margin: 0, fontSize: 16 }}>Log this call</h3>
@@ -255,7 +296,6 @@ export default function CallConsole({ profile }) {
                 </div>
               )}
             </div>
-            </>
           )}
         </div>
       )}
