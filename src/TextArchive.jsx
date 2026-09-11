@@ -27,7 +27,7 @@ export default function TextArchive({ profile }) {
     setLoading(true)
     const { data } = await supabase
       .from('job_texts')
-      .select('id, body, direction, created_at, archived_at, job_id, jobs ( job_number, segment, customers ( display_name ), job_technicians ( users ( full_name ) ) )')
+      .select('id, body, direction, created_at, archived_at, flagged_at, job_id, jobs ( job_number, segment, customers ( display_name ), job_technicians ( users ( full_name ) ) )')
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
     setRows(data || [])
@@ -39,6 +39,12 @@ export default function TextArchive({ profile }) {
     if (confirmDelete !== t.jobId) { setConfirmDelete(t.jobId); return }
     await supabase.from('job_texts').update({ deleted_at: new Date().toISOString() }).eq('job_id', t.jobId)
     setConfirmDelete(null); setSelectedJob(null); load()
+  }
+
+  async function toggleFlag(t) {
+    const next = t.important ? null : new Date().toISOString()
+    await supabase.from('job_texts').update({ flagged_at: next }).eq('job_id', t.jobId)
+    load()
   }
 
   const threads = useMemo(() => {
@@ -54,12 +60,14 @@ export default function TextArchive({ profile }) {
           messages: [],
           lastAt: r.created_at,
           archived: !!r.archived_at,
+          important: !!r.flagged_at,
         })
       }
       const t = map.get(r.job_id)
       t.messages.push(r)
       t.lastAt = r.created_at
       if (r.archived_at) t.archived = true
+      if (r.flagged_at) t.important = true
     }
     return Array.from(map.values()).sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt))
   }, [rows])
@@ -125,7 +133,7 @@ export default function TextArchive({ profile }) {
                   background: isActive ? 'rgba(33,95,154,0.08)' : '#fff',
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <strong style={{ color: '#101418' }}>{t.customer}</strong>
+                    <strong style={{ color: '#101418' }}>{t.important && <span title="Important" style={{ color: '#C9A227', marginRight: 4 }}>★</span>}{t.customer}</strong>
                     <span style={{ fontSize: 12, color: 'var(--mist)' }}>{t.messages.length} msg</span>
                   </div>
                   <div style={{ fontSize: 12.5, color: BLUE, fontWeight: 700, marginTop: 2 }}>
@@ -154,6 +162,8 @@ export default function TextArchive({ profile }) {
                     </div>
                     {current.techs.length > 0 && <div style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 2 }}>Tech: {current.techs.join(', ')}</div>}
                   </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 'none' }}>
+                    <button onClick={() => toggleFlag(current)} title="Archive & flag important" style={{ border: '1px solid ' + (current.important ? '#C9A227' : 'var(--border)'), background: current.important ? '#FCF6E9' : '#fff', color: current.important ? '#8A6D0B' : 'var(--mist)', borderRadius: 8, padding: '7px 13px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{current.important ? '★ Important' : '☆ Flag important'}</button>
                   {canDelete && (
                     confirmDelete === current.jobId ? (
                       <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', background: '#FBECE8', border: '1px solid #EAC5BC', borderRadius: 8, padding: '5px 10px', flex: 'none' }}>
@@ -165,6 +175,7 @@ export default function TextArchive({ profile }) {
                       <button onClick={() => setConfirmDelete(current.jobId)} style={{ border: '1px solid #EAC5BC', background: '#fff', color: '#B5462F', borderRadius: 8, padding: '7px 13px', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Delete thread</button>
                     )
                   )}
+                  </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {current.messages.map((m) => {

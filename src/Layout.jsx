@@ -26,8 +26,7 @@ const CATEGORIES = [
     { label: 'Filter Orders', path: '/filter-orders' },
     { label: 'Text Archive', path: '/text-archive', perm: 'view_text_archive' },
   ] },
-  { key: 'operations', label: 'Operations', items: [
-    { label: 'Operations Dashboard', path: '/operations' },
+  { key: 'work', label: 'Jobs & Customers', items: [
     { label: 'Jobs', path: '/jobs' },
     { label: 'Jobs Management', path: '/jobs-management' },
     { label: 'Tasks', path: '/tasks' },
@@ -35,9 +34,11 @@ const CATEGORIES = [
     { label: 'Properties', path: '/properties' },
     { label: 'Job Estimates', path: '/estimates' },
     { label: 'System Estimates', path: '/system-estimates' },
+  ]},
+  { key: 'operations', label: 'Operations', items: [
+    { label: 'Operations Dashboard', path: '/operations' },
     { label: 'Warranty Registrations', path: '/warranty-registrations' },
     { label: 'Vendors', path: '/vendors' },
-    { label: 'Filter Subscriptions', path: '/filter-subscriptions' },
   ]},
   { key: 'maintenance', label: 'Maintenance', items: [
     { label: 'Maintenance Station', path: '/maintenance-station', perm: 'view_maintenance_dashboard' },
@@ -45,6 +46,7 @@ const CATEGORIES = [
     { label: 'Maintenance Agreements', path: '/maintenance-agreements' },
     { label: 'Maintenance Due', path: '/maintenance-due' },
     { label: 'Maintenance Tiers', path: '/maintenance-tiers' },
+    { label: 'Filter Subscriptions', path: '/filter-subscriptions' },
   ]},
   { key: 'financials', label: 'Financials', items: [
     { label: 'Invoices', path: '/invoices' },
@@ -114,11 +116,11 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/financials')) return 'financials'
   if (pathname.startsWith('/admin')) return 'admin'
   if (pathname.startsWith('/permits') || pathname.startsWith('/building-authorities')) return 'permitting'
-  if (pathname.startsWith('/maintenance')) return 'maintenance'
+  if (pathname.startsWith('/maintenance') || pathname.startsWith('/filter-subscriptions')) return 'maintenance'
   if (pathname.startsWith('/dispatch') || pathname.startsWith('/call') || pathname.startsWith('/service-requests') || pathname.startsWith('/calendar') || pathname.startsWith('/filter-orders') || pathname.startsWith('/text-archive')) return 'dispatch'
-  if (pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/properties') || pathname.startsWith('/customers') || pathname.startsWith('/filter-subscriptions')) return 'operations'
+  if (pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/customers') || pathname.startsWith('/properties') || pathname.startsWith('/estimate') || pathname.startsWith('/system-estimates')) return 'work'
+  if (pathname.startsWith('/operations') || pathname.startsWith('/warranty') || pathname.startsWith('/vendors')) return 'operations'
   if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog')) return 'financials'
-  if (pathname.startsWith('/estimate')) return 'operations'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
   if (pathname.startsWith('/elements')) return 'elements'
   if (pathname.startsWith('/fleet')) return 'fleet'
