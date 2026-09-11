@@ -85,7 +85,7 @@ const PERSONAL_CATEGORY = { key: 'personal', label: 'Personal', items: [
 // still expands its panel). Sections whose key is absent here just expand.
 const DASH_BY_KEY = {
   start: '/train-station',
-  'inventory-central': '/elements',
+  'inventory-central': '/inventory-central',
   workforce: '/team',
   operations: '/operations',
   maintenance: '/maintenance-dashboard',
@@ -124,9 +124,9 @@ const HUBS = {
     ],
   },
   'inventory-central': {
-    label: 'Inventory Central', path: '/elements',
+    label: 'Inventory Central', path: '/inventory-central',
     stations: [
-      { key: 'stock-purchasing', label: 'Stock & Purchasing', path: '/elements/stock' },
+      { key: 'stock-purchasing', label: 'Stock & Purchasing', path: '/elements' },
       { key: 'insights-planning', label: 'Insights & Planning', path: '/elements/valuation' },
       { key: 'fleet', label: 'Fleet Dashboard', path: '/fleet' },
       { key: 'supplies', label: 'Non-Inventory Supplies', path: '/supplies' },
@@ -160,6 +160,7 @@ for (const [hk, h] of Object.entries(HUBS)) for (const st of h.stations) if (st.
 const INVENTORY_CENTRAL_NAV = { key: 'inventory-central', label: 'Inventory Central', items: [] }
 const WORKFORCE_NAV = { key: 'workforce', label: 'Workforce', items: [] }
 const STOCK_PURCHASING_NAV = { key: 'stock-purchasing', label: 'Stock & Purchasing', items: [
+  { label: 'Inventory Overview', path: '/elements' },
   { label: 'Locations', path: '/elements/locations' },
   { label: 'Item Catalog', path: '/elements/items' },
   { label: 'Stock & Receiving', path: '/elements/stock' },
@@ -198,7 +199,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/checklists')) return 'import'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/time-clock') || pathname.startsWith('/payroll') || pathname.startsWith('/session-log')) return 'workforce'
   if (pathname.startsWith('/settings')) return 'admin'
-  if (pathname === '/elements' || pathname === '/elements/') return 'inventory-central'
+  if (pathname.startsWith('/inventory-central')) return 'inventory-central'
   if (INSIGHTS_PATHS.some((x) => pathname.startsWith(x))) return 'insights-planning'
   if (pathname.startsWith('/elements') || pathname.startsWith('/vendors')) return 'stock-purchasing'
   if (pathname.startsWith('/fleet')) return 'fleet'

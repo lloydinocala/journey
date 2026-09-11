@@ -28,6 +28,7 @@ import MaintenanceStation from './MaintenanceStation'
 import DispatchStation from './DispatchStation'
 import CallLog from './CallLog'
 import JobsStation from './JobsStation'
+import InventoryCentral from './InventoryCentral'
 import { LANDING_PATHS } from './utils/landing'
 import VendorDetail from './VendorDetail'
 import Properties from './Properties'
@@ -263,6 +264,7 @@ function AuthenticatedApp() {
         <Route path="/dispatch" element={<DispatchStation profile={profile} />} />
         <Route path="/call-log" element={<CallLog profile={profile} />} />
         <Route path="/jobs-dash" element={<JobsStation profile={profile} />} />
+        <Route path="/inventory-central" element={<InventoryCentral profile={profile} />} />
         <Route path="/payroll" element={<PayrollCapture profile={profile} />} />
         <Route path="/time-clock" element={<TimeClock profile={profile} />} />
         <Route path="/payroll/employee/:userId" element={<EmployeePayroll profile={profile} />} />
