@@ -27,6 +27,7 @@ export default function CallConsole({ profile }) {
   const [callerName, setCallerName] = useState('')
   const [logging, setLogging] = useState(false)
   const [loggedMsg, setLoggedMsg] = useState('')
+  const [needsCb, setNeedsCb] = useState(false)
   const [callHistory, setCallHistory] = useState([])
   const [vendors, setVendors] = useState([])
   const [vendorMatch, setVendorMatch] = useState(null)
@@ -89,7 +90,7 @@ export default function CallConsole({ profile }) {
   }, [matches, digits, vendors, selected])
 
   useEffect(() => {
-    setPurpose(''); setCallerName(''); setLoggedMsg('')
+    setPurpose(''); setCallerName(''); setLoggedMsg(''); setNeedsCb(false)
     ;(async () => {
       let q = null
       if (selected?.id) q = supabase.from('call_logs').select('id, called_at, purpose, taken_by_name').eq('customer_id', selected.id)
@@ -120,10 +121,10 @@ export default function CallConsole({ profile }) {
     await supabase.from('call_logs').insert({
       org_id: selectedOrg, customer_id: c.customer_id, vendor_id: c.vendor_id,
       phone: c.phone || phone, caller_name: c.name,
-      purpose: purpose.trim(), direction: 'inbound',
+      purpose: purpose.trim(), direction: 'inbound', needs_callback: needsCb,
       taken_by: profile?.user_id || null, taken_by_name: profile?.full_name || null,
     })
-    setLogging(false); setLoggedMsg('Call logged.'); setPurpose(''); setCallerName('')
+    setLogging(false); setLoggedMsg('Call logged.'); setPurpose(''); setCallerName(''); setNeedsCb(false)
     const cid = selected?.id, vid = vendorMatch?.id
     if (cid || vid) {
       const base = supabase.from('call_logs').select('id, called_at, purpose, taken_by_name')
@@ -185,6 +186,7 @@ export default function CallConsole({ profile }) {
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   <input value={callerName} onChange={(e) => setCallerName(e.target.value)} placeholder="Caller name (optional)" style={{ padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8, minWidth: 160 }} />
                   <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Purpose…" style={{ padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8, minWidth: 180, flex: 1 }} />
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--mist)', cursor: 'pointer', whiteSpace: 'nowrap' }}><input type="checkbox" checked={needsCb} onChange={(e) => setNeedsCb(e.target.checked)} /> Call back</label>
                   <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '8px 16px' }} disabled={logging || !purpose.trim()} onClick={logCall}>{logging ? '…' : 'Log call'}</button>
                   {loggedMsg && <span style={{ fontSize: 12.5, color: '#1a7f37', fontWeight: 700 }}>{loggedMsg}</span>}
                 </div>
@@ -287,6 +289,7 @@ export default function CallConsole({ profile }) {
               </div>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Call purpose…" style={{ flex: 1, minWidth: 220, padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8 }} />
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--mist)', cursor: 'pointer', whiteSpace: 'nowrap' }}><input type="checkbox" checked={needsCb} onChange={(e) => setNeedsCb(e.target.checked)} /> Needs call back</label>
                 <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '8px 18px' }} disabled={logging || !purpose.trim()} onClick={logCall}>{logging ? 'Logging…' : 'Log call'}</button>
                 {loggedMsg && <span style={{ fontSize: 12.5, color: '#1a7f37', fontWeight: 700 }}>{loggedMsg}</span>}
               </div>
