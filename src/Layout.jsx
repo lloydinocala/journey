@@ -50,13 +50,8 @@ const CATEGORIES = [
   ]},
   { key: 'financials', label: 'Financials', items: [] },
   { key: 'admin', label: 'Admin', items: [
-    { label: 'Team', path: '/team' },
-    { label: 'Roles & Tags', path: '/roles' },
     { label: 'On-Call Schedule', path: '/on-call' },
     { label: 'Checklists', path: '/checklists' },
-    { label: 'Time Clock', path: '/time-clock' },
-    { label: 'Payroll Capture', path: '/payroll' },
-    { label: 'Sign-In Log', path: '/session-log' },
     { label: 'Settings', path: '/settings' },
   ]},
   { key: 'permitting', label: 'Permitting', items: [
@@ -91,6 +86,7 @@ const PERSONAL_CATEGORY = { key: 'personal', label: 'Personal', items: [
 const DASH_BY_KEY = {
   start: '/train-station',
   'inventory-central': '/elements',
+  workforce: '/team',
   operations: '/operations',
   maintenance: '/maintenance-dashboard',
   financials: '/financials',
@@ -137,16 +133,32 @@ const HUBS = {
       { key: 'tools', label: 'Tools Dashboard', path: '/tools' },
     ],
   },
+  workforce: {
+    label: 'Workforce', path: '/team',
+    // leaf pages (no key) are direct links that keep the hub submenu open;
+    // modules (keyed) open their own submenu and are entitlement-gated via `needs`.
+    stations: [
+      { label: 'Team', path: '/team' },
+      { label: 'Roles & Tags', path: '/roles' },
+      { label: 'Time Clock', path: '/time-clock' },
+      { label: 'Payroll Capture', path: '/payroll' },
+      { label: 'Sign-In Log', path: '/session-log' },
+      { key: 'rewards', label: 'Human Resources', path: '/rewards', needs: 'hr' },
+      { key: 'rewards-payroll', label: 'Payroll', path: '/rewards/payroll', needs: 'payroll' },
+      { key: 'rewards-cert', label: 'Certified Payroll', path: '/rewards/certified', needs: 'payroll' },
+    ],
+  },
 }
 const HUB_KEYS = new Set(Object.keys(HUBS))
-const NESTED_KEYS = new Set(Object.values(HUBS).flatMap((h) => h.stations.map((st) => st.key)))
+const NESTED_KEYS = new Set(Object.values(HUBS).flatMap((h) => h.stations.filter((st) => st.key).map((st) => st.key)))
 const STATION_TO_HUB = {}
 const STATION_LABEL = {}
-for (const [hk, h] of Object.entries(HUBS)) for (const st of h.stations) { STATION_TO_HUB[st.key] = hk; STATION_LABEL[st.key] = st.label }
+for (const [hk, h] of Object.entries(HUBS)) for (const st of h.stations) if (st.key) { STATION_TO_HUB[st.key] = hk; STATION_LABEL[st.key] = st.label }
 
 // Inventory Central + its two split inventory sub-stations (Fleet/Supplies/Tools
 // are their existing module navs, just nested under this hub now).
 const INVENTORY_CENTRAL_NAV = { key: 'inventory-central', label: 'Inventory Central', items: [] }
+const WORKFORCE_NAV = { key: 'workforce', label: 'Workforce', items: [] }
 const STOCK_PURCHASING_NAV = { key: 'stock-purchasing', label: 'Stock & Purchasing', items: [
   { label: 'Locations', path: '/elements/locations' },
   { label: 'Item Catalog', path: '/elements/items' },
@@ -184,7 +196,8 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/customers') || pathname.startsWith('/properties') || pathname.startsWith('/estimate') || pathname.startsWith('/system-estimates') || pathname.startsWith('/invoice')) return 'work'
   if (pathname.startsWith('/operations')) return 'operations'
   if (pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog')) return 'import'
-  if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
+  if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/time-clock') || pathname.startsWith('/payroll') || pathname.startsWith('/session-log')) return 'workforce'
+  if (pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings')) return 'admin'
   if (pathname === '/elements' || pathname === '/elements/') return 'inventory-central'
   if (INSIGHTS_PATHS.some((x) => pathname.startsWith(x))) return 'insights-planning'
   if (pathname.startsWith('/elements') || pathname.startsWith('/vendors')) return 'stock-purchasing'
@@ -227,7 +240,8 @@ export default function Layout({ profile }) {
   const payrollNav = showPayroll
     ? { ...REWARDS_PAYROLL_NAV, items: [{ label: 'Employees', path: '/rewards/employees' }, ...REWARDS_PAYROLL_NAV.items] }
     : REWARDS_PAYROLL_NAV
-  const baseCategories = showPayroll ? [...withHR, payrollNav, REWARDS_CERT_NAV] : withHR
+  const rewardsCats = showPayroll ? [...withHR, payrollNav, REWARDS_CERT_NAV] : withHR
+  const baseCategories = notTech ? [...rewardsCats, WORKFORCE_NAV] : rewardsCats
   // Marketing-HVAC — platform owner or an entitled subscriber.
   const showMarketing = profile?.role !== 'tech' && (isSuperAdmin || profile?.marketingEntitled)
   const withMarketing = showMarketing ? [...baseCategories, MARKETING_NAV] : baseCategories
@@ -393,11 +407,11 @@ export default function Layout({ profile }) {
               <button className="sidebar-panel-toggle" onClick={() => setPanelCollapsed(true)} title="Hide menu" aria-label="Hide menu">‹</button>
             </div>
             {HUB_KEYS.has(expandedCategory) ? (
-              HUBS[expandedCategory].stations.map((st) => (
+              HUBS[expandedCategory].stations.filter((st) => !st.needs || (st.needs === 'hr' ? showHR : showPayroll)).map((st) => (
                 <Link
-                  key={st.key}
+                  key={st.key || st.path}
                   to={st.path}
-                  className={'sidebar-panel-link' + (resolveCat(location.pathname) === st.key ? ' active' : '')}
+                  className={'sidebar-panel-link' + ((st.key ? resolveCat(location.pathname) === st.key : location.pathname.startsWith(st.path)) ? ' active' : '')}
                 >
                   {st.label}
                 </Link>
