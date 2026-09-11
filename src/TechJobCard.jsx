@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import QuincyDock from './QuincyDock'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import FilterOrderModal from './FilterOrderModal'
 import { supabase } from './utils/supabase'
 import SignaturePad from './SignaturePad'
 import RelationshipSelect from './RelationshipSelect'
@@ -277,6 +278,7 @@ export default function TechJobCard({ profile }) {
   // Air filters (per-property; captured once, reused on every visit; feeds retail ordering)
   const blankFilter = { width: '', height: '', thickness: '', merv: '', location: '', quantity: '1' }
   const [filters, setFilters] = useState([])
+  const [filterModal, setFilterModal] = useState(false)
   const [filterForm, setFilterForm] = useState(blankFilter)
   const [showFilterForm, setShowFilterForm] = useState(false)
   const [filterEditingId, setFilterEditingId] = useState(null)
@@ -1454,6 +1456,7 @@ export default function TechJobCard({ profile }) {
                 </div>
               ))}
               {filters.length === 0 && !showFilterForm && <p className="jc-plan-none">No filters recorded for this home yet.</p>}
+              {filters.length > 0 && <button className="jc-btn wide" style={{ marginTop: 10 }} onClick={() => setFilterModal(true)}>Order filters for the customer →</button>}
               {showFilterForm && (
                 <div style={{ marginTop: 12 }}>
                   <div className="jc-field-row">
@@ -1706,6 +1709,9 @@ export default function TechJobCard({ profile }) {
       )}
 
       {lockHint && <div className="jc-lock-hint">Tap STOP MY TIME before leaving this job.</div>}
+    {filterModal && job?.property_id && (
+      <FilterOrderModal propertyId={job.property_id} customerName={job.customers?.display_name} onClose={() => setFilterModal(false)} />
+    )}
     <QuincyDock profile={profile} context={job ? { label: 'Job ' + (job.job_number || ''), jobId: job.id, jobNumber: job.job_number, status: job.status, jobType: job.job_type, customer: job.customers?.display_name } : null} />
     </div>
   )

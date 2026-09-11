@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
+import FilterOrderModal from './FilterOrderModal'
 import QuickAddModal from './QuickAddModal'
 
 const money = (v) => '$' + (Number(v) || 0).toFixed(2)
@@ -29,6 +30,7 @@ export default function CallConsole({ profile }) {
   const [callHistory, setCallHistory] = useState([])
   const [vendors, setVendors] = useState([])
   const [vendorMatch, setVendorMatch] = useState(null)
+  const [filterModal, setFilterModal] = useState(false)
 
   useEffect(() => {
     if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
@@ -154,6 +156,7 @@ export default function CallConsole({ profile }) {
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
         <NewItemDropdown onSelect={setNewItemMode} />
         <button className="logout-button" onClick={() => { setNoteOpen(true); setNoteSaved(false); setNoteBody(selected ? `Call re: ${selected.display_name}${selected.primary_phone ? ` (${selected.primary_phone})` : ''} — ` : '') }}>📝 New Note</button>
+        {selected && detail?.properties?.length > 0 && <button className="logout-button" onClick={() => setFilterModal(true)}>🪟 Order filters</button>}
         {selected && <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>New Job pre-fills {selected.display_name}</span>}
         {noteSaved && <span style={{ color: '#1a7f37', fontSize: 14 }}>Saved to Operations Dashboard ✓</span>}
       </div>
@@ -303,6 +306,14 @@ export default function CallConsole({ profile }) {
         </div>
       )}
 
+      {filterModal && selected && detail?.properties?.[0] && (
+        <FilterOrderModal
+          propertyId={detail.properties[0].id}
+          customerName={selected.display_name}
+          propertyLabel={[detail.properties[0].street_address, detail.properties[0].city].filter(Boolean).join(', ')}
+          onClose={() => setFilterModal(false)}
+        />
+      )}
       {newItemMode && (
         <QuickAddModal mode={newItemMode} orgId={selectedOrg} profile={profile} prefillCustomerId={selected?.id || ''} onClose={() => setNewItemMode(null)} onCreated={() => setNewItemMode(null)} />
       )}
