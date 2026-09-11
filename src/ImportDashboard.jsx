@@ -21,7 +21,7 @@ export default function ImportDashboard() {
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <div className="page-header-bar">
-        <h2>Bulk Import</h2>
+        <h2>Data Station</h2>
       </div>
       <p style={{ color: 'var(--mist)', fontSize: 15, marginTop: 4, marginBottom: 24, maxWidth: 680 }}>
         Load your existing data into Journey. Pick what you'd like to import — each tool walks you through

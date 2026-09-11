@@ -25,6 +25,7 @@ const CATEGORIES = [
     { label: 'Dispatch Map', path: '/dispatch-map' },
     { label: 'Filter Orders', path: '/filter-orders' },
     { label: 'Text Archive', path: '/text-archive', perm: 'view_text_archive' },
+    { label: 'On-Call Schedule', path: '/on-call' },
   ] },
   { key: 'work', label: 'Jobs & Customers', items: [
     { label: 'Jobs Dash', path: '/jobs-dash' },
@@ -50,8 +51,6 @@ const CATEGORIES = [
   ]},
   { key: 'financials', label: 'Financials', items: [] },
   { key: 'admin', label: 'Admin', items: [
-    { label: 'On-Call Schedule', path: '/on-call' },
-    { label: 'Checklists', path: '/checklists' },
     { label: 'Settings', path: '/settings' },
   ]},
   { key: 'permitting', label: 'Permitting', items: [
@@ -59,9 +58,9 @@ const CATEGORIES = [
     { label: 'Building Authorities', path: '/building-authorities' },
     { label: 'Warranty Registrations', path: '/warranty-registrations' },
   ]},
-  // Bulk Import is now a tile dashboard (/import). Clicking the rail entry opens it;
+  // The Data Station is a tile dashboard (/import). Clicking the rail entry opens it;
   // the individual import tools live as cards there instead of a long nav dropdown.
-  { key: 'import', label: 'Bulk Import', items: [
+  { key: 'import', label: 'Data Station', items: [
     { label: 'Import Hub', path: '/import' },
     { label: 'Pricebook', path: '/pricebook' },
     { label: 'Systems Pricebook', path: '/systems-pricebook' },
@@ -69,6 +68,7 @@ const CATEGORIES = [
     { label: 'Discount Catalog', path: '/discount-catalog' },
     { label: 'PM Checklists', path: '/pm-checklists' },
     { label: 'System Estimate Setup', path: '/system-estimate-setup' },
+    { label: 'Checklists', path: '/checklists' },
   ]},
 ]
 
@@ -120,7 +120,7 @@ const HUBS = {
       { key: 'maintenance', label: 'Maintenance Station', path: '/maintenance-station' },
       { key: 'permitting', label: 'Permitting Station', path: '/permits' },
       { key: 'refrigerant', label: '608 Refrigeration Compliance', path: '/refrigerant' },
-      { key: 'import', label: 'Data Import', path: '/import' },
+      { key: 'import', label: 'Data Station', path: '/import' },
     ],
   },
   'inventory-central': {
@@ -192,12 +192,12 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/admin')) return 'admin'
   if (pathname.startsWith('/permits') || pathname.startsWith('/building-authorities') || pathname.startsWith('/warranty')) return 'permitting'
   if (pathname.startsWith('/maintenance') || pathname.startsWith('/filter-subscriptions')) return 'maintenance'
-  if (pathname.startsWith('/dispatch') || pathname.startsWith('/call') || pathname.startsWith('/service-requests') || pathname.startsWith('/calendar') || pathname.startsWith('/filter-orders') || pathname.startsWith('/text-archive')) return 'dispatch'
+  if (pathname.startsWith('/dispatch') || pathname.startsWith('/call') || pathname.startsWith('/service-requests') || pathname.startsWith('/calendar') || pathname.startsWith('/filter-orders') || pathname.startsWith('/text-archive') || pathname.startsWith('/on-call')) return 'dispatch'
   if (pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/customers') || pathname.startsWith('/properties') || pathname.startsWith('/estimate') || pathname.startsWith('/system-estimates') || pathname.startsWith('/invoice')) return 'work'
   if (pathname.startsWith('/operations')) return 'operations'
-  if (pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog')) return 'import'
+  if (pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/checklists')) return 'import'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/time-clock') || pathname.startsWith('/payroll') || pathname.startsWith('/session-log')) return 'workforce'
-  if (pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings')) return 'admin'
+  if (pathname.startsWith('/settings')) return 'admin'
   if (pathname === '/elements' || pathname === '/elements/') return 'inventory-central'
   if (INSIGHTS_PATHS.some((x) => pathname.startsWith(x))) return 'insights-planning'
   if (pathname.startsWith('/elements') || pathname.startsWith('/vendors')) return 'stock-purchasing'
