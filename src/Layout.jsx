@@ -48,14 +48,7 @@ const CATEGORIES = [
     { label: 'Maintenance Tiers', path: '/maintenance-tiers' },
     { label: 'Filter Subscriptions', path: '/filter-subscriptions' },
   ]},
-  { key: 'financials', label: 'Financials', items: [
-    { label: 'Pricebook', path: '/pricebook' },
-    { label: 'Systems Pricebook', path: '/systems-pricebook' },
-    { label: 'Special Features', path: '/special-features' },
-    { label: 'Discount Catalog', path: '/discount-catalog' },
-    { label: 'PM Checklists', path: '/pm-checklists' },
-    { label: 'System Estimate Setup', path: '/system-estimate-setup' },
-  ]},
+  { key: 'financials', label: 'Financials', items: [] },
   { key: 'admin', label: 'Admin', items: [
     { label: 'Team', path: '/team' },
     { label: 'Roles & Tags', path: '/roles' },
@@ -73,7 +66,15 @@ const CATEGORIES = [
   ]},
   // Bulk Import is now a tile dashboard (/import). Clicking the rail entry opens it;
   // the individual import tools live as cards there instead of a long nav dropdown.
-  { key: 'import', label: 'Bulk Import', items: [] },
+  { key: 'import', label: 'Bulk Import', items: [
+    { label: 'Import Hub', path: '/import' },
+    { label: 'Pricebook', path: '/pricebook' },
+    { label: 'Systems Pricebook', path: '/systems-pricebook' },
+    { label: 'Special Features', path: '/special-features' },
+    { label: 'Discount Catalog', path: '/discount-catalog' },
+    { label: 'PM Checklists', path: '/pm-checklists' },
+    { label: 'System Estimate Setup', path: '/system-estimate-setup' },
+  ]},
 ]
 
 const PLATFORM_CATEGORY = { key: 'platform', label: 'Platform', items: [
@@ -134,7 +135,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/dispatch') || pathname.startsWith('/call') || pathname.startsWith('/service-requests') || pathname.startsWith('/calendar') || pathname.startsWith('/filter-orders') || pathname.startsWith('/text-archive')) return 'dispatch'
   if (pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/customers') || pathname.startsWith('/properties') || pathname.startsWith('/estimate') || pathname.startsWith('/system-estimates') || pathname.startsWith('/invoice')) return 'work'
   if (pathname.startsWith('/operations')) return 'operations'
-  if (pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog')) return 'financials'
+  if (pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog')) return 'import'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
   if (pathname.startsWith('/elements') || pathname.startsWith('/vendors')) return 'elements'
   if (pathname.startsWith('/fleet')) return 'fleet'
