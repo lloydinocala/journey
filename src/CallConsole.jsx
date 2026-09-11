@@ -22,6 +22,11 @@ export default function CallConsole({ profile }) {
   const [noteBody, setNoteBody] = useState('')
   const [noteSaving, setNoteSaving] = useState(false)
   const [noteSaved, setNoteSaved] = useState(false)
+  const [purpose, setPurpose] = useState('')
+  const [callerName, setCallerName] = useState('')
+  const [logging, setLogging] = useState(false)
+  const [loggedMsg, setLoggedMsg] = useState('')
+  const [callHistory, setCallHistory] = useState([])
 
   useEffect(() => {
     if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
@@ -69,11 +74,32 @@ export default function CallConsole({ profile }) {
     return () => { live = false }
   }, [selected])
 
+  useEffect(() => {
+    setPurpose(''); setCallerName(''); setLoggedMsg('')
+    if (selected?.id) supabase.from('call_logs').select('id, called_at, purpose, taken_by_name').eq('customer_id', selected.id).order('called_at', { ascending: false }).limit(8).then(({ data }) => setCallHistory(data || []))
+    else setCallHistory([])
+  }, [selected?.id])
+
   async function saveNote() {
     const t = noteBody.trim(); if (!t || !selectedOrg) return
     setNoteSaving(true)
     await supabase.from('office_reminders').insert({ org_id: selectedOrg, body: t, created_by: profile?.user_id || null })
     setNoteSaving(false); setNoteOpen(false); setNoteBody(''); setNoteSaved(true); setTimeout(() => setNoteSaved(false), 3500)
+  }
+
+  const PURPOSES = ['Book service', 'Reschedule', 'Billing question', 'Status update', 'General question', 'Vendor / supplier']
+  async function logCall() {
+    if (!purpose.trim() || !selectedOrg) return
+    setLogging(true)
+    await supabase.from('call_logs').insert({
+      org_id: selectedOrg, customer_id: selected?.id || null,
+      phone: selected?.primary_phone || phone, caller_name: selected?.display_name || callerName.trim() || null,
+      purpose: purpose.trim(), direction: 'inbound',
+      taken_by: profile?.user_id || null, taken_by_name: profile?.full_name || null,
+    })
+    setLogging(false); setLoggedMsg('Call logged.'); setPurpose(''); setCallerName('')
+    if (selected?.id) { const { data } = await supabase.from('call_logs').select('id, called_at, purpose, taken_by_name').eq('customer_id', selected.id).order('called_at', { ascending: false }).limit(8); setCallHistory(data || []) }
+    setTimeout(() => setLoggedMsg(''), 2800)
   }
 
   return (
@@ -98,7 +124,7 @@ export default function CallConsole({ profile }) {
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
         <NewItemDropdown onSelect={setNewItemMode} />
-        <button className="logout-button" onClick={() => { setNoteOpen(true); setNoteSaved(false); setNoteBody(selected ? `Call re: ${selected.display_name}${selected.primary_phone ? ` (${selected.primary_phone})` : ''} \u2014 ` : '') }}>📝 New Note</button>
+        <button className="logout-button" onClick={() => { setNoteOpen(true); setNoteSaved(false); setNoteBody(selected ? `Call re: ${selected.display_name}${selected.primary_phone ? ` (${selected.primary_phone})` : ''} — ` : '') }}>📝 New Note</button>
         {selected && <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>New Job pre-fills {selected.display_name}</span>}
         {noteSaved && <span style={{ color: '#1a7f37', fontSize: 14 }}>Saved to Operations Dashboard ✓</span>}
       </div>
@@ -122,6 +148,15 @@ export default function CallConsole({ profile }) {
             <div className="section-card" style={{ padding: 18 }}>
               <p style={{ margin: '0 0 12px', fontWeight: 600 }}>No customer found for that number.</p>
               <Link className="auth-button" style={{ width: 'auto', display: 'inline-block', textDecoration: 'none', padding: '9px 18px' }} to="/customers">Add a new customer</Link>
+              <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 8 }}>Or log this call anyway</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input value={callerName} onChange={(e) => setCallerName(e.target.value)} placeholder="Caller name (optional)" style={{ padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8, minWidth: 160 }} />
+                  <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Purpose…" style={{ padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8, minWidth: 180, flex: 1 }} />
+                  <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '8px 16px' }} disabled={logging || !purpose.trim()} onClick={logCall}>{logging ? '…' : 'Log call'}</button>
+                  {loggedMsg && <span style={{ fontSize: 12.5, color: '#1a7f37', fontWeight: 700 }}>{loggedMsg}</span>}
+                </div>
+              </div>
             </div>
           )}
 
@@ -137,6 +172,7 @@ export default function CallConsole({ profile }) {
           )}
 
           {selected && (
+            <>
             <div className="section-card" style={{ padding: 20, borderLeft: selected.is_banned ? '4px solid #C0392B' : '4px solid var(--sky, #2F5DE3)' }}>
               {selected.is_banned && (
                 <div style={{ background: '#FDECEC', color: '#B0342F', border: '1px solid #F5C6C6', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontWeight: 700, fontSize: 14 }}>
@@ -191,6 +227,35 @@ export default function CallConsole({ profile }) {
                 </>
               )}
             </div>
+
+            <div className="section-card" style={{ padding: 18, marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                <h3 style={{ margin: 0, fontSize: 16 }}>Log this call</h3>
+                <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>{new Date().toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · {profile?.full_name || 'you'}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                {PURPOSES.map((pp) => (
+                  <button key={pp} className="logout-button" style={{ fontSize: 12.5, padding: '5px 11px', border: purpose === pp ? '1px solid var(--sky, #2F5DE3)' : '1px solid var(--border)', color: purpose === pp ? 'var(--sky, #2F5DE3)' : 'inherit', fontWeight: purpose === pp ? 700 : 500 }} onClick={() => setPurpose(pp)}>{pp}</button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Call purpose…" style={{ flex: 1, minWidth: 220, padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8 }} />
+                <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '8px 18px' }} disabled={logging || !purpose.trim()} onClick={logCall}>{logging ? 'Logging…' : 'Log call'}</button>
+                {loggedMsg && <span style={{ fontSize: 12.5, color: '#1a7f37', fontWeight: 700 }}>{loggedMsg}</span>}
+              </div>
+              {callHistory.length > 0 && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--mist)', marginBottom: 6 }}>Recent calls</div>
+                  {callHistory.map((c) => (
+                    <div key={c.id} style={{ fontSize: 13.5, padding: '5px 0', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                      <span>{new Date(c.called_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} {new Date(c.called_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} — {c.purpose || '—'}</span>
+                      <span style={{ color: 'var(--mist)' }}>{c.taken_by_name || ''}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            </>
           )}
         </div>
       )}
