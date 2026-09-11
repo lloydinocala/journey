@@ -34,6 +34,7 @@ const CATEGORIES = [
     { label: 'Properties', path: '/properties' },
     { label: 'Job Estimates', path: '/estimates' },
     { label: 'System Estimates', path: '/system-estimates' },
+    { label: 'Invoices', path: '/invoices' },
   ]},
   { key: 'operations', label: 'Operations', items: [
     { label: 'Operations Dashboard', path: '/operations' },
@@ -49,7 +50,6 @@ const CATEGORIES = [
     { label: 'Filter Subscriptions', path: '/filter-subscriptions' },
   ]},
   { key: 'financials', label: 'Financials', items: [
-    { label: 'Invoices', path: '/invoices' },
     { label: 'Pricebook', path: '/pricebook' },
     { label: 'Systems Pricebook', path: '/systems-pricebook' },
     { label: 'Special Features', path: '/special-features' },
@@ -118,9 +118,9 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/permits') || pathname.startsWith('/building-authorities')) return 'permitting'
   if (pathname.startsWith('/maintenance') || pathname.startsWith('/filter-subscriptions')) return 'maintenance'
   if (pathname.startsWith('/dispatch') || pathname.startsWith('/call') || pathname.startsWith('/service-requests') || pathname.startsWith('/calendar') || pathname.startsWith('/filter-orders') || pathname.startsWith('/text-archive')) return 'dispatch'
-  if (pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/customers') || pathname.startsWith('/properties') || pathname.startsWith('/estimate') || pathname.startsWith('/system-estimates')) return 'work'
+  if (pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/customers') || pathname.startsWith('/properties') || pathname.startsWith('/estimate') || pathname.startsWith('/system-estimates') || pathname.startsWith('/invoice')) return 'work'
   if (pathname.startsWith('/operations') || pathname.startsWith('/warranty') || pathname.startsWith('/vendors')) return 'operations'
-  if (pathname.startsWith('/invoice') || pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog')) return 'financials'
+  if (pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog')) return 'financials'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/checklists') || pathname.startsWith('/on-call') || pathname.startsWith('/settings') || pathname.startsWith('/session-log')) return 'admin'
   if (pathname.startsWith('/elements')) return 'elements'
   if (pathname.startsWith('/fleet')) return 'fleet'
