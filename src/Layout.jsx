@@ -27,6 +27,7 @@ const CATEGORIES = [
     { label: 'Text Archive', path: '/text-archive', perm: 'view_text_archive' },
   ] },
   { key: 'work', label: 'Jobs & Customers', items: [
+    { label: 'Jobs Dash', path: '/jobs-dash' },
     { label: 'Jobs', path: '/jobs' },
     { label: 'Jobs Management', path: '/jobs-management' },
     { label: 'Tasks', path: '/tasks' },
