@@ -9,6 +9,8 @@ import { useOrgSelector, OrgBar } from './shared'
 import { listPolicies, listDocuments, expiryStatus, docTypeLabel } from './fleetLegalData'
 import { getSettings, lastInspectionsByVehicle, inspectionDue } from './fleetInspectData'
 import StationShell from '../../StationShell'
+import { useSignals } from '../../signals/useSignals'
+import { fleetCompliance } from './fleetCompliance'
 import QuincyBrief from '../../QuincyBrief'
 
 const pillColor = (state) => (state === 'overdue' ? FLAG_COLORS.red : state === 'due_soon' ? FLAG_COLORS.amber : '#16A34A')
@@ -23,45 +25,9 @@ export default function FleetDashboard({ profile }) {
   async function load() {
     if (!org.selectedOrg) return
     setLoading(true)
-    const [d, t, policies, docs, settings, lastMap, odoMap] = await Promise.all([
-      dashboardData(org.selectedOrg), listTechnicians(org.selectedOrg),
-      listPolicies(org.selectedOrg), listDocuments(org.selectedOrg),
-      getSettings(org.selectedOrg), lastInspectionsByVehicle(org.selectedOrg),
-      latestOdometersByVehicle(org.selectedOrg),
-    ])
+    const [d, t] = await Promise.all([dashboardData(org.selectedOrg), listTechnicians(org.selectedOrg)])
     setRows(d); setTechs(t)
-
-    const nameById = {}
-    d.forEach((r) => { nameById[r.vehicle.id] = r.vehicle.name })
-    const items = []
-
-    // Insurance policies
-    policies.forEach((p) => {
-      const st = expiryStatus(p.expiration_date, p.due_soon_days)
-      if (st.state === 'overdue' || st.state === 'due_soon') {
-        const covers = p.scope === 'fleet' ? 'whole fleet' : p.vehicle_ids.map((id) => nameById[id] || 'vehicle').join(', ') || 'listed vehicles'
-        items.push({ color: st.state === 'overdue' ? 'red' : 'amber', label: `Insurance ${st.state === 'overdue' ? 'expired' : 'expires soon'} — ${p.carrier || 'policy'} (${covers})` })
-      }
-    })
-    // Legal documents
-    docs.forEach((dc) => {
-      const st = expiryStatus(dc.expiration_date, dc.due_soon_days)
-      if (st.state === 'overdue' || st.state === 'due_soon') {
-        const who = dc.vehicle_id ? (nameById[dc.vehicle_id] || 'vehicle') : 'whole fleet'
-        items.push({ color: st.state === 'overdue' ? 'red' : 'amber', label: `${docTypeLabel(dc.doc_type)} ${st.state === 'overdue' ? 'expired' : 'expires soon'} — ${who}` })
-      }
-    })
-    // Inspections due (per vehicle)
-    d.forEach((r) => {
-      const st = inspectionDue(lastMap[r.vehicle.id], settings, odoMap[r.vehicle.id] ?? null)
-      if (st.state === 'overdue' || st.state === 'due_soon') {
-        const insLabel = st.label.startsWith('No inspection') ? `No inspection yet — ${r.vehicle.name}` : `Inspection ${st.label.toLowerCase()} — ${r.vehicle.name}`
-        items.push({ color: st.state === 'overdue' ? 'red' : 'amber', label: insLabel })
-      }
-    })
-    // Red first
-    items.sort((a, b) => (a.color === b.color ? 0 : a.color === 'red' ? -1 : 1))
-    setCompliance(items)
+    setCompliance(await fleetCompliance(org.selectedOrg))
     setLoading(false)
   }
   useEffect(() => { load() }, [org.selectedOrg]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -72,16 +38,8 @@ export default function FleetDashboard({ profile }) {
   const compRed = compliance.filter((c) => c.color === 'red').length
   const compAmber = compliance.filter((c) => c.color === 'amber').length
   const nav = useNavigate()
-  const inspItems = compliance.filter((c) => /inspection/i.test(c.label))
-  const legalItems = compliance.filter((c) => !/inspection/i.test(c.label))
-  const fleetSignals = [
-    { key: 'inspect', name: 'Inspections due', n: inspItems.length, tone: inspItems.some((c) => c.color === 'red') ? 'red' : 'amber', line: inspItems.length ? `${inspItems.length} vehicle inspection${inspItems.length === 1 ? '' : 's'} due or overdue` : 'all inspections current', cta: 'Open inspections', onClick: () => nav('/fleet/inspections') },
-    { key: 'legal', name: 'Insurance & documents', n: legalItems.length, tone: legalItems.some((c) => c.color === 'red') ? 'red' : 'amber', line: legalItems.length ? `${legalItems.length} policy or document${legalItems.length === 1 ? '' : 's'} expiring or expired` : 'all current', cta: 'Open insurance & docs', onClick: () => nav('/fleet/insurance') },
-    { key: 'flags', name: 'Vehicle flags', n: totalRed + totalAmber, tone: totalRed > 0 ? 'red' : 'amber', line: (totalRed + totalAmber) ? `${totalRed} red · ${totalAmber} amber — fuel, MPG & meter` : 'no vehicle flags', cta: 'Open vehicles', onClick: () => nav('/fleet/vehicles') },
-  ]
-  const fleetNeed = fleetSignals.filter((x) => x.n > 0)
-  const fleetTotal = fleetNeed.reduce((a, x) => a + x.n, 0)
-  const fleetSub = fleetTotal > 0 ? (<>Fleet issues to handle — <b style={{ color: 'inherit' }}>{fleetTotal}</b> across {fleetNeed.length} area{fleetNeed.length === 1 ? '' : 's'}.</>) : "Every vehicle is current — no flags."
+  const sig = useSignals({ station: 'fleet' }, org.selectedOrg, nav)
+  const fleetSub = sig.loading ? 'Checking the fleet…' : sig.total > 0 ? (<>Fleet issues to handle — <b style={{ color: 'inherit' }}>{sig.total}</b> across {sig.needing.length} area{sig.needing.length === 1 ? '' : 's'}.</>) : "Every vehicle is current — no flags."
 
   return (
     <div>
@@ -107,8 +65,8 @@ export default function FleetDashboard({ profile }) {
           eyebrow="Fleet Station"
           officeTitle="Your fleet tasks"
           officeSubtitle={fleetSub}
-          loading={loading && rows.length === 0}
-          signals={fleetSignals}
+          loading={sig.loading}
+          signals={sig.signals}
           emptyHint="Inspections, insurance, and every vehicle are in the clear."
         />
       </div>

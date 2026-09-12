@@ -16,6 +16,8 @@ import { listReplenishment } from '../modules/elements-hvac/data'
 import { toolsDashboardData } from '../modules/elements-hvac/toolsData'
 import { dashboardData as fleetDashboardData } from '../modules/elements-hvac/fleetData'
 import { dashboardData as refrigerantDashboardData } from '../modules/refrigerant-hvac/refrigerantData'
+import { fleetCompliance } from '../modules/elements-hvac/fleetCompliance'
+import { permitCounts } from '../permitCounts'
 
 const DAY = 864e5
 const d30 = () => new Date(Date.now() - 30 * DAY).toISOString()
@@ -28,6 +30,8 @@ const toolsData = (org, c) => memo(c, 'tools:' + org, () => toolsDashboardData(o
 const fleetData = (org, c) => memo(c, 'fleet:' + org, () => fleetDashboardData(org))
 const refrigData = (org, c) => memo(c, 'refrig:' + org, () => refrigerantDashboardData(org))
 const replenData = (org, c) => memo(c, 'replen:' + org, () => listReplenishment(org))
+const fleetComplData = (org, c) => memo(c, 'fleetc:' + org, () => fleetCompliance(org))
+const permitData = (org, c) => memo(c, 'permit:' + org, () => permitCounts(org))
 
 // A simple org-scoped head-count query builder.
 const headCount = (table, build) => async (org) => {
@@ -117,9 +121,18 @@ export const REGISTRY = [
 
   // --- Permitting --- (approved-start / awaiting-inspection / failed are multi-query;
   //     they get added when the Permits station is migrated onto the registry.)
+  { key: 'permit-approved-start', station: 'permitting', hub: 'start', name: 'Approved — start permit', tone: 'amber', href: '/permits', cta: 'Start package', audience: 'office',
+    line: (n) => `${n} approved system estimate${n === 1 ? '' : 's'} not yet packaged`,
+    count: async (org, c) => (await permitData(org, c)).approved },
   { key: 'permit-in-progress', station: 'permitting', hub: 'start', name: 'In progress', tone: 'amber', href: '/permits', cta: 'Resume', audience: 'office',
     line: (n) => `${n} permit package${n === 1 ? '' : 's'} mid-workflow`,
-    count: headCount('permit_packages', (q) => q.eq('status', 'in_progress')) },
+    count: async (org, c) => (await permitData(org, c)).inProgress },
+  { key: 'permit-awaiting-inspection', station: 'permitting', hub: 'start', name: 'Awaiting inspection', tone: 'amber', href: '/permits', cta: 'Open permits', audience: 'office',
+    line: (n) => `${n} installed, waiting on inspection`,
+    count: async (org, c) => (await permitData(org, c)).awaitingInspection },
+  { key: 'permit-failed', station: 'permitting', hub: 'start', name: 'Failed inspection', tone: 'red', href: '/permits', cta: 'Reschedule', audience: 'office',
+    line: (n) => `${n} failed — reschedule the re-inspection`,
+    count: async (org, c) => (await permitData(org, c)).failed },
 
   // --- 608 Refrigeration Compliance ---
   { key: 'ref-over-threshold', station: 'refrigerant', hub: 'start', name: 'Systems over leak threshold', tone: 'red', href: '/refrigerant/log', cta: 'Record a repair', audience: 'office',
@@ -138,7 +151,13 @@ export const REGISTRY = [
     line: (n) => `${n} PO${n === 1 ? '' : 's'} awaiting receipt`,
     count: headCount('elements_purchase_orders', (q) => q.eq('status', 'ordered').is('received_at', null)) },
 
-  // --- Fleet --- (inspections / insurance-docs split come with the Fleet migration)
+  // --- Fleet ---
+  { key: 'fleet-inspections', station: 'fleet', hub: 'inventory-central', name: 'Inspections due', tone: 'amber', href: '/fleet/inspections', cta: 'Open inspections', audience: 'office',
+    line: (n) => `${n} vehicle inspection${n === 1 ? '' : 's'} due or overdue`,
+    count: async (org, c) => { const items = await fleetComplData(org, c); return (items || []).filter((x) => x.kind === 'inspection').length } },
+  { key: 'fleet-legal', station: 'fleet', hub: 'inventory-central', name: 'Insurance & documents', tone: 'amber', href: '/fleet/insurance', cta: 'Open insurance & docs', audience: 'office',
+    line: (n) => `${n} policy or document${n === 1 ? '' : 's'} expiring or expired`,
+    count: async (org, c) => { const items = await fleetComplData(org, c); return (items || []).filter((x) => x.kind === 'legal').length } },
   { key: 'fleet-flags', station: 'fleet', hub: 'inventory-central', name: 'Vehicle flags', tone: 'amber', href: '/fleet/vehicles', cta: 'Open vehicles', audience: 'office',
     line: (n) => `${n} vehicle flag${n === 1 ? '' : 's'} \u2014 fuel, MPG, meter, PM`,
     count: async (org, c) => { const rows = await fleetData(org, c); return (rows || []).reduce((s, v) => s + (v.redFlags || 0) + (v.amberFlags || 0), 0) } },
