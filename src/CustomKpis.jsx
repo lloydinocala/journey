@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import { METRIC_GROUPS, METRIC_BY_KEY, computeMetrics, fmtMetric } from './kpiMetrics'
 
-const C = { green: '#2E7D52', red: '#B5462F', teal: '#176E7A', slate: '#64748B', amber: '#9C6A12', ink: '#1C2430', faint: '#98A2AD', track: '#EAEEF2' }
+const C = { green: '#16A34A', red: '#DC2626', teal: '#176E7A', slate: '#64748B', amber: '#9C6A12', ink: '#111826', faint: '#98A2AD', track: '#EAEEF2' }
+// Bright, high-contrast palette — each KPI card gets a distinct hue for its graphic + accent.
+const PALETTE = ['#2563EB', '#16A34A', '#EA580C', '#7C3AED', '#0891B2', '#DB2777', '#CA8A04', '#DC2626']
 
 const COMPARISONS = [
   { key: 'vs', label: 'vs — % change', hint: 'How Unit 1 compares to Unit 2 (year-over-year, etc.)' },
@@ -49,7 +51,7 @@ function Donut({ pct, color }) {
     <svg viewBox="0 0 64 64" width="66" height="66" style={{ display: 'block' }}>
       <circle cx="32" cy="32" r={r} fill="none" stroke={(color || C.teal) + '22'} strokeWidth="8" />
       <circle cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} transform="rotate(-90 32 32)" />
-      <text x="32" y="37" textAnchor="middle" fontSize="15" fontWeight="800" fill={color}>{Math.round(pct || 0)}%</text>
+      <text x="32" y="37" textAnchor="middle" fontSize="15" fontWeight="800" fill={C.ink}>{Math.round(pct || 0)}%</text>
     </svg>
   )
 }
@@ -72,11 +74,11 @@ function TwoBars({ a, b, la, lb, ca }) {
   )
 }
 
-function KpiGraphic({ kpi, card }) {
-  if (kpi.comparison === 'share') return <Donut pct={card.pct} color={card.accent} />
+function KpiGraphic({ kpi, card, color }) {
+  if (kpi.comparison === 'share') return <Donut pct={card.pct} color={color} />
   if (kpi.comparison === 'vs') {
     const m1 = METRIC_BY_KEY[kpi.unit1_key], m2 = METRIC_BY_KEY[kpi.unit2_key]
-    return <TwoBars a={card.u1} b={card.u2} la={shortL(m1?.label)} lb={shortL(m2?.label)} ca={card.accent} />
+    return <TwoBars a={card.u1} b={card.u2} la={shortL(m1?.label)} lb={shortL(m2?.label)} ca={color} />
   }
   return null
 }
@@ -163,7 +165,7 @@ function KpiMaker({ org, onClose, onSaved }) {
         {preview && (
           <div style={{ marginBottom: 16 }}>
             <label style={lbl}>Preview</label>
-            <KpiCard kpi={previewKpi} card={preview} ready={!!vals} />
+            <KpiCard kpi={previewKpi} card={preview} ready={!!vals} color={PALETTE[0]} />
           </div>
         )}
 
@@ -176,19 +178,19 @@ function KpiMaker({ org, onClose, onSaved }) {
   )
 }
 
-function KpiCard({ kpi, card, ready, onRemove }) {
+function KpiCard({ kpi, card, ready, onRemove, color = PALETTE[0] }) {
   const mode = kpi.display_mode || 'text'
   const graphic = hasGraphic(kpi.comparison)
   const showValue = mode === 'text' || mode === 'both' || (mode === 'graphic' && !graphic)
   const showGraphic = (mode === 'graphic' || mode === 'both') && graphic
   return (
-    <div style={{ position: 'relative', background: '#fff', border: '1px solid var(--border)', borderTop: `3px solid ${card.accent}`, borderRadius: 12, padding: '13px 15px', boxShadow: '0 1px 3px rgba(20,30,50,0.04)' }}>
+    <div style={{ position: 'relative', background: '#fff', border: '1px solid var(--border)', borderTop: `4px solid ${color}`, borderRadius: 12, padding: '13px 15px', boxShadow: '0 1px 3px rgba(20,30,50,0.04)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
         <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, color: C.faint, textTransform: 'uppercase', lineHeight: 1.25 }}>{card.title}</span>
         {card.badge && <span style={{ fontSize: 12.5, fontWeight: 800, color: card.badgeColor, whiteSpace: 'nowrap' }}>{card.badge}</span>}
       </div>
-      {showGraphic && <div style={{ display: 'flex', justifyContent: 'center', margin: showValue ? '10px 0 6px' : '12px 0 8px' }}>{ready ? <KpiGraphic kpi={kpi} card={card} /> : <div style={{ height: 62 }} />}</div>}
-      {showValue && <div style={{ fontSize: 25, fontWeight: 800, color: card.accent, margin: '4px 0 2px', letterSpacing: -0.5, textAlign: showGraphic ? 'center' : 'left' }}>{ready ? card.value : '…'}</div>}
+      {showGraphic && <div style={{ display: 'flex', justifyContent: 'center', margin: showValue ? '10px 0 6px' : '12px 0 8px' }}>{ready ? <KpiGraphic kpi={kpi} card={card} color={color} /> : <div style={{ height: 62 }} />}</div>}
+      {showValue && <div style={{ fontSize: 26, fontWeight: 800, color: C.ink, margin: '4px 0 2px', letterSpacing: -0.5, textAlign: showGraphic ? 'center' : 'left' }}>{ready ? card.value : '…'}</div>}
       <div style={{ fontSize: 12.5, color: 'var(--mist)', textAlign: showGraphic && !showValue ? 'center' : 'left' }}>{card.sub}</div>
       {onRemove && <button onClick={onRemove} title="Remove" style={{ position: 'absolute', top: 8, right: 9, border: 'none', background: 'transparent', color: C.faint, cursor: 'pointer', fontSize: 15, lineHeight: 1 }}>×</button>}
     </div>
@@ -227,7 +229,7 @@ export default function CustomKpis({ org, dashboard, canManage }) {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-          {kpis.map((k) => <KpiCard key={k.id} kpi={k} card={computeCard(k, vals || {})} ready={!!vals} onRemove={canManage ? () => remove(k.id) : null} />)}
+          {kpis.map((k, i) => <KpiCard key={k.id} kpi={k} card={computeCard(k, vals || {})} ready={!!vals} onRemove={canManage ? () => remove(k.id) : null} color={PALETTE[i % PALETTE.length]} />)}
         </div>
       )}
       {maker && <KpiMaker org={org} onClose={() => setMaker(false)} onSaved={loadKpis} />}
