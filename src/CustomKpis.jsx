@@ -36,7 +36,7 @@ export function computeCard(kpi, vals) {
     return { title, value: pct.toFixed(1) + '%', sub: `of ${m2?.label}`, accent: C.teal, pct, u1, u2 }
   }
   const delta = u2 ? ((u1 - u2) / u2) * 100 : null
-  if (delta == null) return { title, value: fmtMetric(u1, m1?.format), sub: `vs ${m2?.label}`, badge: 'new', badgeColor: C.slate, accent: C.slate, u1, u2 }
+  if (delta == null) return { title, value: fmtMetric(u1, m1?.format), sub: `vs ${m2?.label}`, badge: 'new', badgeColor: C.slate, accent: C.teal, u1, u2 }
   const up = delta >= 0
   const good = up === (kpi.direction !== 'lower_better')
   return { title, value: fmtMetric(u1, m1?.format), sub: `vs ${m2?.label}`, badge: `${up ? '+' : ''}${delta.toFixed(1)}%`, badgeColor: good ? C.green : C.red, accent: good ? C.green : C.red, u1, u2 }
@@ -47,7 +47,7 @@ function Donut({ pct, color }) {
   const off = circ * (1 - Math.min(1, Math.max(0, (pct || 0) / 100)))
   return (
     <svg viewBox="0 0 64 64" width="66" height="66" style={{ display: 'block' }}>
-      <circle cx="32" cy="32" r={r} fill="none" stroke={C.track} strokeWidth="8" />
+      <circle cx="32" cy="32" r={r} fill="none" stroke={(color || C.teal) + '22'} strokeWidth="8" />
       <circle cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} transform="rotate(-90 32 32)" />
       <text x="32" y="37" textAnchor="middle" fontSize="15" fontWeight="800" fill={color}>{Math.round(pct || 0)}%</text>
     </svg>
@@ -57,7 +57,7 @@ function Donut({ pct, color }) {
 function TwoBars({ a, b, la, lb, ca }) {
   const max = Math.max(a, b, 1)
   const h = (v) => `${Math.max(v > 0 ? 5 : 0, (v / max) * 100)}%`
-  const bars = [[a, la, ca], [b, lb, C.slate]]
+  const bars = [[a, la, (ca || C.teal)], [b, lb, (ca || C.teal) + '66']]
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, height: 62 }}>
       {bars.map(([v, l, c], i) => (
