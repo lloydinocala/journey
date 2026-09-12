@@ -25,7 +25,7 @@ export default function WorkforceLanding({ profile }) {
     async function load() {
       const nowIso = new Date().toISOString()
       const [teamRes, clockRes, ocRes] = await Promise.all([
-        supabase.from('users').select('*', { count: 'exact', head: true }).eq('org_id', org).eq('is_active', true).is('deleted_at', null),
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('org_id', org).or('is_active.is.null,is_active.eq.true').is('deleted_at', null),
         supabase.from('time_clock_events').select('*', { count: 'exact', head: true }).eq('org_id', org).is('clock_out', null),
         supabase.from('on_call_schedule').select('period_end').eq('org_id', org).gt('period_end', nowIso).order('period_end', { ascending: false }).limit(1),
       ])
