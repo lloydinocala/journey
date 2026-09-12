@@ -4,7 +4,7 @@ import { METRIC_GROUPS, METRIC_BY_KEY, computeMetrics, fmtMetric } from './kpiMe
 
 const C = { green: '#16A34A', red: '#DC2626', teal: '#176E7A', slate: '#64748B', amber: '#9C6A12', ink: '#111826', faint: '#98A2AD', track: '#EAEEF2' }
 // Bright, high-contrast palette — each KPI card gets a distinct hue for its graphic + accent.
-const PALETTE = ['#2563EB', '#16A34A', '#EA580C', '#7C3AED', '#0891B2', '#DB2777', '#CA8A04', '#DC2626']
+const PALETTE = ['#2563EB', '#16A34A', '#EA580C', '#7C3AED', '#DB2777', '#CA8A04', '#4F46E5', '#DC2626']
 
 const COMPARISONS = [
   { key: 'vs', label: 'vs — % change', hint: 'How Unit 1 compares to Unit 2 (year-over-year, etc.)' },
