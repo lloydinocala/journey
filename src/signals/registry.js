@@ -12,12 +12,13 @@
 //    count    — async (org, cache) => number   (cache memoizes heavy per-load fetches)
 // ============================================================================
 import { supabase } from '../utils/supabase'
-import { listReplenishment } from '../modules/elements-hvac/data'
+import { listReplenishment, variance } from '../modules/elements-hvac/data'
 import { toolsDashboardData } from '../modules/elements-hvac/toolsData'
 import { dashboardData as fleetDashboardData } from '../modules/elements-hvac/fleetData'
 import { dashboardData as refrigerantDashboardData } from '../modules/refrigerant-hvac/refrigerantData'
 import { fleetCompliance } from '../modules/elements-hvac/fleetCompliance'
 import { permitCounts } from '../permitCounts'
+import { suppliesDashboard } from '../modules/supplies-hvac/suppliesData'
 
 const DAY = 864e5
 const d30 = () => new Date(Date.now() - 30 * DAY).toISOString()
@@ -32,6 +33,8 @@ const refrigData = (org, c) => memo(c, 'refrig:' + org, () => refrigerantDashboa
 const replenData = (org, c) => memo(c, 'replen:' + org, () => listReplenishment(org))
 const fleetComplData = (org, c) => memo(c, 'fleetc:' + org, () => fleetCompliance(org))
 const permitData = (org, c) => memo(c, 'permit:' + org, () => permitCounts(org))
+const varianceData = (org, c) => memo(c, 'var:' + org, () => variance())
+const suppliesData = (org, c) => memo(c, 'sup:' + org, () => suppliesDashboard(org))
 
 // A simple org-scoped head-count query builder.
 const headCount = (table, build) => async (org) => {
@@ -179,7 +182,18 @@ export const REGISTRY = [
     line: (n) => `${n} PO${n === 1 ? '' : 's'} awaiting receipt`,
     count: async (org, c) => { const d = await toolsData(org, c); return d?.onOrderCount || 0 } },
 
-  // --- Insights & Planning / Supplies: no task signals yet (built later) ---
+  // --- Insights & Planning ---
+  { key: 'variance-exceptions', station: 'insights-planning', hub: 'inventory-central', name: 'Variance to reconcile', tone: 'amber', href: '/elements/variance', cta: 'Open variance', audience: 'operational',
+    line: (n) => `${n} count or price discrepanc${n === 1 ? 'y' : 'ies'} to reconcile`,
+    count: async (org, c) => { const v = await varianceData(org, c); return (v || []).length } },
+
+  // --- Supplies (non-inventory) ---
+  { key: 'supplies-reorder', station: 'supplies', hub: 'inventory-central', name: 'Supplies to reorder', tone: 'red', href: '/supplies/reorder', cta: 'Open reorder list', audience: 'office',
+    line: (n) => `${n} suppl${n === 1 ? 'y' : 'ies'} on the reorder list to buy`,
+    count: async (org, c) => { const d = await suppliesData(org, c); return d?.reorderCount || 0 } },
+  { key: 'supplies-open-po', station: 'supplies', hub: 'inventory-central', name: 'Supply POs to receive', tone: 'amber', href: '/supplies/orders', cta: 'Open orders', audience: 'office',
+    line: (n) => `${n} supply PO${n === 1 ? '' : 's'} awaiting receipt`,
+    count: async (org, c) => { const d = await suppliesData(org, c); return d?.openOrderCount || 0 } },
 
   // ==================== COMMAND CENTER (hub: command-center) = Marketing =====
   { key: 'marketing-review', station: 'marketing', hub: 'command-center', name: 'Marketing to review', tone: 'amber', href: '/marketing/queue', cta: 'Open queue', audience: 'office',
