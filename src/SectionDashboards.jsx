@@ -6,6 +6,8 @@
 // a clear outline of the analytics coming to each — until we build them out.
 import { Link } from 'react-router-dom'
 import QuincyBrief from './QuincyBrief'
+import { can } from './utils/permissions'
+import CustomKpis from './CustomKpis'
 
 const NAVY = '#1B3A6B'
 const C = { ink: '#1F2A37', mist: '#64748B', line: '#E7EBF0', card: '#FFFFFF', wash: '#F7F9FB' }
@@ -52,37 +54,13 @@ function SectionDash({ title, subtitle, intro, links, planned, tone = NAVY, org,
 // HomeDash retired — the Home route now renders the live CommandDashboard
 // (modules/dashboard-hvac). FinancialsDash / AdminDash remain for their sections.
 
-export function FinancialsDash({ profile }) {
-  return (
-    <SectionDash
-      org={profile?.org_id}
-      kind="financials"
-      title="Financials"
-      subtitle="Money in, money out, and the health of your receivables"
-      intro="The financial workflow hub — chase what is owed, watch margins, and keep pricing sharp."
-      links={[
-        { label: 'Invoices', path: '/invoices', desc: 'Billing & payments' },
-        { label: 'Maintenance Dashboard', path: '/maintenance-dashboard', desc: 'Agreement revenue' },
-        { label: 'Pricebook', path: '/pricebook', desc: 'Service pricing' },
-        { label: 'Systems Pricebook', path: '/systems-pricebook', desc: 'Equipment pricing' },
-        { label: 'Special Features', path: '/special-features', desc: 'Add-ons' },
-        { label: 'Discount Catalog', path: '/discount-catalog', desc: 'Approved discounts' },
-        { label: 'Maintenance Tiers', path: '/maintenance-tiers', desc: 'Plan pricing' },
-        { label: 'System Estimate Setup', path: '/system-estimate-setup', desc: 'Estimate templates' },
-      ]}
-      planned={[
-        'A/R aging: current / 30 / 60 / 90+, with the biggest unpaid invoices to chase first.',
-        'Collected vs billed this week and this month, and cash-flow trend graphs.',
-        'Revenue by month and by segment; gross margin and job profitability roll-ups.',
-        'Estimate conversion in dollars, and recurring (agreement) revenue run-rate.',
-        'An AI financial briefing: what to collect, where margin is slipping, and why.',
-      ]}
-    />
-  )
-}
-
 export function AdminDash({ profile }) {
+  const canManage = profile?.role === 'super_admin' || can(profile, 'manage_kpis')
   return (
+    <div>
+      <div style={{ padding: '20px 24px 0', maxWidth: 1040 }}>
+        <CustomKpis org={profile?.org_id} dashboard="admin" canManage={canManage} />
+      </div>
     <SectionDash
       org={profile?.org_id}
       kind="admin"
@@ -107,5 +85,6 @@ export function AdminDash({ profile }) {
         'A setup-health checklist so nothing critical is left unconfigured.',
       ]}
     />
+    </div>
   )
 }

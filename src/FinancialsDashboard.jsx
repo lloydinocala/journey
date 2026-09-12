@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
 import OrgPicker from './OrgPicker'
 import QuincyBrief from './QuincyBrief'
+import CustomKpis from './CustomKpis'
 
 const BRAND = '#176E7A', FAINT = '#98A2AD'
 const C = {
@@ -160,6 +161,8 @@ export default function FinancialsDashboard({ profile }) {
             {kpi('Recurring revenue', money(d.mrr) + '/mo', `${d.activeN} active agreement${d.activeN === 1 ? '' : 's'}`, 'teal')}
             {kpi('Estimates out', money(d.estOut), `${money(d.estApproved)} approved, not booked`, 'amber', () => nav('/estimates'))}
           </div>
+
+          <CustomKpis org={selectedOrg} dashboard="financial" canManage={isSuper || can(profile, 'manage_kpis')} />
 
           <div style={{ marginTop: 22, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 18 }}>
             {/* A/R AGING */}
