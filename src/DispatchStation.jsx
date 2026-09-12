@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import StationShell from './StationShell'
 import { useSignals } from './signals/useSignals'
+import QuincyBrief from './QuincyBrief'
 
 // The Dispatch Station — the front-of-house domain. Now rendered entirely from
 // the shared signal registry (useSignals), so its tiles and the Train Station
@@ -19,6 +20,7 @@ export default function DispatchStation({ profile }) {
   }, [isSuper])
 
   const { signals, loading, total, needing } = useSignals({ station: 'dispatch' }, selectedOrg, nav)
+  const qctx = Object.fromEntries(signals.filter((x) => typeof x.n === 'number').map((x) => [x.name, x.n]))
 
   const sub = loading
     ? 'Checking what needs attention…'
@@ -34,6 +36,7 @@ export default function DispatchStation({ profile }) {
         officeSubtitle={sub}
         loading={loading}
         signals={signals}
+        quincy={<QuincyBrief kind="operations" context={qctx} title="Dispatch briefing" />}
         emptyHint="No new requests, everything scheduled and dispatched, filters fulfilled."
         headerRight={isSuper ? <div><div style={{ fontSize: 11.5, color: '#98A2AD', marginBottom: 4, textAlign: 'right' }}>Organization</div><OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} /></div> : null}
       />

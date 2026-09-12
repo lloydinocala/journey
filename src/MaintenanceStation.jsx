@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { useSignals } from './signals/useSignals'
+import QuincyBrief from './QuincyBrief'
 import { can } from './utils/permissions'
 import OrgPicker from './OrgPicker'
 
@@ -140,14 +141,6 @@ export default function MaintenanceStation({ profile }) {
           <h2 style={{ fontSize: 25, fontWeight: 800, letterSpacing: -0.5, margin: '4px 0 0' }}>
             {view === 'office' ? 'Your maintenance tasks' : 'Maintenance health'}
           </h2>
-          <p style={{ margin: '7px 0 0', fontSize: 15, color: 'var(--mist)', maxWidth: 600 }}>
-            {view === 'admin'
-              ? 'The same signals your office works — framed as the metrics you watch.'
-              : loading ? 'Checking what needs attention…'
-                : total > 0
-                  ? <>The recurring-revenue work waiting on you — <b style={{ color: 'inherit' }}>{total}</b> across {needs.length} area{needs.length === 1 ? '' : 's'}. Each tile opens the task, not a table.</>
-                  : <>You're all caught up — no maintenance work is waiting.</>}
-          </p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         {isSuper && (
@@ -168,6 +161,22 @@ export default function MaintenanceStation({ profile }) {
         )}
         </div>
       </div>
+
+      {(() => {
+        const tone = view === 'admin' ? 'info' : sig.loading ? 'muted' : needs.length > 0 ? 'amber' : 'green'
+        const B = ({ amber: { bg: '#FAF2E0', line: '#EAD3A0', fg: '#9C6A12', icon: '!' }, green: { bg: '#EAF3EC', line: '#CADFCF', fg: '#2E7D52', icon: '✓' }, muted: { bg: 'var(--surface-2, #f6f7f9)', line: 'var(--border)', fg: FAINT, icon: '·' }, info: { bg: '#EAF1F1', line: '#B9D3D3', fg: BRAND, icon: '✦' } })[tone]
+        const text = view === 'admin' ? 'The same signals your office works — framed as the metrics you watch.' : sig.loading ? 'Checking what needs attention…' : total > 0 ? `The recurring-revenue work waiting on you — ${total} across ${needs.length} area${needs.length === 1 ? '' : 's'}.` : "You're all caught up — no maintenance work is waiting."
+        const qctx = Object.fromEntries(REGISTRY.map((t) => [t.name, counts[t.key]]))
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginTop: 14, padding: '11px 15px', borderRadius: 12, background: B.bg, border: '1px solid ' + B.line }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+              <span style={{ width: 26, height: 26, flex: 'none', borderRadius: 999, background: '#fff', border: '1px solid ' + B.line, color: B.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14 }}>{B.icon}</span>
+              <span style={{ fontSize: 14.5, fontWeight: 600, color: B.fg }}>{text}</span>
+            </div>
+            <QuincyBrief kind="operations" context={qctx} title="Maintenance briefing" />
+          </div>
+        )
+      })()}
 
       {isSuper && !selectedOrg ? (
         <div style={{ marginTop: 26, color: FAINT, fontSize: 14 }}>Select an organization above to load its Maintenance Station.</div>

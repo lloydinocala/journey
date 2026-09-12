@@ -5,6 +5,7 @@ import { can } from './utils/permissions'
 import OrgPicker from './OrgPicker'
 import StationShell, { StationKpi } from './StationShell'
 import { useSignals } from './signals/useSignals'
+import QuincyBrief from './QuincyBrief'
 
 const money0 = (n) => '$' + Math.round(Number(n) || 0).toLocaleString()
 
@@ -71,6 +72,7 @@ export default function JobsStation({ profile }) {
         officeSubtitle={sub}
         loading={loading}
         signals={signals}
+        quincy={<QuincyBrief kind="financials" org={selectedOrg} title="Jobs & billing briefing" />}
         opsAdmin={opsAdmin} ownerAdmin={ownerAdmin}
         opsCards={opsCards} ownerCards={ownerCards}
         emptyHint="Completed work is billed, invoices are out, and A/R is clear."

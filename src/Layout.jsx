@@ -38,9 +38,6 @@ const CATEGORIES = [
     { label: 'System Estimates', path: '/system-estimates' },
     { label: 'Invoices', path: '/invoices' },
   ]},
-  { key: 'operations', label: 'Operations', items: [
-    { label: 'Operations Dashboard', path: '/operations' },
-  ]},
   { key: 'maintenance', label: 'Maintenance', items: [
     { label: 'Maintenance Station', path: '/maintenance-station', perm: 'view_maintenance_dashboard' },
     { label: 'Maintenance Dashboard', path: '/maintenance-dashboard', perm: 'view_maintenance_dashboard' },
@@ -195,7 +192,6 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/maintenance') || pathname.startsWith('/filter-subscriptions')) return 'maintenance'
   if (pathname.startsWith('/dispatch') || pathname.startsWith('/call') || pathname.startsWith('/service-requests') || pathname.startsWith('/calendar') || pathname.startsWith('/filter-orders') || pathname.startsWith('/text-archive') || pathname.startsWith('/on-call')) return 'dispatch'
   if (pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/customers') || pathname.startsWith('/properties') || pathname.startsWith('/estimate') || pathname.startsWith('/system-estimates') || pathname.startsWith('/invoice')) return 'work'
-  if (pathname.startsWith('/operations')) return 'operations'
   if (pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/checklists')) return 'import'
   if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/time-clock') || pathname.startsWith('/payroll') || pathname.startsWith('/session-log')) return 'workforce'
   if (pathname.startsWith('/settings')) return 'admin'

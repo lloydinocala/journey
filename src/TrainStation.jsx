@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { useSignals } from './signals/useSignals'
+import QuincyBrief from './QuincyBrief'
 
 // The Train Station — the top hub. Every tile now comes from the shared signal
 // registry (useSignals({ hub: 'start' })), so it rolls up exactly the domains under
@@ -50,15 +51,24 @@ export default function TrainStation({ profile }) {
         <div>
           <div style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: 0.3, color: BRAND }}>The Train Station</div>
           <h2 style={{ fontSize: 25, fontWeight: 800, letterSpacing: -0.5, margin: '4px 0 0' }}>Hi {firstName}.</h2>
-          <p style={{ margin: '7px 0 0', fontSize: 15, color: 'var(--mist)', maxWidth: 600 }}>
-            {loading ? 'Checking what needs attention…'
-              : totalPending > 0
-                ? <>There {totalPending === 1 ? 'is' : 'are'} <b style={{ color: 'inherit' }}>{totalPending}</b> {totalPending === 1 ? 'thing' : 'things'} across {needs.length} area{needs.length === 1 ? '' : 's'} that could use a hand.</>
-                : <>You're all caught up — nothing's waiting on you.</>}
-          </p>
         </div>
         <button className="logout-button" style={{ fontSize: 13, padding: '7px 14px', border: `1px solid ${edit ? BRAND : 'var(--border)'}`, background: edit ? BRAND : '#fff', color: edit ? '#fff' : 'inherit', fontWeight: 600 }} onClick={() => setEdit((e) => !e)}>{edit ? 'Done' : 'Edit'}</button>
       </div>
+
+      {(() => {
+        const tone = loading ? 'muted' : totalPending > 0 ? 'amber' : 'green'
+        const B = ({ amber: { bg: '#FAF2E0', line: '#EAD3A0', fg: '#9C6A12', icon: '!' }, green: { bg: GREEN_BG, line: GREEN_LINE, fg: GREEN, icon: '✓' }, muted: { bg: 'var(--surface-2, #f6f7f9)', line: 'var(--border)', fg: FAINT, icon: '·' } })[tone]
+        const text = loading ? 'Checking what needs attention…' : totalPending > 0 ? `There ${totalPending === 1 ? 'is' : 'are'} ${totalPending} ${totalPending === 1 ? 'thing' : 'things'} across ${needs.length} area${needs.length === 1 ? '' : 's'} that could use a hand.` : "You're all caught up — nothing's waiting on you."
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginTop: 14, padding: '11px 15px', borderRadius: 12, background: B.bg, border: '1px solid ' + B.line }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+              <span style={{ width: 26, height: 26, flex: 'none', borderRadius: 999, background: '#fff', border: '1px solid ' + B.line, color: B.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14 }}>{B.icon}</span>
+              <span style={{ fontSize: 14.5, fontWeight: 600, color: B.fg }}>{text}</span>
+            </div>
+            <QuincyBrief kind="home" org={org} title="Today's briefing" />
+          </div>
+        )
+      })()}
 
       {edit && (
         <div style={{ marginTop: 14, background: '#EAF1F1', border: `1px solid ${BRAND}22`, borderRadius: 10, padding: '11px 14px', fontSize: 13.5 }}>

@@ -28,7 +28,7 @@ export function StationKpi({ label, big, sub, tone, onClick }) {
   )
 }
 
-export default function StationShell({ eyebrow, officeTitle, adminTitle = 'Health', officeSubtitle, loading, signals = [], opsAdmin = false, ownerAdmin = false, opsCards = null, ownerCards = null, fanoutNote = null, headerRight = null, emptyHint }) {
+export default function StationShell({ eyebrow, officeTitle, adminTitle = 'Health', officeSubtitle, loading, signals = [], opsAdmin = false, ownerAdmin = false, opsCards = null, ownerCards = null, fanoutNote = null, headerRight = null, emptyHint, quincy = null }) {
   const hasAdmin = opsAdmin || ownerAdmin
   const [view, setView] = useState('office')
   const needs = signals.filter((s) => (s.n || 0) > 0)
@@ -41,9 +41,6 @@ export default function StationShell({ eyebrow, officeTitle, adminTitle = 'Healt
         <div>
           <div style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: 0.3, color: BRAND }}>{eyebrow}</div>
           <h2 style={{ fontSize: 25, fontWeight: 800, letterSpacing: -0.5, margin: '4px 0 0' }}>{view === 'admin' ? adminTitle : officeTitle}</h2>
-          <p style={{ margin: '7px 0 0', fontSize: 15, color: 'var(--mist)', maxWidth: 600 }}>
-            {view === 'admin' ? 'The same signals your team works — framed as the metrics you watch.' : (loading ? 'Checking what needs attention…' : officeSubtitle)}
-          </p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           {headerRight}
@@ -59,6 +56,21 @@ export default function StationShell({ eyebrow, officeTitle, adminTitle = 'Healt
           )}
         </div>
       </div>
+
+      {(() => {
+        const tone = view === 'admin' ? 'info' : loading ? 'muted' : needs.length > 0 ? 'amber' : 'green'
+        const B = ({ amber: { bg: '#FAF2E0', line: '#EAD3A0', fg: '#9C6A12', icon: '!' }, green: { bg: '#EAF3EC', line: '#CADFCF', fg: '#2E7D52', icon: '✓' }, muted: { bg: 'var(--surface-2, #f6f7f9)', line: 'var(--border)', fg: '#98A2AD', icon: '·' }, info: { bg: '#EAF1F1', line: '#B9D3D3', fg: BRAND, icon: '✦' } })[tone]
+        const text = view === 'admin' ? 'The same signals your team works — framed as the metrics you watch.' : (loading ? 'Checking what needs attention…' : officeSubtitle)
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginTop: 14, padding: '11px 15px', borderRadius: 12, background: B.bg, border: '1px solid ' + B.line }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+              <span style={{ width: 26, height: 26, flex: 'none', borderRadius: 999, background: '#fff', border: '1px solid ' + B.line, color: B.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14 }}>{B.icon}</span>
+              <span style={{ fontSize: 14.5, fontWeight: 600, color: B.fg }}>{text}</span>
+            </div>
+            {quincy}
+          </div>
+        )
+      })()}
 
       {view === 'admin' ? (
         <div style={{ marginTop: 26 }}>
