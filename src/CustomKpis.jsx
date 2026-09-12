@@ -34,9 +34,10 @@ export function computeCard(kpi, vals) {
     return { title, value: pct.toFixed(1) + '%', sub: `of ${m2?.label}`, accent: C.teal }
   }
   const delta = u2 ? ((u1 - u2) / u2) * 100 : null
-  const up = delta != null && delta >= 0
+  if (delta == null) return { title, value: fmtMetric(u1, m1?.format), sub: `vs ${m2?.label}`, badge: 'new', badgeColor: C.slate, accent: C.slate }
+  const up = delta >= 0
   const good = up === (kpi.direction !== 'lower_better')
-  return { title, value: fmtMetric(u1, m1?.format), sub: `vs ${m2?.label}`, badge: delta == null ? '\u2014' : `${up ? '+' : ''}${delta.toFixed(1)}%`, badgeColor: good ? C.green : C.red, accent: good ? C.green : C.red }
+  return { title, value: fmtMetric(u1, m1?.format), sub: `vs ${m2?.label}`, badge: `${up ? '+' : ''}${delta.toFixed(1)}%`, badgeColor: good ? C.green : C.red, accent: good ? C.green : C.red }
 }
 
 function MetricSelect({ value, onChange, placeholder }) {
