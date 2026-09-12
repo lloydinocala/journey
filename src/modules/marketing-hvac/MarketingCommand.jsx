@@ -43,7 +43,13 @@ export default function MarketingCommand({ profile }) {
         <p>Every channel and dollar measured against real booked revenue — pulled from Journey jobs, not vanity metrics.</p>
       </div>
 
-      <div style={{ margin: '4px 0 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', margin: '4px 0 16px', padding: '11px 15px', borderRadius: 12, background: (m && m.pending > 0) ? '#FAF2E0' : '#E7F0F1', border: '1px solid ' + ((m && m.pending > 0) ? '#EAD3A0' : '#BCD7D9') }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+          <span style={{ width: 26, height: 26, flex: 'none', borderRadius: 999, background: '#fff', border: '1px solid ' + ((m && m.pending > 0) ? '#EAD3A0' : '#BCD7D9'), color: (m && m.pending > 0) ? '#9C6A12' : '#176E7A', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14 }}>{(m && m.pending > 0) ? '!' : '✦'}</span>
+          <span style={{ fontSize: 14.5, fontWeight: 600, color: (m && m.pending > 0) ? '#9C6A12' : '#176E7A' }}>
+            {!m ? 'Loading marketing…' : m.pending > 0 ? `${m.pending} draft${m.pending === 1 ? '' : 's'} awaiting your review.` : 'Nothing waiting on you — campaigns are running.'}
+          </span>
+        </div>
         <QuincyBrief kind="marketing" context={{
           draftsAwaitingReview: m ? m.pending : 0,
           activeCampaigns: m ? m.campaigns : 0,

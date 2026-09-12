@@ -83,7 +83,7 @@ const PERSONAL_CATEGORY = { key: 'personal', label: 'Personal', items: [
 const DASH_BY_KEY = {
   start: '/train-station',
   'inventory-central': '/inventory-central',
-  workforce: '/team',
+  workforce: '/workforce',
   operations: '/operations',
   maintenance: '/maintenance-dashboard',
   financials: '/financials',
@@ -131,7 +131,7 @@ const HUBS = {
     ],
   },
   workforce: {
-    label: 'Workforce', path: '/team',
+    label: 'Workforce', path: '/workforce',
     // leaf pages (no key) are direct links that keep the hub submenu open;
     // modules (keyed) open their own submenu and are entitlement-gated via `needs`.
     stations: [
@@ -193,7 +193,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/dispatch') || pathname.startsWith('/call') || pathname.startsWith('/service-requests') || pathname.startsWith('/calendar') || pathname.startsWith('/filter-orders') || pathname.startsWith('/text-archive') || pathname.startsWith('/on-call')) return 'dispatch'
   if (pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/customers') || pathname.startsWith('/properties') || pathname.startsWith('/estimate') || pathname.startsWith('/system-estimates') || pathname.startsWith('/invoice')) return 'work'
   if (pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/checklists')) return 'import'
-  if (pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/time-clock') || pathname.startsWith('/payroll') || pathname.startsWith('/session-log')) return 'workforce'
+  if (pathname.startsWith('/workforce') || pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/time-clock') || pathname.startsWith('/payroll') || pathname.startsWith('/session-log')) return 'workforce'
   if (pathname.startsWith('/settings')) return 'admin'
   if (pathname.startsWith('/inventory-central')) return 'inventory-central'
   if (INSIGHTS_PATHS.some((x) => pathname.startsWith(x))) return 'insights-planning'
