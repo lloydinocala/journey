@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import { METRIC_GROUPS, METRIC_BY_KEY, computeMetrics, fmtMetric } from './kpiMetrics'
 
-const C = { green: '#2E7D52', red: '#B5462F', teal: '#176E7A', slate: '#64748B', amber: '#9C6A12', ink: '#1C2430', faint: '#98A2AD' }
+const C = { green: '#2E7D52', red: '#B5462F', teal: '#176E7A', slate: '#64748B', amber: '#9C6A12', ink: '#1C2430', faint: '#98A2AD', track: '#EAEEF2' }
 
 const COMPARISONS = [
   { key: 'vs', label: 'vs — % change', hint: 'How Unit 1 compares to Unit 2 (year-over-year, etc.)' },
@@ -10,6 +10,7 @@ const COMPARISONS = [
   { key: 'share', label: '% of — share', hint: 'Unit 1 as a percentage of Unit 2' },
   { key: 'single', label: 'single — one number', hint: 'Just Unit 1 on its own, no comparison' },
 ]
+const DISPLAY_MODES = [['text', 'Text'], ['graphic', 'Graphic'], ['both', 'Both']]
 
 function autoLabel(u1, u2, comp) {
   const l1 = METRIC_BY_KEY[u1]?.label, l2 = METRIC_BY_KEY[u2]?.label
@@ -19,26 +20,67 @@ function autoLabel(u1, u2, comp) {
   if (comp === 'share') return `${l1} as % of ${l2}`
   return `${l1} vs ${l2}`
 }
+const shortL = (lbl) => (lbl || '').replace('Same Month Last Year', 'Last yr').replace('Last Year Y-T-D', 'Last yr').replace(' Y-T-D', '').replace('This Month', 'This mo')
 
 export function computeCard(kpi, vals) {
   const m1 = METRIC_BY_KEY[kpi.unit1_key], m2 = METRIC_BY_KEY[kpi.unit2_key]
   const u1 = Number(vals[kpi.unit1_key] || 0), u2 = Number(vals[kpi.unit2_key] || 0)
   const title = kpi.label || (m1 ? m1.label : 'KPI')
-  if (kpi.comparison === 'single' || !m2) return { title, value: fmtMetric(u1, m1?.format), sub: m1?.label, accent: C.teal }
+  if (kpi.comparison === 'single' || !m2) return { title, value: fmtMetric(u1, m1?.format), sub: m1?.label, accent: C.teal, u1, u2 }
   if (kpi.comparison === 'ratio') {
     const q = u2 ? u1 / u2 : 0
-    return { title, value: fmtMetric(q, m1?.format === 'currency' ? 'currency' : 'number'), sub: `${m1?.label} per ${m2?.label}`, accent: C.teal }
+    return { title, value: fmtMetric(q, m1?.format === 'currency' ? 'currency' : 'number'), sub: `${m1?.label} per ${m2?.label}`, accent: C.teal, u1, u2 }
   }
   if (kpi.comparison === 'share') {
     const pct = u2 ? (u1 / u2) * 100 : 0
-    return { title, value: pct.toFixed(1) + '%', sub: `of ${m2?.label}`, accent: C.teal }
+    return { title, value: pct.toFixed(1) + '%', sub: `of ${m2?.label}`, accent: C.teal, pct, u1, u2 }
   }
   const delta = u2 ? ((u1 - u2) / u2) * 100 : null
-  if (delta == null) return { title, value: fmtMetric(u1, m1?.format), sub: `vs ${m2?.label}`, badge: 'new', badgeColor: C.slate, accent: C.slate }
+  if (delta == null) return { title, value: fmtMetric(u1, m1?.format), sub: `vs ${m2?.label}`, badge: 'new', badgeColor: C.slate, accent: C.slate, u1, u2 }
   const up = delta >= 0
   const good = up === (kpi.direction !== 'lower_better')
-  return { title, value: fmtMetric(u1, m1?.format), sub: `vs ${m2?.label}`, badge: `${up ? '+' : ''}${delta.toFixed(1)}%`, badgeColor: good ? C.green : C.red, accent: good ? C.green : C.red }
+  return { title, value: fmtMetric(u1, m1?.format), sub: `vs ${m2?.label}`, badge: `${up ? '+' : ''}${delta.toFixed(1)}%`, badgeColor: good ? C.green : C.red, accent: good ? C.green : C.red, u1, u2 }
 }
+
+function Donut({ pct, color }) {
+  const r = 26, circ = 2 * Math.PI * r
+  const off = circ * (1 - Math.min(1, Math.max(0, (pct || 0) / 100)))
+  return (
+    <svg viewBox="0 0 64 64" width="66" height="66" style={{ display: 'block' }}>
+      <circle cx="32" cy="32" r={r} fill="none" stroke={C.track} strokeWidth="8" />
+      <circle cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} transform="rotate(-90 32 32)" />
+      <text x="32" y="37" textAnchor="middle" fontSize="15" fontWeight="800" fill={color}>{Math.round(pct || 0)}%</text>
+    </svg>
+  )
+}
+
+function TwoBars({ a, b, la, lb, ca }) {
+  const max = Math.max(a, b, 1)
+  const h = (v) => `${Math.max(v > 0 ? 5 : 0, (v / max) * 100)}%`
+  const bars = [[a, la, ca], [b, lb, C.slate]]
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, height: 62 }}>
+      {bars.map(([v, l, c], i) => (
+        <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: 34 }}>
+          <div style={{ width: '100%', height: 46, display: 'flex', alignItems: 'flex-end' }}>
+            <div style={{ width: '100%', height: h(v), background: c, borderRadius: '3px 3px 0 0' }} />
+          </div>
+          <span style={{ fontSize: 10, color: C.faint, whiteSpace: 'nowrap', maxWidth: 46, overflow: 'hidden', textOverflow: 'ellipsis' }}>{l}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function KpiGraphic({ kpi, card }) {
+  if (kpi.comparison === 'share') return <Donut pct={card.pct} color={card.accent} />
+  if (kpi.comparison === 'vs') {
+    const m1 = METRIC_BY_KEY[kpi.unit1_key], m2 = METRIC_BY_KEY[kpi.unit2_key]
+    return <TwoBars a={card.u1} b={card.u2} la={shortL(m1?.label)} lb={shortL(m2?.label)} ca={card.accent} />
+  }
+  return null
+}
+const hasGraphic = (comp) => comp === 'share' || comp === 'vs'
 
 function MetricSelect({ value, onChange, placeholder }) {
   return (
@@ -54,28 +96,22 @@ function MetricSelect({ value, onChange, placeholder }) {
 }
 
 function KpiMaker({ org, onClose, onSaved }) {
-  const [u1, setU1] = useState('')
-  const [comp, setComp] = useState('vs')
-  const [u2, setU2] = useState('')
-  const [dir, setDir] = useState('higher_better')
-  const [dash, setDash] = useState('both')
-  const [label, setLabel] = useState('')
-  const [touched, setTouched] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [u1, setU1] = useState(''); const [comp, setComp] = useState('vs'); const [u2, setU2] = useState('')
+  const [dir, setDir] = useState('higher_better'); const [dash, setDash] = useState('both'); const [display, setDisplay] = useState('both')
+  const [label, setLabel] = useState(''); const [touched, setTouched] = useState(false); const [saving, setSaving] = useState(false)
   const [vals, setVals] = useState(null)
-
   useEffect(() => { if (org) computeMetrics(org).then(setVals) }, [org])
 
-  const effLabel = touched ? label : autoLabel(u1, comp, comp === 'single' ? '' : u2) // eslint-disable-line
   const autoL = autoLabel(u1, u2, comp)
-  const preview = u1 ? computeCard({ label: touched ? label : autoL, unit1_key: u1, unit2_key: u2, comparison: comp, direction: dir }, vals || {}) : null
+  const previewKpi = { label: touched ? label : autoL, unit1_key: u1, unit2_key: u2, comparison: comp, direction: dir, display_mode: display }
+  const preview = u1 ? computeCard(previewKpi, vals || {}) : null
 
   async function save() {
     if (!u1 || (comp !== 'single' && !u2)) return
     setSaving(true)
     const { error } = await supabase.from('custom_kpis').insert({
       org_id: org, label: (touched ? label : autoL) || null, unit1_key: u1, unit2_key: comp === 'single' ? null : u2,
-      comparison: comp, dashboards: dash, direction: dir,
+      comparison: comp, dashboards: dash, direction: dir, display_mode: display,
     })
     setSaving(false)
     if (!error) { onSaved && onSaved(); onClose() }
@@ -83,6 +119,11 @@ function KpiMaker({ org, onClose, onSaved }) {
 
   const field = { marginBottom: 14 }
   const lbl = { fontSize: 12, fontWeight: 700, color: C.slate, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 5, display: 'block' }
+  const seg = (opts, val, set) => (
+    <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+      {opts.map(([v, l]) => <button key={v} onClick={() => set(v)} style={{ border: 'none', cursor: 'pointer', padding: '7px 14px', fontSize: 12.5, fontWeight: val === v ? 700 : 500, background: val === v ? C.teal : 'transparent', color: val === v ? '#fff' : C.slate }}>{l}</button>)}
+    </div>
+  )
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,32,0.45)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '5vh 16px', overflowY: 'auto' }}>
@@ -107,42 +148,22 @@ function KpiMaker({ org, onClose, onSaved }) {
 
         {comp !== 'single' && <div style={field}><label style={lbl}>Unit 2</label><MetricSelect value={u2} onChange={setU2} placeholder="Choose a measure…" /></div>}
 
-        {comp === 'vs' && (
-          <div style={field}>
-            <label style={lbl}>Good direction</label>
-            <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-              {[['higher_better', 'Higher is better'], ['lower_better', 'Lower is better']].map(([v, l]) => (
-                <button key={v} onClick={() => setDir(v)} style={{ border: 'none', cursor: 'pointer', padding: '7px 13px', fontSize: 12.5, fontWeight: dir === v ? 700 : 500, background: dir === v ? C.teal : 'transparent', color: dir === v ? '#fff' : C.slate }}>{l}</button>
-              ))}
-            </div>
-          </div>
-        )}
+        {comp === 'vs' && <div style={field}><label style={lbl}>Good direction</label>{seg([['higher_better', 'Higher is better'], ['lower_better', 'Lower is better']], dir, setDir)}</div>}
 
-        <div style={field}>
-          <label style={lbl}>Show on</label>
-          <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-            {[['financial', 'Financial'], ['admin', 'Admin'], ['both', 'Both']].map(([v, l]) => (
-              <button key={v} onClick={() => setDash(v)} style={{ border: 'none', cursor: 'pointer', padding: '7px 14px', fontSize: 12.5, fontWeight: dash === v ? 700 : 500, background: dash === v ? C.teal : 'transparent', color: dash === v ? '#fff' : C.slate }}>{l}</button>
-            ))}
-          </div>
+        <div style={field}><label style={lbl}>Display as</label>{seg(DISPLAY_MODES, display, setDisplay)}
+          {display !== 'text' && !hasGraphic(comp) && <div style={{ fontSize: 11.5, color: C.amber, marginTop: 5 }}>Per-rate and single KPIs have no chart — they'll show as a number.</div>}
         </div>
 
-        <div style={field}>
-          <label style={lbl}>Label</label>
+        <div style={field}><label style={lbl}>Show on</label>{seg([['financial', 'Financial'], ['admin', 'Admin'], ['both', 'Both']], dash, setDash)}</div>
+
+        <div style={field}><label style={lbl}>Label</label>
           <input value={touched ? label : autoL} onChange={(e) => { setTouched(true); setLabel(e.target.value) }} placeholder="Auto from your choices" style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 14 }} />
         </div>
 
         {preview && (
           <div style={{ marginBottom: 16 }}>
             <label style={lbl}>Preview</label>
-            <div style={{ background: '#fff', border: '1px solid var(--border)', borderTop: `3px solid ${preview.accent}`, borderRadius: 12, padding: '12px 14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, color: C.faint, textTransform: 'uppercase' }}>{preview.title}</span>
-                {preview.badge && <span style={{ fontSize: 12, fontWeight: 800, color: preview.badgeColor }}>{preview.badge}</span>}
-              </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: preview.accent, margin: '3px 0 1px' }}>{preview.value}</div>
-              <div style={{ fontSize: 12, color: 'var(--mist)' }}>{preview.sub}</div>
-            </div>
+            <KpiCard kpi={previewKpi} card={preview} ready={!!vals} />
           </div>
         )}
 
@@ -155,11 +176,27 @@ function KpiMaker({ org, onClose, onSaved }) {
   )
 }
 
-// The section rendered on a dashboard: the saved KPI cards + a +Add KPI opener.
+function KpiCard({ kpi, card, ready, onRemove }) {
+  const mode = kpi.display_mode || 'text'
+  const graphic = hasGraphic(kpi.comparison)
+  const showValue = mode === 'text' || mode === 'both' || (mode === 'graphic' && !graphic)
+  const showGraphic = (mode === 'graphic' || mode === 'both') && graphic
+  return (
+    <div style={{ position: 'relative', background: '#fff', border: '1px solid var(--border)', borderTop: `3px solid ${card.accent}`, borderRadius: 12, padding: '13px 15px', boxShadow: '0 1px 3px rgba(20,30,50,0.04)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, color: C.faint, textTransform: 'uppercase', lineHeight: 1.25 }}>{card.title}</span>
+        {card.badge && <span style={{ fontSize: 12.5, fontWeight: 800, color: card.badgeColor, whiteSpace: 'nowrap' }}>{card.badge}</span>}
+      </div>
+      {showGraphic && <div style={{ display: 'flex', justifyContent: 'center', margin: showValue ? '10px 0 6px' : '12px 0 8px' }}>{ready ? <KpiGraphic kpi={kpi} card={card} /> : <div style={{ height: 62 }} />}</div>}
+      {showValue && <div style={{ fontSize: 25, fontWeight: 800, color: card.accent, margin: '4px 0 2px', letterSpacing: -0.5, textAlign: showGraphic ? 'center' : 'left' }}>{ready ? card.value : '…'}</div>}
+      <div style={{ fontSize: 12.5, color: 'var(--mist)', textAlign: showGraphic && !showValue ? 'center' : 'left' }}>{card.sub}</div>
+      {onRemove && <button onClick={onRemove} title="Remove" style={{ position: 'absolute', top: 8, right: 9, border: 'none', background: 'transparent', color: C.faint, cursor: 'pointer', fontSize: 15, lineHeight: 1 }}>×</button>}
+    </div>
+  )
+}
+
 export default function CustomKpis({ org, dashboard, canManage }) {
-  const [kpis, setKpis] = useState([])
-  const [vals, setVals] = useState(null)
-  const [maker, setMaker] = useState(false)
+  const [kpis, setKpis] = useState([]); const [vals, setVals] = useState(null); const [maker, setMaker] = useState(false)
 
   async function loadKpis() {
     if (!org) return
@@ -172,7 +209,6 @@ export default function CustomKpis({ org, dashboard, canManage }) {
     await supabase.from('custom_kpis').update({ is_active: false }).eq('id', id)
     setKpis((x) => x.filter((k) => k.id !== id))
   }
-
   if (!kpis.length && !canManage) return null
 
   return (
@@ -191,23 +227,9 @@ export default function CustomKpis({ org, dashboard, canManage }) {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-          {kpis.map((k) => {
-            const card = computeCard(k, vals || {})
-            return (
-              <div key={k.id} style={{ position: 'relative', background: '#fff', border: '1px solid var(--border)', borderTop: `3px solid ${card.accent}`, borderRadius: 12, padding: '13px 15px', boxShadow: '0 1px 3px rgba(20,30,50,0.04)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, color: C.faint, textTransform: 'uppercase', lineHeight: 1.25 }}>{card.title}</span>
-                  {card.badge && <span style={{ fontSize: 12.5, fontWeight: 800, color: card.badgeColor, whiteSpace: 'nowrap' }}>{card.badge}</span>}
-                </div>
-                <div style={{ fontSize: 25, fontWeight: 800, color: card.accent, margin: '4px 0 2px', letterSpacing: -0.5 }}>{vals ? card.value : '…'}</div>
-                <div style={{ fontSize: 12.5, color: 'var(--mist)' }}>{card.sub}</div>
-                {canManage && <button onClick={() => remove(k.id)} title="Remove" style={{ position: 'absolute', top: 8, right: 9, border: 'none', background: 'transparent', color: C.faint, cursor: 'pointer', fontSize: 15, lineHeight: 1 }}>×</button>}
-              </div>
-            )
-          })}
+          {kpis.map((k) => <KpiCard key={k.id} kpi={k} card={computeCard(k, vals || {})} ready={!!vals} onRemove={canManage ? () => remove(k.id) : null} />)}
         </div>
       )}
-
       {maker && <KpiMaker org={org} onClose={() => setMaker(false)} onSaved={loadKpis} />}
     </div>
   )
