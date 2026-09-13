@@ -14,7 +14,11 @@ export default function QuickBooksSettings({ profile }) {
 
   async function load() {
     setLoading(true)
-    try { const { data } = await supabase.functions.invoke('quickbooks-status'); setSt(data || {}) } catch { setSt({}) }
+    try {
+      const { data, error } = await supabase.functions.invoke('quickbooks-status')
+      if (error) { let code = ''; try { code = error.context && error.context.status } catch (e) {} setSt({ _err: error.message, _name: error.name, _code: code }) }
+      else setSt(data || {})
+    } catch (e) { setSt({ _threw: String(e) }) }
     setLoading(false)
   }
   useEffect(() => {
