@@ -11,6 +11,8 @@ export default function QuickBooksSettings({ profile }) {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [flash, setFlash] = useState(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState(null)
 
   async function load() {
     setLoading(true)
@@ -41,6 +43,16 @@ export default function QuickBooksSettings({ profile }) {
     setBusy(false); load()
   }
 
+  async function syncNow() {
+    setSyncing(true); setSyncResult(null)
+    try {
+      const { data, error } = await supabase.functions.invoke('quickbooks-push', { body: { all: true } })
+      if (error) setSyncResult({ error: error.message }); else setSyncResult(data)
+    } catch (e) { setSyncResult({ error: String(e) }) }
+    setSyncing(false)
+    load()
+  }
+
   if (!canManage) return null
 
   return (
@@ -61,8 +73,20 @@ export default function QuickBooksSettings({ profile }) {
             <span style={{ fontSize: 14, fontWeight: 600 }}>Connected{st.company_name ? ` to ${st.company_name}` : ''}</span>
             <span style={{ fontSize: 11, fontWeight: 700, color: '#9C6A12', background: '#FAF2E0', borderRadius: 999, padding: '2px 8px', textTransform: 'capitalize' }}>{st.environment}</span>
           </div>
-          <p style={{ fontSize: 12.5, color: 'var(--mist)', margin: '0 0 12px' }}>Invoices and payments flow into QuickBooks automatically.</p>
-          <button onClick={disconnect} disabled={busy} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)', background: '#fff', cursor: 'pointer', fontSize: 13.5, fontWeight: 600 }}>Disconnect</button>
+          <p style={{ fontSize: 12.5, color: 'var(--mist)', margin: '0 0 12px' }}>Invoices flow into QuickBooks. Use “Sync now” to send everything not yet pushed.</p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button onClick={syncNow} disabled={syncing || busy} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: syncing ? '#8FBF86' : '#2CA01C', color: '#fff', cursor: 'pointer', fontSize: 13.5, fontWeight: 700 }}>{syncing ? 'Syncing…' : 'Sync invoices now'}</button>
+            <button onClick={disconnect} disabled={busy} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)', background: '#fff', cursor: 'pointer', fontSize: 13.5, fontWeight: 600 }}>Disconnect</button>
+          </div>
+          {syncResult && (
+            <div style={{ marginTop: 12, padding: '9px 12px', borderRadius: 8, fontSize: 13, background: syncResult.error || syncResult.failed ? '#FBECE8' : '#EAF3EC', color: syncResult.error || syncResult.failed ? '#B5462F' : '#2E7D52', border: '1px solid ' + (syncResult.error || syncResult.failed ? '#EAC5BC' : '#CADFCF') }}>
+              {syncResult.error ? ('Error: ' + syncResult.error)
+                : `Pushed ${syncResult.pushed || 0} invoice${(syncResult.pushed || 0) === 1 ? '' : 's'}${syncResult.failed ? `, ${syncResult.failed} failed` : ''}.`}
+              {syncResult.results && syncResult.results.filter((r) => !r.ok).slice(0, 3).map((r, i) => (
+                <div key={i} style={{ fontSize: 11.5, marginTop: 4, wordBreak: 'break-all' }}>#{r.invoice_number || r.id}: {r.error}</div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <button onClick={connect} disabled={busy} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: QBGREEN, color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>{busy ? '…' : 'Connect QuickBooks'}</button>
