@@ -25,7 +25,7 @@ export default function InventoryCentral({ profile }) {
   const sub = loading
     ? 'Checking every inventory area…'
     : total > 0
-      ? (<>Across stock, fleet &amp; tools — <b style={{ color: 'inherit' }}>{total}</b> across {needing.length} area{needing.length === 1 ? '' : 's'} need a hand.</>)
+      ? (<>Across your inventory areas — <b style={{ color: 'inherit' }}>{total}</b> across {needing.length} area{needing.length === 1 ? '' : 's'} need a hand.</>)
       : 'All of inventory is watched and clear — nothing needs a hand right now.'
 
   return (

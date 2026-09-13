@@ -65,24 +65,15 @@ export function AdminDash({ profile }) {
       org={profile?.org_id}
       kind="admin"
       title="Admin"
-      subtitle="Your team, their time, and how the system is set up"
-      intro="The administrative hub — manage people and access, keep coverage staffed, and control settings."
+      subtitle="System setup and org-wide oversight"
+      intro="Configure the company and keep an eye on the numbers. People, time, and pay now live under Workforce; on-call under Dispatch; and checklists under the Data Station."
       links={[
-        { label: 'Team', path: '/team', desc: 'Employees & access' },
-        { label: 'Roles & Tags', path: '/roles', desc: 'Permissions' },
-        { label: 'On-Call Schedule', path: '/on-call', desc: 'Coverage' },
-        { label: 'Checklists', path: '/checklists', desc: 'Job checklist templates' },
-        { label: 'Time Clock', path: '/time-clock', desc: 'Clock in/out' },
-        { label: 'Payroll Capture', path: '/payroll', desc: 'Hours for payroll' },
-        { label: 'Sign-In Log', path: '/session-log', desc: 'Access history' },
         { label: 'Settings', path: '/settings', desc: 'Company setup' },
       ]}
       planned={[
-        'Who is on the clock right now, and anyone still clocked in from a prior day.',
-        'On-call coverage at a glance, with gaps flagged before they happen.',
-        'Team roster by role, recent access changes, and pending invites.',
-        'Time-clock exceptions (missed clock-outs, long shifts) ready for correction.',
         'A setup-health checklist so nothing critical is left unconfigured.',
+        'An audit trail of settings and permission changes.',
+        'Module & add-on management — which features each part of the org can use.',
       ]}
     />
     </div>
