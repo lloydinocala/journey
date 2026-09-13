@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { LANDING_OPTIONS } from './utils/landing'
 import { supabase } from './utils/supabase'
+import QuickBooksSettings from './QuickBooksSettings'
 import OrgPicker from './OrgPicker'
 import EmployeePayRates from './EmployeePayRates'
 import BusinessHours from './BusinessHours'
@@ -341,6 +342,7 @@ export default function Settings({ profile }) {
   return (
     <div>
       <h2 className="page-title">Settings</h2>
+      <QuickBooksSettings profile={profile} />
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>

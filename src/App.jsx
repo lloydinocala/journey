@@ -35,6 +35,7 @@ import VendorDetail from './VendorDetail'
 import Properties from './Properties'
 import Jobs from './Jobs'
 import Settings from './Settings'
+import QboCallback from './QboCallback'
 import Team from './Team'
 import Calendar from './Calendar'
 import ServiceRequests from './ServiceRequests'
@@ -280,6 +281,7 @@ function AuthenticatedApp() {
         <Route path="/properties" element={<Properties profile={profile} />} />
         <Route path="/jobs" element={<Jobs profile={profile} />} />
         <Route path="/parts-catalog" element={<PartsCatalog profile={profile} />} />
+        <Route path="/settings/qbo-callback" element={<QboCallback />} />
         <Route path="/settings" element={<Settings profile={profile} />} />
         <Route path="/team" element={<Team profile={profile} />} />
         <Route path="/on-call" element={<OnCallSchedule profile={profile} />} />
