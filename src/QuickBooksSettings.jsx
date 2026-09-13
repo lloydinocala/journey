@@ -48,6 +48,7 @@ export default function QuickBooksSettings({ profile }) {
       <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>QuickBooks</h3>
       <p style={{ margin: '0 0 12px', fontSize: 13.5, color: 'var(--mist)' }}>Send Journey’s invoices and payments straight into your QuickBooks — one-way, automatic, no re-typing.</p>
       {flash && <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, fontSize: 13.5, background: flash.ok ? '#EAF3EC' : '#FBECE8', color: flash.ok ? '#2E7D52' : '#B5462F', border: `1px solid ${flash.ok ? '#CADFCF' : '#EAC5BC'}` }}>{flash.msg}</div>}
+      <div style={{ fontSize: 10, color: '#B00', wordBreak: 'break-all', marginBottom: 8 }}>debug: {JSON.stringify(st)}</div>
       {loading ? (
         <div style={{ fontSize: 13, color: 'var(--mist)' }}>Checking…</div>
       ) : !st?.configured ? (
