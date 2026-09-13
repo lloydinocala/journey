@@ -15,7 +15,11 @@ const GLYPH = { organic: '#2f7be0', paid: '#6a54c4', reviews: '#c78320', reengag
 const SERVICE_AREA = 'Ocala and Central Florida — The Villages, Marion, Lake, Sumter, Citrus, Levy & Alachua counties'
 
 export default function MarketingQueue({ profile }) {
-  const orgId = profile?.org_id
+  const isSuper = !profile?.org_id
+  const [orgs, setOrgs] = useState([])
+  const [selOrg, setSelOrg] = useState('')
+  const orgId = profile?.org_id || selOrg
+
   const [campaign, setCampaign] = useState(null)
   const [channels, setChannels] = useState([])
   const [orgName, setOrgName] = useState('')
@@ -26,10 +30,24 @@ export default function MarketingQueue({ profile }) {
   const [fbForm, setFbForm] = useState({ open: false, page_id: '', token: '', saving: false })
   const [imgUrls, setImgUrls] = useState({})
 
+  useEffect(() => {
+    if (!isSuper) return
+    supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
+      const list = data || []
+      setOrgs(list)
+      const saved = localStorage.getItem('mkt_org')
+      const pick = (saved && list.find((o) => o.id === saved)?.id)
+        || list.find((o) => /journey \(platform\)/i.test(o.name))?.id
+        || list[0]?.id || ''
+      setSelOrg(pick)
+    })
+  }, [isSuper])
+
+  function changeOrg(id) { setSelOrg(id); localStorage.setItem('mkt_org', id); setItems(null); setImgUrls({}) }
+
   async function bootstrap() {
     const { data: chans } = await supabase.from('marketing_channels').select('*').eq('org_id', orgId).order('created_at')
     setChannels(chans || [])
-
     const { data: org } = await supabase.from('organizations').select('name').eq('id', orgId).maybeSingle()
     setOrgName(org?.name || '')
 
@@ -37,7 +55,7 @@ export default function MarketingQueue({ profile }) {
     let camp = camps && camps[0]
     if (!camp) {
       const { data: created } = await supabase.from('marketing_campaigns').insert({
-        org_id: orgId, name: 'Spring AC tune-up', goal: 'Instant-estimate leads',
+        org_id: orgId, name: 'Content calendar', goal: 'Awareness & leads',
         campaign_type: 'content', status: 'active', created_by: profile?.id || null,
       }).select().single()
       camp = created
@@ -48,7 +66,7 @@ export default function MarketingQueue({ profile }) {
   }
 
   async function loadFb() {
-    try { const { data } = await supabase.functions.invoke('facebook-connection', { body: {} }); setFb(data || { connected: false }) }
+    try { const { data } = await supabase.functions.invoke('facebook-connection', { body: { org_id: orgId } }); setFb(data || { connected: false }) }
     catch { setFb({ connected: false }) }
   }
 
@@ -65,10 +83,7 @@ export default function MarketingQueue({ profile }) {
     if (!withImg.length) return
     const map = { ...imgUrls }
     for (const it of withImg) {
-      try {
-        const { data } = await supabase.storage.from('job-photos').createSignedUrl(it.image_path, 3600)
-        if (data?.signedUrl) map[it.id] = data.signedUrl
-      } catch { /* skip */ }
+      try { const { data } = await supabase.storage.from('job-photos').createSignedUrl(it.image_path, 3600); if (data?.signedUrl) map[it.id] = data.signedUrl } catch { /* skip */ }
     }
     setImgUrls(map)
   }
@@ -80,19 +95,10 @@ export default function MarketingQueue({ profile }) {
     setBusy(true)
     const live = channels.filter((c) => c.channel_type === 'organic' && c.status === 'live')
     const targets = (live.length ? live : channels.filter((c) => c.channel_type === 'organic')).slice(0, 4)
-    if (targets.length === 0) {
-      alert('Add some organic channels first (Channels & Assets → Add the built-in channels).')
-      setBusy(false); return
-    }
+    if (targets.length === 0) { alert('Add some organic channels first (Channels & Assets).'); setBusy(false); return }
     try {
       const { data, error } = await supabase.functions.invoke('marketing-generate', {
-        body: {
-          orgName: orgName || 'Air-Care Connect',
-          serviceArea: SERVICE_AREA,
-          goal: campaign.goal || 'instant-estimate leads',
-          count: 1,
-          channels: targets.map((c) => ({ name: c.name, type: c.channel_type })),
-        },
+        body: { orgName: orgName || 'Air-Care Connect', serviceArea: SERVICE_AREA, goal: campaign.goal || 'leads', count: 1, channels: targets.map((c) => ({ name: c.name, type: c.channel_type })) },
       })
       if (error) throw new Error(error.message || 'invoke failed')
       if (data?.error) throw new Error(data.error)
@@ -100,32 +106,22 @@ export default function MarketingQueue({ profile }) {
       if (drafts.length === 0) throw new Error('No drafts returned.')
       const rows = drafts.map((d) => {
         const ch = targets.find((c) => c.name === d.channel) || targets[0]
-        return {
-          org_id: orgId, campaign_id: campaign.id, channel_id: ch?.id || null,
-          body: d.body, media_note: d.media_note || null,
-          status: 'pending_review', ai_generated: true,
-        }
+        return { org_id: orgId, campaign_id: campaign.id, channel_id: ch?.id || null, body: d.body, media_note: d.media_note || null, status: 'pending_review', ai_generated: true }
       })
       await supabase.from('marketing_content_items').insert(rows)
       await loadItems(campaign.id)
-    } catch (e) {
-      console.error(e)
-      alert('Draft generation failed: ' + (e.message || e))
-    }
+    } catch (e) { console.error(e); alert('Draft generation failed: ' + (e.message || e)) }
     setBusy(false)
   }
 
   async function generateFromJob() {
     setJobBusy(true)
     try {
-      const { data, error } = await supabase.functions.invoke('marketing-photo-post', { body: {} })
+      const { data, error } = await supabase.functions.invoke('marketing-photo-post', { body: { org_id: orgId } })
       if (error) throw new Error(error.message || 'invoke failed')
-      if (data?.error) throw new Error(data.error === 'no_job_photos_found' ? 'No job photos found to post from.' : data.error)
+      if (data?.error) throw new Error(data.error === 'no_job_photos_found' ? 'No job photos found for this org.' : data.error)
       await loadItems(campaign.id)
-    } catch (e) {
-      console.error(e)
-      alert('Photo post failed: ' + (e.message || e))
-    }
+    } catch (e) { console.error(e); alert('Photo post failed: ' + (e.message || e)) }
     setJobBusy(false)
   }
 
@@ -134,20 +130,16 @@ export default function MarketingQueue({ profile }) {
     if (!page_id || !token) { alert('Enter your Facebook Page ID and Page Access Token.'); return }
     setFbForm((f) => ({ ...f, saving: true }))
     try {
-      const { data, error } = await supabase.functions.invoke('facebook-connection', { body: { action: 'save', page_id, page_access_token: token } })
+      const { data, error } = await supabase.functions.invoke('facebook-connection', { body: { action: 'save', page_id, page_access_token: token, org_id: orgId } })
       if (error) throw new Error(error.message || 'invoke failed')
       if (data?.error) throw new Error(data.detail || data.error)
-      setFb(data)
-      setFbForm({ open: false, page_id: '', token: '', saving: false })
-    } catch (e) {
-      alert('Connect failed: ' + (e.message || e))
-      setFbForm((f) => ({ ...f, saving: false }))
-    }
+      setFb(data); setFbForm({ open: false, page_id: '', token: '', saving: false })
+    } catch (e) { alert('Connect failed: ' + (e.message || e)); setFbForm((f) => ({ ...f, saving: false })) }
   }
 
   async function disconnectFb() {
     if (!confirm('Disconnect this Facebook page?')) return
-    await supabase.functions.invoke('facebook-connection', { body: { action: 'disconnect' } })
+    await supabase.functions.invoke('facebook-connection', { body: { action: 'disconnect', org_id: orgId } })
     setFb({ connected: false })
   }
 
@@ -155,13 +147,11 @@ export default function MarketingQueue({ profile }) {
     if (!fb?.connected) { alert('Connect your Facebook page first (panel above).'); return }
     if (!confirm('Post this to your Facebook page now?')) return
     try {
-      const { data, error } = await supabase.functions.invoke('facebook-publish', { body: { item_id: item.id } })
+      const { data, error } = await supabase.functions.invoke('facebook-publish', { body: { item_id: item.id, org_id: orgId } })
       if (error) throw new Error(error.message || 'invoke failed')
       if (data?.error) throw new Error(data.error)
       await loadItems(campaign.id)
-    } catch (e) {
-      alert('Post failed: ' + (e.message || e))
-    }
+    } catch (e) { alert('Post failed: ' + (e.message || e)) }
   }
 
   async function setStatus(item, status) {
@@ -174,8 +164,24 @@ export default function MarketingQueue({ profile }) {
 
   const chanFor = (id) => channels.find((c) => c.id === id)
 
+  const OrgPicker = isSuper ? (
+    <div className="card mb16">
+      <div className="card-head">
+        <h3>Marketing as</h3>
+        <div className="spacer" />
+        <select value={selOrg} onChange={(e) => changeOrg(e.target.value)} style={{ padding: '8px 11px', border: '1px solid #cdd7e1', borderRadius: 8, fontSize: 14, minWidth: 220 }}>
+          {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+        </select>
+      </div>
+    </div>
+  ) : null
+
+  if (!orgId) {
+    return <div className="mkt"><div className="view-head"><h2>Approval queue</h2></div>{OrgPicker}<p className="muted">Choose an organization to market.</p></div>
+  }
+
   if (items === null) {
-    return <div className="mkt"><div className="view-head"><h2>Approval queue</h2></div><p className="muted">Loading…</p></div>
+    return <div className="mkt"><div className="view-head"><h2>Approval queue</h2></div>{OrgPicker}<p className="muted">Loading…</p></div>
   }
 
   return (
@@ -185,13 +191,13 @@ export default function MarketingQueue({ profile }) {
         <p>Claude plans and drafts; you approve. Nothing publishes — and nothing spends — without a human yes.</p>
       </div>
 
+      {OrgPicker}
+
       <div className="card mb16">
         <div className="card-head">
           <h3>Facebook connection</h3>
           <div className="spacer" />
-          {fb?.connected
-            ? <span className="post-status posted">Connected: {fb.page_name}</span>
-            : <span className="post-status pending_review">Not connected</span>}
+          {fb?.connected ? <span className="post-status posted">Connected: {fb.page_name}</span> : <span className="post-status pending_review">Not connected</span>}
         </div>
         <div className="card-body">
           {fb?.connected ? (
@@ -202,17 +208,15 @@ export default function MarketingQueue({ profile }) {
           ) : !fbForm.open ? (
             <div>
               <div className="note" style={{ marginBottom: 12 }}><span className="i">i</span>
-                <span>Connect your Facebook Page once so Command Center can post to it. You will paste your Page ID and a Page Access Token from your Meta app.</span></div>
+                <span>Connect this org’s Facebook Page once so Command Center can post to it. You’ll paste the Page ID and a Page Access Token from your Meta app.</span></div>
               <button className="btn approve" onClick={() => setFbForm((f) => ({ ...f, open: true }))}>Connect Facebook page</button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 620 }}>
               <label className="muted" style={{ fontSize: 13 }}>Facebook Page ID
-                <input value={fbForm.page_id} onChange={(e) => setFbForm((f) => ({ ...f, page_id: e.target.value }))}
-                  placeholder="e.g. 123456789012345" style={inp} /></label>
+                <input value={fbForm.page_id} onChange={(e) => setFbForm((f) => ({ ...f, page_id: e.target.value }))} placeholder="e.g. 123456789012345" style={inp} /></label>
               <label className="muted" style={{ fontSize: 13 }}>Page Access Token
-                <input value={fbForm.token} onChange={(e) => setFbForm((f) => ({ ...f, token: e.target.value }))}
-                  placeholder="long-lived page access token" style={inp} /></label>
+                <input value={fbForm.token} onChange={(e) => setFbForm((f) => ({ ...f, token: e.target.value }))} placeholder="long-lived page access token" style={inp} /></label>
               <div className="post-actions">
                 <button className="btn approve" disabled={fbForm.saving} onClick={saveFb}>{fbForm.saving ? 'Connecting…' : 'Save & connect'}</button>
                 <button className="btn" onClick={() => setFbForm({ open: false, page_id: '', token: '', saving: false })}>Cancel</button>
@@ -234,7 +238,7 @@ export default function MarketingQueue({ profile }) {
       <div className="card mb16">
         <div className="card-head">
           <h3>Campaign · {campaign?.name || '—'}</h3>
-          <span className="sub">{campaign?.goal}</span>
+          <span className="sub">{orgName}</span>
           <div className="spacer" />
           <button className="btn" disabled={jobBusy} onClick={generateFromJob} style={{ marginRight: 8 }}>{jobBusy ? 'Reading photos…' : '📷 Post from a completed job'}</button>
           <button className="btn approve" disabled={busy} onClick={generate}>{busy ? 'Writing…' : '✨ Generate drafts with Claude'}</button>
@@ -242,7 +246,7 @@ export default function MarketingQueue({ profile }) {
         <div className="card-body">
           <div className="note" style={{ marginBottom: 14 }}>
             <span className="i">i</span>
-            <span>Drafts are written live by Claude, on-brand for your HVAC business and service area, then saved here as pending review. “Post from a completed job” turns your latest job photos into a post. Approve to schedule — nothing posts without your yes.</span>
+            <span>Drafts are written live by Claude, on-brand for {orgName || 'your business'}. “Post from a completed job” turns real job photos into a post. Approve to schedule — nothing posts without your yes.</span>
           </div>
 
           {items.length === 0 && <p className="muted">No drafts yet. Generate with Claude, or turn a completed job’s photos into a post.</p>}
@@ -252,18 +256,14 @@ export default function MarketingQueue({ profile }) {
             return (
               <div className="post-card" key={it.id}>
                 <div className="post-top">
-                  <span className="glyph" style={{ background: GLYPH[ch?.channel_type] || '#5a6b80', width: 24, height: 24 }}>
-                    {(ch?.name || 'Ch').slice(0, 2)}
-                  </span>
+                  <span className="glyph" style={{ background: GLYPH[ch?.channel_type] || '#5a6b80', width: 24, height: 24 }}>{(ch?.name || 'Ch').slice(0, 2)}</span>
                   <span className="cname">{ch?.name || 'Unassigned channel'}</span>
                   {it.ai_generated && <span className="when">· Claude draft</span>}
                   <div className="spacer" />
                   <span className={`post-status ${it.status}`}>{STATUS_LABEL[it.status] || it.status}</span>
                 </div>
                 <div className="post-body">
-                  {it.image_path && imgUrls[it.id] && (
-                    <img src={imgUrls[it.id]} alt="job" style={{ width: '100%', maxWidth: 380, borderRadius: 10, marginBottom: 10, display: 'block' }} />
-                  )}
+                  {it.image_path && imgUrls[it.id] && (<img src={imgUrls[it.id]} alt="job" style={{ width: '100%', maxWidth: 380, borderRadius: 10, marginBottom: 10, display: 'block' }} />)}
                   <div className="text">{it.body}</div>
                   {it.media_note && !it.image_path && <div className="media">🖼 {it.media_note}</div>}
                 </div>
