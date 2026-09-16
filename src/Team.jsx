@@ -283,7 +283,16 @@ export default function Team({ profile }) {
 
   async function saveEdit(member) {
     setError('')
-    const newRole = editDept === 'Admin' ? 'org_admin' : member.role
+    // Derive the legacy role from the chosen department, matching the invite flow (handleAdd).
+    // Guards: never downgrade a super_admin; if no department is selected, leave the role unchanged
+    // so nobody is accidentally demoted.
+    const newRole = member.role === 'super_admin'
+      ? 'super_admin'
+      : editDept === 'Admin'
+        ? 'org_admin'
+        : editDept
+          ? 'tech'
+          : member.role
     const grantSup = inheritedKeys(editTags).has('view_all_jobs')
     await supabase
       .from('users')
