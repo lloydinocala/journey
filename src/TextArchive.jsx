@@ -51,7 +51,7 @@ export default function TextArchive({ profile }) {
     setLoading(true)
     const { data } = await supabase
       .from('job_texts')
-      .select('id, body, direction, created_at, archived_at, flagged_at, job_id, jobs ( job_number, segment, customers ( display_name ), job_technicians ( users ( full_name ) ) )')
+      .select('id, body, direction, created_at, archived_at, flagged_at, job_id, jobs ( job_number, segment, deleted_at, customers ( display_name ), job_technicians ( users ( full_name ) ) )')
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
     setRows(data || [])
@@ -86,6 +86,7 @@ export default function TextArchive({ profile }) {
           lastAt: r.created_at,
           archived: !!r.archived_at,
           important: !!r.flagged_at,
+          jobDeleted: !!r.jobs?.deleted_at,
         })
       }
       const t = map.get(r.job_id)
@@ -183,7 +184,11 @@ export default function TextArchive({ profile }) {
                   <div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: '#101418' }}>{current.customer}</div>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>
-                      <Link to={`/jobs?job=${current.jobId}`} style={{ color: BLUE, textDecoration: 'none' }} title="Open this job">Job {current.jobNumber}{current.segment > 1 ? `-${current.segment}` : ''}</Link>
+                      {current.jobDeleted ? (
+                        <span style={{ color: 'var(--mist)' }} title="This job was deleted — the thread is kept for the record">Job {current.jobNumber}{current.segment > 1 ? `-${current.segment}` : ''} (deleted)</span>
+                      ) : (
+                        <Link to={`/jobs?job=${current.jobId}`} style={{ color: BLUE, textDecoration: 'none' }} title="Open this job">Job {current.jobNumber}{current.segment > 1 ? `-${current.segment}` : ''}</Link>
+                      )}
                       <span style={{ color: BLUE }}> · {current.messages.length} messages{current.archived ? ' · archived' : ' · active'}</span>
                     </div>
                     {current.techs.length > 0 && <div style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 2 }}>Tech: {current.techs.join(', ')}</div>}
