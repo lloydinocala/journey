@@ -47,12 +47,13 @@ async function forceUpdate() {
 async function checkVersion() {
   if (!BUILD_ID || __updating) return
   try {
-    const res = await fetch('/index.html?_v=' + Date.now(), { cache: 'no-store' })
+    // Fetch version.json, which is deliberately NOT precached, so the service
+    // worker can't hand us a stale build number (the old index.html check could
+    // read the SW's own cached copy and never notice a new deploy).
+    const res = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
     if (!res.ok) return
-    const html = await res.text()
-    const mm = html.match(/name="build-id" content="(\d+)"/)
-    const deployed = mm ? mm[1] : null
-    if (deployed && deployed !== BUILD_ID) forceUpdate()
+    const { build: deployed } = await res.json()
+    if (deployed && String(deployed) !== String(BUILD_ID)) forceUpdate()
   } catch (e) { /* offline / ignore */ }
 }
 window.addEventListener('focus', checkVersion)

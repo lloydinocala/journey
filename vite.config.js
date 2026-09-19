@@ -9,6 +9,10 @@ export default defineConfig({
   plugins: [
     react(),
     { name: 'inject-build-id', transformIndexHtml() { return [{ tag: 'meta', attrs: { name: 'build-id', content: BUILD_ID }, injectTo: 'head' }] } },
+    // Emit /version.json (NOT matched by the precache globPatterns below, so the
+    // service worker never caches it). The app fetches this to detect a new
+    // deploy reliably — reading index.html could return the SW's own stale copy.
+    { name: 'emit-version-json', generateBundle() { this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID }) }) } },
     VitePWA({
       registerType: 'autoUpdate',   // new worker activates immediately (skipWaiting + clientsClaim)
       injectRegister: false,        // we register + auto-reload in main.jsx
