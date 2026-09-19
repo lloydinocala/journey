@@ -12,7 +12,8 @@ async function geocodeAddress(address) {
   return null
 }
 
-const WLABEL = { '8_11': '8\u201311 AM', '10_1': '10 AM\u20131 PM', '12_3': '12\u20133 PM', '2_5': '2\u20135 PM', 'asap': 'ASAP' }
+const WLABEL = { '8_11': '8–11 AM', '10_1': '10 AM–1 PM', '12_3': '12–3 PM', '2_5': '2–5 PM', 'asap': 'ASAP' }
+const NO_TERR = '#94A3B8'
 
 const jobColor = (j) =>
   j.date_pending ? '#DC2626'
@@ -23,6 +24,13 @@ const jobColor = (j) =>
 function todayLocal() {
   const d = new Date(); const tz = d.getTimezoneOffset() * 60000
   return new Date(d - tz).toISOString().slice(0, 10)
+}
+// meters between two lat/lng (haversine) — only used for nearest-tech comparison
+function distM(aLat, aLng, bLat, bLng) {
+  const R = 6371000, toR = Math.PI / 180
+  const dLat = (bLat - aLat) * toR, dLng = (bLng - aLng) * toR
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(aLat * toR) * Math.cos(bLat * toR) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(s))
 }
 
 export default function DispatchMap({ profile }) {
@@ -41,6 +49,19 @@ export default function DispatchMap({ profile }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const layerRef = useRef(null)
+
+  // Territory state
+  const [territories, setTerritories] = useState([])
+  const [users, setUsers] = useState([])
+  const [colorBy, setColorBy] = useState('tech')     // 'tech' | 'territory'
+  const [showZones, setShowZones] = useState(true)
+  const [manageOpen, setManageOpen] = useState(false)
+  const [tEditId, setTEditId] = useState(null)
+  const [tName, setTName] = useState('')
+  const [tColor, setTColor] = useState('#2F5DE3')
+  const [tZips, setTZips] = useState('')
+  const [tTechs, setTTechs] = useState([])
+  const [tSaving, setTSaving] = useState(false)
 
   useEffect(() => {
     if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
@@ -62,6 +83,18 @@ export default function DispatchMap({ profile }) {
     tryInit()
   }, [])
 
+  // Territories + users for this org.
+  useEffect(() => {
+    if (!selectedOrg) return
+    supabase.from('dispatch_territories').select('*').eq('org_id', selectedOrg).eq('is_active', true).order('name').then(({ data }) => setTerritories(data || []))
+    supabase.from('users').select('id, full_name, calendar_color').eq('org_id', selectedOrg).eq('is_active', true).order('full_name').then(({ data }) => setUsers(data || []))
+  }, [selectedOrg])
+
+  async function loadTerritories() {
+    const { data } = await supabase.from('dispatch_territories').select('*').eq('org_id', selectedOrg).eq('is_active', true).order('name')
+    setTerritories(data || [])
+  }
+
   async function load() {
     if (!selectedOrg) return
     setLoading(true); setNote('')
@@ -75,13 +108,14 @@ export default function DispatchMap({ profile }) {
         customer_name: j.properties?.customers?.display_name || 'Customer',
         address: [j.properties?.street_address, j.properties?.city].filter(Boolean).join(', '),
         fullAddress: [j.properties?.street_address, j.properties?.unit, j.properties?.city, j.properties?.state, j.properties?.zip].filter(Boolean).join(' '),
+        zip: (j.properties?.zip || '').toString().slice(0, 5),
         lat: j.properties?.latitude, lng: j.properties?.longitude,
         tech_name: t.length ? t.map((x) => x.users?.full_name).join(', ') : 'Unassigned',
+        assigned: t.length > 0,
         color: t[0]?.users?.calendar_color || null,
         time: j.start_time ? new Date(j.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '',
       }
     })
-    // Geocode + cache any property without coordinates.
     for (const j of rows) {
       if ((j.lat == null || j.lng == null) && j.fullAddress) {
         const g = await geocodeAddress(j.fullAddress)
@@ -95,7 +129,6 @@ export default function DispatchMap({ profile }) {
       .eq('org_id', selectedOrg).gte('updated_at', cutoff)
     setTechs((tl || []).filter((t) => t.latitude != null))
 
-    // Unscheduled / needs-dispatch bookings — ANY date (mirrors the Needs Dispatch tray)
     const { data: pend } = await supabase.from('jobs')
       .select('id, job_date, requested_window, job_type, self_booked, property_id, properties(id, street_address, unit, city, state, zip, latitude, longitude, customers!properties_customer_id_fkey(display_name))')
       .eq('org_id', selectedOrg).eq('date_pending', true).is('deleted_at', null).neq('status', 'cancelled')
@@ -104,7 +137,8 @@ export default function DispatchMap({ profile }) {
       customer_name: j.properties?.customers?.display_name || 'Customer',
       address: [j.properties?.street_address, j.properties?.city].filter(Boolean).join(', '),
       fullAddress: [j.properties?.street_address, j.properties?.unit, j.properties?.city, j.properties?.state, j.properties?.zip].filter(Boolean).join(' '),
-      lat: j.properties?.latitude, lng: j.properties?.longitude,
+      zip: (j.properties?.zip || '').toString().slice(0, 5),
+      lat: j.properties?.latitude, lng: j.properties?.longitude, assigned: false,
     }))
     for (const j of prows) {
       if ((j.lat == null || j.lng == null) && j.fullAddress) {
@@ -121,23 +155,59 @@ export default function DispatchMap({ profile }) {
 
   useEffect(() => { load() }, [selectedOrg, date])
 
-  // Draw markers whenever data or the map changes. Coincident markers (e.g. two
-  // jobs next door that geocode to the same point) are fanned out in a tiny circle
-  // so each stays visible and clickable; the map still fits to true locations.
+  const userName = (id) => users.find((u) => u.id === id)?.full_name || 'tech'
+  const terrForZip = (zip) => zip ? territories.find((t) => (t.zips || []).includes(zip)) : null
+  // Suggested tech for an unassigned job: the job's territory tech; if the
+  // territory has several, the closest one that has a live location.
+  function suggestTech(job) {
+    const t = terrForZip(job.zip)
+    const ids = t?.tech_user_ids || []
+    if (!ids.length) return null
+    if (ids.length === 1) return userName(ids[0])
+    if (job.lat != null) {
+      let best = null, bd = Infinity
+      ids.forEach((id) => {
+        const loc = techs.find((x) => x.user_id === id)
+        if (loc && loc.latitude != null) { const d = distM(job.lat, job.lng, loc.latitude, loc.longitude); if (d < bd) { bd = d; best = id } }
+      })
+      if (best) return `${userName(best)} (closest of ${ids.length})`
+    }
+    return `${userName(ids[0])} (+${ids.length - 1})`
+  }
+
+  // Draw zones + markers whenever data/toggles change.
   useEffect(() => {
     const map = mapRef.current, layer = layerRef.current
     if (!map || !layer || !window.L) return
     layer.clearLayers()
 
+    // Territory zones (drawn first, under the markers) — a translucent circle
+    // covering each territory's plotted jobs today.
+    if (showZones) {
+      const allPts = [...jobs, ...(showUnscheduled ? pending : [])].filter((x) => x.lat != null)
+      for (const t of territories) {
+        const pts = allPts.filter((x) => terrForZip(x.zip)?.id === t.id)
+        if (!pts.length) continue
+        const cLat = pts.reduce((s, p) => s + p.lat, 0) / pts.length
+        const cLng = pts.reduce((s, p) => s + p.lng, 0) / pts.length
+        let r = 800
+        pts.forEach((p) => { r = Math.max(r, distM(cLat, cLng, p.lat, p.lng) + 500) })
+        window.L.circle([cLat, cLng], { radius: r, color: t.color, weight: 1.5, opacity: 0.55, fillColor: t.color, fillOpacity: 0.10 })
+          .addTo(layer).bindTooltip(t.name, { permanent: false, direction: 'top' })
+      }
+    }
+
     const items = []
     for (const j of jobs) {
       if (j.date_pending) continue
       if (j.lat == null || j.lng == null) continue
-      const color = jobColor(j)
+      const terr = terrForZip(j.zip)
+      const color = colorBy === 'territory' ? (terr?.color || NO_TERR) : jobColor(j)
+      const sugg = !j.assigned ? suggestTech(j) : null
       items.push({
-        lat: j.lat, lng: j.lng, iconSize: [20, 20], iconAnchor: [10, 10],
-        html: `<div style="background:${color};width:18px;height:18px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)"></div>`,
-        popup: `<strong>${j.customer_name}</strong><br>${j.time ? j.time + ' &middot; ' : ''}${j.job_type || ''}<br>${j.address || ''}<br>Tech: ${j.tech_name}<br><em>${j.status || ''}</em>`,
+        lat: j.lat, lng: j.lng, iconSize: [22, 22], iconAnchor: [11, 11],
+        html: `<div style="background:${color};width:20px;height:20px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)"></div>`,
+        popup: `<strong>${j.customer_name}</strong><br>${j.time ? j.time + ' &middot; ' : ''}${j.job_type || ''}<br>${j.address || ''}<br>Tech: ${j.tech_name}${sugg ? `<br><b>Suggested:</b> ${sugg}` : ''}${terr ? `<br><span style="color:${terr.color}">●</span> ${terr.name}` : ''}<br><em>${j.status || ''}</em>`,
       })
     }
     if (showUnscheduled) {
@@ -145,10 +215,12 @@ export default function DispatchMap({ profile }) {
         if (p.lat == null || p.lng == null) continue
         const when = p.job_date ? new Date(p.job_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : ''
         const win = WLABEL[p.requested_window] || ''
+        const terr = terrForZip(p.zip)
+        const sugg = suggestTech(p)
         items.push({
           lat: p.lat, lng: p.lng, iconSize: [22, 22], iconAnchor: [11, 11],
           html: `<div style="background:#DC2626;width:16px;height:16px;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.55);transform:rotate(45deg)"></div>`,
-          popup: `<strong>\u23F3 ${p.customer_name}</strong><br>Needs dispatch${p.self_booked ? ' (portal booking)' : ''}<br>${win}${win && when ? ' &middot; ' : ''}${when}<br>${p.job_type || ''}<br>${p.address || ''}`,
+          popup: `<strong>⏳ ${p.customer_name}</strong><br>Needs dispatch${p.self_booked ? ' (portal booking)' : ''}<br>${win}${win && when ? ' &middot; ' : ''}${when}<br>${p.job_type || ''}<br>${p.address || ''}${sugg ? `<br><b>Suggested:</b> ${sugg}` : ''}${terr ? `<br><span style="color:${terr.color}">●</span> ${terr.name}` : ''}`,
         })
       }
     }
@@ -163,13 +235,12 @@ export default function DispatchMap({ profile }) {
       })
     }
 
-    // Fan out markers that share (nearly) the same coordinate.
     const groups = {}
     for (const m of items) {
       const key = `${m.lat.toFixed(5)},${m.lng.toFixed(5)}`
       ;(groups[key] || (groups[key] = [])).push(m)
     }
-    const R = 0.00011 // ~12 m
+    const R = 0.00011
     for (const key in groups) {
       const g = groups[key]
       if (g.length < 2) continue
@@ -187,23 +258,106 @@ export default function DispatchMap({ profile }) {
       pts.push([m.lat, m.lng])
     }
     if (pts.length) { try { map.fitBounds(pts, { padding: [40, 40], maxZoom: 14 }) } catch { /* single/empty */ } }
-  }, [jobs, techs, pending, showUnscheduled, mapReady])
+  }, [jobs, techs, pending, showUnscheduled, mapReady, territories, colorBy, showZones])
+
+  // ---- territory manager ----
+  function newTerr() { setTEditId(null); setTName(''); setTColor('#2F5DE3'); setTZips(''); setTTechs([]) }
+  function editTerr(t) { setTEditId(t.id); setTName(t.name || ''); setTColor(t.color || '#2F5DE3'); setTZips((t.zips || []).join(', ')); setTTechs(t.tech_user_ids || []); setManageOpen(true) }
+  function toggleTech(id) { setTTechs((cur) => cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]) }
+  async function saveTerr() {
+    if (!tName.trim() || !selectedOrg) return
+    const zips = [...new Set(tZips.split(/[\s,]+/).map((s) => s.trim()).filter((s) => /^\d{5}$/.test(s)))]
+    setTSaving(true)
+    const payload = { name: tName.trim(), color: tColor, zips, tech_user_ids: tTechs }
+    let err
+    if (tEditId) ({ error: err } = await supabase.from('dispatch_territories').update(payload).eq('id', tEditId))
+    else ({ error: err } = await supabase.from('dispatch_territories').insert({ ...payload, org_id: selectedOrg, created_by: profile.id }))
+    setTSaving(false)
+    if (!err) { newTerr(); loadTerritories() }
+  }
+  async function deleteTerr(id) {
+    if (!window.confirm('Delete this territory?')) return
+    await supabase.from('dispatch_territories').update({ is_active: false }).eq('id', id)
+    if (tEditId === id) newTerr()
+    loadTerritories()
+  }
+
+  const seg = (active) => ({ border: 'none', cursor: 'pointer', padding: '7px 12px', fontSize: 13, fontWeight: active ? 700 : 500, background: active ? '#176E7A' : 'transparent', color: active ? '#fff' : 'var(--mist)' })
 
   return (
     <div>
-      <div className="page-header-bar"><h2>Dispatch Map</h2></div>
+      <div className="page-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <h2 style={{ margin: 0 }}>Dispatch Map</h2>
+        <button onClick={() => setManageOpen((o) => !o)} disabled={!selectedOrg} style={{ border: '1px solid var(--border)', background: manageOpen ? '#EAF3F4' : '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#176E7A' }}>Manage territories</button>
+      </div>
       {isSuper && (
         <div style={{ marginBottom: 12, maxWidth: 360 }}>
           <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
           <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
         </div>
       )}
+
+      {manageOpen && (
+        <div className="section-card" style={{ padding: 16, marginBottom: 14, border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 300px' }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>Territories</div>
+              {territories.length === 0 && <p style={{ color: 'var(--mist)', fontSize: 13, margin: '0 0 8px' }}>No territories yet. Add one on the right — a name, a color, the ZIP codes it covers, and the tech(s) who own it.</p>}
+              {territories.map((t) => (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                  <span style={{ width: 14, height: 14, borderRadius: 4, background: t.color, flex: '0 0 auto' }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--mist)' }}>{(t.zips || []).length} ZIP{(t.zips || []).length === 1 ? '' : 's'} · {(t.tech_user_ids || []).map(userName).join(', ') || 'no tech'}</div>
+                  </div>
+                  <button onClick={() => editTerr(t)} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12.5, cursor: 'pointer' }}>Edit</button>
+                  <button onClick={() => deleteTerr(t.id)} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12.5, cursor: 'pointer', color: '#B5462F' }}>Delete</button>
+                </div>
+              ))}
+            </div>
+            <div style={{ flex: '1 1 300px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontWeight: 800, marginBottom: 8 }}>{tEditId ? 'Edit territory' : 'New territory'}</div>
+                {tEditId && <button onClick={newTerr} style={{ border: 'none', background: 'none', color: '#176E7A', fontSize: 12.5, cursor: 'pointer' }}>+ New</button>}
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                <label style={{ flex: 1 }}><span style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 4 }}>Name</span>
+                  <input value={tName} onChange={(e) => setTName(e.target.value)} placeholder="e.g. Northwest / The Villages" style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, boxSizing: 'border-box' }} /></label>
+                <label><span style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 4 }}>Color</span>
+                  <input type="color" value={tColor} onChange={(e) => setTColor(e.target.value)} style={{ width: 44, height: 38, border: '1px solid var(--border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }} /></label>
+              </div>
+              <label style={{ display: 'block', marginBottom: 10 }}><span style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 4 }}>ZIP codes (comma or space separated)</span>
+                <textarea value={tZips} onChange={(e) => setTZips(e.target.value)} rows={2} placeholder="34470, 34471, 34482" style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, boxSizing: 'border-box', resize: 'vertical' }} /></label>
+              <div style={{ marginBottom: 12 }}>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 4 }}>Assigned tech(s)</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {users.map((u) => (
+                    <button key={u.id} type="button" onClick={() => toggleTech(u.id)} style={{ border: '1px solid var(--border)', borderRadius: 20, padding: '5px 12px', fontSize: 12.5, cursor: 'pointer', background: tTechs.includes(u.id) ? '#176E7A' : '#fff', color: tTechs.includes(u.id) ? '#fff' : 'var(--ink)' }}>{u.full_name}</button>
+                  ))}
+                  {users.length === 0 && <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>No active users.</span>}
+                </div>
+              </div>
+              <button className="auth-button" disabled={tSaving || !tName.trim()} onClick={saveTerr} style={{ width: 'auto', margin: 0, padding: '9px 20px' }}>{tSaving ? 'Saving…' : tEditId ? 'Save territory' : 'Add territory'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
         <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>Date
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
         <button className="logout-button" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
         <button className="logout-button" onClick={() => nav('/calendar?date=' + date)} title="Back to the calendar for this date">📅 Calendar</button>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--mist)' }}>Color by:
+          <span style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+            <button onClick={() => setColorBy('tech')} style={seg(colorBy === 'tech')}>Tech</button>
+            <button onClick={() => setColorBy('territory')} style={seg(colorBy === 'territory')}>Territory</button>
+          </span>
+        </span>
+        <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={showZones} onChange={(e) => setShowZones(e.target.checked)} /> Territory zones
+        </label>
         <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
           <input type="checkbox" checked={showUnscheduled} onChange={(e) => setShowUnscheduled(e.target.checked)} />
           Unscheduled bookings{pending.length ? ` (${pending.length})` : ''}
@@ -215,10 +369,17 @@ export default function DispatchMap({ profile }) {
       <div style={{ display: 'flex', gap: 18, marginTop: 10, flexWrap: 'wrap', fontSize: 12.5, color: 'var(--mist)' }}>
         <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#DC2626', border: '2px solid #fff', verticalAlign: 'middle', marginRight: 5 }} />Unassigned / needs attention</span>
         <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#9CA3AF', border: '2px solid #fff', verticalAlign: 'middle', marginRight: 5 }} />Completed</span>
-        <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#2F5DE3', border: '2px solid #fff', verticalAlign: 'middle', marginRight: 5 }} />Assigned (tech color)</span>
+        <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#2F5DE3', border: '2px solid #fff', verticalAlign: 'middle', marginRight: 5 }} />{colorBy === 'territory' ? 'Colored by territory' : 'Assigned (tech color)'}</span>
         <span><span style={{ display: 'inline-block', width: 11, height: 11, background: '#DC2626', border: '2px solid #fff', transform: 'rotate(45deg)', verticalAlign: 'middle', marginRight: 6 }} />Unscheduled booking (any date)</span>
         <span><span style={{ display: 'inline-block', width: 12, height: 12, background: '#1f7a43', border: '2px solid #fff', transform: 'rotate(-45deg)', borderRadius: '50% 50% 50% 0', verticalAlign: 'middle', marginRight: 6 }} />Technician</span>
       </div>
+      {territories.length > 0 && (
+        <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap', fontSize: 12.5, color: 'var(--mist)' }}>
+          {territories.map((t) => (
+            <span key={t.id}><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 3, background: t.color, verticalAlign: 'middle', marginRight: 5 }} />{t.name}{(t.tech_user_ids || []).length ? ` — ${(t.tech_user_ids || []).map(userName).join(', ')}` : ''}</span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

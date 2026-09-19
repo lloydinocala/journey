@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 
@@ -63,6 +63,9 @@ export default function OnCallSchedule({ profile }) {
 
   const [view, setView] = useState('calendar')      // 'calendar' | 'map'
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d })
+  const [paper, setPaper] = useState('letter')       // 'letter' | 'legal'
+  const [fitOne, setFitOne] = useState(true)
+  const printRef = useRef(null)
 
   const [supId, setSupId] = useState('')
   const [techId, setTechId] = useState('')
@@ -164,6 +167,35 @@ export default function OnCallSchedule({ profile }) {
     const thisStart = new Date(periods[i].period_start).getTime()
     if (thisStart > prevEnd) issues.push({ kind: 'gap', at: periods[i].period_start, prev: periods[i - 1].period_end })
     else if (thisStart < prevEnd) issues.push({ kind: 'overlap', at: periods[i].period_start, prev: periods[i - 1].period_end })
+  }
+
+  // Print: set the paper/orientation and (optionally) scale the calendar so
+  // every row lands on a single page — no half-row spilling onto page 2.
+  function doPrint() {
+    const el = printRef.current
+    if (!el) { window.print(); return }
+    const MARGIN = 0.4 // inches
+    const DPI = 96
+    const dims = paper === 'legal' ? { w: 14, h: 8.5 } : { w: 11, h: 8.5 } // landscape
+    const pageW = (dims.w - 2 * MARGIN) * DPI
+    const pageH = (dims.h - 2 * MARGIN) * DPI
+
+    // reset any prior transform, measure natural size
+    el.style.transform = ''
+    el.parentElement.style.height = ''
+    const rect = el.getBoundingClientRect()
+    const scale = fitOne ? Math.min(1, pageW / rect.width, pageH / rect.height) : 1
+    el.style.transformOrigin = 'top left'
+    el.style.transform = `scale(${scale})`
+    el.parentElement.style.height = (rect.height * scale) + 'px'
+
+    let style = document.getElementById('oc-page-style')
+    if (!style) { style = document.createElement('style'); style.id = 'oc-page-style'; document.head.appendChild(style) }
+    style.textContent = `@page { size: ${paper} landscape; margin: ${MARGIN}in; }`
+
+    const cleanup = () => { el.style.transform = ''; el.parentElement.style.height = ''; window.removeEventListener('afterprint', cleanup) }
+    window.addEventListener('afterprint', cleanup)
+    window.print()
   }
 
   const colorFor = (i, role) => PALETTE[((i * 2) + (role === 'tech' ? 1 : 0)) % PALETTE.length]
@@ -271,7 +303,21 @@ export default function OnCallSchedule({ profile }) {
                 <button type="button" onClick={() => shiftMonth(1)} style={navBtn}>›</button>
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, flex: 1 }}>{monthTitle}</div>
-              <button type="button" onClick={() => window.print()} disabled={view !== 'calendar'} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: view === 'calendar' ? 'pointer' : 'not-allowed' }}>Print Calendar</button>
+              {view === 'calendar' && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: 'var(--mist)' }}>
+                    Paper:
+                    <select value={paper} onChange={(e) => setPaper(e.target.value)} style={{ padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 6 }}>
+                      <option value="letter">Letter</option>
+                      <option value="legal">Legal</option>
+                    </select>
+                  </label>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: 'var(--mist)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={fitOne} onChange={(e) => setFitOne(e.target.checked)} /> Fit all rows on one page
+                  </label>
+                  <button type="button" onClick={doPrint} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Print Calendar</button>
+                </div>
+              )}
               <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                 <button type="button" onClick={() => setView('calendar')} title="Calendar view" style={viewBtn(view === 'calendar')}>🗓</button>
                 <button type="button" onClick={() => setView('map')} title="Map view" style={viewBtn(view === 'map')}>📍</button>
@@ -298,6 +344,7 @@ export default function OnCallSchedule({ profile }) {
               </div>
             ) : (
               <div className="oncall-print-area">
+               <div ref={printRef}>
                 <div className="oncall-print-title" style={{ display: 'none' }}>On-Call Schedule — {monthTitle}</div>
                 {/* weekday header */}
                 <div style={{ ...gridCols, border: '1px solid var(--line-strong)', borderBottom: 'none', borderRadius: '8px 8px 0 0', overflow: 'hidden' }}>
@@ -341,6 +388,7 @@ export default function OnCallSchedule({ profile }) {
                     )
                   })}
                 </div>
+               </div>
               </div>
             )}
           </div>
