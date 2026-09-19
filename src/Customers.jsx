@@ -16,7 +16,7 @@ function formatPhone(raw) {
 }
 
 const COLUMNS = [
-  { key: 'display_name', label: 'Name', required: true },
+  { key: 'display_name', label: 'Display Name', required: true },
   { key: 'company', label: 'Company' },
   { key: 'first_name', label: 'First Name' },
   { key: 'last_name', label: 'Last Name' },
@@ -41,8 +41,8 @@ export default function Customers({ profile }) {
   const [searchText, setSearchText] = useState('')
   const [newItemMode, setNewItemMode] = useState(null)
 
-  const [sortField, setSortField] = useState('created_at')
-  const [sortDirection, setSortDirection] = useState('desc')
+  const [sortField, setSortField] = useState('display_name')
+  const [sortDirection, setSortDirection] = useState('asc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('customers_visible_columns_v2')
@@ -208,8 +208,10 @@ export default function Customers({ profile }) {
   })
 
   const sorted = [...filtered].sort((a, b) => {
-    let aVal = a[sortField] || ''
-    let bVal = b[sortField] || ''
+    let aVal = a[sortField] ?? ''
+    let bVal = b[sortField] ?? ''
+    if (typeof aVal === 'string') aVal = aVal.toLowerCase()
+    if (typeof bVal === 'string') bVal = bVal.toLowerCase()
     if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
     if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
     return 0
@@ -219,7 +221,7 @@ export default function Customers({ profile }) {
     exportToCSV(
       sorted,
       [
-        { key: 'display_name', label: 'Name' },
+        { key: 'display_name', label: 'Display Name' },
         { key: 'company', label: 'Company' },
         { key: 'first_name', label: 'First Name' },
         { key: 'last_name', label: 'Last Name' },
@@ -311,7 +313,7 @@ export default function Customers({ profile }) {
             <thead>
               <tr>
                 <th></th>
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('display_name')}>Name{sortArrow('display_name')}</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('display_name')}>Display Name{sortArrow('display_name')}</th>
                 {visibleColumns.includes('company') && (
                   <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('company')}>Company{sortArrow('company')}</th>
                 )}

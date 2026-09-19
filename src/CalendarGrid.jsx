@@ -13,7 +13,7 @@ function localTimeString(isoString, fallback) {
   return utcToZonedInputs(isoString).time || fallback
 }
 
-export default function CalendarGrid({ days, jobs, businessStart, businessEnd, onJobClick, onJobDrop }) {
+export default function CalendarGrid({ days, jobs, businessStart, businessEnd, onJobClick, onJobDrop, onShowMore }) {
   const [draggingId, setDraggingId] = useState(null)
   const totalHeight = getTotalGridHeight(businessStart, businessEnd)
   const hourMarkers = getHourMarkers(businessStart, businessEnd)
@@ -81,7 +81,14 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
     setDraggingId(null)
   }
 
-  // Lay overlapping jobs into side-by-side lanes (max 3) so none are hidden.
+  function minToTime(min) {
+    const h = Math.floor(min / 60), m = Math.round(min % 60)
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  }
+
+  // Lay overlapping jobs into side-by-side lanes. When more than 3 overlap in a
+  // cluster, show the two earliest and collapse the rest into a "+N more" chip
+  // (clicking it opens Day view, where they all lay out with room).
   function laneLayout(dayJobs) {
     const items = dayJobs
       .map((j) => {
@@ -91,6 +98,7 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
       })
       .sort((a, b) => a.start - b.start || a.end - b.end)
     const out = {}
+    const chips = []
     let cluster = [], clusterEnd = -1
     const flush = () => {
       const laneEnds = []
@@ -99,7 +107,21 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
         if (lane === -1) { lane = laneEnds.length; laneEnds.push(it.end) } else laneEnds[lane] = it.end
         out[it.id] = { lane }
       }
-      for (const it of cluster) out[it.id].lanes = laneEnds.length
+      const lanes = laneEnds.length
+      if (lanes > 3) {
+        const byStart = [...cluster].sort((a, b) => a.start - b.start || a.end - b.end)
+        const visibleIds = new Set(byStart.slice(0, 2).map((x) => x.id))
+        byStart.slice(0, 2).forEach((it, i) => { out[it.id] = { lane: i, lanes: 3 } })
+        let cs = Infinity, ce = -Infinity, count = 0
+        for (const it of cluster) {
+          if (visibleIds.has(it.id)) continue
+          out[it.id].hidden = true
+          cs = Math.min(cs, it.start); ce = Math.max(ce, it.end); count++
+        }
+        chips.push({ start: cs, end: ce, count })
+      } else {
+        for (const it of cluster) out[it.id].lanes = lanes
+      }
       cluster = []; clusterEnd = -1
     }
     for (const it of items) {
@@ -108,7 +130,7 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
       clusterEnd = Math.max(clusterEnd, it.end)
     }
     if (cluster.length) flush()
-    return out
+    return { out, chips }
   }
 
   function laneStyle(l) {
@@ -148,7 +170,7 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
 
           {days.map((day) => {
             const dayJobs = jobsForDay(day)
-            const layout = laneLayout(dayJobs)
+            const { out: layout, chips } = laneLayout(dayJobs)
             return (
             <div
               key={toLocalDateStr(day)}
@@ -172,7 +194,7 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
                   }}
                 />
               )}
-             {dayJobs.map((job) => (
+             {dayJobs.filter((job) => !layout[job.id]?.hidden).map((job) => (
                 <div
                   key={job.id}
                   className={`job-block${job.is_banned ? ' banned' : ''}${draggingId === job.id ? ' dragging' : ''}`}
@@ -195,6 +217,22 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
                   </div>
                 </div>
               ))}
+              {chips.map((c, ci) => {
+                const top = timeToPixelY(minToTime(c.start), businessStart, businessEnd)
+                const bottom = timeToPixelY(minToTime(c.end), businessStart, businessEnd)
+                const w = 100 / 3
+                return (
+                  <div
+                    key={'more-' + ci}
+                    className="job-block"
+                    style={{ top, height: Math.max(bottom - top, 16), left: `calc(${2 * w}% + 2px)`, width: `calc(${w}% - 4px)`, right: 'auto', backgroundColor: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                    onClick={() => onShowMore && onShowMore(day)}
+                    title={c.count + ' more in this slot — open Day view'}
+                  >
+                    <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', textAlign: 'center' }}>+{c.count} more</span>
+                  </div>
+                )
+              })}
             </div>
             )
           })}

@@ -6,6 +6,8 @@ import AnnouncementBanner from './AnnouncementBanner'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
 import HelpDrawer from './HelpDrawer'
+import OrgPicker from './OrgPicker'
+import { ViewOrgContext } from './utils/viewOrg'
 import { ELEMENTS_NAV, ELEMENTS_FLEET_NAV, TOOLS_NAV } from './modules/elements-hvac'
 import { REFRIGERANT_NAV } from './modules/refrigerant-hvac'
 import { SUPPLIES_NAV } from './modules/supplies-hvac'
@@ -212,6 +214,58 @@ function getCategoryForPath(pathname) {
   return null
 }
 
+// Page-name lookup for the global "Viewing Organization" header bar. Built from
+// the nav definitions so labels stay in one place, plus a few explicit entries.
+const TITLE_BY_PATH = (() => {
+  const m = {}
+  for (const c of CATEGORIES) for (const it of c.items) if (it.path && it.label) m[it.path] = it.label
+  for (const h of Object.values(HUBS)) {
+    if (h.path && h.label) m[h.path] = h.label
+    for (const st of h.stations) if (st.path && st.label) m[st.path] = st.label
+  }
+  m['/'] = 'Home'
+  m['/home'] = 'Home'
+  m['/dispatch-map'] = 'Dispatch Map'
+  m['/jobs-dash'] = 'Jobs & Customers'
+  return m
+})()
+
+function pageTitle(pathname) {
+  if (TITLE_BY_PATH[pathname]) return TITLE_BY_PATH[pathname]
+  let best = ''
+  for (const p of Object.keys(TITLE_BY_PATH)) {
+    if (p !== '/' && pathname.startsWith(p) && p.length > best.length) best = p
+  }
+  return best ? TITLE_BY_PATH[best] : ''
+}
+
+// One consistent header on every page: the viewing organization (a switcher for
+// super-admins, a static pill for org users) followed by the current page name.
+function ViewingOrgBar({ isSuperAdmin, orgs, viewOrgId, setViewOrgId, orgName, title }) {
+  return (
+    <div className="viewing-org-bar" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0 16px', flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--mist, #8A93A6)' }}>
+        Viewing Organization
+      </span>
+      {isSuperAdmin ? (
+        <div style={{ minWidth: 230 }}>
+          <OrgPicker orgs={orgs} value={viewOrgId} onChange={setViewOrgId} />
+        </div>
+      ) : (
+        <span style={{ display: 'inline-block', background: '#17A2C6', color: '#fff', fontWeight: 800, fontSize: 15, padding: '4px 14px', borderRadius: 7, letterSpacing: '0.01em' }}>
+          {orgName || '—'}
+        </span>
+      )}
+      {title && (
+        <>
+          <span style={{ color: 'var(--mist, #8A93A6)', fontWeight: 700, fontSize: 18 }}>/</span>
+          <span style={{ fontWeight: 800, fontSize: 19, letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--ink, #111826)' }}>{title}</span>
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function Layout({ profile }) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -254,6 +308,28 @@ export default function Layout({ profile }) {
   }
   const [expandedCategory, setExpandedCategory] = useState(resolveCat(location.pathname))
   const [panelCollapsed, setPanelCollapsed] = useState(false)
+
+  // Global "Viewing Organization" selection, shared with every page via context.
+  const [orgs, setOrgs] = useState([])
+  const [viewOrgId, _setViewOrgId] = useState(() => {
+    try { return localStorage.getItem('journey_viewing_org') || profile?.org_id || '' } catch { return profile?.org_id || '' }
+  })
+  const setViewOrgId = (id) => {
+    try { localStorage.setItem('journey_viewing_org', id) } catch { /* private mode */ }
+    _setViewOrgId(id)
+  }
+  useEffect(() => {
+    if (isSuperAdmin) {
+      supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
+        setOrgs(data || [])
+        _setViewOrgId((cur) => cur || (data && data[0] ? data[0].id : ''))
+      })
+    } else if (profile?.org_id) {
+      supabase.from('organizations').select('id, name').eq('id', profile.org_id).single().then(({ data }) => { if (data) setOrgs([data]) })
+      _setViewOrgId(profile.org_id)
+    }
+  }, [isSuperAdmin, profile?.org_id])
+  const viewOrgName = (orgs.find((o) => o.id === viewOrgId) || {}).name || ''
   const [logoutShiftId, setLogoutShiftId] = useState(null)  // open shift id when logging out
   const [loggingOut, setLoggingOut] = useState(false)
 
@@ -320,6 +396,7 @@ export default function Layout({ profile }) {
   const activeCategoryData = allCategories.find((c) => c.key === expandedCategory)
 
   return (
+    <ViewOrgContext.Provider value={{ viewOrgId, setViewOrgId, orgs, isSuperAdmin, orgName: viewOrgName }}>
     <div className="app-shell-v2">
       <ClockInPrompt profile={profile} />
       {logoutShiftId && (
@@ -445,10 +522,19 @@ export default function Layout({ profile }) {
         )}
 
         <div className="main-content-area">
+          <ViewingOrgBar
+            isSuperAdmin={isSuperAdmin}
+            orgs={orgs}
+            viewOrgId={viewOrgId}
+            setViewOrgId={setViewOrgId}
+            orgName={viewOrgName}
+            title={pageTitle(location.pathname)}
+          />
           <Outlet />
         </div>
         <HelpDrawer />
       </div>
     </div>
+    </ViewOrgContext.Provider>
   )
 }

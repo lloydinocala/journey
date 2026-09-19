@@ -487,6 +487,10 @@ export default function Properties({ profile }) {
       aVal = a[sortField] || ''
       bVal = b[sortField] || ''
     }
+    if (typeof aVal === 'string' && typeof bVal === 'string') {
+      const cmp = aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' })
+      return sortDirection === 'asc' ? cmp : -cmp
+    }
     if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
     if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
     return 0

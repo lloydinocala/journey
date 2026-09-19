@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
-import OrgPicker from './OrgPicker'
+import { useViewOrg } from './utils/viewOrg'
 
 const CAT_LABEL = { repair: 'Repair', tuneup: 'Tune-up', question: 'Question' }
 const URG_COLOR = { emergency: '#DC2626', soon: '#9a6a12', flexible: '#1b7a3d' }
 
 export default function ServiceRequests({ profile }) {
-  const isSuper = profile.role === 'super_admin'
-  const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  // Viewing organization comes from the global header bar (useViewOrg).
+  const { viewOrgId: selectedOrg } = useViewOrg()
   const [reqs, setReqs] = useState([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState(null)
@@ -16,8 +15,6 @@ export default function ServiceRequests({ profile }) {
   const [qsearch, setQsearch] = useState('')
   const [qresults, setQresults] = useState([])
   const [qr, setQr] = useState(null) // { url, address }
-
-  useEffect(() => { if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || [])) }, [isSuper])
 
   async function load() {
     if (!selectedOrg) return
@@ -64,13 +61,6 @@ export default function ServiceRequests({ profile }) {
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 680 }}>
         Requests from the QR service stickers (tenants & homeowners). Approve to create a job in the dispatch tray — billed to the property’s account holder.
       </p>
-
-      {isSuper && (
-        <div style={{ marginBottom: 16, maxWidth: 340 }}>
-          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
-          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
-        </div>
-      )}
 
       {loading ? <p style={{ color: 'var(--mist)' }}>Loading…</p>
         : reqs.length === 0 ? <div className="section-card" style={{ padding: 18 }}><p style={{ margin: 0 }}>No pending requests. 🎉</p></div>

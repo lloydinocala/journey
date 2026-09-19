@@ -1,8 +1,11 @@
 import { useEffect, useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
+import { useViewOrg } from './utils/viewOrg'
 
 const BLUE = '#215F9A'
+const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000
 
 function fmtDateTime(t) {
   const d = new Date(t)
@@ -12,6 +15,7 @@ function fmtDateTime(t) {
 // Office-side archive of the per-job text threads. Read-only, org-scoped (RLS).
 // Access limited to Reception/Dispatch (view_text_archive); Admin can delete.
 export default function TextArchive({ profile }) {
+  const { viewOrgId: selectedOrg } = useViewOrg()
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
@@ -21,13 +25,14 @@ export default function TextArchive({ profile }) {
   const canView = can(profile, 'view_text_archive')
   const canDelete = can(profile, 'delete_text_archive')
 
-  useEffect(() => { if (canView) load(); else setLoading(false) }, [])
+  useEffect(() => { if (canView && selectedOrg) load(); else setLoading(false) }, [selectedOrg]) // eslint-disable-line
 
   async function load() {
     setLoading(true)
     const { data } = await supabase
       .from('job_texts')
-      .select('id, body, direction, created_at, archived_at, flagged_at, job_id, jobs ( job_number, segment, customers ( display_name ), job_technicians ( users ( full_name ) ) )')
+      .select('id, body, direction, created_at, archived_at, flagged_at, job_id, jobs ( job_number, segment, customers ( id, display_name ), job_technicians ( users ( full_name ) ) )')
+      .eq('org_id', selectedOrg)
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
     setRows(data || [])
@@ -35,10 +40,22 @@ export default function TextArchive({ profile }) {
   }
 
   async function deleteThread(t) {
-    if (!canDelete) return
+    if (!canDelete || t.important) return   // flagged threads can't be deleted until unflagged
     if (confirmDelete !== t.jobId) { setConfirmDelete(t.jobId); return }
     await supabase.from('job_texts').update({ deleted_at: new Date().toISOString() }).eq('job_id', t.jobId)
     setConfirmDelete(null); setSelectedJob(null); load()
+  }
+
+  function printThread(t) {
+    const w = window.open('', '_blank', 'width=740,height=900')
+    if (!w) return
+    const msgs = t.messages.map((m) => {
+      const out = m.direction !== 'inbound'
+      const body = (m.body || '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
+      return `<div style="margin:8px 0;text-align:${out ? 'right' : 'left'}"><div style="display:inline-block;max-width:75%;padding:8px 12px;border-radius:12px;background:${out ? '#215F9A' : '#EEF1F4'};color:${out ? '#fff' : '#101418'};font-size:14px;line-height:1.4">${body}</div><div style="font-size:11px;color:#888;margin-top:2px">${out ? 'Technician' : 'Customer'} · ${fmtDateTime(m.created_at)}</div></div>`
+    }).join('')
+    w.document.write(`<html><head><title>Thread — ${t.customer} — Job ${t.jobNumber}</title></head><body style="font-family:system-ui,Arial,sans-serif;padding:24px;max-width:680px;margin:0 auto"><h2 style="margin:0 0 2px">${t.customer}</h2><div style="color:#215F9A;font-weight:700;margin-bottom:16px">Job ${t.jobNumber}${t.segment > 1 ? '-' + t.segment : ''}${t.techs.length ? ' · ' + t.techs.join(', ') : ''}</div>${msgs}</body></html>`)
+    w.document.close(); w.focus(); setTimeout(() => w.print(), 250)
   }
 
   async function toggleFlag(t) {
@@ -56,6 +73,7 @@ export default function TextArchive({ profile }) {
           jobNumber: r.jobs?.job_number || '—',
           segment: r.jobs?.segment || 1,
           customer: r.jobs?.customers?.display_name || 'Customer',
+          customerId: r.jobs?.customers?.id || null,
           techs: [...new Set((r.jobs?.job_technicians || []).map((jt) => jt.users?.full_name).filter(Boolean))],
           messages: [],
           lastAt: r.created_at,
@@ -73,6 +91,8 @@ export default function TextArchive({ profile }) {
   }, [rows])
 
   const filtered = threads.filter((t) => {
+    // Unflagged threads clear from the archive after 7 days; flagged ones are kept until unflagged.
+    if (!t.important && (Date.now() - new Date(t.lastAt).getTime()) > SEVEN_DAYS) return false
     if (q.trim()) {
       const s = q.toLowerCase()
       const hit = t.customer.toLowerCase().includes(s)
@@ -122,7 +142,7 @@ export default function TextArchive({ profile }) {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 20, alignItems: 'start' }}>
           {/* Thread list */}
-          <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+          <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', overflowY: 'auto', maxHeight: '72vh', background: '#fff' }}>
             {filtered.map((t) => {
               const isActive = t.jobId === selectedJob
               const last = t.messages[t.messages.length - 1]
@@ -156,16 +176,19 @@ export default function TextArchive({ profile }) {
               <>
                 <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: 12, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                   <div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: '#101418' }}>{current.customer}</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#101418' }}>{current.customerId ? <Link to={`/customers/${current.customerId}`} style={{ color: '#101418' }}>{current.customer}</Link> : current.customer}</div>
                     <div style={{ fontSize: 13, color: BLUE, fontWeight: 700 }}>
                       Job {current.jobNumber}{current.segment > 1 ? `-${current.segment}` : ''} · {current.messages.length} messages{current.archived ? ' · archived' : ' · active'}
                     </div>
                     {current.techs.length > 0 && <div style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 2 }}>Tech: {current.techs.join(', ')}</div>}
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 'none' }}>
-                    <button onClick={() => toggleFlag(current)} title="Archive & flag important" style={{ border: '1px solid ' + (current.important ? '#C9A227' : 'var(--border)'), background: current.important ? '#FCF6E9' : '#fff', color: current.important ? '#8A6D0B' : 'var(--mist)', borderRadius: 8, padding: '7px 13px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{current.important ? '★ Important' : '☆ Flag important'}</button>
+                    <button onClick={() => printThread(current)} title="Print this thread" style={{ border: '1px solid var(--border)', background: '#fff', color: 'var(--mist)', borderRadius: 8, padding: '7px 13px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>🖨 Print Thread</button>
+                    <button onClick={() => toggleFlag(current)} title="Flag important" style={{ border: '1px solid ' + (current.important ? '#C9A227' : 'var(--border)'), background: current.important ? '#FCF6E9' : '#fff', color: current.important ? '#8A6D0B' : 'var(--mist)', borderRadius: 8, padding: '7px 13px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{current.important ? '★ Important' : '☆ Flag important'}</button>
                   {canDelete && (
-                    confirmDelete === current.jobId ? (
+                    current.important ? (
+                      <span title="Remove the ★ flag before deleting" style={{ fontSize: 12, color: 'var(--mist)', fontStyle: 'italic' }}>Flagged — clear ★ to delete</span>
+                    ) : confirmDelete === current.jobId ? (
                       <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', background: '#FBECE8', border: '1px solid #EAC5BC', borderRadius: 8, padding: '5px 10px', flex: 'none' }}>
                         <span style={{ fontSize: 12.5, color: '#B5462F', fontWeight: 600 }}>Delete this thread?</span>
                         <button onClick={() => deleteThread(current)} style={{ border: 'none', background: '#B5462F', color: '#fff', borderRadius: 6, padding: '5px 12px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Delete</button>

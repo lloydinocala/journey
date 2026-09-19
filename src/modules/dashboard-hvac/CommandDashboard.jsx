@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import { can } from '../../utils/permissions'
-import OrgPicker from '../../OrgPicker'
+import { useViewOrg } from '../../utils/viewOrg'
 import { MEASURES, DIMENSIONS, DEFAULT_TEMPLATE } from './catalog'
 import { fetchMeasure, queryKpi, getLayout, saveLayout, resetLayout, periodRange, PERIODS } from './dashboardData'
 import Widget from './charts'
@@ -38,8 +38,7 @@ const SIZE_LABEL = { 1: 'S', 2: 'M', 3: 'L' }
 export default function CommandDashboard({ profile }) {
   const isSuperAdmin = profile?.role === 'super_admin'
   const canCustomize = isSuperAdmin || can(profile, 'customize_dashboard')
-  const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const { viewOrgId: selectedOrg, orgs } = useViewOrg()
   const [period, setPeriod] = useState('mtd')
   const [widgets, setWidgets] = useState(defaultWidgets)
   const [customized, setCustomized] = useState(false)   // org has a saved layout row
@@ -50,15 +49,6 @@ export default function CommandDashboard({ profile }) {
   const [dragIdx, setDragIdx] = useState(null)
   const [overIdx, setOverIdx] = useState(null)
   const navigate = useNavigate()
-
-  useEffect(() => {
-    if (isSuperAdmin) {
-      supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
-        setOrgs(data || [])
-        setSelectedOrg((s) => s || (data && data[0] ? data[0].id : ''))
-      })
-    }
-  }, [isSuperAdmin])
 
   // Load the org's saved layout (or the code default) whenever the org changes.
   useEffect(() => {
@@ -141,7 +131,6 @@ export default function CommandDashboard({ profile }) {
     <div>
       <div className="page-header-bar" style={{ alignItems: 'flex-start' }}>
         <div>
-          <h2 className="page-title" style={{ margin: 0 }}>Dashboard</h2>
           <div style={{ color: 'var(--mist)', fontSize: 13, marginTop: 2 }}>Your business at a glance · {periodLabel}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -156,13 +145,6 @@ export default function CommandDashboard({ profile }) {
           {canCustomize && customized && <button className="logout-button" style={{ margin: 0 }} onClick={resetToDefault}>Reset to default</button>}
         </div>
       </div>
-
-      {isSuperAdmin && (
-        <div style={{ marginBottom: 18, maxWidth: 360 }}>
-          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
-          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
-        </div>
-      )}
 
       <div style={{ marginBottom: 16 }}><QuincyBrief kind="home" org={selectedOrg} /></div>
 
