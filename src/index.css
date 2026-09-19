@@ -339,6 +339,23 @@ html { overflow-x: hidden; }
   background: var(--ink);
 }
 
+/* Independently-scrolling table body with a sticky heading row.
+   Wrap a .data-table in .tbl-scroll and set maxHeight inline. */
+.tbl-scroll {
+  overflow: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+}
+.tbl-scroll .data-table {
+  margin-bottom: 0;
+}
+.tbl-scroll .data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-shadow: inset 0 -1px 0 var(--line-strong);
+}
+
 .field select {
   width: 100%;
   padding: 10px 12px;
