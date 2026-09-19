@@ -8,6 +8,7 @@ import QuickAddModal from './QuickAddModal'
 
 const money = (v) => '$' + (Number(v) || 0).toFixed(2)
 const fmtDate = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
+const CATEGORY_LABEL = { salesman: 'Salesman', friends_family: 'Friends & Family', other: 'Known contact' }
 
 export default function CallConsole({ profile }) {
   const isSuper = profile.role === 'super_admin'
@@ -31,6 +32,10 @@ export default function CallConsole({ profile }) {
   const [callHistory, setCallHistory] = useState([])
   const [vendors, setVendors] = useState([])
   const [vendorMatch, setVendorMatch] = useState(null)
+  const [users, setUsers] = useState([])
+  const [knownContacts, setKnownContacts] = useState([])
+  const [employeeMatch, setEmployeeMatch] = useState(null)
+  const [knownMatch, setKnownMatch] = useState(null)
   const [filterModal, setFilterModal] = useState(false)
 
   useEffect(() => {
@@ -38,7 +43,10 @@ export default function CallConsole({ profile }) {
   }, [isSuper])
 
   useEffect(() => {
-    if (selectedOrg) supabase.from('vendors').select('id, name, phone').eq('org_id', selectedOrg).then(({ data }) => setVendors(data || []))
+    if (!selectedOrg) return
+    supabase.from('vendors').select('id, name, phone').eq('org_id', selectedOrg).then(({ data }) => setVendors(data || []))
+    supabase.from('users').select('id, full_name, phone, role').eq('org_id', selectedOrg).eq('is_active', true).then(({ data }) => setUsers(data || []))
+    supabase.from('known_contacts').select('id, name, company, phone, phone_alt, category, default_assignee').eq('org_id', selectedOrg).eq('is_active', true).then(({ data }) => setKnownContacts(data || []))
   }, [selectedOrg])
 
   const digits = phone.replace(/\D/g, '')
@@ -84,10 +92,14 @@ export default function CallConsole({ profile }) {
   }, [selected])
 
   useEffect(() => {
-    if (selected || !matches || matches.length !== 0 || digits.length < 7) { setVendorMatch(null); return }
-    const vm = vendors.find((v) => { const vd = (v.phone || '').replace(/\D/g, ''); return vd.length >= 7 && (vd.endsWith(digits) || (digits.length >= 10 && vd.slice(-10) === digits.slice(-10))) })
-    setVendorMatch(vm || null)
-  }, [matches, digits, vendors, selected])
+    if (selected || !matches || matches.length !== 0 || digits.length < 7) { setVendorMatch(null); setEmployeeMatch(null); setKnownMatch(null); return }
+    const md = (p) => { const d = (p || '').replace(/\D/g, ''); return d.length >= 7 && (d.endsWith(digits) || (digits.length >= 10 && d.slice(-10) === digits.slice(-10))) }
+    // Precedence: Vendor -> Employee -> Known Other (Customer is handled above).
+    const vm = vendors.find((v) => md(v.phone)) || null
+    const em = !vm ? (users.find((u) => md(u.phone)) || null) : null
+    const km = (!vm && !em) ? (knownContacts.find((k) => md(k.phone) || md(k.phone_alt)) || null) : null
+    setVendorMatch(vm); setEmployeeMatch(em); setKnownMatch(km)
+  }, [matches, digits, vendors, users, knownContacts, selected])
 
   useEffect(() => {
     setPurpose(''); setCallerName(''); setLoggedMsg(''); setNeedsCb(false)
@@ -110,16 +122,21 @@ export default function CallConsole({ profile }) {
 
   const PURPOSES = ['Book service', 'Reschedule', 'Billing question', 'Status update', 'General question', 'Vendor / supplier']
   const matchedCaller = selected
-    ? { customer_id: selected.id, vendor_id: null, name: selected.display_name, phone: selected.primary_phone || phone }
+    ? { customer_id: selected.id, vendor_id: null, known_contact_id: null, caller_type: 'customer', name: selected.display_name, phone: selected.primary_phone || phone }
     : vendorMatch
-      ? { customer_id: null, vendor_id: vendorMatch.id, name: vendorMatch.name, phone: vendorMatch.phone || phone }
-      : null
+      ? { customer_id: null, vendor_id: vendorMatch.id, known_contact_id: null, caller_type: 'vendor', name: vendorMatch.name, phone: vendorMatch.phone || phone }
+      : employeeMatch
+        ? { customer_id: null, vendor_id: null, known_contact_id: null, caller_type: 'employee', name: employeeMatch.full_name, phone: employeeMatch.phone || phone }
+        : knownMatch
+          ? { customer_id: null, vendor_id: null, known_contact_id: knownMatch.id, caller_type: 'known_other', name: knownMatch.name, phone: knownMatch.phone || phone }
+          : null
   async function logCall() {
     if (!purpose.trim() || !selectedOrg) return
     setLogging(true)
-    const c = matchedCaller || { customer_id: null, vendor_id: null, name: callerName.trim() || null, phone }
+    const c = matchedCaller || { customer_id: null, vendor_id: null, known_contact_id: null, caller_type: 'unknown', name: callerName.trim() || null, phone }
     await supabase.from('call_logs').insert({
-      org_id: selectedOrg, customer_id: c.customer_id, vendor_id: c.vendor_id,
+      org_id: selectedOrg, customer_id: c.customer_id, vendor_id: c.vendor_id, known_contact_id: c.known_contact_id || null,
+      caller_type: c.caller_type || 'unknown',
       phone: c.phone || phone, caller_name: c.name,
       purpose: purpose.trim(), direction: 'inbound', needs_callback: needsCb,
       taken_by: profile?.user_id || null, taken_by_name: profile?.full_name || null,
@@ -177,7 +194,7 @@ export default function CallConsole({ profile }) {
         <div style={{ marginTop: 16 }}>
           {searching && <p style={{ color: 'var(--mist)' }}>Searching…</p>}
 
-          {!searching && matches && matches.length === 0 && !vendorMatch && (
+          {!searching && matches && matches.length === 0 && !vendorMatch && !employeeMatch && !knownMatch && (
             <div className="section-card" style={{ padding: 18 }}>
               <p style={{ margin: '0 0 12px', fontWeight: 600 }}>No customer found for that number.</p>
               <Link className="auth-button" style={{ width: 'auto', display: 'inline-block', textDecoration: 'none', padding: '9px 18px' }} to="/customers">Add a new customer</Link>
@@ -271,6 +288,22 @@ export default function CallConsole({ profile }) {
                 </div>
                 <Link className="auth-button" style={{ width: 'auto', textDecoration: 'none', padding: '10px 20px', flex: 'none' }} to={`/vendors/${vendorMatch.id}`}>Open vendor →</Link>
               </div>
+            </div>
+          )}
+          {!selected && !vendorMatch && employeeMatch && (
+            <div className="section-card" style={{ padding: 20, borderLeft: '4px solid #2E7D32' }}>
+              <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: '#2E7D32' }}>Employee</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>{employeeMatch.full_name}</div>
+              {employeeMatch.role && <div style={{ color: 'var(--mist)', fontSize: 13, textTransform: 'capitalize' }}>{String(employeeMatch.role).replace(/_/g, ' ')}</div>}
+              {employeeMatch.phone && <div style={{ marginTop: 4, fontSize: 14.5 }}>📞 {employeeMatch.phone}</div>}
+            </div>
+          )}
+          {!selected && !vendorMatch && !employeeMatch && knownMatch && (
+            <div className="section-card" style={{ padding: 20, borderLeft: '4px solid #6A4FB6' }}>
+              <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: '#6A4FB6' }}>{CATEGORY_LABEL[knownMatch.category] || 'Known contact'}</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>{knownMatch.name}</div>
+              {knownMatch.company && <div style={{ color: 'var(--mist)' }}>{knownMatch.company}</div>}
+              {knownMatch.phone && <div style={{ marginTop: 4, fontSize: 14.5 }}>📞 {knownMatch.phone}</div>}
             </div>
           )}
           {matchedCaller && (
