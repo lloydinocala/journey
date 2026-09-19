@@ -2460,3 +2460,51 @@ html { overflow-x: hidden; }
 .sidebar-panel-toggle:hover { background: var(--ink); color: var(--paper); }
 .sidebar-panel-reopen { width: 24px; flex-shrink: 0; background: var(--panel); border: none; border-right: 1px solid var(--border); color: var(--mist); cursor: pointer; font-size: 16px; height: 100%; }
 .sidebar-panel-reopen:hover { color: var(--paper); background: var(--ink); }
+
+/* --- Redesign (shell restyle): global top bar + Viewing-Organization pill --- */
+.app-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: var(--nav-bg);
+  color: var(--nav-text);
+  padding: 12px 24px;
+  flex-shrink: 0;
+  z-index: 20;
+  border-bottom: 3px solid var(--route-blue);
+  box-shadow: 0 6px 18px rgba(16, 32, 47, 0.28);
+}
+.app-topbar-brand {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  color: #fff;
+  white-space: nowrap;
+}
+.app-topbar-brand span { color: #35B6E8; }
+.app-topbar-org { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.app-topbar-org-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--nav-mist); white-space: nowrap;
+}
+.vieworg-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px; padding: 6px 15px; min-width: 0;
+}
+.vieworg-name {
+  color: #35B6E8; font-weight: 700; font-size: 15px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46vw;
+}
+.vieworg-sep { color: var(--nav-mist); }
+.vieworg-page { color: #fff; font-weight: 600; font-size: 12.5px; letter-spacing: 0.05em; white-space: nowrap; }
+/* Rail brand becomes a compact mark now that the app name lives in the top bar. */
+.rail-brand { font-size: 22px; color: #35B6E8; margin-bottom: 18px; }
+@media (max-width: 640px) {
+  .app-topbar { padding: 10px 14px; gap: 10px; }
+  .app-topbar-brand { font-size: 18px; }
+  .app-topbar-org-label { display: none; }
+}

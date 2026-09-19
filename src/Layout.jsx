@@ -12,6 +12,39 @@ import { SUPPLIES_NAV } from './modules/supplies-hvac'
 import { REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV } from './modules/rewards-hvac'
 import { MARKETING_NAV } from './modules/marketing-hvac'
 
+// Human page titles for the top-bar "Viewing Organization" pill. Longest-prefix
+// match, with a title-cased fallback so newly-added pages still read cleanly.
+const PAGE_TITLES = {
+  '/': 'Home', '/home': 'Home',
+  '/train-station': 'Train Station', '/dispatch': 'Dispatch Station',
+  '/call': 'Call Console', '/call-log': 'Call Log', '/service-requests': 'Service Requests',
+  '/calendar': 'Calendar', '/dispatch-map': 'Map View', '/filter-orders': 'Filter Orders',
+  '/text-archive': 'Text Archive', '/on-call': 'On-Call Schedule',
+  '/jobs-dash': 'Jobs Dashboard', '/jobs-management': 'Jobs Management', '/jobs': 'Jobs',
+  '/tasks': 'Tasks', '/to-do': 'To-Do', '/customers': 'Customers', '/properties': 'Properties',
+  '/system-estimates': 'System Estimates', '/estimates': 'Job Estimates', '/invoices': 'Invoices',
+  '/maintenance-station': 'Maintenance Station', '/maintenance-dashboard': 'Maintenance Dashboard',
+  '/maintenance-agreements': 'Maintenance Agreements', '/maintenance-due': 'Maintenance Due',
+  '/maintenance-tiers': 'Maintenance Tiers', '/filter-subscriptions': 'Filter Subscriptions',
+  '/inventory-central': 'Inventory Central', '/workforce': 'WorkForce', '/elements': 'Inventory',
+  '/fleet': 'Fleet', '/refrigerant': '608 Compliance', '/supplies': 'Supplies', '/tools': 'Tools',
+  '/rewards': 'Human Resources', '/marketing': 'Marketing', '/permits': 'Permits',
+  '/building-authorities': 'Building Authorities', '/warranty-registrations': 'Warranty Registrations',
+  '/import': 'Data Station', '/pricebook': 'Pricebook', '/systems-pricebook': 'Systems Pricebook',
+  '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
+  '/payroll': 'Payroll Capture', '/session-log': 'Sign-In Log',
+  '/organizations': 'Organizations', '/announcements': 'Announcements', '/my': 'My Pay & Benefits',
+}
+function pageTitle(pathname) {
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]
+  const hit = Object.keys(PAGE_TITLES)
+    .filter((k) => k !== '/' && pathname.startsWith(k))
+    .sort((a, b) => b.length - a.length)[0]
+  if (hit) return PAGE_TITLES[hit]
+  const seg = pathname.split('/').filter(Boolean)[0] || 'Home'
+  return seg.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 const CATEGORIES = [
   { key: 'start', label: 'Start', items: [
     { label: 'Train Station', path: '/train-station' },
@@ -216,6 +249,15 @@ export default function Layout({ profile }) {
   const location = useLocation()
   const navigate = useNavigate()
   const isSuperAdmin = profile?.role === 'super_admin'
+  // Org name for the top-bar "Viewing Organization" pill (multi-tenant: whatever
+  // org this user belongs to; the platform owner sees a neutral label).
+  const [orgName, setOrgName] = useState('')
+  useEffect(() => {
+    if (isSuperAdmin) { setOrgName('All Organizations'); return }
+    if (!profile?.org_id) { setOrgName(''); return }
+    supabase.from('organizations').select('name').eq('id', profile.org_id).single()
+      .then(({ data }) => setOrgName(data?.name || ''))
+  }, [profile?.org_id, isSuperAdmin])
   // Elements-HVAC appears only for the platform owner or an entitled subscriber.
   const showElements = profile?.role !== 'tech'
   // HR and Payroll are two separately-sold modules. HR is the fuller module and
@@ -354,9 +396,20 @@ export default function Layout({ profile }) {
         </div>
       )}
       <AnnouncementBanner profile={profile} />
+      <header className="app-topbar">
+        <div className="app-topbar-brand">The <span>Journey</span></div>
+        <div className="app-topbar-org">
+          <span className="app-topbar-org-label">Viewing Organization</span>
+          <span className="vieworg-pill">
+            <span className="vieworg-name">{orgName || '—'}</span>
+            <span className="vieworg-sep">/</span>
+            <span className="vieworg-page">{pageTitle(location.pathname).toUpperCase()}</span>
+          </span>
+        </div>
+      </header>
       <div className="shell-body">
         <div className="sidebar-rail">
-          <div className="rail-brand">Journey<br />HVAC</div>
+          <div className="rail-brand" aria-hidden="true">✦</div>
           <Link to="/home" className={'rail-item' + (location.pathname === '/home' ? ' active' : '')}>
             Home
           </Link>
