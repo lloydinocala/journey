@@ -117,7 +117,7 @@ export default function TextArchive({ profile }) {
   if (!canView) {
     return (
       <div>
-        <div className="page-title">Text Archive</div>
+        <div className="page-title">Text Archive — auto-update ✓</div>
         <div className="section-card" style={{ padding: 24, maxWidth: 520 }}>
           <p style={{ margin: 0, color: 'var(--mist)' }}>You don't have access to the text archive. Access is limited to Reception and Dispatch.</p>
         </div>
@@ -127,7 +127,7 @@ export default function TextArchive({ profile }) {
 
   return (
     <div>
-      <div className="page-title">Text Archive</div>
+      <div className="page-title">Text Archive — auto-update ✓</div>
 
       <div style={{ display: 'flex', gap: 14, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 20 }}>
         <div className="field" style={{ marginBottom: 0, minWidth: 300 }}>
