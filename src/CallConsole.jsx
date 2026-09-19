@@ -36,6 +36,12 @@ export default function CallConsole({ profile }) {
   const [knownContacts, setKnownContacts] = useState([])
   const [employeeMatch, setEmployeeMatch] = useState(null)
   const [knownMatch, setKnownMatch] = useState(null)
+  const [addContactOpen, setAddContactOpen] = useState(false)
+  const [ncName, setNcName] = useState('')
+  const [ncCategory, setNcCategory] = useState('other')
+  const [ncCompany, setNcCompany] = useState('')
+  const [ncEmail, setNcEmail] = useState('')
+  const [ncSaving, setNcSaving] = useState(false)
   const [filterModal, setFilterModal] = useState(false)
 
   useEffect(() => {
@@ -112,6 +118,22 @@ export default function CallConsole({ profile }) {
       setCallHistory(data || [])
     })()
   }, [selected?.id, vendorMatch?.id])
+
+  async function saveKnownContact() {
+    if (!ncName.trim() || !selectedOrg) return
+    setNcSaving(true)
+    const { data, error } = await supabase.from('known_contacts').insert({
+      org_id: selectedOrg, category: ncCategory, name: ncName.trim(),
+      company: ncCompany.trim() || null, email: ncEmail.trim() || null,
+      phone, created_by: profile?.user_id || null,
+    }).select('id, name, company, phone, phone_alt, category, default_assignee').single()
+    setNcSaving(false)
+    if (!error && data) {
+      setKnownContacts((prev) => [...prev, data])
+      setKnownMatch(data)   // becomes the matched caller so it can be logged
+      setAddContactOpen(false); setNcName(''); setNcCompany(''); setNcEmail(''); setNcCategory('other')
+    }
+  }
 
   async function saveNote() {
     const t = noteBody.trim(); if (!t || !selectedOrg) return
@@ -196,10 +218,27 @@ export default function CallConsole({ profile }) {
 
           {!searching && matches && matches.length === 0 && !vendorMatch && !employeeMatch && !knownMatch && (
             <div className="section-card" style={{ padding: 18 }}>
-              <p style={{ margin: '0 0 12px', fontWeight: 600 }}>No customer found for that number.</p>
-              <Link className="auth-button" style={{ width: 'auto', display: 'inline-block', textDecoration: 'none', padding: '9px 18px' }} to="/customers">Add a new customer</Link>
+              <p style={{ margin: '0 0 12px', fontWeight: 600 }}>No match for that number — who is calling?</p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Link className="auth-button" style={{ width: 'auto', display: 'inline-block', textDecoration: 'none', padding: '9px 18px' }} to="/customers">+ New customer</Link>
+                <button className="logout-button" style={{ margin: 0, padding: '9px 18px' }} onClick={() => setAddContactOpen((v) => !v)}>+ Add a contact (salesman, friend, other…)</button>
+              </div>
+              {addContactOpen && (
+                <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input value={ncName} onChange={(e) => setNcName(e.target.value)} placeholder="Contact name" autoFocus style={{ padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8, minWidth: 150 }} />
+                  <select value={ncCategory} onChange={(e) => setNcCategory(e.target.value)} style={{ padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8 }}>
+                    <option value="other">Other</option>
+                    <option value="salesman">Salesman</option>
+                    <option value="friends_family">Friends &amp; Family</option>
+                  </select>
+                  <input value={ncCompany} onChange={(e) => setNcCompany(e.target.value)} placeholder="Company (optional)" style={{ padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8, minWidth: 130 }} />
+                  <input value={ncEmail} onChange={(e) => setNcEmail(e.target.value)} placeholder="Email (optional)" style={{ padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8, minWidth: 150 }} />
+                  <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>📞 {phone}</span>
+                  <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '8px 16px' }} disabled={ncSaving || !ncName.trim()} onClick={saveKnownContact}>{ncSaving ? 'Saving…' : 'Save contact'}</button>
+                </div>
+              )}
               <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 8 }}>Or log this call anyway</div>
+                <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 8 }}>Or just log this call</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   <input value={callerName} onChange={(e) => setCallerName(e.target.value)} placeholder="Caller name (optional)" style={{ padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8, minWidth: 160 }} />
                   <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Purpose…" style={{ padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8, minWidth: 180, flex: 1 }} />
