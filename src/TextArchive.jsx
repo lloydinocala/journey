@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
 
@@ -7,6 +8,29 @@ const BLUE = '#215F9A'
 function fmtDateTime(t) {
   const d = new Date(t)
   return isNaN(d) ? '' : d.toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+// Print just the selected thread (not the whole page): opens a clean print
+// window with the conversation and triggers the browser's print dialog.
+function printThread(t) {
+  if (!t) return
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const rows = t.messages.map((m) => {
+    const out = m.direction !== 'inbound'
+    return `<div style="margin:8px 0;text-align:${out ? 'right' : 'left'}">`
+      + `<div style="display:inline-block;max-width:72%;padding:8px 12px;border-radius:12px;text-align:left;font-size:13px;line-height:1.4;background:${out ? '#215F9A' : '#EEF1F4'};color:${out ? '#fff' : '#101418'}">${esc(m.body)}</div>`
+      + `<div style="font-size:10px;color:#888;margin-top:2px">${out ? 'Technician' : 'Customer'} &middot; ${esc(fmtDateTime(m.created_at))}</div></div>`
+  }).join('')
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Text thread — ${esc(t.customer)} — Job ${esc(t.jobNumber)}</title></head>`
+    + `<body style="font-family:Arial,Helvetica,sans-serif;padding:24px;color:#101418">`
+    + `<h2 style="margin:0 0 2px">${esc(t.customer)}</h2>`
+    + `<div style="color:#215F9A;font-weight:700">Job ${esc(t.jobNumber)}${t.segment > 1 ? '-' + esc(t.segment) : ''} &middot; ${t.messages.length} messages${t.archived ? ' &middot; archived' : ''}</div>`
+    + (t.techs.length ? `<div style="color:#555;font-size:12px;margin:2px 0 12px">Tech: ${esc(t.techs.join(', '))}</div>` : '<div style="margin-bottom:12px"></div>')
+    + `<hr style="border:none;border-top:1px solid #ccc">${rows}</body></html>`
+  const w = window.open('', '_blank', 'width=720,height=800')
+  if (!w) return
+  w.document.write(html); w.document.close(); w.focus()
+  setTimeout(() => { try { w.print() } catch (e) { /* ignore */ } }, 300)
 }
 
 // Office-side archive of the per-job text threads. Read-only, org-scoped (RLS).
@@ -36,6 +60,7 @@ export default function TextArchive({ profile }) {
 
   async function deleteThread(t) {
     if (!canDelete) return
+    if (t.important) return   // flagged threads are protected until unflagged
     if (confirmDelete !== t.jobId) { setConfirmDelete(t.jobId); return }
     await supabase.from('job_texts').update({ deleted_at: new Date().toISOString() }).eq('job_id', t.jobId)
     setConfirmDelete(null); setSelectedJob(null); load()
@@ -122,7 +147,7 @@ export default function TextArchive({ profile }) {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 20, alignItems: 'start' }}>
           {/* Thread list */}
-          <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+          <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', overflowY: 'auto', maxHeight: 'calc(100vh - 260px)', background: '#fff' }}>
             {filtered.map((t) => {
               const isActive = t.jobId === selectedJob
               const last = t.messages[t.messages.length - 1]
@@ -157,15 +182,19 @@ export default function TextArchive({ profile }) {
                 <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: 12, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                   <div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: '#101418' }}>{current.customer}</div>
-                    <div style={{ fontSize: 13, color: BLUE, fontWeight: 700 }}>
-                      Job {current.jobNumber}{current.segment > 1 ? `-${current.segment}` : ''} · {current.messages.length} messages{current.archived ? ' · archived' : ' · active'}
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>
+                      <Link to={`/jobs?job=${current.jobId}`} style={{ color: BLUE, textDecoration: 'none' }} title="Open this job">Job {current.jobNumber}{current.segment > 1 ? `-${current.segment}` : ''}</Link>
+                      <span style={{ color: BLUE }}> · {current.messages.length} messages{current.archived ? ' · archived' : ' · active'}</span>
                     </div>
                     {current.techs.length > 0 && <div style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 2 }}>Tech: {current.techs.join(', ')}</div>}
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 'none' }}>
+                    <button onClick={() => printThread(current)} title="Print this thread" style={{ border: '1px solid var(--border)', background: '#fff', color: 'var(--mist)', borderRadius: 8, padding: '7px 13px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>🖨 Print Thread</button>
                     <button onClick={() => toggleFlag(current)} title="Archive & flag important" style={{ border: '1px solid ' + (current.important ? '#C9A227' : 'var(--border)'), background: current.important ? '#FCF6E9' : '#fff', color: current.important ? '#8A6D0B' : 'var(--mist)', borderRadius: 8, padding: '7px 13px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{current.important ? '★ Important' : '☆ Flag important'}</button>
                   {canDelete && (
-                    confirmDelete === current.jobId ? (
+                    current.important ? (
+                      <span title="Remove the Important flag before this thread can be deleted" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--mist)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 13px', flex: 'none' }}>🔒 Flagged — can't delete</span>
+                    ) : confirmDelete === current.jobId ? (
                       <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', background: '#FBECE8', border: '1px solid #EAC5BC', borderRadius: 8, padding: '5px 10px', flex: 'none' }}>
                         <span style={{ fontSize: 12.5, color: '#B5462F', fontWeight: 600 }}>Delete this thread?</span>
                         <button onClick={() => deleteThread(current)} style={{ border: 'none', background: '#B5462F', color: '#fff', borderRadius: 6, padding: '5px 12px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Delete</button>
