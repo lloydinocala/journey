@@ -40,6 +40,10 @@ export default function CallLog({ profile }) {
   const [search, setSearch] = useState('')
   const [range, setRange] = useState('all')
   const [clear, setClear] = useState({ mode: 'idle', count: 0, msg: '' })
+  const [expOpen, setExpOpen] = useState(false)
+  const [exp, setExp] = useState({ name: '', from: '', to: '', includeCleared: true })
+  const [exporting, setExporting] = useState(false)
+  const [expMsg, setExpMsg] = useState('')
 
   useEffect(() => { if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || [])) }, [isSuper])
   useEffect(() => { if (selectedOrg) load(); else setLoading(false) }, [selectedOrg])
@@ -72,6 +76,42 @@ export default function CallLog({ profile }) {
     setClear((c) => ({ ...c, mode: 'clearing' }))
     await supabase.from('call_logs').update({ deleted_at: new Date().toISOString() }).eq('org_id', selectedOrg).is('deleted_at', null).eq('needs_callback', false).eq('follow_up', false).lt('called_at', startToday.toISOString())
     load()
+  }
+
+  // ---- CSV export: name / date-range / all, optionally including cleared calls ----
+  const csvCell = (v) => {
+    const s = v == null ? '' : String(v)
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  async function runExport() {
+    if (!selectedOrg) return
+    setExporting(true); setExpMsg('')
+    let q = supabase.from('call_logs')
+      .select('called_at, caller_name, phone, purpose, taken_by_name, caller_type, route_to, needs_callback, follow_up, deleted_at, known_contacts:known_contact_id ( category )')
+      .eq('org_id', selectedOrg).order('called_at', { ascending: false })
+    if (!exp.includeCleared) q = q.is('deleted_at', null)
+    if (exp.name.trim()) q = q.ilike('caller_name', `%${exp.name.trim()}%`)
+    if (exp.from) q = q.gte('called_at', new Date(exp.from + 'T00:00:00').toISOString())
+    if (exp.to) q = q.lte('called_at', new Date(exp.to + 'T23:59:59.999').toISOString())
+    const { data, error } = await q.limit(100000)
+    setExporting(false)
+    if (error) { setExpMsg('Export failed: ' + (error.message || 'unknown error')); return }
+    if (!data || !data.length) { setExpMsg('No calls matched — nothing to export.'); return }
+    const header = ['Date / Time', 'Caller', 'Caller type', 'Phone', 'Purpose / calling whom', 'Taken by', 'Route to', 'Flagged: call back', 'Flagged: follow-up', 'Status']
+    const lines = [header.map(csvCell).join(',')]
+    data.forEach((r) => {
+      const dt = new Date(r.called_at)
+      const when = `${dt.toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' })} ${dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
+      lines.push([when, r.caller_name || '', typeLabel(r), r.phone || '', r.purpose || '', r.taken_by_name || '', r.route_to || '', r.needs_callback ? 'Yes' : '', r.follow_up ? 'Yes' : '', r.deleted_at ? 'Cleared' : 'Active'].map(csvCell).join(','))
+    })
+    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `call-log_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    setExpMsg(`Exported ${data.length} call${data.length === 1 ? '' : 's'}.`)
   }
 
   const term = search.trim().toLowerCase()
@@ -137,7 +177,29 @@ export default function CallLog({ profile }) {
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '20px 24px' }}>
-      <div className="page-header-bar"><h2>Call Log</h2></div>
+      <div className="page-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <h2 style={{ margin: 0 }}>Call Log</h2>
+        <button onClick={() => { setExpOpen((o) => !o); setExpMsg('') }} disabled={!selectedOrg} style={{ border: '1px solid var(--border)', background: expOpen ? '#EAF3F4' : '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#176E7A' }}>Export CSV</button>
+      </div>
+      {expOpen && (
+        <div className="section-card" style={{ padding: 18, marginBottom: 16, border: '1px solid var(--border)' }}>
+          <div style={{ fontWeight: 800, marginBottom: 4 }}>Export call records</div>
+          <p style={{ margin: '0 0 14px', fontSize: 12.5, color: 'var(--mist)' }}>Leave the filters blank to export the full history. Add a name and/or a date range to narrow it — useful for pulling one caller's complete record.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+            <label style={{ display: 'block' }}><span style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 4 }}>Caller name (optional)</span><input value={exp.name} onChange={(e) => setExp({ ...exp, name: e.target.value })} placeholder="e.g. Coughlin" style={{ width: '100%', padding: '9px 11px', border: '1px solid var(--border)', borderRadius: 8, boxSizing: 'border-box' }} /></label>
+            <label style={{ display: 'block' }}><span style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 4 }}>From date (optional)</span><input type="date" value={exp.from} onChange={(e) => setExp({ ...exp, from: e.target.value })} style={{ width: '100%', padding: '9px 11px', border: '1px solid var(--border)', borderRadius: 8, boxSizing: 'border-box' }} /></label>
+            <label style={{ display: 'block' }}><span style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 4 }}>To date (optional)</span><input type="date" value={exp.to} onChange={(e) => setExp({ ...exp, to: e.target.value })} style={{ width: '100%', padding: '9px 11px', border: '1px solid var(--border)', borderRadius: 8, boxSizing: 'border-box' }} /></label>
+          </div>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, marginTop: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={exp.includeCleared} onChange={(e) => setExp({ ...exp, includeCleared: e.target.checked })} />
+            Include cleared calls <span style={{ color: 'var(--mist)' }}>(recovers auto-cleared and manually cleared calls — recommended for a complete record)</span>
+          </label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 14 }}>
+            <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '9px 18px' }} disabled={exporting} onClick={runExport}>{exporting ? 'Preparing…' : 'Download CSV'}</button>
+            {expMsg && <span style={{ fontSize: 13, color: expMsg.startsWith('Export failed') ? '#B5462F' : 'var(--mist)' }}>{expMsg}</span>}
+          </div>
+        </div>
+      )}
       {isSuper && (
         <div style={{ marginBottom: 12, maxWidth: 340 }}>
           <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
