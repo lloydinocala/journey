@@ -142,8 +142,8 @@ export default function CallLog({ profile }) {
     return <span style={r.caller_name ? undefined : { color: 'var(--mist)' }}>{nm}</span>
   }
 
-  const renderTable = (list) => (
-    <div style={{ overflowX: 'auto' }}>
+  const renderTable = (list, maxHeight) => (
+    <div className="tbl-scroll" style={{ maxHeight }}>
       <table className="data-table">
         <thead><tr>
           <th style={{ width: 70, textAlign: 'center' }}>Call back</th>
@@ -217,7 +217,7 @@ export default function CallLog({ profile }) {
           </div>
           {todayRows.length === 0 ? (
             <div className="section-card" style={{ padding: 18, marginBottom: 26 }}><p style={{ margin: 0, color: 'var(--mist)' }}>No calls logged yet today.</p></div>
-          ) : <div style={{ marginBottom: 26 }}>{renderTable(todayRows)}</div>}
+          ) : <div style={{ marginBottom: 26 }}>{renderTable(todayRows, '40vh')}</div>}
 
           {/* ---- EARLIER: the searchable archive ---- */}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
@@ -252,7 +252,7 @@ export default function CallLog({ profile }) {
             <div className="section-card" style={{ padding: 20 }}><p style={{ margin: 0, color: 'var(--mist)' }}>No earlier calls{range !== 'all' ? ' in this range' : ''}{term ? ' matching your search' : ''}.</p></div>
           ) : (
             <>
-              {renderTable(earlierShown)}
+              {renderTable(earlierShown, '52vh')}
               <div style={{ fontSize: 12, color: 'var(--mist)', marginTop: 8 }}>{earlierShown.length} call{earlierShown.length === 1 ? '' : 's'}</div>
             </>
           )}
