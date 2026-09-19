@@ -17,7 +17,7 @@ import { MARKETING_NAV } from './modules/marketing-hvac'
 const PAGE_TITLES = {
   '/': 'Home', '/home': 'Home',
   '/train-station': 'Train Station', '/dispatch': 'Dispatch Station',
-  '/call': 'Call Console', '/call-log': 'Call Log', '/service-requests': 'Service Requests',
+  '/call': 'Call Console', '/call-log': 'Call Log', '/known-contacts': 'Known Others', '/service-requests': 'Service Requests',
   '/calendar': 'Calendar', '/dispatch-map': 'Map View', '/filter-orders': 'Filter Orders',
   '/text-archive': 'Text Archive', '/on-call': 'On-Call Schedule',
   '/jobs-dash': 'Jobs Dashboard', '/jobs-management': 'Jobs Management', '/jobs': 'Jobs',
@@ -91,6 +91,7 @@ const CATEGORIES = [
     { label: 'Dispatch Station', path: '/dispatch' },
     { label: 'Call Console', path: '/call' },
     { label: 'Call Log', path: '/call-log' },
+    { label: 'Known Others', path: '/known-contacts' },
     { label: 'Service Requests', path: '/service-requests' },
     { label: 'Calendar', path: '/calendar' },
     { label: 'Dispatch Map', path: '/dispatch-map' },
@@ -261,7 +262,7 @@ function getCategoryForPath(pathname) {
   if (pathname.startsWith('/admin')) return 'admin'
   if (pathname.startsWith('/permits') || pathname.startsWith('/building-authorities') || pathname.startsWith('/warranty')) return 'permitting'
   if (pathname.startsWith('/maintenance') || pathname.startsWith('/filter-subscriptions')) return 'maintenance'
-  if (pathname.startsWith('/dispatch') || pathname.startsWith('/call') || pathname.startsWith('/service-requests') || pathname.startsWith('/calendar') || pathname.startsWith('/filter-orders') || pathname.startsWith('/text-archive') || pathname.startsWith('/on-call')) return 'dispatch'
+  if (pathname.startsWith('/dispatch') || pathname.startsWith('/call') || pathname.startsWith('/known-contacts') || pathname.startsWith('/service-requests') || pathname.startsWith('/calendar') || pathname.startsWith('/filter-orders') || pathname.startsWith('/text-archive') || pathname.startsWith('/on-call')) return 'dispatch'
   if (pathname.startsWith('/jobs') || pathname.startsWith('/tasks') || pathname.startsWith('/customers') || pathname.startsWith('/properties') || pathname.startsWith('/estimate') || pathname.startsWith('/system-estimates') || pathname.startsWith('/invoice')) return 'work'
   if (pathname.startsWith('/pricebook') || pathname.startsWith('/systems-pricebook') || pathname.startsWith('/special-features') || pathname.startsWith('/system-estimate-setup') || pathname.startsWith('/pm-checklists') || pathname.startsWith('/discount-catalog') || pathname.startsWith('/checklists')) return 'import'
   if (pathname.startsWith('/workforce') || pathname.startsWith('/team') || pathname.startsWith('/roles') || pathname.startsWith('/time-clock') || pathname.startsWith('/payroll') || pathname.startsWith('/session-log')) return 'workforce'

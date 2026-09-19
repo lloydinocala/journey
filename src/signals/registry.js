@@ -87,6 +87,12 @@ export const REGISTRY = [
   { key: 'todos', station: 'dispatch', hub: 'start', name: 'To-Dos', tone: 'amber', href: '/to-do', cta: 'Open to-dos', audience: 'office',
     line: (n) => `${n} open office to-do${n === 1 ? '' : 's'}`,
     count: headCount('office_reminders', (q) => q.eq('done', false)) },
+  { key: 'calls-callback', station: 'dispatch', hub: 'start', name: 'Calls to return', tone: 'red', href: '/call-log', cta: 'Open call log', audience: 'office',
+    line: (n) => `${n} call${n === 1 ? '' : 's'} flagged for a call-back`,
+    count: headCount('call_logs', (q) => q.eq('needs_callback', true).is('deleted_at', null)) },
+  { key: 'calls-followup', station: 'dispatch', hub: 'start', name: 'Call follow-ups', tone: 'amber', href: '/call-log', cta: 'Open call log', audience: 'office',
+    line: (n) => `${n} call${n === 1 ? '' : 's'} flagged for follow-up`,
+    count: headCount('call_logs', (q) => q.eq('follow_up', true).is('deleted_at', null)) },
 
   // --- Jobs & Customers (work) ---
   { key: 'completed-not-invoiced', station: 'work', hub: 'start', name: 'Completed — needs invoicing', tone: 'red', href: '/jobs', cta: 'Open jobs', audience: 'office',
