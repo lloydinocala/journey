@@ -253,7 +253,7 @@ function AuthenticatedApp() {
      profile.role === 'tech' ? <Navigate to="/tech" replace />
        : (profile.default_landing && LANDING_PATHS.has(profile.default_landing)) ? <Navigate to={profile.default_landing} replace />
        : profile.role === 'super_admin' ? <OperationsDashboard profile={profile} />
-       : can(profile, 'view_home_dashboard') ? <CommandDashboard profile={profile} />
+       : can(profile, 'view_home_dashboard') ? <OrgHome profile={profile} />
             : <OperationsDashboard profile={profile} />
    } />
         <Route path="/customers" element={<Customers profile={profile} />} />

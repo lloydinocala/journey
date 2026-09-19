@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
-import { useViewOrg } from './utils/viewOrg'
+import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import CalendarGrid from './CalendarGrid'
@@ -91,7 +91,8 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile }) {
 }
 
 export default function Calendar({ profile }) {
-  const { viewOrgId: selectedOrg } = useViewOrg()
+  const [orgs, setOrgs] = useState([])
+  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const nav = useNavigate()
   const [currentDate, setCurrentDate] = useState(() => { const d = new URLSearchParams(window.location.search).get('date'); return d ? new Date(d + 'T00:00:00') : new Date() })
   const [viewMode, setViewMode] = useState('week')
@@ -105,6 +106,7 @@ export default function Calendar({ profile }) {
   const [trayCollapsed, setTrayCollapsed] = useState(false)
   const [newItemMode, setNewItemMode] = useState(null)
 
+  const isSuperAdmin = profile.role === 'super_admin'
   const effectiveView = isMobile ? 'day' : viewMode
 
   useEffect(() => {
@@ -113,6 +115,15 @@ export default function Calendar({ profile }) {
     }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
+        setOrgs(data || [])
+        if (!selectedOrg && data && data.length > 0) setSelectedOrg(data[0].id)
+      })
+    }
   }, [])
 
   useEffect(() => {
@@ -278,6 +289,13 @@ export default function Calendar({ profile }) {
         <NewItemDropdown onSelect={setNewItemMode} />
       </div>
 
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
+        </div>
+      )}
+
       <div className="calendar-toolbar">
         <div className="calendar-nav-group">
           <button className="calendar-nav-btn" onClick={goPrev}>‹</button>
@@ -340,7 +358,6 @@ export default function Calendar({ profile }) {
                 businessEnd={businessEnd}
                 onJobClick={setSelectedJob}
                 onJobDrop={handleGridDrop}
-                onShowMore={(day) => { setCurrentDate(day); setViewMode('day') }}
               />
             )}
           </div>
