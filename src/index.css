@@ -359,11 +359,17 @@ html { overflow-x: hidden; }
 /* On-Call Schedule: print the FILLED calendar only (no app chrome/form). */
 @media print {
   body * { visibility: hidden !important; }
-  .oncall-print-area, .oncall-print-area * { visibility: visible !important; }
+  .oncall-print-area, .oncall-print-area * {
+    visibility: visible !important;
+    /* Force background colors (the on-call bars + header) to actually print. */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
   .oncall-print-area { position: absolute; left: 0; top: 0; width: 100%; }
   .oncall-print-title { display: block !important; font-size: 18px; font-weight: 700; margin-bottom: 10px; }
   .oncall-no-print { display: none !important; }
 }
+@page { size: landscape; margin: 0.5in; }
 
 .field select {
   width: 100%;
