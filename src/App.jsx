@@ -68,6 +68,7 @@ import PublicInvoice from './PublicInvoice'
 import PublicChecklistReport from './PublicChecklistReport'
 import JoinPlan from './JoinPlan'
 import ServiceHub from './ServiceHub'
+import ServiceApproval from './ServiceApproval'
 import CustomerPortal from './modules/customer-hvac'
 import SystemEstimate from './SystemEstimate'
 import NewSystemEstimate from './NewSystemEstimate'
@@ -381,6 +382,7 @@ export default function App() {
         <Route path="/view-report/:runId" element={<PublicChecklistReport />} />
         <Route path="/join-plan/:propertyId" element={<JoinPlan />} />
         <Route path="/r/:token" element={<ServiceHub />} />
+        <Route path="/a/:token" element={<ServiceApproval />} />
         <Route path="/portal/*" element={<CustomerPortal />} />
         <Route path="*" element={isPortalHost ? <Navigate to="/portal" replace /> : <AuthenticatedApp />} />
       </Routes>

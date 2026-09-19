@@ -24,10 +24,19 @@ export default function ServiceRequests({ profile }) {
     setLoading(true)
     const { data } = await supabase.from('service_requests')
       .select('*, properties(street_address, unit, city, customers!properties_customer_id_fkey(display_name))')
-      .eq('org_id', selectedOrg).eq('status', 'pending').order('created_at', { ascending: false })
+      .eq('org_id', selectedOrg).in('status', ['pending', 'awaiting_owner']).order('created_at', { ascending: false })
     setReqs(data || []); setLoading(false)
   }
   useEffect(() => { load() }, [selectedOrg])
+  // Auto-refresh so new requests appear without a manual reload; also refreshes
+  // when the tab regains focus.
+  useEffect(() => {
+    if (!selectedOrg) return
+    const id = setInterval(load, 30000)
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
+    return () => { clearInterval(id); window.removeEventListener('focus', onFocus) }
+  }, [selectedOrg])
 
   async function approve(r) {
     setBusyId(r.id)
@@ -41,6 +50,13 @@ export default function ServiceRequests({ profile }) {
     setBusyId(r.id)
     await supabase.rpc('decline_service_request', { p_request_id: r.id })
     setBusyId(null); load()
+  }
+  async function ownerApprove(r) {
+    setBusyId(r.id)
+    const { error } = await supabase.rpc('mark_owner_approved', { p_request_id: r.id })
+    setBusyId(null)
+    if (error) { alert(error.message); return }
+    load()
   }
 
   async function searchProps(v) {
@@ -58,9 +74,53 @@ export default function ServiceRequests({ profile }) {
     setQresults([]); setQsearch('')
   }
 
+  const awaiting = reqs.filter((r) => r.status === 'awaiting_owner')
+  const ready = reqs.filter((r) => r.status === 'pending')
+  function basisBadge(r) {
+    if (r.requested_by_owner) return { text: 'Homeowner requested', color: '#1b7a3d' }
+    if (r.owner_approved_at) return { text: `Owner approved ${new Date(r.owner_approved_at).toLocaleDateString()}`, color: '#1b7a3d' }
+    return null
+  }
+  function card(r, kind) {
+    const badge = kind === 'ready' ? basisBadge(r) : null
+    return (
+      <div key={r.id} className="section-card" style={{ padding: 14, borderLeft: `4px solid ${URG_COLOR[r.urgency] || 'var(--border)'}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <strong style={{ fontSize: 15 }}>{CAT_LABEL[r.category] || 'Request'}{r.urgency ? ` · ${r.urgency}` : ''}</strong>
+            {badge && <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 700, color: '#fff', background: badge.color, borderRadius: 6, padding: '2px 8px' }}>{badge.text}</span>}
+            <div style={{ fontSize: 13.5, color: 'var(--mist)', marginTop: 2 }}>
+              {[r.properties?.street_address, r.properties?.unit, r.properties?.city].filter(Boolean).join(' ')}
+              {r.properties?.customers?.display_name ? ` · Account: ${r.properties.customers.display_name}` : ''}
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--mist)' }}>{new Date(r.created_at).toLocaleString()}</div>
+        </div>
+        {r.details && <div style={{ margin: '8px 0', fontSize: 14 }}>{r.details}</div>}
+        <div style={{ fontSize: 13, color: 'var(--mist)' }}>Reported by: {r.reporter_name || '—'}{r.reporter_phone ? ` · ${r.reporter_phone}` : ''}</div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+          {kind === 'awaiting' ? (
+            <>
+              <button className="auth-button" style={{ width: 'auto' }} disabled={busyId === r.id} onClick={() => ownerApprove(r)}>{busyId === r.id ? 'Working…' : 'Owner approved (I called) → ready'}</button>
+              <button className="logout-button" disabled={busyId === r.id} onClick={() => decline(r)}>Decline</button>
+            </>
+          ) : (
+            <>
+              <button className="auth-button" style={{ width: 'auto' }} disabled={busyId === r.id} onClick={() => approve(r)}>{busyId === r.id ? 'Working…' : 'Approve → create job'}</button>
+              <button className="logout-button" disabled={busyId === r.id} onClick={() => decline(r)}>Decline</button>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-      <div className="page-header-bar"><h2>Service Requests</h2></div>
+      <div className="page-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <h2 style={{ margin: 0 }}>Service Requests</h2>
+        <button onClick={load} disabled={loading} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#176E7A' }}>{loading ? 'Refreshing…' : 'Refresh'}</button>
+      </div>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 680 }}>
         Requests from the QR service stickers (tenants & homeowners). Approve to create a job in the dispatch tray — billed to the property’s account holder.
       </p>
@@ -75,28 +135,18 @@ export default function ServiceRequests({ profile }) {
       {loading ? <p style={{ color: 'var(--mist)' }}>Loading…</p>
         : reqs.length === 0 ? <div className="section-card" style={{ padding: 18 }}><p style={{ margin: 0 }}>No pending requests. 🎉</p></div>
         : (
-          <div style={{ display: 'grid', gap: 10 }}>
-            {reqs.map((r) => (
-              <div key={r.id} className="section-card" style={{ padding: 14, borderLeft: `4px solid ${URG_COLOR[r.urgency] || 'var(--border)'}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                  <div>
-                    <strong style={{ fontSize: 15 }}>{CAT_LABEL[r.category] || 'Request'}{r.urgency ? ` · ${r.urgency}` : ''}</strong>
-                    <div style={{ fontSize: 13.5, color: 'var(--mist)', marginTop: 2 }}>
-                      {[r.properties?.street_address, r.properties?.unit, r.properties?.city].filter(Boolean).join(' ')}
-                      {r.properties?.customers?.display_name ? ` · Account: ${r.properties.customers.display_name}` : ''}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--mist)' }}>{new Date(r.created_at).toLocaleString()}</div>
-                </div>
-                {r.details && <div style={{ margin: '8px 0', fontSize: 14 }}>{r.details}</div>}
-                <div style={{ fontSize: 13, color: 'var(--mist)' }}>Reported by: {r.reporter_name || '—'}{r.reporter_phone ? ` · ${r.reporter_phone}` : ''}</div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <button className="auth-button" style={{ width: 'auto' }} disabled={busyId === r.id} onClick={() => approve(r)}>{busyId === r.id ? 'Working…' : 'Approve → create job'}</button>
-                  <button className="logout-button" disabled={busyId === r.id} onClick={() => decline(r)}>Decline</button>
-                </div>
+          <>
+            {awaiting.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: 15, margin: '0 0 8px' }}>Awaiting homeowner approval <span style={{ color: 'var(--mist)', fontWeight: 400 }}>({awaiting.length})</span></h3>
+                <p style={{ fontSize: 12.5, color: 'var(--mist)', margin: '0 0 10px' }}>Requested by someone other than the account holder. We’ve emailed the account holder for approval — nothing is scheduled or billed until they say yes. You can also approve on their behalf after a phone call.</p>
+                <div style={{ display: 'grid', gap: 10 }}>{awaiting.map((r) => card(r, 'awaiting'))}</div>
               </div>
-            ))}
-          </div>
+            )}
+            <h3 style={{ fontSize: 15, margin: '0 0 8px' }}>Ready to dispatch <span style={{ color: 'var(--mist)', fontWeight: 400 }}>({ready.length})</span></h3>
+            {ready.length === 0 ? <div className="section-card" style={{ padding: 16 }}><p style={{ margin: 0, color: 'var(--mist)' }}>Nothing ready to dispatch.</p></div>
+              : <div style={{ display: 'grid', gap: 10 }}>{ready.map((r) => card(r, 'ready'))}</div>}
+          </>
         )}
 
       <h3 style={{ fontSize: 16, marginTop: 28 }}>Print a service QR sticker</h3>

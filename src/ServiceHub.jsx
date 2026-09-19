@@ -20,6 +20,7 @@ export default function ServiceHub() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [done, setDone] = useState(false)
+  const [ownerPending, setOwnerPending] = useState(false)
 
   useEffect(() => {
     supabase.functions.invoke('service-request', { body: { mode: 'resolve', token } })
@@ -35,6 +36,7 @@ export default function ServiceHub() {
     })
     setBusy(false)
     if (error || !data?.ok) { setErr(data?.error || 'Could not send — please call the office.'); return }
+    setOwnerPending(!!data.needs_owner_approval)
     setDone(true)
   }
 
@@ -51,7 +53,11 @@ export default function ServiceHub() {
     <div className="cp-root"><div className="cp-center">
       <div style={{ fontSize: 46 }}>✅</div>
       <h2 className="cp-h2">Request sent</h2>
-      <p className="cp-lead" style={{ maxWidth: 360 }}>Thanks! {info.org_name} has your request for <b>{info.address}</b> and will reach out to schedule. For an emergency, please also call the office.</p>
+      {ownerPending ? (
+        <p className="cp-lead" style={{ maxWidth: 380 }}>Thanks! Since you’re not the account holder on file for <b>{info.address}</b>, we’ve asked the account holder to approve this before {info.org_name} schedules it. For an emergency, please also call the office.</p>
+      ) : (
+        <p className="cp-lead" style={{ maxWidth: 360 }}>Thanks! {info.org_name} has your request for <b>{info.address}</b> and will reach out to schedule. For an emergency, please also call the office.</p>
+      )}
     </div></div>
   )
 
