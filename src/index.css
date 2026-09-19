@@ -2539,3 +2539,25 @@ html { overflow-x: hidden; }
   .app-topbar-org-label { display: none; }
   .sidebar-rail { width: 168px; }
 }
+
+/* --- Redesign v2: dashboard header Viewing-Organization pill + switcher --- */
+.dash-vieworg { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dash-vieworg-label { font-size: 10px; line-height: 1.15; text-transform: uppercase; letter-spacing: 0.09em; color: var(--mist); }
+.dash-pill { display: inline-flex; align-items: center; gap: 10px; background: rgba(53,182,232,0.10); border: 1px solid rgba(53,182,232,0.45); border-radius: 12px; padding: 7px 16px; }
+.dash-pill .vieworg-name { color: #0E7FB0; font-size: 24px; font-weight: 800; }
+.dash-pill .vieworg-sep { color: var(--mist); font-size: 20px; }
+.dash-pill .vieworg-page { color: var(--paper, #152238); font-size: 16px; font-weight: 700; letter-spacing: 0.04em; }
+.dash-pill .vieworg-select { border: none; background: transparent; color: #0E7FB0; font-size: 24px; font-weight: 800; font-family: inherit; cursor: pointer; padding: 0; max-width: 46vw; }
+.dash-pill .vieworg-select:focus { outline: none; }
+
+/* --- Redesign v2: scalable org switcher (server-searched) --- */
+.dash-pill--switch { position: relative; }
+.vieworg-trigger { border: none; background: transparent; color: #0E7FB0; font-size: 24px; font-weight: 800; font-family: inherit; cursor: pointer; padding: 0; display: inline-flex; align-items: center; gap: 6px; }
+.vieworg-caret { font-size: 14px; color: var(--mist); }
+.vieworg-menu { position: absolute; top: calc(100% + 8px); left: 0; z-index: 60; width: 320px; max-width: 80vw; background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 34px rgba(16,32,47,0.18); padding: 10px; }
+.vieworg-search { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; margin-bottom: 8px; }
+.vieworg-results { max-height: 280px; overflow-y: auto; }
+.vieworg-result { padding: 9px 11px; border-radius: 8px; cursor: pointer; font-size: 14px; color: var(--paper, #152238); }
+.vieworg-result:hover { background: var(--ink); }
+.vieworg-result.active { background: rgba(53,182,232,0.14); font-weight: 700; }
+.vieworg-result.muted { color: var(--mist); cursor: default; }

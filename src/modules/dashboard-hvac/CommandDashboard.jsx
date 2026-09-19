@@ -9,6 +9,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import { can } from '../../utils/permissions'
 import OrgPicker from '../../OrgPicker'
+import OrgSwitchPill from '../../OrgSwitchPill'
 import { MEASURES, DIMENSIONS, DEFAULT_TEMPLATE } from './catalog'
 import { fetchMeasure, queryKpi, getLayout, saveLayout, resetLayout, periodRange, PERIODS } from './dashboardData'
 import Widget from './charts'
@@ -40,6 +41,7 @@ export default function CommandDashboard({ profile }) {
   const canCustomize = isSuperAdmin || can(profile, 'customize_dashboard')
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [orgName, setOrgName] = useState('')
   const [period, setPeriod] = useState('mtd')
   const [widgets, setWidgets] = useState(defaultWidgets)
   const [customized, setCustomized] = useState(false)   // org has a saved layout row
@@ -51,14 +53,25 @@ export default function CommandDashboard({ profile }) {
   const [overIdx, setOverIdx] = useState(null)
   const navigate = useNavigate()
 
+  // Default the viewing org WITHOUT loading every org (scales to any subscriber
+  // count): use the last-picked org if stored, else just the first org A–Z.
   useEffect(() => {
-    if (isSuperAdmin) {
-      supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
-        setOrgs(data || [])
-        setSelectedOrg((s) => s || (data && data[0] ? data[0].id : ''))
-      })
-    }
+    if (!isSuperAdmin) return
+    let stored = null
+    try { stored = localStorage.getItem('journey_viewing_org') } catch (err) {}
+    if (stored) { setSelectedOrg((s) => s || stored); return }
+    supabase.from('organizations').select('id, name').order('name').limit(1)
+      .then(({ data }) => { if (data && data[0]) setSelectedOrg((s) => s || data[0].id) })
   }, [isSuperAdmin])
+
+  // Resolve the display name of the org currently being viewed (for the pill).
+  useEffect(() => {
+    const inList = orgs.find((o) => o.id === selectedOrg)
+    if (inList) { setOrgName(inList.name); return }
+    if (!selectedOrg) { setOrgName(''); return }
+    supabase.from('organizations').select('name').eq('id', selectedOrg).single()
+      .then(({ data }) => setOrgName(data?.name || ''))
+  }, [selectedOrg, orgs])
 
   // Load the org's saved layout (or the code default) whenever the org changes.
   useEffect(() => {
@@ -131,7 +144,6 @@ export default function CommandDashboard({ profile }) {
   }
 
   const periodLabel = (PERIODS.find((p) => p[0] === period) || [])[1]
-  const orgName = (orgs.find((o) => o.id === selectedOrg) || {}).name || null
 
   const cards = widgets.map((w) => w.kind === 'measure'
     ? { id: uid(w), def: MEASURES[w.key], w: w.w, rows: data[uid(w)], drill: MEASURES[w.key].drill, sliceTo: MEASURES[w.key].sliceTo || null, widget: w }
@@ -139,10 +151,21 @@ export default function CommandDashboard({ profile }) {
 
   return (
     <div>
-      <div className="page-header-bar" style={{ alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
         <div>
-          <h2 className="page-title" style={{ margin: 0 }}>Dashboard</h2>
-          <div style={{ color: 'var(--mist)', fontSize: 13, marginTop: 2 }}>Your business at a glance · {periodLabel}</div>
+          <div className="dash-vieworg">
+            <span className="dash-vieworg-label">Viewing<br />Organization</span>
+            {isSuperAdmin ? (
+              <OrgSwitchPill value={selectedOrg} orgName={orgName} pageLabel="HOME" onChange={setSelectedOrg} />
+            ) : (
+              <span className="dash-pill">
+                <span className="vieworg-name">{orgName || '—'}</span>
+                <span className="vieworg-sep">/</span>
+                <span className="vieworg-page">HOME</span>
+              </span>
+            )}
+          </div>
+          <div style={{ color: 'var(--mist)', fontSize: 13, marginTop: 8 }}>Your business at a glance · {periodLabel}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div className="field" style={{ marginBottom: 0 }}>
@@ -156,13 +179,6 @@ export default function CommandDashboard({ profile }) {
           {canCustomize && customized && <button className="logout-button" style={{ margin: 0 }} onClick={resetToDefault}>Reset to default</button>}
         </div>
       </div>
-
-      {isSuperAdmin && (
-        <div style={{ marginBottom: 18, maxWidth: 360 }}>
-          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
-          <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
-        </div>
-      )}
 
       <div style={{ marginBottom: 16 }}><QuincyBrief kind="home" org={selectedOrg} /></div>
 
