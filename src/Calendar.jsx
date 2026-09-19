@@ -306,25 +306,32 @@ export default function Calendar({ profile }) {
         </div>
 
         {!isMobile && (
-          <div className="calendar-view-toggle">
-            <button
-              className={`calendar-view-btn${viewMode === 'week' ? ' active' : ''}`}
-              onClick={() => setViewMode('week')}
-            >
-              Week
-            </button>
-            <button
-              className={`calendar-view-btn${viewMode === 'day' ? ' active' : ''}`}
-              onClick={() => setViewMode('day')}
-            >
-              Day
-            </button>
-            <button
-              className={`calendar-view-btn${viewMode === 'month' ? ' active' : ''}`}
-              onClick={() => setViewMode('month')}
-            >
-              Month
-            </button>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {/* Calendar / Map view toggle */}
+            <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+              <button type="button" title="Calendar view" style={{ border: 'none', width: 42, height: 34, fontSize: 16, cursor: 'default', background: '#176E7A' }}>🗓</button>
+              <button type="button" title="Map view" onClick={() => nav('/dispatch-map?date=' + toLocalDateStr(currentDate))} style={{ border: 'none', width: 42, height: 34, fontSize: 16, cursor: 'pointer', background: '#fff', filter: 'grayscale(1)' }}>📍</button>
+            </div>
+            <div className="calendar-view-toggle">
+              <button
+                className={`calendar-view-btn${viewMode === 'week' ? ' active' : ''}`}
+                onClick={() => setViewMode('week')}
+              >
+                Week
+              </button>
+              <button
+                className={`calendar-view-btn${viewMode === 'day' ? ' active' : ''}`}
+                onClick={() => setViewMode('day')}
+              >
+                Day
+              </button>
+              <button
+                className={`calendar-view-btn${viewMode === 'month' ? ' active' : ''}`}
+                onClick={() => setViewMode('month')}
+              >
+                Month
+              </button>
+            </div>
           </div>
         )}
       </div>

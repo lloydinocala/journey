@@ -14,6 +14,8 @@ async function geocodeAddress(address) {
 
 const WLABEL = { '8_11': '8–11 AM', '10_1': '10 AM–1 PM', '12_3': '12–3 PM', '2_5': '2–5 PM', 'asap': 'ASAP' }
 const NO_TERR = '#94A3B8'
+// Distinct default colors so two territories never come out the same by accident.
+const TERR_PALETTE = ['#2F5DE3', '#C0392B', '#1F8A4C', '#B7791F', '#7C3AED', '#0E8A6E', '#D0567F', '#E67E22', '#2C7BE5', '#8E44AD']
 // 2-digit state FIPS -> abbreviation (for county labels)
 const ST = { '01':'AL','02':'AK','04':'AZ','05':'AR','06':'CA','08':'CO','09':'CT','10':'DE','11':'DC','12':'FL','13':'GA','15':'HI','16':'ID','17':'IL','18':'IN','19':'IA','20':'KS','21':'KY','22':'LA','23':'ME','24':'MD','25':'MA','26':'MI','27':'MN','28':'MS','29':'MO','30':'MT','31':'NE','32':'NV','33':'NH','34':'NJ','35':'NM','36':'NY','37':'NC','38':'ND','39':'OH','40':'OK','41':'OR','42':'PA','44':'RI','45':'SC','46':'SD','47':'TN','48':'TX','49':'UT','50':'VT','51':'VA','53':'WA','54':'WV','55':'WI','56':'WY','72':'PR' }
 
@@ -119,7 +121,9 @@ export default function DispatchMap({ profile }) {
 
   // County list for the picker (loaded once when the manager first opens).
   useEffect(() => {
-    if (!manageOpen || allCounties.length) return
+    if (!manageOpen) return
+    if (!tEditId) setTColor(nextColor())   // fresh distinct color when opening a new-territory form
+    if (allCounties.length) return
     supabase.from('county_boundaries').select('fips, name, state_fips').order('name').then(({ data }) => setAllCounties(data || []))
   }, [manageOpen])
 
@@ -297,7 +301,8 @@ export default function DispatchMap({ profile }) {
   }, [jobs, techs, pending, showUnscheduled, mapReady, territories, colorBy, showZones, terrGeo])
 
   // ---- territory manager ----
-  function newTerr() { setTEditId(null); setTName(''); setTColor('#2F5DE3'); setTZips(''); setTTechs([]); setTCounties([]); setCountyQuery('') }
+  const nextColor = () => TERR_PALETTE.find((c) => !territories.some((t) => (t.color || '').toLowerCase() === c.toLowerCase())) || TERR_PALETTE[territories.length % TERR_PALETTE.length]
+  function newTerr() { setTEditId(null); setTName(''); setTColor(nextColor()); setTZips(''); setTTechs([]); setTCounties([]); setCountyQuery('') }
   function editTerr(t) { setTEditId(t.id); setTName(t.name || ''); setTColor(t.color || '#2F5DE3'); setTZips((t.zips || []).join(', ')); setTTechs(t.tech_user_ids || []); setTCounties(t.counties || []); setCountyQuery(''); setManageOpen(true) }
   function toggleTech(id) { setTTechs((cur) => cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]) }
   function toggleCounty(fips) { setTCounties((cur) => cur.includes(fips) ? cur.filter((x) => x !== fips) : [...cur, fips]) }
