@@ -2508,3 +2508,34 @@ html { overflow-x: hidden; }
   .app-topbar-brand { font-size: 18px; }
   .app-topbar-org-label { display: none; }
 }
+
+/* --- Redesign v2: bigger top bar + prominent centered org pill --- */
+.app-topbar { justify-content: flex-start; padding: 14px 24px; }
+.app-topbar-brand { font-size: 15px; color: var(--nav-mist); font-weight: 600; display: flex; align-items: baseline; gap: 8px; }
+.tb-the { font-size: 20px; color: #fff; font-weight: 700; }
+.tb-journey { font-size: 34px; color: #35B6E8; font-weight: 800; letter-spacing: -0.01em; font-family: 'Space Grotesk', sans-serif; line-height: 1; }
+.tb-tag { font-size: 15px; color: var(--nav-mist); font-style: italic; }
+.app-topbar-org { margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+.app-topbar-org-label { font-size: 10px; line-height: 1.15; text-transform: uppercase; letter-spacing: 0.08em; color: var(--nav-mist); text-align: right; white-space: normal; }
+.vieworg-pill { background: rgba(53,182,232,0.12); border: 1px solid rgba(53,182,232,0.40); border-radius: 12px; padding: 8px 18px; }
+.vieworg-name { color: #35B6E8; font-size: 22px; font-weight: 800; max-width: 40vw; }
+.vieworg-sep { color: var(--nav-mist); font-size: 18px; }
+.vieworg-page { color: #fff; font-weight: 700; font-size: 15px; letter-spacing: 0.05em; }
+
+/* --- Redesign v2: wider icon rail --- */
+.sidebar-rail { width: 210px; align-items: stretch; padding: 14px 10px; gap: 2px; }
+.sidebar-rail .rail-item {
+  display: flex; align-items: center; gap: 12px;
+  text-align: left; padding: 11px 14px; border-left: none; border-radius: 10px;
+  font-size: 14px; color: var(--nav-mist); line-height: 1.2;
+}
+.sidebar-rail .rail-item:hover { background: rgba(255,255,255,0.06); color: var(--nav-text); }
+.sidebar-rail .rail-item.active { background: rgba(53,182,232,0.16); color: #fff; box-shadow: inset 3px 0 0 #35B6E8; }
+.rail-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-caret { color: var(--nav-mist); font-size: 16px; }
+@media (max-width: 640px) {
+  .tb-journey { font-size: 26px; }
+  .app-topbar-org { margin-left: auto; }
+  .app-topbar-org-label { display: none; }
+  .sidebar-rail { width: 168px; }
+}

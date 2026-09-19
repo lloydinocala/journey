@@ -45,6 +45,44 @@ function pageTitle(pathname) {
   return seg.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+// Rail visuals for the redesign: per-category icon, display-label overrides, and
+// top ordering to match the mockup. Underlying category keys/links are unchanged
+// (the full 5-group regroup is deferred to the nav mockup).
+const RAIL_LABELS = { start: 'Train Station', dispatch: 'Dispatch Station', workforce: 'WorkForce' }
+const RAIL_ORDER = {
+  dispatch: 1, start: 2, 'inventory-central': 3, workforce: 4, work: 5, maintenance: 6,
+  permitting: 40, import: 41, marketing: 42, financials: 90, admin: 91, personal: 92, platform: 93,
+}
+function railRank(key) { return RAIL_ORDER[key] ?? 50 }
+const RAIL_ICON_PATHS = {
+  home: 'M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10',
+  dispatch: 'M4 5h4l2 5-3 2a12 12 0 006 6l2-3 5 2v4a2 2 0 01-2 2A16 16 0 013 7a2 2 0 011-2z',
+  start: 'M7 4h10v9a3 3 0 01-3 3h-4a3 3 0 01-3-3zM8 20l2-3M16 20l-2-3M9 8h6',
+  'inventory-central': 'M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10',
+  workforce: 'M9 11a3 3 0 100-6 3 3 0 000 6zM3 20a6 6 0 0112 0M17 11a3 3 0 003-3 3 3 0 00-3-3M16 20a6 6 0 018-4',
+  work: 'M4 7h16v13H4zM9 7V5a2 2 0 012-2h2a2 2 0 012 2v2',
+  maintenance: 'M14 6a4 4 0 01-5.2 5.2L5 15l4 4 3.8-3.8A4 4 0 0018 10l-2 2-2-2 2-2z',
+  permitting: 'M7 3h7l4 4v14H7zM14 3v4h4M9 12h6M9 16h6',
+  import: 'M12 3v10m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2',
+  marketing: 'M4 10v4h3l5 4V6l-5 4H4zM17 8a5 5 0 010 8',
+  financials: 'M12 3v18M8 8h6a2 2 0 010 4H9a2 2 0 000 4h7',
+  admin: 'M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z',
+  personal: 'M12 12a4 4 0 100-8 4 4 0 000 8zM5 21a7 7 0 0114 0',
+  platform: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  settings: 'M12 8a4 4 0 100 8 4 4 0 000-8zM19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L14.5 2h-5l-.4 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4L3 11a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1l.4 2.6h5l.4-2.6a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5a7 7 0 00.1-1z',
+  refresh: 'M4 12a8 8 0 0114-5m2-3v5h-5M20 12a8 8 0 01-14 5m-2 3v-5h5',
+  signout: 'M15 12H4m0 0l4-4m-4 4l4 4M14 4h4a2 2 0 012 2v12a2 2 0 01-2 2h-4',
+}
+function RailIcon({ k }) {
+  const d = RAIL_ICON_PATHS[k] || 'M5 12h14'
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path d={d} />
+    </svg>
+  )
+}
+
 const CATEGORIES = [
   { key: 'start', label: 'Start', items: [
     { label: 'Train Station', path: '/train-station' },
@@ -397,24 +435,16 @@ export default function Layout({ profile }) {
       )}
       <AnnouncementBanner profile={profile} />
       <header className="app-topbar">
-        <div className="app-topbar-brand">The <span>Journey</span></div>
-        <div className="app-topbar-org">
-          <span className="app-topbar-org-label">Viewing Organization</span>
-          <span className="vieworg-pill">
-            <span className="vieworg-name">{orgName || '—'}</span>
-            <span className="vieworg-sep">/</span>
-            <span className="vieworg-page">{pageTitle(location.pathname).toUpperCase()}</span>
-          </span>
-        </div>
+        <div className="app-topbar-brand"><span className="tb-the">The</span> <span className="tb-journey">Journey</span> <span className="tb-tag">starts here.</span></div>
       </header>
       <div className="shell-body">
         <div className="sidebar-rail">
-          <div className="rail-brand" aria-hidden="true">✦</div>
           <Link to="/home" className={'rail-item' + (location.pathname === '/home' ? ' active' : '')}>
-            Home
+            <RailIcon k="home" /><span className="rail-label">Home</span>
           </Link>
-          {allCategories.filter((cat) => !NESTED_KEYS.has(cat.key)).map((cat) => {
+          {allCategories.filter((cat) => !NESTED_KEYS.has(cat.key)).slice().sort((a, b) => railRank(a.key) - railRank(b.key)).map((cat) => {
             const active = HUB_KEYS.has(cat.key) ? (expandedCategory === cat.key || STATION_TO_HUB[expandedCategory] === cat.key) : expandedCategory === cat.key
+            const expandable = HUB_KEYS.has(cat.key) || (cat.items && cat.items.length > 0)
             return (
               <button
                 key={cat.key}
@@ -424,7 +454,9 @@ export default function Layout({ profile }) {
                   if (DASH_BY_KEY[cat.key]) navigate(DASH_BY_KEY[cat.key])
                 }}
               >
-                {cat.label}
+                <RailIcon k={cat.key} />
+                <span className="rail-label">{RAIL_LABELS[cat.key] || cat.label}</span>
+                {expandable && <span className="rail-caret" aria-hidden="true">›</span>}
               </button>
             )
           })}
@@ -435,8 +467,8 @@ export default function Layout({ profile }) {
             </div>
           )}
           {isSuperAdmin && <div style={{ marginBottom: 12, fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', color: 'var(--amber, #B8720A)', textAlign: 'center', lineHeight: 1.2, width: '100%' }}>SUPER<br />ADMIN</div>}
-          <button className="rail-item" onClick={() => window.location.reload(true)}>Refresh</button>
-          <button className="rail-item" onClick={handleLogout}>Sign out</button>
+          <button className="rail-item" onClick={() => window.location.reload(true)}><RailIcon k="refresh" /><span className="rail-label">Refresh</span></button>
+          <button className="rail-item" onClick={handleLogout}><RailIcon k="signout" /><span className="rail-label">Sign out</span></button>
         </div>
 
         {(HUB_KEYS.has(expandedCategory) || NESTED_KEYS.has(expandedCategory) || (activeCategoryData && activeCategoryData.items.length > 0)) && (
