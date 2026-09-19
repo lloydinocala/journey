@@ -14,6 +14,8 @@ async function geocodeAddress(address) {
 
 const WLABEL = { '8_11': '8–11 AM', '10_1': '10 AM–1 PM', '12_3': '12–3 PM', '2_5': '2–5 PM', 'asap': 'ASAP' }
 const NO_TERR = '#94A3B8'
+// 2-digit state FIPS -> abbreviation (for county labels)
+const ST = { '01':'AL','02':'AK','04':'AZ','05':'AR','06':'CA','08':'CO','09':'CT','10':'DE','11':'DC','12':'FL','13':'GA','15':'HI','16':'ID','17':'IL','18':'IN','19':'IA','20':'KS','21':'KY','22':'LA','23':'ME','24':'MD','25':'MA','26':'MI','27':'MN','28':'MS','29':'MO','30':'MT','31':'NE','32':'NV','33':'NH','34':'NJ','35':'NM','36':'NY','37':'NC','38':'ND','39':'OH','40':'OK','41':'OR','42':'PA','44':'RI','45':'SC','46':'SD','47':'TN','48':'TX','49':'UT','50':'VT','51':'VA','53':'WA','54':'WV','55':'WI','56':'WY','72':'PR' }
 
 const jobColor = (j) =>
   j.date_pending ? '#DC2626'
@@ -61,7 +63,11 @@ export default function DispatchMap({ profile }) {
   const [tColor, setTColor] = useState('#2F5DE3')
   const [tZips, setTZips] = useState('')
   const [tTechs, setTTechs] = useState([])
+  const [tCounties, setTCounties] = useState([])
   const [tSaving, setTSaving] = useState(false)
+  const [terrGeo, setTerrGeo] = useState({})       // territoryId -> parsed GeoJSON geometry
+  const [allCounties, setAllCounties] = useState([]) // {fips,name,state_fips} for the picker
+  const [countyQuery, setCountyQuery] = useState('')
 
   useEffect(() => {
     if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
@@ -94,6 +100,28 @@ export default function DispatchMap({ profile }) {
     const { data } = await supabase.from('dispatch_territories').select('*').eq('org_id', selectedOrg).eq('is_active', true).order('name')
     setTerritories(data || [])
   }
+
+  // Real boundary shapes (merged ZIP + county polygons) for each territory.
+  useEffect(() => {
+    if (!territories.length) { setTerrGeo({}); return }
+    let cancelled = false
+    ;(async () => {
+      const out = {}
+      for (const t of territories) {
+        if (!(t.zips || []).length && !(t.counties || []).length) continue
+        const { data } = await supabase.rpc('territory_boundary', { p_zips: t.zips || [], p_counties: t.counties || [] })
+        if (data) { try { out[t.id] = JSON.parse(data) } catch { /* ignore */ } }
+      }
+      if (!cancelled) setTerrGeo(out)
+    })()
+    return () => { cancelled = true }
+  }, [territories])
+
+  // County list for the picker (loaded once when the manager first opens).
+  useEffect(() => {
+    if (!manageOpen || allCounties.length) return
+    supabase.from('county_boundaries').select('fips, name, state_fips').order('name').then(({ data }) => setAllCounties(data || []))
+  }, [manageOpen])
 
   async function load() {
     if (!selectedOrg) return
@@ -186,14 +214,22 @@ export default function DispatchMap({ profile }) {
     if (showZones) {
       const allPts = [...jobs, ...(showUnscheduled ? pending : [])].filter((x) => x.lat != null)
       for (const t of territories) {
+        const gj = terrGeo[t.id]
+        if (gj) {
+          // Real merged ZIP/county boundary.
+          window.L.geoJSON(gj, { style: { color: t.color, weight: 2, opacity: 0.75, fillColor: t.color, fillOpacity: 0.14 } })
+            .addTo(layer).bindTooltip(t.name, { sticky: true })
+          continue
+        }
+        // Fallback (area not loaded yet): a soft circle around the territory's jobs.
         const pts = allPts.filter((x) => terrForZip(x.zip)?.id === t.id)
         if (!pts.length) continue
         const cLat = pts.reduce((s, p) => s + p.lat, 0) / pts.length
         const cLng = pts.reduce((s, p) => s + p.lng, 0) / pts.length
         let r = 800
         pts.forEach((p) => { r = Math.max(r, distM(cLat, cLng, p.lat, p.lng) + 500) })
-        window.L.circle([cLat, cLng], { radius: r, color: t.color, weight: 1.5, opacity: 0.55, fillColor: t.color, fillOpacity: 0.10 })
-          .addTo(layer).bindTooltip(t.name, { permanent: false, direction: 'top' })
+        window.L.circle([cLat, cLng], { radius: r, color: t.color, weight: 1.5, opacity: 0.55, fillColor: t.color, fillOpacity: 0.10, dashArray: '5,5' })
+          .addTo(layer).bindTooltip(t.name + ' (approx — shapes not loaded for this area)', { direction: 'top' })
       }
     }
 
@@ -258,17 +294,19 @@ export default function DispatchMap({ profile }) {
       pts.push([m.lat, m.lng])
     }
     if (pts.length) { try { map.fitBounds(pts, { padding: [40, 40], maxZoom: 14 }) } catch { /* single/empty */ } }
-  }, [jobs, techs, pending, showUnscheduled, mapReady, territories, colorBy, showZones])
+  }, [jobs, techs, pending, showUnscheduled, mapReady, territories, colorBy, showZones, terrGeo])
 
   // ---- territory manager ----
-  function newTerr() { setTEditId(null); setTName(''); setTColor('#2F5DE3'); setTZips(''); setTTechs([]) }
-  function editTerr(t) { setTEditId(t.id); setTName(t.name || ''); setTColor(t.color || '#2F5DE3'); setTZips((t.zips || []).join(', ')); setTTechs(t.tech_user_ids || []); setManageOpen(true) }
+  function newTerr() { setTEditId(null); setTName(''); setTColor('#2F5DE3'); setTZips(''); setTTechs([]); setTCounties([]); setCountyQuery('') }
+  function editTerr(t) { setTEditId(t.id); setTName(t.name || ''); setTColor(t.color || '#2F5DE3'); setTZips((t.zips || []).join(', ')); setTTechs(t.tech_user_ids || []); setTCounties(t.counties || []); setCountyQuery(''); setManageOpen(true) }
   function toggleTech(id) { setTTechs((cur) => cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]) }
+  function toggleCounty(fips) { setTCounties((cur) => cur.includes(fips) ? cur.filter((x) => x !== fips) : [...cur, fips]) }
+  const countyLabel = (fips) => { const c = allCounties.find((x) => x.fips === fips); return c ? `${c.name}, ${ST[c.state_fips] || c.state_fips}` : fips }
   async function saveTerr() {
     if (!tName.trim() || !selectedOrg) return
     const zips = [...new Set(tZips.split(/[\s,]+/).map((s) => s.trim()).filter((s) => /^\d{5}$/.test(s)))]
     setTSaving(true)
-    const payload = { name: tName.trim(), color: tColor, zips, tech_user_ids: tTechs }
+    const payload = { name: tName.trim(), color: tColor, zips, tech_user_ids: tTechs, counties: tCounties }
     let err
     if (tEditId) ({ error: err } = await supabase.from('dispatch_territories').update(payload).eq('id', tEditId))
     else ({ error: err } = await supabase.from('dispatch_territories').insert({ ...payload, org_id: selectedOrg, created_by: profile.id }))
@@ -308,7 +346,7 @@ export default function DispatchMap({ profile }) {
                   <span style={{ width: 14, height: 14, borderRadius: 4, background: t.color, flex: '0 0 auto' }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--mist)' }}>{(t.zips || []).length} ZIP{(t.zips || []).length === 1 ? '' : 's'} · {(t.tech_user_ids || []).map(userName).join(', ') || 'no tech'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--mist)' }}>{(t.zips || []).length} ZIP{(t.zips || []).length === 1 ? '' : 's'}{(t.counties || []).length ? ` · ${(t.counties || []).length} county${(t.counties || []).length === 1 ? '' : 'ies'}` : ''} · {(t.tech_user_ids || []).map(userName).join(', ') || 'no tech'}</div>
                   </div>
                   <button onClick={() => editTerr(t)} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12.5, cursor: 'pointer' }}>Edit</button>
                   <button onClick={() => deleteTerr(t.id)} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12.5, cursor: 'pointer', color: '#B5462F' }}>Delete</button>
@@ -328,6 +366,25 @@ export default function DispatchMap({ profile }) {
               </div>
               <label style={{ display: 'block', marginBottom: 10 }}><span style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 4 }}>ZIP codes (comma or space separated)</span>
                 <textarea value={tZips} onChange={(e) => setTZips(e.target.value)} rows={2} placeholder="34470, 34471, 34482" style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, boxSizing: 'border-box', resize: 'vertical' }} /></label>
+              <div style={{ marginBottom: 10 }}>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 4 }}>Whole counties (optional — ZIPs are usually finer-grained)</span>
+                {tCounties.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+                    {tCounties.map((f) => (
+                      <button key={f} type="button" onClick={() => toggleCounty(f)} style={{ border: '1px solid #176E7A', borderRadius: 20, padding: '4px 10px', fontSize: 12, cursor: 'pointer', background: '#176E7A', color: '#fff' }}>{countyLabel(f)} ✕</button>
+                    ))}
+                  </div>
+                )}
+                <input value={countyQuery} onChange={(e) => setCountyQuery(e.target.value)} placeholder="Search a county to add…" style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, boxSizing: 'border-box' }} />
+                {countyQuery.trim().length >= 2 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                    {allCounties.filter((c) => !tCounties.includes(c.fips) && `${c.name} ${ST[c.state_fips] || ''}`.toLowerCase().includes(countyQuery.trim().toLowerCase())).slice(0, 10).map((c) => (
+                      <button key={c.fips} type="button" onClick={() => { toggleCounty(c.fips); setCountyQuery('') }} style={{ border: '1px solid var(--border)', borderRadius: 20, padding: '4px 10px', fontSize: 12, cursor: 'pointer', background: '#fff' }}>+ {c.name}, {ST[c.state_fips] || c.state_fips}</button>
+                    ))}
+                    {allCounties.length === 0 && <span style={{ fontSize: 12, color: 'var(--mist)' }}>Loading counties…</span>}
+                  </div>
+                )}
+              </div>
               <div style={{ marginBottom: 12 }}>
                 <span style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 4 }}>Assigned tech(s)</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
