@@ -356,6 +356,15 @@ html { overflow-x: hidden; }
   box-shadow: inset 0 -1px 0 var(--line-strong);
 }
 
+/* On-Call Schedule: print the FILLED calendar only (no app chrome/form). */
+@media print {
+  body * { visibility: hidden !important; }
+  .oncall-print-area, .oncall-print-area * { visibility: visible !important; }
+  .oncall-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  .oncall-print-title { display: block !important; font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+  .oncall-no-print { display: none !important; }
+}
+
 .field select {
   width: 100%;
   padding: 10px 12px;

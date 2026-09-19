@@ -8,9 +8,6 @@ function toLocalInput(d) {
   const off = dt.getTimezoneOffset() * 60000
   return new Date(dt - off).toISOString().slice(0, 16)
 }
-function fmt(iso) {
-  return new Date(iso).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-}
 function next7am() {
   const d = new Date()
   d.setSeconds(0, 0); d.setMinutes(0); d.setHours(7)
@@ -19,6 +16,41 @@ function next7am() {
 }
 function addDays(localInput, days) {
   const d = new Date(localInput); d.setDate(d.getDate() + days); return toLocalInput(d)
+}
+// Compact bar label, e.g. "10/2/26 7:00 AM"
+function fmtShort(iso) {
+  const d = new Date(iso)
+  return `${d.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric', year: '2-digit' })} ${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
+}
+function fmtLong(iso) {
+  return new Date(iso).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+// Distinct, readable bar colors (white text on all). Supervisor + tech in a
+// period take two consecutive entries, so each period reads as a colored pair.
+const PALETTE = ['#29A3C9', '#3FA84A', '#E08A46', '#C558A6', '#2E74C0', '#B5462F', '#C99A12', '#6A4FB6', '#0E8A6E', '#D0567F']
+
+// Weeks (arrays of 7 Sun–Sat Dates) covering the given month.
+function monthWeeks(year, month) {
+  const first = new Date(year, month, 1)
+  const last = new Date(year, month + 1, 0)
+  const start = new Date(first); start.setDate(1 - first.getDay()); start.setHours(0, 0, 0, 0)
+  const weeks = []
+  const cur = new Date(start)
+  while (cur <= last || cur.getDay() !== 0) {
+    const days = []
+    for (let d = 0; d < 7; d++) { days.push(new Date(cur)); cur.setDate(cur.getDate() + 1) }
+    weeks.push(days)
+    if (weeks.length >= 6) break
+  }
+  return weeks
+}
+// Does a period cover any part of calendar day `d`?
+function coversDay(p, d) {
+  const ds = new Date(d); ds.setHours(0, 0, 0, 0)
+  const de = new Date(ds); de.setDate(de.getDate() + 1)
+  return new Date(p.period_start) < de && new Date(p.period_end) > ds
 }
 
 export default function OnCallSchedule({ profile }) {
@@ -29,27 +61,23 @@ export default function OnCallSchedule({ profile }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const [view, setView] = useState('calendar')      // 'calendar' | 'map'
+  const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d })
+
   const [supId, setSupId] = useState('')
   const [techId, setTechId] = useState('')
   const [startVal, setStartVal] = useState('')
   const [endVal, setEndVal] = useState('')
+  const [selectedId, setSelectedId] = useState(null)   // a period loaded into the form
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-
-  const [editingId, setEditingId] = useState(null)
-  const [editSup, setEditSup] = useState('')
-  const [editTech, setEditTech] = useState('')
-  const [editStart, setEditStart] = useState('')
-  const [editEnd, setEditEnd] = useState('')
 
   useEffect(() => {
     if (!isSuperAdmin) return
     supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
   }, [isSuperAdmin])
 
-  useEffect(() => {
-    if (selectedOrg) load()
-  }, [selectedOrg])
+  useEffect(() => { if (selectedOrg) load() }, [selectedOrg])
 
   async function load() {
     setLoading(true)
@@ -59,21 +87,40 @@ export default function OnCallSchedule({ profile }) {
     ])
     setPeriods(sched || [])
     setUsers(us || [])
-    const lastEnd = sched && sched.length ? sched[sched.length - 1].period_end : null
-    const start = lastEnd ? toLocalInput(new Date(lastEnd)) : toLocalInput(next7am())
-    setStartVal(start)
-    setEndVal(addDays(start, 7))
+    resetForm(sched || [])
     setLoading(false)
+  }
+
+  function resetForm(sched) {
+    const list = sched || periods
+    const lastEnd = list.length ? list[list.length - 1].period_end : null
+    const start = lastEnd ? toLocalInput(new Date(lastEnd)) : toLocalInput(next7am())
+    setSelectedId(null); setSupId(''); setTechId('')
+    setStartVal(start); setEndVal(addDays(start, 7)); setError('')
   }
 
   const nameOf = (id) => users.find((u) => u.id === id)?.full_name || '—'
 
-  async function addPeriod(e) {
-    e.preventDefault()
+  function selectPeriod(p) {
+    setSelectedId(p.id)
+    setSupId(p.supervisor_user_id || '')
+    setTechId(p.tech_user_id || '')
+    setStartVal(toLocalInput(new Date(p.period_start)))
+    setEndVal(toLocalInput(new Date(p.period_end)))
     setError('')
-    if (!supId) { setError('Choose an on-call supervisor.'); return }
-    if (!startVal || !endVal) { setError('Set a start and end.'); return }
-    if (new Date(endVal) <= new Date(startVal)) { setError('End must be after start.'); return }
+  }
+
+  function validate() {
+    if (!supId) { setError('Choose an on-call supervisor.'); return false }
+    if (!startVal || !endVal) { setError('Set a start and end.'); return false }
+    if (new Date(endVal) <= new Date(startVal)) { setError('End must be after start.'); return false }
+    return true
+  }
+
+  async function addPeriod(e) {
+    if (e) e.preventDefault()
+    setError('')
+    if (!validate()) return
     setSaving(true)
     const { error: err } = await supabase.from('on_call_schedule').insert({
       org_id: selectedOrg,
@@ -85,65 +132,82 @@ export default function OnCallSchedule({ profile }) {
     })
     setSaving(false)
     if (err) { setError(err.message); return }
-    setSupId(''); setTechId('')
     load()
   }
 
-  async function removePeriod(id) {
-    if (!window.confirm('Remove this on-call period?')) return
-    await supabase.from('on_call_schedule').delete().eq('id', id)
-    load()
-  }
-
-  function startEdit(p) {
-    setEditingId(p.id)
-    setEditSup(p.supervisor_user_id || '')
-    setEditTech(p.tech_user_id || '')
-    setEditStart(toLocalInput(new Date(p.period_start)))
-    setEditEnd(toLocalInput(new Date(p.period_end)))
+  async function saveEdit() {
     setError('')
-  }
-
-  function cancelEdit() {
-    setEditingId(null)
-    setError('')
-  }
-
-  async function saveEdit(id) {
-    setError('')
-    if (!editSup) { setError('Choose an on-call supervisor.'); return }
-    if (!editStart || !editEnd) { setError('Set a start and end.'); return }
-    if (new Date(editEnd) <= new Date(editStart)) { setError('End must be after start.'); return }
+    if (!selectedId || !validate()) return
+    setSaving(true)
     const { error: err } = await supabase.from('on_call_schedule').update({
-      supervisor_user_id: editSup,
-      tech_user_id: editTech || null,
-      period_start: new Date(editStart).toISOString(),
-      period_end: new Date(editEnd).toISOString(),
-    }).eq('id', id)
+      supervisor_user_id: supId,
+      tech_user_id: techId || null,
+      period_start: new Date(startVal).toISOString(),
+      period_end: new Date(endVal).toISOString(),
+    }).eq('id', selectedId)
+    setSaving(false)
     if (err) { setError(err.message); return }
-    setEditingId(null)
     load()
   }
 
-  function gapBefore(i) {
-    if (i === 0) return null
+  async function deletePeriod() {
+    if (!selectedId) return
+    if (!window.confirm('Delete this on-call period?')) return
+    await supabase.from('on_call_schedule').delete().eq('id', selectedId)
+    load()
+  }
+
+  // Gaps / overlaps between consecutive periods (nose-to-nose guardrail).
+  const issues = []
+  for (let i = 1; i < periods.length; i++) {
     const prevEnd = new Date(periods[i - 1].period_end).getTime()
     const thisStart = new Date(periods[i].period_start).getTime()
-    if (thisStart > prevEnd) return 'gap'
-    if (thisStart < prevEnd) return 'overlap'
-    return null
+    if (thisStart > prevEnd) issues.push({ kind: 'gap', at: periods[i].period_start, prev: periods[i - 1].period_end })
+    else if (thisStart < prevEnd) issues.push({ kind: 'overlap', at: periods[i].period_start, prev: periods[i - 1].period_end })
   }
 
+  const colorFor = (i, role) => PALETTE[((i * 2) + (role === 'tech' ? 1 : 0)) % PALETTE.length]
   const nowMs = Date.now()
+  const weeks = monthWeeks(cursor.getFullYear(), cursor.getMonth())
+  const monthTitle = `${MONTHS[cursor.getMonth()]} ${cursor.getFullYear()}`
+  const shiftMonth = (n) => { const d = new Date(cursor); d.setMonth(d.getMonth() + n); setCursor(d) }
+  const gridCols = { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }
+
+  // One person's bar for a period, clipped to a single week row.
+  const bar = (p, i, role, firstCol, lastCol, showLabel) => {
+    const uid = role === 'tech' ? p.tech_user_id : p.supervisor_user_id
+    if (role === 'tech' && !uid) return <div style={{ minHeight: 4 }} />
+    return (
+      <div style={{ ...gridCols, marginBottom: 3 }}>
+        <div
+          onClick={() => selectPeriod(p)}
+          title={`${role === 'tech' ? 'On-Call Tech' : 'On-Call Supervisor'}: ${nameOf(uid)}  ·  ${fmtShort(p.period_start)} – ${fmtShort(p.period_end)}`}
+          style={{
+            gridColumn: `${firstCol + 1} / ${lastCol + 2}`,
+            background: colorFor(i, role), color: '#fff',
+            borderRadius: 5, padding: '3px 8px', fontSize: 11.5, fontWeight: 600,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            cursor: 'pointer', border: selectedId === p.id ? '2px solid #0b1f3a' : '2px solid transparent',
+          }}>
+          {nameOf(uid)}{showLabel ? `   ${fmtShort(p.period_start)} – ${fmtShort(p.period_end)}` : ''}
+        </div>
+      </div>
+    )
+  }
+
+  const editing = !!selectedId
 
   return (
-    <div className="page" style={{ maxWidth: 920 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <h2 className="page-title" style={{ margin: 0 }}>On-Call Schedule</h2>
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 24px' }}>
+      <div className="page-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <h2 style={{ margin: 0 }}>On-Call Schedule</h2>
         {isSuperAdmin && <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />}
       </div>
-      <p style={{ color: 'var(--mist)', marginTop: 8 }}>
+      <p style={{ color: 'var(--mist)', margin: '0 0 4px' }}>
         Set who's on call and when. Each period hands off nose-to-nose with the next &mdash; a new period's start defaults to the last one's end, so a coverage gap can't slip in by accident.
+      </p>
+      <p style={{ color: 'var(--mist)', margin: '0 0 16px', fontSize: 13 }}>
+        The calendar is for visual scheduling only. It does not feed into Attendance or Payroll.
       </p>
 
       {isSuperAdmin && !selectedOrg ? (
@@ -151,107 +215,140 @@ export default function OnCallSchedule({ profile }) {
       ) : loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading&hellip;</p>
       ) : (
-        <>
-          {periods.length === 0 && <p style={{ color: 'var(--mist)' }}>No on-call periods scheduled yet &mdash; add the first one below.</p>}
-          {periods.length > 0 && (
-            <table className="data-table" style={{ marginBottom: 24 }}>
-              <thead>
-                <tr><th>Coverage</th><th>From</th><th>To</th><th>On-Call Supervisor</th><th>On-Call Tech</th><th></th></tr>
-              </thead>
-              <tbody>
-                {periods.map((p, i) => {
-                  const g = gapBefore(i)
-                  const active = nowMs >= new Date(p.period_start).getTime() && nowMs < new Date(p.period_end).getTime()
-                  const editing = editingId === p.id
-                  if (editing) {
-                    return (
-                      <tr key={p.id}>
-                        <td style={{ color: 'var(--mist)' }}>Editing</td>
-                        <td><input type="datetime-local" value={editStart} onChange={(e) => setEditStart(e.target.value)} style={{ width: '100%' }} /></td>
-                        <td><input type="datetime-local" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} style={{ width: '100%' }} /></td>
-                        <td>
-                          <select value={editSup} onChange={(e) => setEditSup(e.target.value)} style={{ width: '100%' }}>
-                            <option value="">Choose&hellip;</option>
-                            {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                          </select>
-                        </td>
-                        <td>
-                          <select value={editTech} onChange={(e) => setEditTech(e.target.value)} style={{ width: '100%' }}>
-                            <option value="">Choose&hellip;</option>
-                            {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                          </select>
-                        </td>
-                        <td style={{ whiteSpace: 'nowrap' }}>
-                          <button className="auth-button" type="button" onClick={() => saveEdit(p.id)} style={{ width: 'auto', padding: '4px 12px', marginRight: 6 }}>Save</button>
-                          <button className="logout-button" type="button" onClick={cancelEdit}>Cancel</button>
-                        </td>
-                      </tr>
-                    )
-                  }
-                  return (
-                    <tr key={p.id} style={active ? { background: 'var(--surface-2, #eaf5ec)' } : undefined}>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        {active && <span style={{ color: '#0B6E2E', fontWeight: 600 }}>&#9679; On now</span>}
-                        {!active && g === 'gap' && <span style={{ color: 'var(--danger,#c0392b)' }}>&#9888; gap before</span>}
-                        {!active && g === 'overlap' && <span style={{ color: 'var(--danger,#c0392b)' }}>&#9888; overlap</span>}
-                        {!active && !g && <span style={{ color: 'var(--mist)' }}>&#10003;</span>}
-                      </td>
-                      <td>{fmt(p.period_start)}</td>
-                      <td>{fmt(p.period_end)}</td>
-                      <td>{nameOf(p.supervisor_user_id)}</td>
-                      <td>{nameOf(p.tech_user_id)}</td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        <button className="logout-button" type="button" onClick={() => startEdit(p)} style={{ marginRight: 6 }}>Edit</button>
-                        <button className="logout-button" type="button" onClick={() => removePeriod(p.id)}>Remove</button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
+        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
 
-          <form onSubmit={addPeriod} style={{ border: '0.5px solid var(--border,#d0d0d0)', borderRadius: 10, padding: 16, maxWidth: 660 }}>
-            <h3 style={{ marginTop: 0 }}>Add an on-call period</h3>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <div className="field" style={{ flex: '1 1 240px' }}>
-                <label>On-Call Supervisor <span style={{ color: 'var(--mist)', fontWeight: 400 }}>(calls first)</span></label>
-                <select value={supId} onChange={(e) => setSupId(e.target.value)}>
-                  <option value="">Choose&hellip;</option>
-                  {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                </select>
-              </div>
-              <div className="field" style={{ flex: '1 1 240px' }}>
-                <label>On-Call Tech <span style={{ color: 'var(--mist)', fontWeight: 400 }}>(backup)</span></label>
-                <select value={techId} onChange={(e) => setTechId(e.target.value)}>
-                  <option value="">Choose&hellip;</option>
-                  {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                </select>
-              </div>
+          {/* ---------------- LEFT: add / edit / delete form ---------------- */}
+          <form onSubmit={addPeriod} className="oncall-no-print" style={{ flex: '0 0 320px', border: '1px solid var(--border)', borderRadius: 10, padding: 16, boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+              <h3 style={{ margin: '0 0 12px' }}>{editing ? 'Edit on-call period' : 'Add an on-call period'}</h3>
+              {editing && <button type="button" onClick={() => resetForm()} style={{ border: 'none', background: 'none', color: '#176E7A', fontSize: 12.5, cursor: 'pointer', padding: 0 }}>+ New</button>}
             </div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <div className="field" style={{ flex: '1 1 240px' }}>
-                <label>Starts</label>
-                <input type="datetime-local" value={startVal} onChange={(e) => setStartVal(e.target.value)} />
-              </div>
-              <div className="field" style={{ flex: '1 1 240px' }}>
-                <label>Ends</label>
-                <input type="datetime-local" value={endVal} onChange={(e) => setEndVal(e.target.value)} />
-              </div>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label>On-Call Supervisor <span style={{ color: 'var(--mist)', fontWeight: 400 }}>(calls first)</span></label>
+              <select value={supId} onChange={(e) => setSupId(e.target.value)} style={{ width: '100%' }}>
+                <option value="">Choose&hellip;</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+              </select>
             </div>
-            <div style={{ display: 'flex', gap: 8, margin: '2px 0 4px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, color: 'var(--mist)', alignSelf: 'center' }}>Length:</span>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label>On-Call Tech <span style={{ color: 'var(--mist)', fontWeight: 400 }}>(backup)</span></label>
+              <select value={techId} onChange={(e) => setTechId(e.target.value)} style={{ width: '100%' }}>
+                <option value="">Choose&hellip;</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+              </select>
+            </div>
+            <div className="field" style={{ marginBottom: 6 }}>
+              <label>Starts</label>
+              <input type="datetime-local" value={startVal} onChange={(e) => setStartVal(e.target.value)} style={{ width: '100%' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 6, margin: '0 0 12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: 'var(--mist)' }}>Length:</span>
               <button type="button" className="logout-button" onClick={() => setEndVal(addDays(startVal, 1))}>1 day</button>
               <button type="button" className="logout-button" onClick={() => setEndVal(addDays(startVal, 7))}>1 week</button>
               <button type="button" className="logout-button" onClick={() => { const d = new Date(startVal); d.setMonth(d.getMonth() + 1); setEndVal(toLocalInput(d)) }}>1 month</button>
             </div>
-            {error && <p style={{ color: 'var(--danger,#c0392b)', fontSize: 13 }}>{error}</p>}
-            <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto', marginTop: 10, padding: '8px 22px' }}>
-              {saving ? 'Saving\u2026' : 'Add period'}
-            </button>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label>Ends</label>
+              <input type="datetime-local" value={endVal} onChange={(e) => setEndVal(e.target.value)} style={{ width: '100%' }} />
+            </div>
+            {error && <p style={{ color: 'var(--danger,#c0392b)', fontSize: 13, margin: '0 0 10px' }}>{error}</p>}
+            {editing ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <button type="button" className="auth-button" disabled={saving} onClick={saveEdit} style={{ width: '100%', margin: 0 }}>{saving ? 'Saving…' : 'Save changes'}</button>
+                <button type="button" onClick={deletePeriod} style={{ width: '100%', border: '1px solid #E0B4AC', background: '#fff', color: '#B5462F', borderRadius: 8, padding: '9px 0', fontWeight: 600, cursor: 'pointer' }}>Delete period</button>
+              </div>
+            ) : (
+              <button type="submit" className="auth-button" disabled={saving} style={{ width: '100%', margin: 0 }}>{saving ? 'Saving…' : 'Add period'}</button>
+            )}
           </form>
-        </>
+
+          {/* ---------------- RIGHT: calendar / map ---------------- */}
+          <div style={{ flex: '1 1 640px', minWidth: 0 }}>
+            <div className="oncall-no-print" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <button type="button" onClick={() => shiftMonth(-1)} style={navBtn}>‹</button>
+                <button type="button" onClick={() => setCursor(() => { const d = new Date(); d.setDate(1); return d })} style={{ ...navBtn, width: 'auto', padding: '0 14px', fontSize: 13 }}>Today</button>
+                <button type="button" onClick={() => shiftMonth(1)} style={navBtn}>›</button>
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 700, flex: 1 }}>{monthTitle}</div>
+              <button type="button" onClick={() => window.print()} disabled={view !== 'calendar'} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: view === 'calendar' ? 'pointer' : 'not-allowed' }}>Print Calendar</button>
+              <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                <button type="button" onClick={() => setView('calendar')} title="Calendar view" style={viewBtn(view === 'calendar')}>🗓</button>
+                <button type="button" onClick={() => setView('map')} title="Map view" style={viewBtn(view === 'map')}>📍</button>
+              </div>
+            </div>
+
+            {issues.length > 0 && view === 'calendar' && (
+              <div className="oncall-no-print" style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {issues.map((it, k) => (
+                  <div key={k} style={{ fontSize: 12.5, color: it.kind === 'gap' ? '#B5462F' : '#9C6A12' }}>
+                    ⚠ Coverage {it.kind} between {fmtLong(it.prev)} and {fmtLong(it.at)}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {view === 'map' ? (
+              <div className="section-card" style={{ padding: 28, textAlign: 'center' }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>📍</div>
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>Map View — coming soon</div>
+                <p style={{ margin: '0 auto', maxWidth: 460, color: 'var(--mist)', fontSize: 13.5 }}>
+                  Planned: a map of your service area showing which on-call pair covers each zone for the selected date, so dispatch can see after-hours geographic coverage at a glance. Tell me if you'd rather it show something else.
+                </p>
+              </div>
+            ) : (
+              <div className="oncall-print-area">
+                <div className="oncall-print-title" style={{ display: 'none' }}>On-Call Schedule — {monthTitle}</div>
+                {/* weekday header */}
+                <div style={{ ...gridCols, border: '1px solid var(--line-strong)', borderBottom: 'none', borderRadius: '8px 8px 0 0', overflow: 'hidden' }}>
+                  {WEEKDAYS.map((w) => (
+                    <div key={w} style={{ background: 'var(--route-blue)', color: '#fff', textAlign: 'center', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', padding: '7px 0', borderLeft: '1px solid rgba(255,255,255,.15)' }}>{w}</div>
+                  ))}
+                </div>
+                {/* weeks */}
+                <div style={{ border: '1px solid var(--line-strong)', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
+                  {weeks.map((week, wi) => {
+                    const weekPeriods = periods.filter((p) => week.some((d) => coversDay(p, d)))
+                    return (
+                      <div key={wi} style={{ borderTop: wi ? '1px solid var(--line-strong)' : 'none', minHeight: 96 }}>
+                        {/* day numbers */}
+                        <div style={gridCols}>
+                          {week.map((d, di) => {
+                            const inMonth = d.getMonth() === cursor.getMonth()
+                            const isToday = d.toDateString() === new Date().toDateString()
+                            return (
+                              <div key={di} style={{ padding: '4px 6px', borderLeft: di ? '1px solid var(--line)' : 'none', color: inMonth ? 'inherit' : 'var(--mist)', fontSize: 12.5 }}>
+                                <span style={isToday ? { background: '#0B6E2E', color: '#fff', borderRadius: 10, padding: '1px 7px', fontWeight: 700 } : { fontWeight: inMonth ? 600 : 400 }}>{d.getDate()}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {/* bars */}
+                        <div style={{ padding: '2px 4px 6px' }}>
+                          {weekPeriods.map((p) => {
+                            const gi = periods.findIndex((x) => x.id === p.id)
+                            let firstCol = -1, lastCol = -1
+                            week.forEach((d, di) => { if (coversDay(p, d)) { if (firstCol === -1) firstCol = di; lastCol = di } })
+                            return (
+                              <div key={p.id}>
+                                {bar(p, gi, 'sup', firstCol, lastCol, true)}
+                                {bar(p, gi, 'tech', firstCol, lastCol, true)}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
 }
+
+const navBtn = { width: 34, height: 34, border: '1px solid var(--border)', background: '#fff', borderRadius: 8, fontSize: 18, lineHeight: 1, cursor: 'pointer' }
+const viewBtn = (active) => ({ border: 'none', width: 40, height: 34, fontSize: 16, cursor: 'pointer', background: active ? '#176E7A' : '#fff', filter: active ? 'none' : 'grayscale(1)' })
