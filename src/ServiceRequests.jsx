@@ -101,7 +101,7 @@ export default function ServiceRequests({ profile }) {
 
       <h3 style={{ fontSize: 16, marginTop: 28 }}>Print a service QR sticker</h3>
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>Find a property, generate its QR, and print it for the air handler. Scanning it opens this request page for that address.</p>
-      <input className="cp-sel" style={{ maxWidth: 380, padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8 }}
+      <input style={{ maxWidth: 380, width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, background: '#fff', color: 'var(--ink)' }}
         value={qsearch} onChange={(e) => searchProps(e.target.value)} placeholder="Search property by street address…" />
       {qresults.length > 0 && (
         <div className="section-card" style={{ padding: 8, maxWidth: 480, marginTop: 6 }}>
