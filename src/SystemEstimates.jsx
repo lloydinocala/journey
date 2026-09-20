@@ -25,6 +25,7 @@ const COLUMNS = [
   { key: 'invoice_date', label: 'Date', required: true, width: 90 },
   { key: 'invoice_number', label: 'Est #', required: true, width: 100 },
   { key: 'customer', label: 'Customer', required: true, width: 150 },
+  { key: 'property', label: 'Property', width: 160 },
   { key: 'customer_mobile', label: 'Customer Mobile', width: 120 },
   ...Array.from({ length: LINE_ITEM_COUNT }, (_, i) => ({
     key: 'line_item_' + (i + 1),
@@ -66,6 +67,7 @@ export default function SystemEstimates({ profile }) {
   })
   const [newItemMode, setNewItemMode] = useState(null)
   const [sendingId, setSendingId] = useState(null)
+  const [convertingId, setConvertingId] = useState(null)
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('estimates_visible_columns_v2')
     return saved ? JSON.parse(saved) : DEFAULT_VISIBLE
@@ -317,6 +319,17 @@ export default function SystemEstimates({ profile }) {
     loadEstimates(selectedOrg)
   }
 
+  // Convert an approved system estimate into an unscheduled Install/Retrofit job,
+  // carrying its line items onto a new invoice.
+  async function convertToJob(est) {
+    if (!window.confirm(`Convert ${est.invoice_number} into an Install/Retrofit job?\nIt lands in Needs Dispatch, and the estimate's line items copy to a new invoice for the job.`)) return
+    setConvertingId(est.id)
+    const { error } = await supabase.rpc('convert_system_estimate_to_job', { p_estimate_id: est.id })
+    setConvertingId(null)
+    if (error) { alert(error.message || 'Could not convert this estimate.'); return }
+    loadEstimates(selectedOrg)
+  }
+
   function toggleSort(field) {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
@@ -437,6 +450,7 @@ export default function SystemEstimates({ profile }) {
     if (key === 'invoice_number') return est.invoice_number
     if (key === 'job_number') return est.jobs?.job_number || (est.reference_job?.job_number ? '\u2192' + est.reference_job.job_number : '')
     if (key === 'customer') return customerName(est)
+    if (key === 'property') return est.property ? [est.property.street_address, est.property.unit].filter(Boolean).join(' ') : '—'
     if (key === 'customer_mobile') return customerMobile(est)
     if (key.startsWith('line_item_')) {
       const idx = parseInt(key.replace('line_item_', ''), 10) - 1
@@ -604,6 +618,13 @@ export default function SystemEstimates({ profile }) {
                   <button className="logout-button" onClick={() => addToIncompleteJobs(est)}>
                     + Incomplete
                   </button>
+                  {est.result_job ? (
+                    <button className="logout-button" style={{ background: '#1E5FBF', color: '#fff', border: 'none', fontWeight: 700 }} disabled title="Already converted to a job">Converted</button>
+                  ) : est.approval_status === 'Approved' ? (
+                    <button className="logout-button" style={{ background: '#C0392B', color: '#fff', border: 'none', fontWeight: 700 }} disabled={convertingId === est.id} onClick={() => convertToJob(est)}>{convertingId === est.id ? 'Converting…' : 'Convert to Job'}</button>
+                  ) : (
+                    <button className="logout-button" style={{ opacity: 0.5, cursor: 'not-allowed' }} disabled title="Approve the estimate first">Convert to Job</button>
+                  )}
                   <button className="logout-button" style={{ color: est.is_archived ? undefined : '#C0392B' }} onClick={() => handleDelete(est)}>
                     {est.is_archived ? 'Unarchive' : 'Delete'}
                   </button>
@@ -643,6 +664,11 @@ export default function SystemEstimates({ profile }) {
                   if (col.key === 'customer') return (
                     <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                       {est.bills_to_customer_id ? <Link to={'/customers/' + est.bills_to_customer_id} style={{ color: '#2E7FC4', fontWeight: 600 }}>{customerName(est)}</Link> : customerName(est)}
+                    </div>
+                  )
+                  if (col.key === 'property') return (
+                    <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
+                      {est.property ? <Link to={'/properties?q=' + encodeURIComponent(est.property.street_address || '')} style={{ color: '#2E7FC4', fontWeight: 600 }}>{[est.property.street_address, est.property.unit].filter(Boolean).join(' ')}</Link> : '—'}
                     </div>
                   )
                   return <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>{cellValue(est, col.key)}</div>

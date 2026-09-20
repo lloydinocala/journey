@@ -91,7 +91,7 @@ export default function Jobs({ profile }) {
   const [drillParams] = useSearchParams()
   const [searchText, setSearchText] = useState(() => drillParams.get('tech') || drillParams.get('customer') || '')
   const [drillType, setDrillType] = useState(() => drillParams.get('type') || '')
-  const [sortField, setSortField] = useState('job_date')
+  const [sortField, setSortField] = useState('job_number')
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -541,7 +541,16 @@ export default function Jobs({ profile }) {
     )
   })
 
+  const jobNum = (x) => Number((String(x.job_number || '').match(/\d+/) || [0])[0])
   const sorted = [...filtered].sort((a, b) => {
+    // Job # is the primary sort (numeric); Segment is the secondary tiebreak,
+    // both in the same direction. Date is not a sort key.
+    if (sortField === 'job_number') {
+      const an = jobNum(a), bn = jobNum(b)
+      if (an !== bn) return sortDirection === 'asc' ? an - bn : bn - an
+      const as = Number(a.segment) || 0, bs = Number(b.segment) || 0
+      return sortDirection === 'asc' ? as - bs : bs - as
+    }
     let aVal, bVal
     if (sortField === 'street_address') {
       aVal = a.properties?.street_address || ''
@@ -1015,6 +1024,10 @@ export default function Jobs({ profile }) {
                         j.invoice ? (
                           <Link to={'/invoice/' + j.id} title={j.invoice.invoice_number}>{j.invoice.sent_at ? new Date(j.invoice.sent_at).toLocaleDateString() : 'Not sent'}</Link>
                         ) : '—'
+                      ) : col.key === 'street_address' ? (
+                        j.properties?.street_address
+                          ? <Link to={'/properties?q=' + encodeURIComponent(j.properties.street_address)} style={{ color: '#2E7FC4', textDecoration: 'underline' }}>{j.properties.street_address}</Link>
+                          : '—'
                       ) : (
                         cellValue(j, col.key)
                       )}

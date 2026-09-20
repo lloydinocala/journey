@@ -58,7 +58,7 @@ export default function Estimates({ profile }) {
   const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
   const [showArchived, setShowArchived] = useState(false)
-  const [sortField, setSortField] = useState('invoice_date')
+  const [sortField, setSortField] = useState('job_number')
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [showStatusPicker, setShowStatusPicker] = useState(false)
@@ -359,7 +359,12 @@ export default function Estimates({ profile }) {
     return true
   })
 
+  const estJobNum = (e) => Number((String(e.jobs?.job_number || e.reference_job?.job_number || '').match(/\d+/) || [0])[0])
   const sorted = [...filtered].sort((a, b) => {
+    if (sortField === 'job_number') {
+      const an = estJobNum(a), bn = estJobNum(b)
+      return sortDirection === 'asc' ? an - bn : bn - an
+    }
     let aVal, bVal
     if (sortField === 'invoice_date') {
       aVal = a.invoice_date || ''

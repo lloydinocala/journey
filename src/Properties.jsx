@@ -47,7 +47,7 @@ export default function Properties({ profile }) {
   const [loading, setLoading] = useState(true)
   const [newItemMode, setNewItemMode] = useState(null)
 
-  const [searchText, setSearchText] = useState('')
+  const [searchText, setSearchText] = useState(() => new URLSearchParams(window.location.search).get('q') || '')
   const [sortField, setSortField] = useState('street_address')
   const [sortDirection, setSortDirection] = useState('asc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
