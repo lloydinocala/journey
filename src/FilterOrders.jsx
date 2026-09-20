@@ -58,6 +58,14 @@ export default function FilterOrders({ profile }) {
     if (isSuperAdmin) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
   }, [isSuperAdmin])
   useEffect(() => { if (selectedOrg) loadOrders(selectedOrg) }, [selectedOrg])
+  // Auto-refresh so new portal/website orders appear without a manual reload.
+  useEffect(() => {
+    if (!selectedOrg) return
+    const id = setInterval(() => loadOrders(selectedOrg), 30000)
+    const onFocus = () => loadOrders(selectedOrg)
+    window.addEventListener('focus', onFocus)
+    return () => { clearInterval(id); window.removeEventListener('focus', onFocus) }
+  }, [selectedOrg])
 
   async function loadOrders(orgId) {
     setOrders(null)
@@ -176,7 +184,10 @@ export default function FilterOrders({ profile }) {
     <div style={{ maxWidth: 1150, margin: '0 auto' }}>
       <div className="page-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <h2 style={{ margin: 0 }}>Filter Orders</h2>
-        <button onClick={() => { setFormOpen((o) => !o); setFormMsg('') }} disabled={!selectedOrg} style={{ border: '1px solid var(--border)', background: formOpen ? '#EAF3F4' : '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#176E7A' }}>+ New order</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => selectedOrg && loadOrders(selectedOrg)} disabled={!selectedOrg} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#176E7A' }}>Refresh</button>
+          <button onClick={() => { setFormOpen((o) => !o); setFormMsg('') }} disabled={!selectedOrg} style={{ border: '1px solid var(--border)', background: formOpen ? '#EAF3F4' : '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#176E7A' }}>+ New order</button>
+        </div>
       </div>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 760 }}>
         Air-filter orders from every source — the customer portal, phoned in by a customer or a tech, or the website. Paid or unpaid, they all land here to fulfill and track. Each is a FLT-#### invoice linked to the customer.
