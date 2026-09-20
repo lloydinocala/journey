@@ -49,6 +49,8 @@ export default function FilterOrders({ profile }) {
   const [propId, setPropId] = useState('')
   const [source, setSource] = useState('office')
   const [lines, setLines] = useState([blankLine()])
+  const [onFile, setOnFile] = useState([])       // property_filters on record
+  const [lastOrder, setLastOrder] = useState(null)
   const [creating, setCreating] = useState(false)
   const [formMsg, setFormMsg] = useState('')
 
@@ -105,7 +107,42 @@ export default function FilterOrders({ profile }) {
     setProps(data || []); setPropId(data && data.length === 1 ? data[0].id : '')
   }
   const setLine = (i, k, v) => setLines((ls) => ls.map((l, idx) => idx === i ? { ...l, [k]: v } : l))
-  function resetForm() { setCust(null); setCustQuery(''); setCustResults([]); setProps([]); setPropId(''); setSource('office'); setLines([blankLine()]); setFormMsg('') }
+  function resetForm() { setCust(null); setCustQuery(''); setCustResults([]); setProps([]); setPropId(''); setSource('office'); setLines([blankLine()]); setOnFile([]); setLastOrder(null); setFormMsg('') }
+
+  // When a property is chosen, pull its filters on file + last order so we can
+  // verify and prefill instead of re-typing sizes.
+  useEffect(() => {
+    if (!propId) { setOnFile([]); setLastOrder(null); return }
+    let cancelled = false
+    ;(async () => {
+      const [{ data: pf }, { data: last }] = await Promise.all([
+        supabase.from('property_filters').select('width, height, thickness, merv, quantity, location').eq('property_id', propId),
+        supabase.from('invoices').select('invoice_number, created_at, invoice_line_items(description, quantity, sort_order)').eq('is_filter_order', true).eq('property_id', propId).is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      ])
+      if (cancelled) return
+      const onf = pf || []
+      setOnFile(onf)
+      setLastOrder(last || null)
+      // Auto-prefill from filters on file, but only if the form is still blank.
+      setLines((cur) => (onf.length && cur.length === 1 && !cur[0].width && !cur[0].height)
+        ? onf.map(fileToLine) : cur)
+    })()
+    return () => { cancelled = true }
+  }, [propId])
+
+  const fileToLine = (f) => ({ width: String(f.width ?? ''), height: String(f.height ?? ''), thickness: String(f.thickness ?? 1), merv: f.merv ? String(f.merv) : '', qty: String(f.quantity || 1) })
+  const sizeText = (f) => `${[f.width, f.height, f.thickness].filter((v) => v != null && v !== '').join('×')}${f.merv ? ` MERV ${f.merv}` : ''}${f.quantity ? ` ×${f.quantity}` : ''}`
+  function useOnFile() { if (onFile.length) setLines(onFile.map(fileToLine)) }
+  function reorderLast() {
+    const its = (lastOrder?.invoice_line_items || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    const parsed = its.map((li) => {
+      const m = /(\d+)\s*x\s*(\d+)\s*x\s*(\d+)/i.exec(li.description || '')
+      if (!m) return null
+      const mv = /MERV\s*(\d+)/i.exec(li.description || '')
+      return { width: m[1], height: m[2], thickness: m[3], merv: mv ? mv[1] : '', qty: String(li.quantity || 1) }
+    }).filter(Boolean)
+    if (parsed.length) setLines(parsed)
+  }
 
   async function createOrder() {
     setFormMsg('')
@@ -133,7 +170,7 @@ export default function FilterOrders({ profile }) {
   })
   const openCount = (orders || []).filter((o) => !TERMINAL.has(deliveryOf(o))).length
 
-  const inputStyle = { padding: '7px 9px', border: '1px solid var(--border)', borderRadius: 7, background: '#fff', color: 'var(--ink)', boxSizing: 'border-box' }
+  const inputStyle = { padding: '7px 9px', border: '1px solid var(--border)', borderRadius: 7, background: '#fff', color: '#0f172a', boxSizing: 'border-box' }
 
   return (
     <div style={{ maxWidth: 1150, margin: '0 auto' }}>
@@ -183,6 +220,26 @@ export default function FilterOrders({ profile }) {
               </select>
             </div>
           </div>
+
+          {propId && (onFile.length > 0 || lastOrder) && (
+            <div style={{ marginTop: 14, padding: '10px 12px', background: '#F5F8FF', border: '1px solid #D8E2F5', borderRadius: 8 }}>
+              {onFile.length > 0 && (
+                <div style={{ marginBottom: lastOrder ? 8 : 0 }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 700, color: '#2F5DE3' }}>Filters on file:</span>{' '}
+                  <span style={{ fontSize: 13 }}>{onFile.map(sizeText).join('  ·  ')}</span>
+                  <button type="button" onClick={useOnFile} style={{ marginLeft: 8, border: '1px solid #2F5DE3', background: '#fff', color: '#2F5DE3', borderRadius: 6, padding: '3px 10px', fontSize: 12, cursor: 'pointer' }}>Use these</button>
+                </div>
+              )}
+              {lastOrder && (
+                <div>
+                  <span style={{ fontSize: 12.5, fontWeight: 700, color: '#2F5DE3' }}>Last order:</span>{' '}
+                  <span style={{ fontSize: 13 }}>{lastOrder.invoice_number} · {fmtDate(lastOrder.created_at)}</span>
+                  <button type="button" onClick={reorderLast} style={{ marginLeft: 8, border: '1px solid #2F5DE3', background: '#fff', color: '#2F5DE3', borderRadius: 6, padding: '3px 10px', fontSize: 12, cursor: 'pointer' }}>Reorder last</button>
+                </div>
+              )}
+              <div style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 6 }}>Prefilled for you — verify sizes and quantities before creating.</div>
+            </div>
+          )}
 
           <div style={{ marginTop: 14 }}>
             <label style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 6 }}>Filters (priced from your filter pricebook)</label>
