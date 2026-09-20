@@ -326,7 +326,7 @@ export default function FilterOrders({ profile }) {
         <div style={{ overflowX: 'auto' }}>
           <table className="data-table">
             <thead><tr>
-              <th>Order</th><th>Date</th><th>Customer</th><th>Source</th><th>Filters</th><th>Total</th><th>Payment</th><th style={{ minWidth: 260 }}>Delivery</th><th></th>
+              <th>Order</th><th>Date</th><th>Customer</th><th>Source</th><th>Filters</th><th>Total</th><th>Payment</th><th style={{ minWidth: 220 }}>Delivery</th><th style={{ width: 96 }}>Actions</th>
             </tr></thead>
             <tbody>
               {shown.map((o) => {
@@ -357,11 +357,13 @@ export default function FilterOrders({ profile }) {
                         )}
                       </>)}
                     </td>
-                    <td style={{ whiteSpace: 'nowrap', fontSize: 12.5 }}>
-                      <Link to={`/view-invoice/${o.id}`}>Invoice</Link>
-                      {!cancelled && <> · <button onClick={() => startEdit(o)} style={linkBtn}>Edit</button></>}
-                      {' · '}<button onClick={() => toggleCancel(o)} style={linkBtn}>{cancelled ? 'Un-cancel' : 'Cancel'}</button>
-                      {' · '}<button onClick={() => deleteOrder(o)} style={{ ...linkBtn, color: '#B5462F' }}>Delete</button>
+                    <td style={{ fontSize: 12.5, verticalAlign: 'top' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                        <Link to={`/view-invoice/${o.id}`}>Invoice</Link>
+                        {!cancelled && <button onClick={() => startEdit(o)} style={linkBtn}>Edit</button>}
+                        <button onClick={() => toggleCancel(o)} style={linkBtn}>{cancelled ? 'Un-cancel' : 'Cancel'}</button>
+                        <button onClick={() => deleteOrder(o)} style={{ ...linkBtn, color: '#B5462F', fontWeight: 700 }}>Delete</button>
+                      </div>
                     </td>
                   </tr>
                   {editing && (
