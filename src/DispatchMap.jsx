@@ -410,7 +410,10 @@ export default function DispatchMap({ profile }) {
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
         <button className="logout-button" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
-        <button className="logout-button" onClick={() => nav('/calendar?date=' + date)} title="Back to the calendar for this date">📅 Calendar</button>
+        <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+          <button type="button" title="Calendar view" onClick={() => nav('/calendar?date=' + date)} style={{ border: 'none', width: 42, height: 34, fontSize: 16, cursor: 'pointer', background: '#fff', filter: 'grayscale(1)' }}>🗓</button>
+          <button type="button" title="Map view" style={{ border: 'none', width: 42, height: 34, fontSize: 16, cursor: 'default', background: '#176E7A' }}>📍</button>
+        </div>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--mist)' }}>Color by:
           <span style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
             <button onClick={() => setColorBy('tech')} style={seg(colorBy === 'tech')}>Tech</button>
