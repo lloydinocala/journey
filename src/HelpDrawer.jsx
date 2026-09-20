@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { HELP_ARTICLES, ROUTE_HELP } from './utils/HelpArticles'
-import { FLEET_HELP_ARTICLES, FLEET_ROUTE_HELP } from './utils/HelpArticlesFleet'
+// Namespace import so a missing/renamed export in the Fleet help file can never
+// hard-fail the whole build (Rollup errors on an unresolved *named* import).
+// Fall back to empty when the Fleet help articles aren't present.
+import * as FleetHelp from './utils/HelpArticlesFleet'
+const FLEET_HELP_ARTICLES = FleetHelp.FLEET_HELP_ARTICLES || []
+const FLEET_ROUTE_HELP = FleetHelp.FLEET_ROUTE_HELP || {}
 
 // Core articles + the Fleet section, and their route maps, merged into one set.
 // Fleet route keys are ordered specific-before-base within their file; spreading
@@ -235,3 +240,4 @@ function ArticleView({ article, brand }) {
     </div>
   )
 }
+
