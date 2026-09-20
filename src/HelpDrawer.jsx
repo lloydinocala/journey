@@ -73,7 +73,16 @@ export default function HelpDrawer() {
   // On open, jump to the article that matches the current page (context-aware).
   useEffect(() => {
     if (!open) return
-    const routeKey = Object.keys(ALL_ROUTE_HELP).find((k) => location.pathname.startsWith(k))
+    // Home ('/') is an EXACT match only — otherwise its leading slash would
+    // startsWith-match every page. All other keys match by prefix, longest
+    // (most specific) first so e.g. '/elements/variance' beats '/elements'.
+    const path = location.pathname
+    const routeKey = path === '/'
+      ? '/'
+      : Object.keys(ALL_ROUTE_HELP)
+          .filter((k) => k !== '/')
+          .sort((a, b) => b.length - a.length)
+          .find((k) => path.startsWith(k))
     setArticleId(routeKey ? ALL_ROUTE_HELP[routeKey] : null)
     setQuery('')
     setTab('docs')
