@@ -2,7 +2,7 @@
 // (customer portal, phoned in by a customer or a tech, website). Each order is a
 // FLT-#### invoice (is_filter_order). Staff can place an order here, see the full
 // sales table linked to the customer, and track payment + delivery status.
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
@@ -53,6 +53,9 @@ export default function FilterOrders({ profile }) {
   const [lastOrder, setLastOrder] = useState(null)
   const [creating, setCreating] = useState(false)
   const [formMsg, setFormMsg] = useState('')
+  const [editId, setEditId] = useState(null)     // order being edited inline
+  const [editLines, setEditLines] = useState([]) // its line items while editing
+  const [savingEdit, setSavingEdit] = useState(false)
 
   useEffect(() => {
     if (isSuperAdmin) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
@@ -70,7 +73,7 @@ export default function FilterOrders({ profile }) {
   async function loadOrders(orgId) {
     setOrders(null)
     const { data: inv } = await supabase.from('invoices')
-      .select('id, invoice_number, amount_due, paid_at, created_at, filter_fulfilled_at, filter_source, filter_delivery_status, filter_ship_via, bills_to_customer_id, property_id, invoice_line_items!invoice_line_items_invoice_id_fkey(description, quantity, unit_price, sort_order)')
+      .select('id, invoice_number, amount_due, total_paid, paid_at, created_at, filter_fulfilled_at, filter_cancelled_at, filter_source, filter_delivery_status, filter_ship_via, bills_to_customer_id, property_id, invoice_line_items!invoice_line_items_invoice_id_fkey(id, description, quantity, unit_price, sort_order)')
       .eq('org_id', orgId).eq('is_filter_order', true).eq('is_archived', false).is('deleted_at', null)
       .order('created_at', { ascending: false })
     const rows = inv || []
@@ -99,6 +102,38 @@ export default function FilterOrders({ profile }) {
   async function setShipVia(o, v) {
     setOrders((os) => os.map((x) => x.id === o.id ? { ...x, filter_ship_via: v } : x))
     await supabase.from('invoices').update({ filter_ship_via: v }).eq('id', o.id)
+  }
+
+  // ---- edit / cancel / delete ----
+  function startEdit(o) {
+    setEditId(o.id)
+    setEditLines(o.items.map((li) => ({ id: li.id, description: li.description, unit_price: Number(li.unit_price) || 0, quantity: Number(li.quantity) || 1 })))
+  }
+  const editQty = (id, v) => setEditLines((ls) => ls.map((l) => l.id === id ? { ...l, quantity: v } : l))
+  const removeEditLine = (id) => setEditLines((ls) => ls.filter((l) => l.id !== id))
+  async function saveEdit(o) {
+    setSavingEdit(true)
+    const keep = editLines.filter((l) => Math.max(0, Number(l.quantity) || 0) > 0)
+    const removedIds = o.items.filter((li) => !keep.some((k) => k.id === li.id)).map((li) => li.id)
+    // apply quantity changes + removals
+    for (const l of keep) await supabase.from('invoice_line_items').update({ quantity: Math.max(1, Number(l.quantity) || 1) }).eq('id', l.id)
+    if (removedIds.length) await supabase.from('invoice_line_items').delete().in('id', removedIds)
+    const subtotal = Number(keep.reduce((s, l) => s + l.unit_price * Math.max(1, Number(l.quantity) || 1), 0).toFixed(2))
+    const balance = Number((subtotal - (Number(o.total_paid) || 0)).toFixed(2))
+    await supabase.from('invoices').update({ subtotal, job_total: subtotal, amount_due: subtotal, balance }).eq('id', o.id)
+    setSavingEdit(false); setEditId(null); setEditLines([])
+    loadOrders(selectedOrg)
+  }
+  async function toggleCancel(o) {
+    const cancel = !o.filter_cancelled_at
+    if (cancel && !window.confirm(`Cancel order ${o.invoice_number}? It stays on record but drops off the open list.`)) return
+    await supabase.from('invoices').update({ filter_cancelled_at: cancel ? new Date().toISOString() : null }).eq('id', o.id)
+    loadOrders(selectedOrg)
+  }
+  async function deleteOrder(o) {
+    if (!window.confirm(`Delete order ${o.invoice_number}? This removes it from the list.`)) return
+    await supabase.from('invoices').update({ deleted_at: new Date().toISOString() }).eq('id', o.id)
+    loadOrders(selectedOrg)
   }
 
   // ---- order-entry form ----
@@ -172,13 +207,12 @@ export default function FilterOrders({ profile }) {
     loadOrders(selectedOrg)
   }
 
-  const shown = (orders || []).filter((o) => {
-    const term = TERMINAL.has(deliveryOf(o))
-    return tab === 'all' ? true : tab === 'delivered' ? term : !term
-  })
-  const openCount = (orders || []).filter((o) => !TERMINAL.has(deliveryOf(o))).length
+  const isOpen = (o) => !TERMINAL.has(deliveryOf(o)) && !o.filter_cancelled_at
+  const shown = (orders || []).filter((o) => tab === 'all' ? true : tab === 'delivered' ? (TERMINAL.has(deliveryOf(o)) && !o.filter_cancelled_at) : isOpen(o))
+  const openCount = (orders || []).filter(isOpen).length
 
   const inputStyle = { padding: '7px 9px', border: '1px solid var(--border)', borderRadius: 7, background: '#fff', color: '#0f172a', boxSizing: 'border-box' }
+  const linkBtn = { border: 'none', background: 'none', color: '#176E7A', cursor: 'pointer', padding: 0, font: 'inherit' }
 
   return (
     <div style={{ maxWidth: 1150, margin: '0 auto' }}>
@@ -297,8 +331,12 @@ export default function FilterOrders({ profile }) {
             <tbody>
               {shown.map((o) => {
                 const d = deliveryOf(o)
+                const cancelled = !!o.filter_cancelled_at
+                const editing = editId === o.id
+                const editTotal = editLines.reduce((s, l) => s + l.unit_price * Math.max(0, Number(l.quantity) || 0), 0)
                 return (
-                  <tr key={o.id}>
+                  <Fragment key={o.id}>
+                  <tr style={cancelled ? { opacity: 0.55 } : undefined}>
                     <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{o.invoice_number}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(o.created_at)}</td>
                     <td>
@@ -308,18 +346,49 @@ export default function FilterOrders({ profile }) {
                     <td style={{ whiteSpace: 'nowrap', fontSize: 12.5 }}>{sourceLabel(o)}</td>
                     <td style={{ fontSize: 13 }}>{o.items.map((li, i) => <div key={i}>{li.quantity}× {li.description}</div>)}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>{money(o.amount_due)}</td>
-                    <td><Pill tone={o.paid ? 'green' : 'amber'}>{o.paid ? 'Paid' : 'Unpaid'}</Pill></td>
+                    <td>{cancelled ? <Pill tone="mist">Cancelled</Pill> : <Pill tone={o.paid ? 'green' : 'amber'}>{o.paid ? 'Paid' : 'Unpaid'}</Pill>}</td>
                     <td>
-                      <select value={d} onChange={(e) => setDelivery(o, e.target.value)} style={{ ...inputStyle, width: '100%' }}>
-                        {DELIVERY.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                      </select>
-                      {d === 'shipped' && (
-                        <input defaultValue={o.filter_ship_via || ''} onBlur={(e) => setShipVia(o, e.target.value)} placeholder="Shipped via (carrier / tracking)" style={{ ...inputStyle, width: '100%', marginTop: 5, fontSize: 12.5 }} />
-                      )}
-                      {d === 'shipped' && o.filter_ship_via && <div style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 3 }}>via {o.filter_ship_via}</div>}
+                      {cancelled ? <span style={{ color: 'var(--mist)', fontSize: 13 }}>—</span> : (<>
+                        <select value={d} onChange={(e) => setDelivery(o, e.target.value)} style={{ ...inputStyle, width: '100%' }}>
+                          {DELIVERY.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                        </select>
+                        {d === 'shipped' && (
+                          <input defaultValue={o.filter_ship_via || ''} onBlur={(e) => setShipVia(o, e.target.value)} placeholder="Shipped via (carrier / tracking)" style={{ ...inputStyle, width: '100%', marginTop: 5, fontSize: 12.5 }} />
+                        )}
+                      </>)}
                     </td>
-                    <td style={{ whiteSpace: 'nowrap' }}><Link to={`/view-invoice/${o.id}`}>Invoice</Link></td>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: 12.5 }}>
+                      <Link to={`/view-invoice/${o.id}`}>Invoice</Link>
+                      {!cancelled && <> · <button onClick={() => startEdit(o)} style={linkBtn}>Edit</button></>}
+                      {' · '}<button onClick={() => toggleCancel(o)} style={linkBtn}>{cancelled ? 'Un-cancel' : 'Cancel'}</button>
+                      {' · '}<button onClick={() => deleteOrder(o)} style={{ ...linkBtn, color: '#B5462F' }}>Delete</button>
+                    </td>
                   </tr>
+                  {editing && (
+                    <tr>
+                      <td colSpan={9} style={{ background: '#F5F8FF' }}>
+                        <div style={{ padding: '10px 12px' }}>
+                          <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Edit {o.invoice_number} — adjust quantities or remove lines</div>
+                          {editLines.length === 0 && <div style={{ fontSize: 13, color: '#B5462F', marginBottom: 8 }}>All lines removed — saving will empty the order; cancel or delete it instead if that's the intent.</div>}
+                          {editLines.map((l) => (
+                            <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                              <span style={{ minWidth: 220, fontSize: 13 }}>{l.description}</span>
+                              <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>{money(l.unit_price)} ea</span>
+                              <label style={{ fontSize: 12.5, color: 'var(--mist)' }}>Qty <input value={l.quantity} onChange={(e) => editQty(l.id, e.target.value)} style={{ ...inputStyle, width: 56, marginLeft: 4 }} /></label>
+                              <button onClick={() => removeEditLine(l.id)} style={{ ...linkBtn, color: '#B5462F' }}>Remove</button>
+                            </div>
+                          ))}
+                          <div style={{ fontWeight: 700, marginTop: 8, fontSize: 13 }}>New total: {money(editTotal)}</div>
+                          <div style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 2 }}>To add a different filter size, place a new order — pricing comes from the pricebook.</div>
+                          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                            <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '7px 16px' }} disabled={savingEdit} onClick={() => saveEdit(o)}>{savingEdit ? 'Saving…' : 'Save changes'}</button>
+                            <button onClick={() => { setEditId(null); setEditLines([]) }} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 8, padding: '7px 16px', cursor: 'pointer' }}>Cancel edit</button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 )
               })}
             </tbody>
