@@ -70,7 +70,7 @@ export default function FilterOrders({ profile }) {
   async function loadOrders(orgId) {
     setOrders(null)
     const { data: inv } = await supabase.from('invoices')
-      .select('id, invoice_number, amount_due, paid_at, created_at, filter_fulfilled_at, filter_source, filter_delivery_status, filter_ship_via, bills_to_customer_id, property_id, invoice_line_items(description, quantity, unit_price, sort_order)')
+      .select('id, invoice_number, amount_due, paid_at, created_at, filter_fulfilled_at, filter_source, filter_delivery_status, filter_ship_via, bills_to_customer_id, property_id, invoice_line_items!invoice_line_items_invoice_id_fkey(description, quantity, unit_price, sort_order)')
       .eq('org_id', orgId).eq('is_filter_order', true).eq('is_archived', false).is('deleted_at', null)
       .order('created_at', { ascending: false })
     const rows = inv || []
@@ -125,7 +125,7 @@ export default function FilterOrders({ profile }) {
     ;(async () => {
       const [{ data: pf }, { data: last }] = await Promise.all([
         supabase.from('property_filters').select('width, height, thickness, merv, quantity, location').eq('property_id', propId),
-        supabase.from('invoices').select('invoice_number, created_at, invoice_line_items(description, quantity, sort_order)').eq('is_filter_order', true).eq('property_id', propId).is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('invoices').select('invoice_number, created_at, invoice_line_items!invoice_line_items_invoice_id_fkey(description, quantity, sort_order)').eq('is_filter_order', true).eq('property_id', propId).is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       ])
       if (cancelled) return
       const onf = pf || []
