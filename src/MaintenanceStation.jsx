@@ -48,7 +48,7 @@ const REGISTRY = [
   { key: 'postjob', name: 'Offer a plan after service', href: '/maintenance-dashboard', tone: 'amber', cta: 'Review jobs',
     line: (n) => `${n} recent job${n === 1 ? '' : 's'} with no plan on file`,
     q: (org) => postjobCount(org) },
-  { key: 'filters', name: 'Filters to ship', href: '/maintenance-dashboard', tone: 'amber', cta: 'Fulfill',
+  { key: 'filters', name: 'Filters to ship', href: '/filter-subscriptions', tone: 'amber', cta: 'Fulfill',
     line: (n) => `${n} subscription filter${n === 1 ? '' : 's'} due this week`,
     q: (org) => supabase.from('filter_subscriptions').select('*', { count: 'exact', head: true }).eq('org_id', org).eq('status', 'active').lte('next_ship_date', d7()) },
   { key: 'visits', name: 'Visits to book', href: '/maintenance-due', tone: 'amber', cta: 'Open visit board',
