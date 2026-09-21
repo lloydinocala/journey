@@ -8,6 +8,7 @@ import {
   listTransactions, systemLocation, systemLeakStatus, SUBSECTORS,
 } from './refrigerantData'
 import { useOrgSelector, OrgBar } from '../elements-hvac/shared'
+import { exportToCSV } from '../../utils/csvExport'
 
 const subsectorLabel = (v) => (SUBSECTORS.find((s) => s.v === v) || {}).label || v
 
@@ -59,6 +60,20 @@ export default function RefrigerantSystems({ profile }) {
 
   const sysName = (s) => s.system_label || [s.outdoor_brand, s.outdoor_model].filter(Boolean).join(' ') || 'System'
 
+  function handleExport() {
+    exportToCSV(systems, [
+      { label: 'System', value: (s) => sysName(s) },
+      { label: 'Location', value: (s) => systemLocation(s) },
+      { label: 'Refrigerant', key: 'refrigerant_type' },
+      { label: 'Full charge (lb)', key: 'refrigerant_charge_lbs' },
+      { label: 'Sector', value: (s) => subsectorLabel(s.refrigerant_subsector) },
+      { label: 'Covered', value: (s) => (systemLeakStatus(s, addedByEquip[s.id] || 0).covered ? 'Yes' : 'No') },
+      { label: 'Leak rate %/yr', value: (s) => { const st = systemLeakStatus(s, addedByEquip[s.id] || 0); return st.leakRate != null ? Math.round(st.leakRate) : '' } },
+      { label: 'Threshold %', value: (s) => systemLeakStatus(s, addedByEquip[s.id] || 0).threshold ?? '' },
+      { label: 'Over threshold', value: (s) => (systemLeakStatus(s, addedByEquip[s.id] || 0).over ? 'Yes' : '') },
+    ], 'refrigerant-systems-' + new Date().toISOString().slice(0, 10) + '.csv')
+  }
+
   return (
     <div>
       <div className="page-header-bar">
@@ -66,7 +81,10 @@ export default function RefrigerantSystems({ profile }) {
           <h2>Refrigerant Systems</h2>
           <span className="badge">{systems.length} shown</span>
         </div>
-        <button className="logout-button" style={{ margin: 0 }} disabled={loading} onClick={load}>{loading ? 'Loading…' : 'Refresh'}</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="logout-button" style={{ margin: 0 }} onClick={handleExport} disabled={!systems.length}>Export CSV</button>
+          <button className="logout-button" style={{ margin: 0 }} disabled={loading} onClick={load}>{loading ? 'Loading…' : 'Refresh'}</button>
+        </div>
       </div>
       <OrgBar {...org} />
 
