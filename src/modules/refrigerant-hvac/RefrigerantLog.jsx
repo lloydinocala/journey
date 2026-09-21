@@ -5,11 +5,12 @@
 // summary rolls up the trailing 12 months against each covered system's charge.
 import { useState, useEffect, useMemo } from 'react'
 import {
-  listRefrigerantSystems, listTransactions, addTransaction, listCylinders,
+  listRefrigerantSystems, listTransactions, addTransaction, updateTransaction, deleteTransaction, listCylinders,
   listTechCerts, systemLocation, systemLeakStatus, CERT_TYPES,
 } from './refrigerantData'
 import { listTechnicians } from '../elements-hvac/data'
 import { useOrgSelector, OrgBar } from '../elements-hvac/shared'
+import { exportToCSV } from '../../utils/csvExport'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const lbs = (n) => (n == null || n === 0 || isNaN(n) ? '—' : `${Number(n).toLocaleString(undefined, { maximumFractionDigits: 1 })} lb`)
@@ -38,6 +39,7 @@ export default function RefrigerantLog({ profile }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [editingId, setEditingId] = useState(null)
 
   async function load() {
     if (!org.selectedOrg) return
@@ -75,14 +77,46 @@ export default function RefrigerantLog({ profile }) {
     if (!Number(form.pounds_added) && !Number(form.pounds_recovered)) { setError('Enter pounds added and/or recovered.'); return }
     setSaving(true)
     const s = sysById[form.equipment_id]
-    const { error: err } = await addTransaction(org.selectedOrg, {
-      ...form,
-      property_id: s?.property_id || null,
-      refrigerant_type: form.refrigerant_type || s?.refrigerant_type || null,
-    })
+    const row = { ...form, property_id: s?.property_id || null, refrigerant_type: form.refrigerant_type || s?.refrigerant_type || null }
+    const original = editingId ? txns.find((x) => x.id === editingId) : null
+    const { error: err } = editingId && original
+      ? await updateTransaction(org.selectedOrg, original, row)
+      : await addTransaction(org.selectedOrg, row)
     setSaving(false)
     if (err) { setError(err.message); return }
-    setForm(blankTxn); setShowForm(false); load()
+    setForm(blankTxn); setShowForm(false); setEditingId(null); load()
+  }
+  function startEdit(t) {
+    setEditingId(t.id)
+    setForm({
+      txn_date: t.txn_date || today(), equipment_id: t.equipment_id || '', technician_user_id: t.technician_user_id || '',
+      tech_cert_type: t.tech_cert_type || '', refrigerant_type: t.refrigerant_type || '',
+      pounds_added: t.pounds_added ?? '', pounds_recovered: t.pounds_recovered ?? '',
+      cylinder_id: t.cylinder_id || '', reason: t.reason || 'topoff', notes: t.notes || '',
+    })
+    setShowForm(true); setError('')
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+  async function handleDelete(t) {
+    if (!window.confirm(`Delete this ${t.txn_date} refrigerant event? Any cylinder on-hand change it made is reversed. This can't be undone.`)) return
+    const { error: err } = await deleteTransaction(org.selectedOrg, t)
+    if (err) { alert(err.message); return }
+    if (editingId === t.id) { setEditingId(null); setForm(blankTxn); setShowForm(false) }
+    load()
+  }
+  function handleExport() {
+    exportToCSV(shown, [
+      { label: 'Date', key: 'txn_date' },
+      { label: 'System', value: (t) => sysName(sysById[t.equipment_id]) },
+      { label: 'Location', value: (t) => (sysById[t.equipment_id] ? systemLocation(sysById[t.equipment_id]) : '') },
+      { label: 'Refrigerant', key: 'refrigerant_type' },
+      { label: 'Added (lb)', key: 'pounds_added' },
+      { label: 'Recovered (lb)', key: 'pounds_recovered' },
+      { label: 'Reason', value: (t) => reasonLabel(t.reason) },
+      { label: 'Technician', value: (t) => techName(t.technician_user_id) },
+      { label: 'Cert', key: 'tech_cert_type' },
+      { label: 'Notes', key: 'notes' },
+    ], 'refrigerant-usage-log-' + today() + '.csv')
   }
 
   // History with filters.
@@ -114,9 +148,12 @@ export default function RefrigerantLog({ profile }) {
           <h2>Refrigerant Usage Log</h2>
           <span className="badge">{shown.length} shown</span>
         </div>
-        <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => { setShowForm((s) => !s); setError('') }}>
-          {showForm ? 'Cancel' : '+ Record event'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="logout-button" style={{ width: 'auto', margin: 0 }} onClick={handleExport} disabled={!shown.length}>Export CSV</button>
+          <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => { const opening = !showForm; setShowForm(opening); setError(''); setEditingId(null); if (opening) setForm(blankTxn) }}>
+            {showForm ? 'Cancel' : '+ Record event'}
+          </button>
+        </div>
       </div>
       <OrgBar {...org} />
 
@@ -166,7 +203,7 @@ export default function RefrigerantLog({ profile }) {
           {certExpired && (
             <div style={{ flexBasis: '100%', color: '#B00020', fontSize: 13, fontWeight: 600 }}>⚠ This technician’s certification on file expired {selectedCert.expiry_date}.</div>
           )}
-          <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto' }}>{saving ? 'Saving…' : 'Record event'}</button>
+          <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto' }}>{saving ? 'Saving…' : (editingId ? 'Save changes' : 'Record event')}</button>
         </form>
       )}
       {error && <div className="auth-error" style={{ marginBottom: 16 }}>{error}</div>}
@@ -210,13 +247,13 @@ export default function RefrigerantLog({ profile }) {
 
       <table className="data-table">
         <thead>
-          <tr><th>Date</th><th>System</th><th>Location</th><th>Refrigerant</th><th>Added</th><th>Recovered</th><th>Reason</th><th>Technician</th><th>Notes</th></tr>
+          <tr><th>Date</th><th>System</th><th>Location</th><th>Refrigerant</th><th>Added</th><th>Recovered</th><th>Reason</th><th>Technician</th><th>Notes</th><th></th></tr>
         </thead>
         <tbody>
           {shown.map((t) => {
             const s = sysById[t.equipment_id]
             return (
-              <tr key={t.id}>
+              <tr key={t.id} style={editingId === t.id ? { background: '#FFF7ED' } : undefined}>
                 <td style={{ whiteSpace: 'nowrap' }}>{t.txn_date}</td>
                 <td>{sysName(s)}</td>
                 <td style={{ color: 'var(--mist)' }}>{s ? systemLocation(s) : '—'}</td>
@@ -226,10 +263,14 @@ export default function RefrigerantLog({ profile }) {
                 <td style={{ fontSize: 13 }}>{reasonLabel(t.reason)}</td>
                 <td style={{ color: 'var(--mist)' }}>{techName(t.technician_user_id)}{t.tech_cert_type ? ` · ${t.tech_cert_type}` : ''}</td>
                 <td style={{ color: 'var(--mist)', fontSize: 13 }}>{t.notes || ''}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  <button className="logout-button" style={{ fontSize: 12, padding: '3px 8px' }} onClick={() => startEdit(t)}>Edit</button>
+                  <button className="logout-button" style={{ fontSize: 12, padding: '3px 8px', color: '#B5462F', marginLeft: 4 }} onClick={() => handleDelete(t)}>Delete</button>
+                </td>
               </tr>
             )
           })}
-          {shown.length === 0 && <tr><td colSpan="9" style={{ color: 'var(--mist)' }}>{loading ? 'Loading…' : 'No refrigerant events recorded yet.'}</td></tr>}
+          {shown.length === 0 && <tr><td colSpan="10" style={{ color: 'var(--mist)' }}>{loading ? 'Loading…' : 'No refrigerant events recorded yet.'}</td></tr>}
         </tbody>
       </table>
     </div>
