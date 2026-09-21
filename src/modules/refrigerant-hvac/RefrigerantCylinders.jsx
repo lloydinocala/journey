@@ -5,6 +5,7 @@
 import { useState, useEffect, Fragment } from 'react'
 import { listCylinders, addCylinder, sendCylinder, listRefrigerantTypes } from './refrigerantData'
 import { useOrgSelector, OrgBar } from '../elements-hvac/shared'
+import { exportToCSV } from '../../utils/csvExport'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const lbs = (n) => (n == null || isNaN(n) ? '—' : `${Number(n).toLocaleString(undefined, { maximumFractionDigits: 1 })} lb`)
@@ -55,6 +56,23 @@ export default function RefrigerantCylinders({ profile }) {
 
   const typeLabel = (code) => { const t = types.find((x) => x.code === code); return t ? (t.name && t.name !== t.code ? `${t.code} — ${t.name}` : t.code) : (code || '—') }
 
+  function handleExport() {
+    exportToCSV(cyls, [
+      { label: 'Kind', value: (c) => (c.kind === 'virgin' ? 'Virgin' : 'Recovered') },
+      { label: 'Refrigerant', value: (c) => typeLabel(c.refrigerant_type) },
+      { label: 'On hand (lb)', key: 'on_hand_lbs' },
+      { label: 'Size (lb)', key: 'nominal_size_lbs' },
+      { label: 'Vendor', key: 'vendor' },
+      { label: 'Acquired', key: 'acquired_date' },
+      { label: 'Status', value: (c) => STATUS_LABEL[c.status] || c.status },
+      { label: 'Shipped (lb)', key: 'shipped_lbs' },
+      { label: 'Sent date', key: 'sent_at' },
+      { label: 'Sent to', key: 'sent_to' },
+      { label: 'Document ref', key: 'doc_ref' },
+      { label: 'Notes', key: 'notes' },
+    ], 'refrigerant-cylinders-' + today() + '.csv')
+  }
+
   return (
     <div>
       <div className="page-header-bar">
@@ -62,9 +80,12 @@ export default function RefrigerantCylinders({ profile }) {
           <h2>Refrigerant Cylinders</h2>
           <span className="badge">{cyls.length} shown</span>
         </div>
-        <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => { setShowForm((s) => !s); setError('') }}>
-          {showForm ? 'Cancel' : '+ Add cylinder'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="logout-button" style={{ width: 'auto', margin: 0 }} onClick={handleExport} disabled={!cyls.length}>Export CSV</button>
+          <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => { setShowForm((s) => !s); setError('') }}>
+            {showForm ? 'Cancel' : '+ Add cylinder'}
+          </button>
+        </div>
       </div>
       <OrgBar {...org} />
 
@@ -126,7 +147,7 @@ export default function RefrigerantCylinders({ profile }) {
                 <td style={{ color: 'var(--mist)' }}>{c.acquired_date || '—'}</td>
                 <td>
                   {STATUS_LABEL[c.status] || c.status}
-                  {c.status !== 'in_service' && c.sent_at && <span style={{ fontSize: 12, color: 'var(--mist)', display: 'block' }}>{c.sent_at}{c.sent_to ? ` · ${c.sent_to}` : ''}{c.doc_ref ? ` · ${c.doc_ref}` : ''}</span>}
+                  {c.status !== 'in_service' && c.sent_at && <span style={{ fontSize: 12, color: 'var(--mist)', display: 'block' }}>{c.sent_at}{c.shipped_lbs != null ? ` · ${lbs(c.shipped_lbs)} shipped` : ''}{c.sent_to ? ` · ${c.sent_to}` : ''}{c.doc_ref ? ` · ${c.doc_ref}` : ''}</span>}
                 </td>
               </tr>
               {sendId === c.id && (
