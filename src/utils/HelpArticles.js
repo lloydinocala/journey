@@ -661,11 +661,11 @@ export const HELP_ARTICLES = [
       { h: 'The permit workflow (per package)', items: [
         'Step 1 Order equipment / verify availability — record the actual vendor, models, cost, and AHRI, and optionally place the PO. Step 2 Job — link/confirm the install job and date.',
         'Step 3 AHRI verification — enter the AHRI number and upload the certificate (AHRI Directory link provided). Step 4 Property card — pull parcel and legal description from the county appraiser.',
-        'Step 5 Apply for permit — open the authority’s form or download the blank, and upload the completed application. Step 6 Notice of Commencement — required when the job total meets your NOC threshold or the authority requires it; upload the notarized NOC and send it to the recorder.',
+        'Step 5 Apply for permit — open the authority’s form or download the blank, and upload the completed application. Step 6 Notice of Commencement — required when the job total meets your NOC threshold or the authority requires it; upload each system’s notarized NOC (a NOC is tracked per system) and send them to the recorder.',
         'Step 7 Receive & record permit — enter the permit number and date and upload the permit. Step 8 Print & send — email the package to the authority and copy the permit/AHRI/NOC to the permanent customer & property record.',
         'Step 9 Inspections — once the install is complete, schedule the inspection, then mark each Pass or Fail; passing all of a package’s permits closes it out.',
       ]},
-      { h: 'Good to know', body: 'Later steps stay locked until the earlier ones are done, and the workflow only moves forward. A completed package drops off the board (there is no completed-history view here yet). Building authorities, counties, and the NOC threshold that drive these steps are set on the Building Authorities page. Platform owners get an organization picker.' },
+      { h: 'Good to know', body: 'Later steps stay locked until the earlier ones are done, and the workflow only moves forward. A finished package moves to the "Completed" section at the bottom of this page and also shows on the customer’s profile under Permits; you can Cancel a package from its workflow header if it is abandoned. Building authorities, counties, and the NOC threshold that drive these steps are set on the Building Authorities page. Platform owners get an organization picker.' },
     ],
   },
   {
@@ -678,7 +678,7 @@ export const HELP_ARTICLES = [
       { h: 'What it is for', body: 'A permit package is only as good as the authority info behind it. This page holds each building department’s contact details, forms, and links, plus your counties and the Notice-of-Commencement rule — all of which auto-populate the permit steps.' },
       { h: 'Permit settings and counties', items: [
         'NOC threshold — set the dollar amount at or above which a Notice of Commencement is required (Florida’s default is $15,000) and Save. This is what triggers Step 6 in the permit workflow.',
-        'Counties — add each county you permit in with its name, property-appraiser URL, and the recorder vendor used for NOCs. Counties can be added and edited.',
+        'Counties — add each county you permit in with its name, property-appraiser URL, and the recorder vendor used for NOCs. Counties can be added, edited, archived (use "Show archived" to see them), or deleted when no authority is assigned to them.',
       ]},
       { h: 'Managing authorities', items: [
         'Click + Add authority and fill in contact info, the county, online-application link and/or an uploaded blank PDF application, inspection scheduling URL/phone, and whether it Requires Notice of Commencement.',
@@ -1378,7 +1378,7 @@ export const HELP_ARTICLES = [
         'The covered-systems summary shows each covered system’s pounds added vs. full charge and its leak rate, green within limit or red "over — repair within 30 days".',
         'The history table lists every event and filters by location and by refrigerant. To close a leak flagged on the dashboard, log a "Repair (post-fix charge)" event.',
       ]},
-      { h: 'Good to know', body: 'Events are add-only (no edit/delete from this page), so record carefully. Keep refrigerant records for at least three years. Platform owners get an organization picker.' },
+      { h: 'Good to know', body: 'Edit or delete an event with the row actions — the cylinder’s on-hand pounds are reversed automatically. Export CSV pulls the filtered log for your records (keep refrigerant records at least three years). Platform owners get an organization picker.' },
     ],
   },
   {
@@ -1408,10 +1408,10 @@ export const HELP_ARTICLES = [
       { h: 'Managing cylinders', items: [
         'Click "+ Add cylinder" and set Kind (Virgin purchased or Recovered), refrigerant, size, currently-on-hand pounds, vendor, acquired date, and notes (cylinder ID/serial).',
         'On-hand pounds move on their own from the Usage Log — charging a system draws down a virgin cylinder, recovering credits a recovered one.',
-        'When a recovered cylinder is full, click "Send out", choose Certified reclaimer or Certified disposal, enter the recipient facility and a document reference (manifest / ticket / invoice #), and Record shipment. That closes the chain. (Record the manifest weight in the reference or notes — sending out does not capture the on-hand pounds for you.)',
-        'Use "Show cylinders sent to reclaim / disposal" to pull the closed-cylinder audit history.',
+        'When a recovered cylinder is full, click "Send out", choose Certified reclaimer or Certified disposal, enter the recipient facility and a document reference (manifest / ticket / invoice #), and Record shipment — that captures the pounds shipped, zeroes the cylinder, and closes the chain.',
+        'Use "Show cylinders sent to reclaim / disposal" to pull the closed-cylinder audit history (shipped weight and disposition are shown).',
       ]},
-      { h: 'Good to know', body: 'Recovered cylinders with refrigerant sitting on hand are counted on the dashboard as "awaiting reclaim", so nothing lingers unshipped. Platform owners get an organization picker.' },
+      { h: 'Good to know', body: 'Recovered cylinders with refrigerant sitting on hand are counted on the dashboard as "awaiting reclaim", so nothing lingers unshipped. Export CSV downloads the full cylinder log. Platform owners get an organization picker.' },
     ],
   },
 
