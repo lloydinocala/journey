@@ -213,6 +213,14 @@ export default function PermitWorkflow({ profile }) {
     await reloadInspections(); setSaving(false)
   }
 
+  async function cancelPackage() {
+    if (!window.confirm('Cancel this permit package? It will be removed from the permitting board. This does not delete the estimate or the job.')) return
+    setSaving(true)
+    await supabase.from('permit_packages').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', pkg.id)
+    setSaving(false)
+    nav('/permits')
+  }
+
   if (loading) return <div style={{ maxWidth: 1000, margin: '0 auto' }}><p style={{ color: 'var(--mist)' }}>Loading…</p></div>
   if (!pkg) return <div style={{ maxWidth: 1000, margin: '0 auto' }}><p>Package not found. <Link to="/permits">Back to Permits</Link></p></div>
 
@@ -228,6 +236,7 @@ export default function PermitWorkflow({ profile }) {
           <h2 style={{ margin: '4px 0 0' }}>{estimate?.invoice_number || 'Permit Package'} · {customer?.display_name || ''}</h2>
           <div style={{ fontSize: 13, color: 'var(--mist)' }}>{propAddr}{authority ? `  ·  ${authority.name}` : '  ·  no authority set'}</div>
         </div>
+        <button className="logout-button" style={{ fontSize: 12, padding: '5px 12px', color: '#B5462F', borderColor: 'rgba(181,70,47,0.4)', flex: 'none' }} disabled={saving} onClick={cancelPackage}>Cancel package</button>
       </div>
 
       {/* STEP 1 — Order equipment / PO */}
@@ -361,22 +370,29 @@ export default function PermitWorkflow({ profile }) {
           const byPrice = total >= nocThreshold
           const nocRequired = byPrice || !!authority?.noc_required
           if (!nocRequired) return <p style={{ color: 'var(--mist)', fontSize: 13, margin: 0 }}>Estimate {money(total)} is below the {money(nocThreshold)} Florida threshold, so a Notice of Commencement isn’t required. Skip to the next step.</p>
+          const multi = permits.length > 1
+          const anyNoc = permits.some((pm) => pm.noc_doc_path)
           return (
             <>
-              <p style={{ fontSize: 12.5, margin: '0 0 8px', fontWeight: 600, color: byPrice ? '#B8860B' : 'var(--mist)' }}>{byPrice ? `Estimate ${money(total)} is at or above the ${money(nocThreshold)} threshold — a Notice of Commencement is required.` : 'This authority requires a Notice of Commencement regardless of price.'}</p>
+              <p style={{ fontSize: 12.5, margin: '0 0 8px', fontWeight: 600, color: byPrice ? '#B8860B' : 'var(--mist)' }}>{byPrice ? `Estimate ${money(total)} is at or above the ${money(nocThreshold)} threshold — a Notice of Commencement is required.` : 'This authority requires a Notice of Commencement regardless of price.'}{multi ? ' A NOC is tracked per system.' : ''}</p>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                 {authority?.noc_url && <a className="logout-button" style={{ textDecoration: 'none', fontSize: 12 }} href={linkUrl(authority.noc_url)} target="_blank" rel="noreferrer">NOC form ↗</a>}
                 <a className="logout-button" style={{ textDecoration: 'none', fontSize: 12 }} href={SEJDA_URL} target="_blank" rel="noreferrer">Open PDF filler ↗</a>
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <div style={{ width: 170 }}><label style={L}>Date notarized</label><input style={I} type="date" value={permits[0]?.noc_notarized_date || ''} onChange={(e) => setPermitLocal(permits[0].id, { noc_notarized_date: e.target.value })} onBlur={() => savePermit(permits[0].id, { noc_notarized_date: permits[0].noc_notarized_date || null })} /></div>
-                {permits[0]?.noc_doc_path && <button className="logout-button" style={{ fontSize: 12 }} onClick={() => viewDoc(permits[0].noc_doc_path, 'noc.pdf')}>View NOC ↓</button>}
-                <label className="logout-button" style={{ fontSize: 12, cursor: 'pointer' }}>{permits[0]?.noc_doc_path ? 'Replace NOC' : 'Upload notarized NOC'}<input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadDoc(permits[0], 'noc', e.target.files[0], 'noc_doc_path')} /></label>
-              </div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+              {permits.map((pm) => (
+                <div key={pm.id} style={{ borderTop: multi ? '1px solid var(--border)' : 'none', paddingTop: multi ? 10 : 0, marginTop: multi ? 10 : 0 }}>
+                  {multi && <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>{pm.system_label || 'System'}</div>}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ width: 170 }}><label style={L}>Date notarized</label><input style={I} type="date" value={pm.noc_notarized_date || ''} onChange={(e) => setPermitLocal(pm.id, { noc_notarized_date: e.target.value })} onBlur={() => savePermit(pm.id, { noc_notarized_date: pm.noc_notarized_date || null })} /></div>
+                    {pm.noc_doc_path && <button className="logout-button" style={{ fontSize: 12 }} onClick={() => viewDoc(pm.noc_doc_path, 'noc.pdf')}>View NOC ↓</button>}
+                    <label className="logout-button" style={{ fontSize: 12, cursor: 'pointer' }}>{pm.noc_doc_path ? 'Replace NOC' : 'Upload notarized NOC'}<input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadDoc(pm, 'noc', e.target.files[0], 'noc_doc_path')} /></label>
+                    {pm.noc_sent_at && <span style={{ fontSize: 12, color: '#1a7f37' }}>Sent to recorder {new Date(pm.noc_sent_at).toLocaleDateString()}</span>}
+                  </div>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 12, color: 'var(--mist)' }}>Recorder: {county?.recorder_vendor_id ? (vendors.find((v) => v.id === county.recorder_vendor_id)?.name || '—') : 'none set on county'}</span>
-                <button className="auth-button" style={{ width: 'auto', fontSize: 12, padding: '6px 14px' }} disabled={saving || !permits[0]?.noc_doc_path} onClick={() => callAction('recorder', 'NOC emailed to the recorder for recording.')}>Send NOC to recorder</button>
-                {permits[0]?.noc_sent_at && <span style={{ fontSize: 12, color: '#1a7f37' }}>Sent to recorder {new Date(permits[0].noc_sent_at).toLocaleDateString()}</span>}
+                <button className="auth-button" style={{ width: 'auto', fontSize: 12, padding: '6px 14px' }} disabled={saving || !anyNoc} onClick={() => callAction('recorder', 'NOC emailed to the recorder for recording.')}>Send {multi ? 'all NOCs' : 'NOC'} to recorder</button>
               </div>
             </>
           )
