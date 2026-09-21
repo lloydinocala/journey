@@ -26,7 +26,7 @@ export default function SystemEstimate({ profile }) {
   const [users, setUsers] = useState([])
 
   const [systemTypes, setSystemTypes] = useState([])
-  const [orgTemplates, setOrgTemplates] = useState({ install: '', warranty: '' })
+  const [orgTemplates, setOrgTemplates] = useState({ install: '', installByType: {}, warranty: '' })
   const [pickSystemType, setPickSystemType] = useState('')
   const [sizeOptions, setSizeOptions] = useState([])
   const [pickSize, setPickSize] = useState('')
@@ -155,13 +155,17 @@ export default function SystemEstimate({ profile }) {
 
     const { data: orgData } = await supabase
       .from('organizations')
-      .select('sales_tax_rate, services_taxable_by_default, system_installation_includes, system_warranty_template')
+      .select('sales_tax_rate, services_taxable_by_default, system_installation_includes, system_installation_includes_by_type, system_warranty_template')
       .eq('id', jobData.org_id)
       .single()
     if (orgData) {
       setTaxRate(orgData.sales_tax_rate || 0)
       setCustomTaxable(orgData.services_taxable_by_default)
-      setOrgTemplates({ install: orgData.system_installation_includes || '', warranty: orgData.system_warranty_template || '' })
+      setOrgTemplates({
+        install: orgData.system_installation_includes || '',
+        installByType: orgData.system_installation_includes_by_type || {},
+        warranty: orgData.system_warranty_template || '',
+      })
     }
 
     setLoading(false)
@@ -253,7 +257,11 @@ export default function SystemEstimate({ profile }) {
       eq.outdoor_model ? `Model # ${eq.outdoor_model}` : null,
     ].filter(Boolean).join('\n\n')
 
-    const installDesc = ['Installation includes:', orgTemplates.install || ''].filter(Boolean).join('\n\n')
+    // Use the block written for this system type; fall back to the org default when
+    // that type has none of its own.
+    const installForType = (orgTemplates.installByType && orgTemplates.installByType[pickSystemType]) || ''
+    const installBody = (installForType.trim() ? installForType : orgTemplates.install) || ''
+    const installDesc = ['Installation includes:', installBody].filter(Boolean).join('\n\n')
 
     const warrantyBody = (orgTemplates.warranty || '')
       .replace(/\{manufacturer_years\}/g, eq.manufacturer_warranty_years != null ? String(eq.manufacturer_warranty_years) : '')
