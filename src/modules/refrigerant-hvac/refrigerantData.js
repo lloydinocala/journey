@@ -64,8 +64,13 @@ export async function addCylinder(orgId, row) {
   }).select().single()
 }
 export async function sendCylinder(orgId, id, { status, sent_to, doc_ref }) {
+  // Capture the pounds on hand at the moment of shipment, then zero the cylinder
+  // (it has left our custody). shipped_lbs is the manifest weight of record.
+  const { data: cyl } = await supabase.from('refrigerant_cylinders').select('on_hand_lbs').eq('id', id).eq('org_id', orgId).maybeSingle()
+  const shipped = cyl ? (Number(cyl.on_hand_lbs) || 0) : null
   return supabase.from('refrigerant_cylinders').update({
     status, sent_at: new Date().toISOString().slice(0, 10), sent_to: sent_to || null, doc_ref: doc_ref || null,
+    shipped_lbs: shipped, on_hand_lbs: 0,
   }).eq('id', id).eq('org_id', orgId)
 }
 
@@ -90,14 +95,46 @@ export async function addTransaction(orgId, row) {
   }).select().single()
   if (error) return { error }
   // Move refrigerant in/out of the chosen cylinder.
-  if (row.cylinder_id && (added || recovered)) {
-    const { data: cyl } = await supabase.from('refrigerant_cylinders').select('on_hand_lbs').eq('id', row.cylinder_id).maybeSingle()
-    if (cyl) {
-      const next = Math.max(0, (Number(cyl.on_hand_lbs) || 0) - added + recovered)
-      await supabase.from('refrigerant_cylinders').update({ on_hand_lbs: next }).eq('id', row.cylinder_id)
-    }
-  }
+  await applyCylinderMove(row.cylinder_id, added, recovered)
   return { data }
+}
+
+// Apply a charge/recovery to a cylinder's on-hand (charging draws down, recovering credits).
+async function applyCylinderMove(cylId, added, recovered) {
+  if (!cylId || !(added || recovered)) return
+  const { data: cyl } = await supabase.from('refrigerant_cylinders').select('on_hand_lbs').eq('id', cylId).maybeSingle()
+  if (cyl) {
+    const next = Math.max(0, (Number(cyl.on_hand_lbs) || 0) - (added || 0) + (recovered || 0))
+    await supabase.from('refrigerant_cylinders').update({ on_hand_lbs: next }).eq('id', cylId)
+  }
+}
+// Undo a transaction's cylinder move (the inverse of applyCylinderMove).
+async function reverseCylinderMove(txn) {
+  await applyCylinderMove(txn.cylinder_id, -(Number(txn.pounds_recovered) || 0), (Number(txn.pounds_added) || 0))
+}
+
+// Edit an existing usage-log event: reverse its old cylinder effect, then apply the new one.
+export async function updateTransaction(orgId, txn, row) {
+  const added = num(row.pounds_added) || 0, recovered = num(row.pounds_recovered) || 0
+  const { data, error } = await supabase.from('refrigerant_transactions').update({
+    txn_date: row.txn_date || txn.txn_date,
+    job_id: row.job_id || null, property_id: row.property_id || null, equipment_id: row.equipment_id || null,
+    technician_user_id: row.technician_user_id || null, tech_cert_type: row.tech_cert_type || null,
+    refrigerant_type: row.refrigerant_type || null, pounds_added: added || null, pounds_recovered: recovered || null,
+    cylinder_id: row.cylinder_id || null, reason: row.reason || 'topoff', notes: row.notes || null,
+  }).eq('id', txn.id).eq('org_id', orgId).select().single()
+  if (error) return { error }
+  await reverseCylinderMove(txn)               // undo the previous cylinder effect
+  await applyCylinderMove(row.cylinder_id || null, added, recovered)  // apply the new one
+  return { data }
+}
+
+// Delete a usage-log event and undo its cylinder effect.
+export async function deleteTransaction(orgId, txn) {
+  const { error } = await supabase.from('refrigerant_transactions').delete().eq('id', txn.id).eq('org_id', orgId)
+  if (error) return { error }
+  await reverseCylinderMove(txn)
+  return { ok: true }
 }
 
 // ---- Technician EPA cert lookup (from HR user_certifications) --------------
