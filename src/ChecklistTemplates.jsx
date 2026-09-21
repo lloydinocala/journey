@@ -205,26 +205,6 @@ export default function ChecklistTemplates({ profile }) {
     ]
     downloadRowsXlsx(rows, 'checklist-template.xlsx')
   }
-  async function importReplace(e) {
-    const file = e.target.files[0]; e.target.value = ''
-    if (!file || !editing) return
-    setBusy(true); setImportMsg('')
-    try {
-      const parsed = await parseChecklistFile(file)
-      await supabase.from('checklist_items').delete().eq('checklist_id', editing.id)
-      await supabase.from('checklist_sections').delete().eq('checklist_id', editing.id)
-      await supabase.from('checklists').update({ name: parsed.title, equipment_type: parsed.equipment_type || editing.equipment_type, updated_at: new Date().toISOString() }).eq('id', editing.id)
-      let so = 0, io = 0
-      for (const sec of parsed.sections) {
-        const { data: sc } = await supabase.from('checklist_sections').insert({ org_id: selectedOrg, checklist_id: editing.id, name: sec.name, sort_order: so++ }).select().single()
-        if (sec.items.length) await supabase.from('checklist_items').insert(sec.items.map((it) => ({ org_id: selectedOrg, checklist_id: editing.id, section_id: sc.id, sort_order: io++, ...it })))
-      }
-      setImportMsg(`Replaced with "${parsed.title}" \u2014 ${parsed.sections.length} sections, ${parsed.sections.reduce((n, x) => n + x.items.length, 0)} items.`)
-      openEditor({ ...editing, name: parsed.title, equipment_type: parsed.equipment_type || editing.equipment_type })
-    } catch (err) { setImportMsg('Import failed: ' + (err.message || err)) }
-    setBusy(false)
-  }
-
   // ---- editor mutations (optimistic local + DB) ----
   const patchChecklist = (field, val) => { setEditing((c) => ({ ...c, [field]: val })); supabase.from('checklists').update({ [field]: val, updated_at: new Date().toISOString() }).eq('id', editing.id).then(() => {}) }
   async function addSection() {
@@ -270,7 +250,6 @@ export default function ChecklistTemplates({ profile }) {
               <input type="checkbox" checked={editing.is_active} onChange={(e) => patchChecklist('is_active', e.target.checked)} /> Active
             </label>
             <button className="logout-button" style={{ marginBottom: 6 }} onClick={exportCurrent}>Export</button>
-            <label className="logout-button" style={{ marginBottom: 6, cursor: 'pointer' }}>{busy ? 'Importing\u2026' : 'Import (replace)'}<input type="file" accept=".xlsx,.xls,.csv" onChange={importReplace} disabled={busy} style={{ display: 'none' }} /></label>
             <button className="remove-item-btn" style={{ marginBottom: 6 }} onClick={() => delChecklist(editing)}>Delete</button>
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 10 }}>
