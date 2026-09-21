@@ -49,7 +49,7 @@ export const HELP_ARTICLES = [
     sections: [
       { h: 'What it is for', body: 'This is the one place all filter orders land, whatever their source, so nothing is missed and every order is tracked from placed to delivered. Payment and fulfillment are tracked separately — you can deliver an order before it is paid, and the customer gets a pay link either way.' },
       { h: 'Finding orders', items: [
-        'Tabs: Open (still to fulfill, with a count), Delivered, and All.',
+        'Tabs: Open (still to fulfill, with a count), Delivered, All, and Removed (deleted orders, kept so they can be restored).',
         'The list refreshes on its own every 30 seconds and on tab focus; Refresh forces it now.',
         'Each row links the customer to their file and shows the property, source, filter sizes, total, payment, and delivery status.',
       ]},
@@ -67,7 +67,7 @@ export const HELP_ARTICLES = [
       { h: 'Editing an order', items: [
         'Edit — adjust quantities or remove lines inline; the new total recalculates as you go.',
         'To add a different filter size, place a new order (so pricing always comes from the pricebook).',
-        'Cancel keeps the order on record but drops it off the open list; Un-cancel restores it. Delete removes a mistaken order.',
+        'Cancel keeps the order on record but drops it off the open list; Un-cancel restores it. Delete removes a mistaken order — it moves to the Removed tab, where Restore brings it back if you deleted it in error.',
         'Invoice — opens the customer’s invoice to view or re-send.',
       ]},
       { h: 'Good to know', body: 'Everything is scoped to the selected organization. Filters on file come from the property record, so keeping that up to date makes reordering a two-click job.' },
@@ -95,6 +95,7 @@ export const HELP_ARTICLES = [
         'Approve → create job — creates the job in the dispatch tray, billed to the property’s account holder. Then schedule and dispatch it like any job.',
         'Decline — dismisses a request that is not actionable (asks you to confirm).',
         'Owner approved (I called) → ready — on an awaiting card, use this after you have confirmed approval another way (e.g. the owner phoned in); it moves the request to Ready to dispatch.',
+        'Active / History — the Active tab is the live queue you work; the History tab is a read-only archive of requests already handled, each showing its outcome (Approved → job created, or Declined), newest first.',
         'The list refreshes on its own every 30 seconds and when you return to the tab; Refresh forces it now.',
       ]},
       { h: 'The homeowner-approval safeguard', body: 'When a request comes from someone who is not the account holder, Journey automatically emails the account holder a link to approve it, and holds the request in "Awaiting homeowner approval" — nothing is scheduled or billed until they say yes. If they approve by phone instead, you can move it forward yourself with the "Owner approved (I called)" button.' },
@@ -103,7 +104,7 @@ export const HELP_ARTICLES = [
         'Journey generates that property’s QR code (a link to its own request page).',
         'Click "Open full-size to print" and put the sticker on the equipment. Anyone at that address who scans it opens a request page already tied to their property.',
       ]},
-      { h: 'Good to know', body: 'Everything is scoped to the selected organization. The page shows active requests only — approved and declined ones drop off once handled.' },
+      { h: 'Good to know', body: 'Everything is scoped to the selected organization. The Active view shows requests still to handle; approved and declined ones move to the History tab, where they stay on record so you can look back at what was requested and how it was resolved.' },
     ],
   },
   {
@@ -204,7 +205,7 @@ export const HELP_ARTICLES = [
       ]},
       { h: 'What the caller card shows', items: [
         'Customer: name, company, phones, email; a red BANNED banner if the customer is flagged; a maintenance-plan pill (or "No maintenance plan"); balance (red when they owe); systems-on-file count; every address; and up to 6 recent or open jobs.',
-        'Vendor / Employee / Known contact: a compact card identifying who they are; the vendor card links to the vendor record.',
+        'Vendor / Employee / Known contact: a compact card identifying who they are; the vendor card links to the vendor record, and the employee card opens the Team roster.',
         'Open full record → jumps to the customer’s file to book work or answer detailed questions.',
       ]},
       { h: 'Step 2 — help them, without leaving the page', items: [
@@ -505,13 +506,14 @@ export const HELP_ARTICLES = [
         'The table shows assignee, destination (with PARTS / return-to badges), address, tap-to-call/text contact, date/time, duration, the three button-times, status, and description.',
         'Click Records on a row to see each button’s timestamp and map location, total worked time, and task pay, plus the linked parts order.',
         'Use "Show completed / canceled" to include finished tasks.',
+        'Use "Show removed" to list deleted tasks; each has a Restore button to bring one back if it was removed by mistake.',
       ]},
       { h: 'Task pay', items: [
         'Open Task pay summary and set a date range to see each employee’s completed-task count, worked time, and pay.',
         'Worked time is Start My Time → Stop My Time; the rate is the employee’s task rate (Settings → Employee Pay Rates).',
         'This is a task-time report — it does not post to payroll on its own.',
       ]},
-      { h: 'Good to know', body: 'Cancel keeps a task on the list as Canceled; Delete removes it. Everything is scoped to the selected organization (platform owners get a picker).' },
+      { h: 'Good to know', body: 'Cancel keeps a task on the list as Canceled; Delete removes it from the list but keeps it recoverable — turn on "Show removed" to Restore a deleted task. Everything is scoped to the selected organization (platform owners get a picker).' },
     ],
   },
   {
