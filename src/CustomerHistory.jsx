@@ -165,7 +165,7 @@ export default function CustomerHistory({ profile }) {
       if (propIds.length) orClauses.push(`property_id.in.(${propIds.join(',')})`)
       if (jobIds.length) orClauses.push(`job_id.in.(${jobIds.join(',')})`)
       const { data: permitRows } = await supabase.from('permits')
-        .select('id, job_id, permit_number, issue_date, inspection_approved_date, jobs(job_number)')
+        .select('id, job_id, package_id, system_label, authority_name, permit_number, issue_date, inspection_approved_date, status, finaled, jobs(job_number)')
         .or(orClauses.join(',')).order('created_at', { ascending: false })
       setPermits(permitRows || [])
     } else { setPermits([]) }
@@ -716,14 +716,17 @@ export default function CustomerHistory({ profile }) {
           <h3 style={{ marginBottom: 10 }}>Permits</h3>
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
-              <thead><tr><th>Job</th><th>Permit #</th><th>Permit Date</th><th>Inspection Approved</th></tr></thead>
+              <thead><tr><th>Job</th><th>System</th><th>Authority</th><th>Permit #</th><th>Permit Date</th><th>Inspection Approved</th><th>Status</th></tr></thead>
               <tbody>
                 {permits.map((p) => (
                   <tr key={p.id}>
                     <td>{p.jobs?.job_number || '—'}</td>
+                    <td>{p.system_label || '—'}</td>
+                    <td>{p.authority_name || '—'}</td>
                     <td>{p.permit_number || '—'}</td>
                     <td>{p.issue_date ? formatDate(p.issue_date) : '—'}</td>
                     <td>{p.inspection_approved_date ? formatDate(p.inspection_approved_date) : '—'}</td>
+                    <td>{p.finaled ? 'Finaled ✓' : (p.inspection_approved_date ? 'Inspected' : (p.permit_number ? 'Permitted' : (p.status ? p.status.replace(/_/g, ' ') : 'In progress')))}</td>
                   </tr>
                 ))}
               </tbody>
