@@ -774,14 +774,19 @@ export const HELP_ARTICLES = [
     title: 'System Estimate Setup',
     area: 'Data Station',
     keywords: ['system estimate setup', 'included', 'installation', 'warranty', 'template', 'boilerplate', 'what is included', 'manufacturer years', 'contractor years'],
-    purpose: 'Sets the standard "what’s included" installation block and the exact warranty wording that print on every System Estimate — write them once here instead of on every quote.',
+    purpose: 'Sets the "what’s included" installation blocks and the exact warranty wording that print on every System Estimate — write them once here instead of on every quote. Installation includes is set per system type, since what an install comes with differs by type.',
     sections: [
-      { h: 'What it is for', body: 'Two blocks of text appear on every system estimate exactly as written, so your proposals are consistent and you never retype boilerplate. Set them once and forget them.' },
-      { h: 'The two blocks', items: [
-        'Installation includes — your standard "what’s included with the install" text.',
-        'Warranty (exact words) — shown verbatim to the customer. It supports two placeholders, {manufacturer_years} and {contractor_years}, which are filled automatically from the specific system chosen on each estimate.',
+      { h: 'What it is for', body: 'These blocks appear on every system estimate exactly as written, so your proposals are consistent and you never retype boilerplate. Set them once and forget them — the estimate pulls the right installation block for whichever system type you choose.' },
+      { h: 'Installation includes (by system type)', items: [
+        'Default — the fallback "what’s included with the install" text. It is used for any system type you leave blank.',
+        'Per system type — a separate block for each type (Apt CrossOver, Apt Split, CrossOver, Gas, Packaged, Split, Mini-Split, plus any extra type in your equipment). Write the exact inclusions for that type.',
+        'On a System Estimate, the block for the chosen system type is inserted automatically; a type with no block of its own uses the default.',
+        '"Start from default" copies the default text into a blank type so you can tweak rather than retype.',
       ]},
-      { h: 'Good to know', body: 'Enter both, click Save, and they flow onto every System Estimate with the warranty year numbers substituted per selected system. Platform owners get an organization picker.' },
+      { h: 'Warranty (exact words)', items: [
+        'Shown verbatim to the customer. It supports two placeholders, {manufacturer_years} and {contractor_years}, which are filled automatically from the specific system chosen on each estimate.',
+      ]},
+      { h: 'Good to know', body: 'Fill in the default, any per-type blocks, and the warranty, then click Save — they flow onto every System Estimate with the correct installation block per type and the warranty year numbers substituted per selected system. Platform owners get an organization picker.' },
     ],
   },
   {
