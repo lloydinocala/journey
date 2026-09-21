@@ -26,6 +26,7 @@ export default function BuildingAuthorities({ profile }) {
   const [editingCountyId, setEditingCountyId] = useState(null)
   const [showCountyForm, setShowCountyForm] = useState(false)
   const [countySaving, setCountySaving] = useState(false)
+  const [showArchivedCounties, setShowArchivedCounties] = useState(false)
   const [nocThreshold, setNocThreshold] = useState('')
   const [nocSaving, setNocSaving] = useState(false)
   const [nocSaved, setNocSaved] = useState(false)
@@ -102,6 +103,15 @@ export default function BuildingAuthorities({ profile }) {
   async function toggleActive(a) {
     await supabase.from('building_authorities').update({ is_active: !a.is_active }).eq('id', a.id); load()
   }
+  async function toggleCountyActive(c) {
+    await supabase.from('counties').update({ is_active: !c.is_active }).eq('id', c.id); load()
+  }
+  async function deleteCounty(c) {
+    const inUse = rows.filter((a) => a.county_id === c.id)
+    if (inUse.length) { alert(`Can't delete ${c.name} — it's assigned to ${inUse.length} authorit${inUse.length === 1 ? 'y' : 'ies'}. Reassign those authorities or archive the county instead.`); return }
+    if (!window.confirm(`Delete ${c.name}? This can't be undone. (Archive it instead if you might need it later.)`)) return
+    await supabase.from('counties').delete().eq('id', c.id); load()
+  }
   function downloadBlank(a) {
     if (!a.blank_form_path) return
     const { data } = supabase.storage.from('org-logos').getPublicUrl(a.blank_form_path, { download: a.blank_form_name || 'permit-form.pdf' })
@@ -109,6 +119,7 @@ export default function BuildingAuthorities({ profile }) {
   }
 
   const filtered = rows.filter((a) => statusFilter.includes(a.is_active ? 'Active' : 'Archived') && (!search || a.name.toLowerCase().includes(search.toLowerCase())))
+  const visibleCounties = counties.filter((c) => showArchivedCounties ? true : c.is_active !== false)
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -135,7 +146,12 @@ export default function BuildingAuthorities({ profile }) {
       <div className="section-card" style={{ padding: 16, marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <h3 style={{ margin: 0, fontSize: 16 }}>Counties</h3>
-          <button className="logout-button" style={{ fontSize: 12 }} onClick={startAddCounty}>+ Add county</button>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <label style={{ fontSize: 12, color: 'var(--mist)', display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+              <input type="checkbox" checked={showArchivedCounties} onChange={(e) => setShowArchivedCounties(e.target.checked)} /> Show archived
+            </label>
+            <button className="logout-button" style={{ fontSize: 12 }} onClick={startAddCounty}>+ Add county</button>
+          </div>
         </div>
         <p style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 0 }}>The property appraiser (one per county) and the recorder used for Notices of Commencement. Assign each authority below to its county.</p>
         {showCountyForm && (
@@ -148,14 +164,16 @@ export default function BuildingAuthorities({ profile }) {
             <button className="logout-button" type="button" onClick={() => { setShowCountyForm(false); setEditingCountyId(null) }}>Cancel</button>
           </form>
         )}
-        {counties.length === 0 ? <p style={{ fontSize: 13, color: 'var(--mist)', margin: 0 }}>No counties yet. Add one, then assign authorities to it.</p> : (
+        {visibleCounties.length === 0 ? <p style={{ fontSize: 13, color: 'var(--mist)', margin: 0 }}>{counties.length === 0 ? 'No counties yet. Add one, then assign authorities to it.' : 'No active counties. Turn on "Show archived" to see archived ones.'}</p> : (
           <div style={{ display: 'grid', gap: 6 }}>
-            {counties.map((c) => (
-              <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 13.5 }}>
-                <div><strong>{c.name}</strong>{c.state ? ', ' + c.state : ''}<span style={{ color: 'var(--mist)' }}>{c.recorder_vendor_id ? '  ·  Recorder: ' + (recorderVendors.find((v) => v.id === c.recorder_vendor_id)?.name || '—') : '  ·  no recorder'}</span></div>
+            {visibleCounties.map((c) => (
+              <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 13.5, opacity: c.is_active === false ? 0.6 : 1 }}>
+                <div><strong>{c.name}</strong>{c.state ? ', ' + c.state : ''}{c.is_active === false && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--mist)' }}>(archived)</span>}<span style={{ color: 'var(--mist)' }}>{c.recorder_vendor_id ? '  ·  Recorder: ' + (recorderVendors.find((v) => v.id === c.recorder_vendor_id)?.name || '—') : '  ·  no recorder'}</span></div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {c.property_appraiser_url && <a className="logout-button" style={{ textDecoration: 'none', fontSize: 12, padding: '3px 8px' }} href={linkUrl(c.property_appraiser_url)} target="_blank" rel="noreferrer">Appraiser ↗</a>}
                   <button className="logout-button" style={{ fontSize: 12, padding: '3px 8px' }} onClick={() => startEditCounty(c)}>Edit</button>
+                  <button className="logout-button" style={{ fontSize: 12, padding: '3px 8px' }} onClick={() => toggleCountyActive(c)}>{c.is_active === false ? 'Restore' : 'Archive'}</button>
+                  <button className="logout-button" style={{ fontSize: 12, padding: '3px 8px', color: '#B5462F' }} onClick={() => deleteCounty(c)}>Delete</button>
                 </div>
               </div>
             ))}
