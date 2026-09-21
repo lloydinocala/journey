@@ -227,7 +227,7 @@ export default function CallLog({ profile }) {
           {(callbackCount > 0 || followupCount > 0) && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
               {callbackCount > 0 && <span style={{ fontSize: 12.5, color: '#fff', background: '#B5462F', borderRadius: 6, padding: '3px 10px', fontWeight: 700 }}>{callbackCount} flagged for call-back</span>}
-              {followupCount > 0 && <span style={{ fontSize: 12.5, color: '#fff', background: '#B5462F', borderRadius: 6, padding: '3px 10px', fontWeight: 700 }}>{followupCount} flagged for follow-up</span>}
+              {followupCount > 0 && <span style={{ fontSize: 12.5, color: '#fff', background: '#9C6A12', borderRadius: 6, padding: '3px 10px', fontWeight: 700 }}>{followupCount} flagged for follow-up</span>}
             </div>
           )}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
