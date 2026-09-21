@@ -32,6 +32,8 @@ export default function Permits({ profile }) {
   const [approved, setApproved] = useState([])
   const [inProgress, setInProgress] = useState([])
   const [awaitingInspection, setAwaitingInspection] = useState([])
+  const [completed, setCompleted] = useState([])
+  const [showCompleted, setShowCompleted] = useState(false)
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState('')
 
@@ -83,9 +85,8 @@ export default function Permits({ profile }) {
     })))
 
     // classify packages
-    const prog = [], insp2 = []
+    const prog = [], insp2 = [], done = []
     packages.forEach((p) => {
-      if (p.status === 'complete') return
       const jobId = p.job_id || pkgEstById[p.estimate_id]?.spawned_job_id || pkgEstById[p.estimate_id]?.converted_to_job_id
       const jstatus = jobById[jobId]?.status
       const enriched = {
@@ -93,9 +94,11 @@ export default function Permits({ profile }) {
         customer: custById[p.customer_id] || null, invoice: invByJob[jobId] || null,
         permits: permitsByPkg[p.id] || [], insp: inspByPkg[p.id] || [],
       }
-      if (jstatus === 'completed' || p.install_completed_at) insp2.push(enriched)
+      if (p.status === 'complete') done.push(enriched)
+      else if (jstatus === 'completed' || p.install_completed_at) insp2.push(enriched)
       else prog.push(enriched)
     })
+    setCompleted(done)
     // failed-inspection helper
     const failed = (e) => (e.permits || []).some((pm) => {
       const rows = (e.insp || []).filter((i) => i.permit_id === pm.id).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
@@ -273,6 +276,34 @@ export default function Permits({ profile }) {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Completed permits — history */}
+          {completed.length > 0 && (
+            <div style={{ marginTop: 26 }}>
+              <button onClick={() => setShowCompleted((s) => !s)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 700, padding: 0, color: PBRAND }}>
+                {showCompleted ? '▾' : '▸'} Completed ({completed.length})
+              </button>
+              {showCompleted && (
+                <div style={{ overflowX: 'auto', marginTop: 8 }}>
+                  <table className="data-table">
+                    <thead><tr><th>Job #</th><th>Customer</th><th>Systems</th><th>Permit #s</th><th></th></tr></thead>
+                    <tbody>
+                      {completed.map((e) => (
+                        <tr key={e.id}>
+                          <td>{e.job?.job_number || '—'}</td>
+                          <td>{e.customer?.display_name || '—'}</td>
+                          <td>{(e.permits || []).length || '—'}</td>
+                          <td>{(e.permits || []).map((pm) => pm.permit_number).filter(Boolean).join(', ') || '—'}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}><button className="logout-button" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => nav(`/permits/${e.id}`)}>View →</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div style={{ fontSize: 12, color: 'var(--mist)', marginTop: 6 }}>Completed packages also appear on each customer&rsquo;s profile under Permits.</div>
+                </div>
+              )}
             </div>
           )}
         </>
