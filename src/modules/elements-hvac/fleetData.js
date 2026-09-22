@@ -17,6 +17,28 @@ export async function updateVehicle(id, patch) {
   return supabase.from('elements_vehicles').update(patch).eq('id', id)
 }
 
+// A truck Location (Stock & Purchasing → Locations) stores its own copy of the
+// vehicle's name and a stored assignee, so a rename/reassign in Fleet must be
+// pushed through or the Locations table shows stale info. Lifecycle (archive/
+// retire) is deliberately NOT synced — a stock-holding location must not vanish
+// just because the vehicle was archived. No-op when the vehicle has no linked
+// location. Matches on either link direction (location.vehicle_id, the link the
+// Locations page uses, or the vehicle's own location_id).
+export async function syncVehicleToLocations(orgId, vehicleId, fields, locationId = null) {
+  const patch = {}
+  if ('name' in fields && fields.name != null) patch.name = fields.name
+  if ('assigned_user_id' in fields) patch.assigned_user_id = fields.assigned_user_id || null
+  if (!Object.keys(patch).length) return { data: null }
+  let q = supabase.from('elements_locations').update(patch)
+    .eq('org_id', orgId).eq('type', 'truck')
+  // location.vehicle_id === this vehicle (primary link), OR the location the
+  // vehicle points at via location_id (secondary link).
+  q = locationId
+    ? q.or(`vehicle_id.eq.${vehicleId},id.eq.${locationId}`)
+    : q.eq('vehicle_id', vehicleId)
+  return q
+}
+
 // ---- Assignments (who is responsible for a vehicle, with dated history) ----
 // Each vehicle has at most one OPEN assignment (ended_on = null) = the current
 // technician. Reassigning closes the open one and opens a new one, so the full
@@ -51,7 +73,10 @@ export async function reassignVehicle(orgId, vehicleId, newUserId, startedOn) {
       .insert({ org_id: orgId, vehicle_id: vehicleId, user_id: newUserId, started_on: day })
     if (error) return { error }
   }
-  return supabase.from('elements_vehicles').update({ assigned_user_id: newUserId || null }).eq('id', vehicleId)
+  const res = await supabase.from('elements_vehicles').update({ assigned_user_id: newUserId || null }).eq('id', vehicleId)
+  // Keep the linked stock Location's stored assignee in step with Fleet.
+  await syncVehicleToLocations(orgId, vehicleId, { assigned_user_id: newUserId || null })
+  return res
 }
 
 // Open the first assignment for a brand-new vehicle created with a technician.
