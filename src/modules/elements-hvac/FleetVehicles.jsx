@@ -1,6 +1,6 @@
 // Elements-HVAC · Fleet · Vehicles (linked to inventory trucks)
 import { useState, useEffect, Fragment } from 'react'
-import { listVehicles, addVehicle, updateVehicle, listTrucks, listAllAssignments, reassignVehicle, openInitialAssignment } from './fleetData'
+import { listVehicles, addVehicle, updateVehicle, listTrucks, listAllAssignments, reassignVehicle, openInitialAssignment, syncVehicleToLocations } from './fleetData'
 import { listTechnicians } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -108,6 +108,15 @@ export default function FleetVehicles({ profile }) {
     let err
     if (editingId) {
       err = (await updateVehicle(editingId, payload)).error
+      // Push name (and the current assignee) through to the linked stock Location
+      // so Stock & Purchasing → Locations doesn't show a stale truck name.
+      if (!err) {
+        await syncVehicleToLocations(
+          org.selectedOrg, editingId,
+          { name: payload.name, assigned_user_id: payload.assigned_user_id },
+          payload.location_id,
+        )
+      }
     } else {
       const res = await addVehicle(org.selectedOrg, payload)
       err = res.error
