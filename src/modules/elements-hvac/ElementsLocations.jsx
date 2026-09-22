@@ -81,6 +81,16 @@ export default function ElementsLocations({ profile }) {
     return techName(driverId(loc))
   }
 
+  // Address follows the record: a warehouse keeps its own; a truck shows the
+  // linked Fleet vehicle's home base, live, so a change in Fleet is reflected here.
+  function addressForLocation(loc) {
+    if (loc.type === 'truck') {
+      const v = vehicles.find((x) => x.id === loc.vehicle_id)
+      return v?.home_address || '—'
+    }
+    return loc.address || '—'
+  }
+
   function stockFor(loc) { return stock[loc.id] || { parts: 0, units: 0, value: 0 } }
 
   // Derived lifecycle status.
@@ -216,6 +226,10 @@ export default function ElementsLocations({ profile }) {
                 <label>Assigned technician</label>
                 <input type="text" value={form.assigned_user_id ? techName(form.assigned_user_id) : '—'} readOnly disabled title="Set in Fleet → Vehicles" />
               </div>
+              <div className="field" style={{ minWidth: 240 }}>
+                <label>Home base (address)</label>
+                <input type="text" value={(vehicles.find((x) => x.id === form.vehicle_id)?.home_address) || '—'} readOnly disabled title="Set in Fleet → Vehicles" />
+              </div>
             </>
           ) : (
             <>
@@ -269,18 +283,20 @@ export default function ElementsLocations({ profile }) {
               const inactive = st === 'archived' || st === 'retired'
               return (
                 <tr key={loc.id} style={editingId === loc.id ? { background: '#EEF3FB' } : undefined}>
-                  <td style={{ whiteSpace: 'nowrap' }}>
-                    <button className="auth-button" style={{ width: 'auto', margin: 0, marginRight: 5, padding: '4px 9px', fontSize: 12 }} onClick={() => startEdit(loc)}>Edit</button>
-                    {inactive ? (
-                      <button className="logout-button" style={{ marginRight: 5, padding: '4px 9px', fontSize: 12 }} onClick={() => restoreLoc(loc)}>Restore</button>
-                    ) : (
-                      <button className="logout-button" style={{ marginRight: 5, padding: '4px 9px', fontSize: 12 }} onClick={() => archiveLoc(loc)}>Archive</button>
-                    )}
-                    {st !== 'retired' && (
-                      <button className="logout-button" style={{ marginRight: 5, padding: '4px 9px', fontSize: 12 }} onClick={() => retireLoc(loc)}>Retire</button>
-                    )}
-                    <button className="logout-button" style={{ padding: '4px 9px', fontSize: 12 }} onClick={() => handleDelete(loc)} disabled={hasStock}
-                      title={hasStock ? 'Carrying stock — transfer it off, then Archive or Retire.' : 'Only for empty records with no stock or history.'}>Delete</button>
+                  <td>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                      <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '4px 9px', fontSize: 12 }} onClick={() => startEdit(loc)}>Edit</button>
+                      {inactive ? (
+                        <button className="logout-button" style={{ margin: 0, padding: '4px 9px', fontSize: 12 }} onClick={() => restoreLoc(loc)}>Restore</button>
+                      ) : (
+                        <button className="logout-button" style={{ margin: 0, padding: '4px 9px', fontSize: 12 }} onClick={() => archiveLoc(loc)}>Archive</button>
+                      )}
+                      {st !== 'retired' && (
+                        <button className="logout-button" style={{ margin: 0, padding: '4px 9px', fontSize: 12 }} onClick={() => retireLoc(loc)}>Retire</button>
+                      )}
+                      <button className="logout-button" style={{ margin: 0, padding: '4px 9px', fontSize: 12 }} onClick={() => handleDelete(loc)} disabled={hasStock}
+                        title={hasStock ? 'Carrying stock — transfer it off, then Archive or Retire.' : 'Only for empty records with no stock or history.'}>Delete</button>
+                    </div>
                   </td>
                   <td>{loc.type === 'truck' ? 'Truck' : 'Warehouse / Shop'}</td>
                   <td>{loc.name}</td>
@@ -289,7 +305,7 @@ export default function ElementsLocations({ profile }) {
                   <td style={hasStock ? { fontWeight: 600, color: '#152238' } : { color: 'var(--mist)' }}>
                     {hasStock ? `${sk.parts} part${sk.parts === 1 ? '' : 's'} · ${money(sk.value)}` : '—'}
                   </td>
-                  <td style={{ color: 'var(--mist)' }}>{loc.type === 'warehouse' ? (loc.address || '—') : '—'}</td>
+                  <td style={{ color: 'var(--mist)' }}>{addressForLocation(loc)}</td>
                 </tr>
               )
             })}
