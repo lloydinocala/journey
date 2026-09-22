@@ -340,18 +340,18 @@ export const HELP_ARTICLES = [
       { h: 'Finding a job', items: [
         'Filter by Status (multi-select; a shortcut hides completed & canceled at once).',
         'Search matches job number, address, customer, issue, or technician. Arriving from a Home dashboard chart pre-fills the search or a job-type filter.',
-        'Use Columns to show or hide fields; your layout is remembered in your browser. Job #, Segment, Date, Customer, and Address stay pinned as you scroll sideways.',
+        'Use Columns to show or hide fields; your layout is remembered in your browser. Job #, Segment, Date, and Customer stay pinned (with their headers) as you scroll sideways.',
         'Click a sortable column header to sort (Job # sorts numerically, newest first by default).',
       ]},
       { h: 'Editing a job', items: [
-        'Click Edit on a row to change it inline: property, date, start time and duration, job type, service complaint, status, and notes.',
+        'Click Edit on a row to change it inline: property, date, start time and duration, job type, service complaint, status, notes, and the On My Way / Arrival / Completed timestamps (clear one to blank it).',
         'Set the trip charge, and mark it Diagnose-only or set an authorization limit.',
         'Add or remove technicians; the first one listed is the lead (★).',
         'Setting a job to "Incomplete" files it in the office’s incomplete-jobs queue so it is not forgotten.',
       ]},
       { h: 'Row actions and links', items: [
         'Invoice / Estimate / System Estimate — open (or start) that document for the job.',
-        'The Customer links to their file, the Address links to Properties, and Invoice Sent links to the invoice.',
+        'The Customer links to their file and the Address links to Properties. The Invoice Status column shows No invoice / Not sent / Not paid / Paid at a glance and links to the invoice.',
         'A ⏳ badge on the date means a placeholder date from an approved estimate — the job still needs real scheduling.',
       ]},
       { h: 'Deleting, restoring, and exporting', items: [
