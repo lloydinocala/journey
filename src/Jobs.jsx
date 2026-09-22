@@ -653,7 +653,9 @@ export default function Jobs({ profile }) {
     background: 'var(--route-blue)',
     position: 'sticky',
     left: 0,
-    zIndex: 3,
+    // Above the scrolling (non-frozen) header cells (z-index 3 from CSS) so they
+    // pass UNDER the pinned corner instead of painting over it as they scroll.
+    zIndex: 4,
     boxShadow: '2px 0 4px rgba(0,0,0,0.08)',
   }
 
@@ -666,7 +668,7 @@ export default function Jobs({ profile }) {
 
   function headerCellStyle(key) {
     if (FROZEN_KEYS.includes(key)) {
-      return { background: 'var(--route-blue)', position: 'sticky', left: stickyLeft[key], zIndex: 3, boxShadow: key === 'customer' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
+      return { background: 'var(--route-blue)', position: 'sticky', left: stickyLeft[key], zIndex: 4, boxShadow: key === 'customer' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
     }
     return {}
   }
