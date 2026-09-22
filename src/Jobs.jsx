@@ -18,7 +18,7 @@ function formatPhone(raw) {
   return raw
 }
 
-const FROZEN_KEYS = ['job_number', 'segment', 'job_date', 'street_address']
+const FROZEN_KEYS = ['job_number', 'segment', 'job_date', 'customer']
 
 const COLUMNS = [
   { key: 'job_number', label: 'Job #', required: true },
@@ -47,7 +47,7 @@ const COLUMNS = [
   { key: 'arrival_at', label: 'Arrival' },
   { key: 'completed_at', label: 'Completed Time' },
   { key: 'status', label: 'Job Status' },
-  { key: 'invoice_sent', label: 'Invoice Sent' },
+  { key: 'invoice_sent', label: 'Invoice Status' },
   { key: 'job_notes', label: 'Job Notes' },
 ]
 
@@ -112,6 +112,9 @@ export default function Jobs({ profile }) {
   const [editComplaint, setEditComplaint] = useState('')
   const [editStatus, setEditStatus] = useState('')
   const [editJobNotes, setEditJobNotes] = useState('')
+  const [editOnMyWay, setEditOnMyWay] = useState('')
+  const [editArrival, setEditArrival] = useState('')
+  const [editCompleted, setEditCompleted] = useState('')
   const [editTripChargeId, setEditTripChargeId] = useState(null)
   const [editAuthDiagnoseOnly, setEditAuthDiagnoseOnly] = useState(false)
   const [editAuthLimitAmount, setEditAuthLimitAmount] = useState('')
@@ -176,7 +179,7 @@ export default function Jobs({ profile }) {
       if (jobIds.length) {
         const { data: invs } = await supabase
           .from('invoices')
-          .select('id, invoice_number, sent_at, job_id')
+          .select('id, invoice_number, sent_at, paid_at, job_id')
           .eq('kind', 'invoice')
           .is('deleted_at', null)
           .in('job_id', jobIds)
@@ -319,6 +322,30 @@ export default function Jobs({ profile }) {
     return new Date(value).toLocaleString()
   }
 
+  // Invoice status for a job: no invoice → No invoice; invoice with no sent date
+  // → Not sent; sent but unpaid → Not paid; paid → Paid.
+  function invoiceStatusText(j) {
+    const inv = j.invoice
+    if (!inv) return 'No invoice'
+    if (inv.paid_at) return 'Paid'
+    if (inv.sent_at) return 'Not paid'
+    return 'Not sent'
+  }
+  function invoiceStatusBadge(j) {
+    const text = invoiceStatusText(j)
+    const tone = text === 'Paid'
+      ? { bg: '#E7F6EC', fg: '#0B7A3B' }
+      : text === 'Not paid'
+        ? { bg: '#FBECE8', fg: '#B5462F' }
+        : text === 'Not sent'
+          ? { bg: '#FAF2E0', fg: '#9C6A12' }
+          : { bg: 'transparent', fg: 'var(--mist)' }
+    const pill = (
+      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: tone.bg, color: tone.fg, whiteSpace: 'nowrap' }}>{text}</span>
+    )
+    return j.invoice ? <Link to={'/invoice/' + j.id} title={j.invoice.invoice_number} style={{ textDecoration: 'none' }}>{pill}</Link> : pill
+  }
+
   function durationLabel(hrs) {
     if (hrs == null || hrs === '') return ''
     const n = parseFloat(hrs)
@@ -352,6 +379,22 @@ export default function Jobs({ profile }) {
     return utcToZonedInputs(ts).time
   }
 
+  // The event stamps (On My Way / Arrival / Completed) are shown with the device's
+  // local toLocaleString(), so their editors use a device-local datetime-local
+  // value that round-trips against that same display. Empty clears the stamp.
+  function toLocalDateTimeInput(ts) {
+    if (!ts) return ''
+    const d = new Date(ts)
+    if (isNaN(d)) return ''
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
+  function fromLocalDateTimeInput(str) {
+    if (!str) return null
+    const d = new Date(str)
+    return isNaN(d) ? null : d.toISOString()
+  }
+
   async function loadTechniciansForJob(jobId) {
     const { data } = await supabase
       .from('job_technicians')
@@ -371,6 +414,9 @@ export default function Jobs({ profile }) {
     setEditComplaint(j.service_complaint || '')
     setEditStatus(j.status)
     setEditJobNotes(j.job_notes || '')
+    setEditOnMyWay(toLocalDateTimeInput(j.on_my_way_at))
+    setEditArrival(toLocalDateTimeInput(j.arrival_at))
+    setEditCompleted(toLocalDateTimeInput(j.completed_at))
     setEditTripChargeId(j.trip_charge_price_id || null)
     setEditAuthDiagnoseOnly(j.auth_diagnose_only || false)
     setEditAuthLimitAmount(j.auth_limit_amount != null ? String(j.auth_limit_amount) : '')
@@ -418,6 +464,9 @@ export default function Jobs({ profile }) {
         service_complaint: editComplaint.trim() || null,
         status: editStatus,
         job_notes: editJobNotes.trim() || null,
+        on_my_way_at: fromLocalDateTimeInput(editOnMyWay),
+        arrival_at: fromLocalDateTimeInput(editArrival),
+        completed_at: fromLocalDateTimeInput(editCompleted),
         trip_charge_price_id: editTripChargeId || null,
         auth_diagnose_only: editAuthDiagnoseOnly,
         auth_limit_amount: editAuthDiagnoseOnly ? null : (editAuthLimitAmount ? parseFloat(editAuthLimitAmount) : null),
@@ -610,14 +659,14 @@ export default function Jobs({ profile }) {
 
   function cellStyle(key, rowBg) {
     if (FROZEN_KEYS.includes(key)) {
-      return { background: rowBg, position: 'sticky', left: stickyLeft[key], zIndex: 2, boxShadow: key === 'street_address' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
+      return { background: rowBg, position: 'sticky', left: stickyLeft[key], zIndex: 2, boxShadow: key === 'customer' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
     }
     return { background: rowBg }
   }
 
   function headerCellStyle(key) {
     if (FROZEN_KEYS.includes(key)) {
-      return { background: 'var(--route-blue)', position: 'sticky', left: stickyLeft[key], zIndex: 3, boxShadow: key === 'street_address' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
+      return { background: 'var(--route-blue)', position: 'sticky', left: stickyLeft[key], zIndex: 3, boxShadow: key === 'customer' ? '2px 0 4px rgba(0,0,0,0.08)' : 'none' }
     }
     return {}
   }
@@ -682,7 +731,7 @@ export default function Jobs({ profile }) {
     if (key === 'arrival_at') return timeDisplay(j.arrival_at)
     if (key === 'completed_at') return timeDisplay(j.completed_at)
     if (key === 'job_notes') return j.job_notes || '—'
-    if (key === 'invoice_sent') return j.invoice ? (j.invoice.sent_at ? new Date(j.invoice.sent_at).toLocaleDateString() : 'Not sent') : '—'
+    if (key === 'invoice_sent') return invoiceStatusText(j)
     return ''
   }
 
@@ -982,13 +1031,18 @@ export default function Jobs({ profile }) {
                         ) : (j.properties?.customers?.display_name || '—')}
                       </div>
                     )
+                    if (col.key === 'on_my_way_at' || col.key === 'arrival_at' || col.key === 'completed_at') {
+                      const val = col.key === 'on_my_way_at' ? editOnMyWay : col.key === 'arrival_at' ? editArrival : editCompleted
+                      const setVal = col.key === 'on_my_way_at' ? setEditOnMyWay : col.key === 'arrival_at' ? setEditArrival : setEditCompleted
+                      return (
+                        <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
+                          <input type="datetime-local" value={val} onChange={(e) => setVal(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', fontSize: 12 }} />
+                        </div>
+                      )
+                    }
                     if (col.key === 'invoice_sent') return (
                       <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
-                        {j.invoice ? (
-                          <Link to={'/invoice/' + j.id} title={j.invoice.invoice_number}>
-                            {j.invoice.sent_at ? new Date(j.invoice.sent_at).toLocaleDateString() : 'Not sent'}
-                          </Link>
-                        ) : '—'}
+                        {invoiceStatusBadge(j)}
                       </div>
                     )
                     return <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>{cellValue(j, col.key)}</div>
@@ -1021,9 +1075,7 @@ export default function Jobs({ profile }) {
                           <Link to={'/customers/' + (j.customer_id || j.properties.customers.id)} style={{ color: '#2E7FC4', textDecoration: 'underline', fontWeight: 600 }}>{j.properties?.customers?.display_name || '—'}</Link>
                         ) : (j.properties?.customers?.display_name || '—')
                       ) : col.key === 'invoice_sent' ? (
-                        j.invoice ? (
-                          <Link to={'/invoice/' + j.id} title={j.invoice.invoice_number}>{j.invoice.sent_at ? new Date(j.invoice.sent_at).toLocaleDateString() : 'Not sent'}</Link>
-                        ) : '—'
+                        invoiceStatusBadge(j)
                       ) : col.key === 'street_address' ? (
                         j.properties?.street_address
                           ? <Link to={'/properties?q=' + encodeURIComponent(j.properties.street_address)} style={{ color: '#2E7FC4', textDecoration: 'underline' }}>{j.properties.street_address}</Link>
