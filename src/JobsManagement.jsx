@@ -6,8 +6,6 @@ import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import { fetchAllRows } from './utils/csvImport'
 
-// Warranty-or-Cash now includes Punchlist. Claim Status options are conditional
-// on that choice (see claimStatusOptions()).
 const WARRANTY_OPTIONS = [
   { value: 'warranty', label: 'Warranty' },
   { value: 'cash', label: 'Cash' },
@@ -21,8 +19,7 @@ function claimStatusOptions(warrantyOrCash) {
     default: return []
   }
 }
-const COMM_OPTIONS = ['Pending', 'Notified', 'Price Approved']
-const ESTIMATE_APPROVAL_OPTIONS = ['Pending', 'Verbal Approval', 'Declined', 'Punchlist']
+const ESTIMATE_APPROVAL_OPTIONS = ['Pending', 'Approved', 'Declined', 'Punchlist']
 
 const STATUS_LABELS = {
   unscheduled: 'Unscheduled',
@@ -40,6 +37,7 @@ function todayISO() {
   return new Date(d - tz).toISOString().slice(0, 10)
 }
 const money = (n) => (n == null || n === '' || isNaN(n) ? null : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`)
+const fmtDate = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString() : '—')
 
 const blankPartForm = { part_description: '', part_number: '', po_number: '', vendor_id: '', segment_assigned: '', expected_delivery_date: '' }
 
@@ -69,9 +67,8 @@ export default function JobsManagement({ profile }) {
   const [editingPartId, setEditingPartId] = useState(null)
   const [partDraft, setPartDraft] = useState({})
   const [savingPartRow, setSavingPartRow] = useState(false)
+  const [busyPartId, setBusyPartId] = useState(null)
 
-  // Open Estimate side panel — docked right, content reserves space so the
-  // Add Part fields stay visible while the office reads the estimate.
   const [estPanel, setEstPanel] = useState({ open: false, loading: false, rec: null, invoice: null, lines: [] })
 
   const isSuperAdmin = profile.role === 'super_admin'
@@ -97,7 +94,7 @@ export default function JobsManagement({ profile }) {
             .select(`
               id, job_id, estimate_id, warranty_or_cash, claim_status, customer_communication,
               equipment_brand, equipment_model, equipment_serial, created_at, reason,
-              estimate_approval, new_estimate_amount,
+              estimate_approval, new_estimate_amount, availability_date,
               jobs ( id, job_number, segment, job_date, status, property_id, customer_id, job_type, deleted_at,
                 properties ( street_address, customers!properties_customer_id_fkey ( display_name, primary_phone ) )
               )
@@ -110,8 +107,6 @@ export default function JobsManagement({ profile }) {
         fetchAllRows(() => supabase.from('vendors').select('id, name, phone').eq('org_id', orgId).eq('is_active', true).order('name')),
         fetchAllRows(() => supabase.from('vendor_brands').select('vendor_id, brand, is_preferred').eq('org_id', orgId)),
       ])
-      // Auto-fill Brand / Model # / Serial # from the property's equipment on file
-      // for any incomplete record that hasn't been filled in yet.
       const propIds = [...new Set(records.map((r) => r.jobs?.property_id).filter(Boolean))]
       if (propIds.length) {
         const { data: equip } = await supabase
@@ -172,17 +167,11 @@ export default function JobsManagement({ profile }) {
       const maxSegment = siblingSegments.reduce((max, j) => Math.max(max, j.segment || 1), 1)
       const currentSegmentJob = siblingSegments.find((j) => j.segment === maxSegment)
       if (currentSegmentJob?.status === 'completed') return null
-      const isRed = maxSegment === job.segment                 // no newer segment yet
-      const nextSegmentJob = isRed ? null : currentSegmentJob   // the staged next segment, if any
-      const scheduledDate = !isRed ? currentSegmentJob?.job_date : null
-      const relatedParts = partsOrders.filter((p) => p.incomplete_record_id === rec.id)
-      const nextDeliveryDate = relatedParts
-        .filter((p) => !p.delivery_verified && p.expected_delivery_date)
-        .map((p) => p.expected_delivery_date)
-        .sort()[0] || null
+      const isRed = maxSegment === job.segment
+      const nextSegmentJob = isRed ? null : currentSegmentJob
       const currentStatus = currentSegmentJob?.status || job.status
       const currentSegmentId = currentSegmentJob?.id || job.id
-      return { ...rec, job, isRed, maxSegment, nextSegmentJob, scheduledDate, relatedParts, nextDeliveryDate, currentStatus, currentSegmentId }
+      return { ...rec, job, isRed, maxSegment, nextSegmentJob, currentStatus, currentSegmentId }
     })
     .filter(Boolean)
 
@@ -191,8 +180,6 @@ export default function JobsManagement({ profile }) {
   const vendorName = (id) => vendors.find((v) => v.id === id)?.name || ''
   const vendorPhone = (id) => vendors.find((v) => v.id === id)?.phone || ''
 
-  // Vendors that carry a given brand, preferred first. Falls back to all vendors
-  // when the brand is unknown or has no mapping yet.
   function vendorsForBrand(brand) {
     const b = (brand || '').trim().toUpperCase()
     if (!b) return vendors
@@ -228,14 +215,14 @@ export default function JobsManagement({ profile }) {
       equipment_serial: rec.equipment_serial || '',
       warranty_or_cash: rec.warranty_or_cash || '',
       claim_status: rec.claim_status || '',
-      customer_communication: rec.customer_communication || '',
+      price: rec.customer_communication || '',
+      availability_date: rec.availability_date || '',
       estimate_approval: rec.estimate_approval || '',
       new_estimate_amount: rec.new_estimate_amount ?? '',
     })
   }
   async function saveRec(id) {
     setSavingRec(true)
-    // Keep claim status valid for the chosen warranty/cash bucket.
     const allowed = claimStatusOptions(recDraft.warranty_or_cash)
     const claim = allowed.includes(recDraft.claim_status) ? recDraft.claim_status : (allowed[0] || null)
     await supabase.from('job_incomplete_records').update({
@@ -244,7 +231,8 @@ export default function JobsManagement({ profile }) {
       equipment_serial: recDraft.equipment_serial.trim() || null,
       warranty_or_cash: recDraft.warranty_or_cash || null,
       claim_status: claim,
-      customer_communication: recDraft.customer_communication || null,
+      customer_communication: recDraft.price.trim() || null, // repurposed column: holds the Price
+      availability_date: recDraft.availability_date || null,
       estimate_approval: recDraft.estimate_approval || null,
       new_estimate_amount: recDraft.new_estimate_amount === '' ? null : Number(recDraft.new_estimate_amount),
     }).eq('id', id)
@@ -253,8 +241,6 @@ export default function JobsManagement({ profile }) {
     loadAll(selectedOrg)
   }
 
-  // Delete removes the incomplete-job entry from Jobs Management. It does NOT
-  // delete the underlying job — that lives on the Jobs table.
   async function deleteRecord(rec) {
     if (!window.confirm(`Remove ${rec.job.job_number} from Jobs Management? This clears the incomplete-job entry (any parts ordered stay on record). The job itself is not deleted.`)) return
     setBusyRecId(rec.id)
@@ -263,9 +249,6 @@ export default function JobsManagement({ profile }) {
     loadAll(selectedOrg)
   }
 
-  // Flip the job to Complete (e.g. after a declined estimate). Completes the
-  // newest segment, which clears it from Jobs Management and reads Complete on
-  // the Jobs table.
   async function markComplete(rec) {
     if (!window.confirm(`Mark ${rec.job.job_number} Complete? It will clear from Jobs Management and show Completed on the Jobs table.`)) return
     setBusyRecId(rec.id)
@@ -275,9 +258,8 @@ export default function JobsManagement({ profile }) {
     loadAll(selectedOrg)
   }
 
-  // Stage the next segment: a new unscheduled segment with NO date/time/tech,
-  // placed in the Calendar dispatch tray (date_pending) so Dispatch can schedule
-  // it once the part arrives.
+  // Stage the next segment: unscheduled, no date/time/tech, placed in the
+  // Calendar dispatch tray (date_pending) so Dispatch can schedule it later.
   async function stageSegment(rec) {
     setBusyRecId(rec.id)
     const nextSeg = (rec.maxSegment || rec.job.segment || 1) + 1
@@ -320,11 +302,16 @@ export default function JobsManagement({ profile }) {
     setEditingPartId(null)
     loadAll(selectedOrg)
   }
+  async function deletePart(p) {
+    if (!window.confirm(`Delete part "${p.part_description}"${p.po_number ? ` (PO ${p.po_number})` : ''} from Parts Orders?`)) return
+    setBusyPartId(p.id)
+    await supabase.from('parts_orders').delete().eq('id', p.id)
+    setBusyPartId(null)
+    loadAll(selectedOrg)
+  }
 
   function startAddPart(rec) {
     setAddingPartFor(rec.id)
-    // Default the segment to the staged next segment, and the vendor to the
-    // preferred supplier for this equipment's brand.
     const nextSeg = rec.nextSegmentJob ? rec.nextSegmentJob.segment : (rec.maxSegment || rec.job.segment || 1) + 1
     setPartForm({ ...blankPartForm, segment_assigned: String(nextSeg), vendor_id: preferredVendorForBrand(rec.equipment_brand) })
   }
@@ -332,8 +319,6 @@ export default function JobsManagement({ profile }) {
   async function saveNewPart(rec) {
     if (!partForm.part_description.trim()) return
     setSavingPart(true)
-    // Auto-assign a PO number from the shared stock-purchasing sequence when the
-    // user didn't type one — same counter as replenishment, so no duplicates.
     let po = partForm.po_number.trim()
     if (!po) {
       const { data: alloc } = await supabase.rpc('elements_alloc_po_number', { p_org: selectedOrg })
@@ -356,8 +341,6 @@ export default function JobsManagement({ profile }) {
     loadAll(selectedOrg)
   }
 
-  // Verifying delivery flags the staged segment (same job_number + segment) as
-  // parts_ready, so Dispatch knows it can now be scheduled.
   async function toggleVerified(part) {
     const nextVal = !part.delivery_verified
     await supabase.from('parts_orders').update({ delivery_verified: nextVal }).eq('id', part.id)
@@ -373,12 +356,8 @@ export default function JobsManagement({ profile }) {
   async function openEstimate(rec) {
     setEstPanel({ open: true, loading: true, rec, invoice: null, lines: [] })
     let invoice = null
-    if (rec.estimate_id) {
-      invoice = (await supabase.from('invoices').select('*').eq('id', rec.estimate_id).maybeSingle()).data
-    }
-    if (!invoice) {
-      invoice = (await supabase.from('invoices').select('*').eq('job_id', rec.job.id).eq('kind', 'estimate').is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle()).data
-    }
+    if (rec.estimate_id) invoice = (await supabase.from('invoices').select('*').eq('id', rec.estimate_id).maybeSingle()).data
+    if (!invoice) invoice = (await supabase.from('invoices').select('*').eq('job_id', rec.job.id).eq('kind', 'estimate').is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle()).data
     let lines = []
     if (invoice) {
       const { data: li } = await supabase.from('invoice_line_items').select('description, quantity, unit_price, sort_order').eq('invoice_id', invoice.id).order('sort_order')
@@ -426,27 +405,27 @@ export default function JobsManagement({ profile }) {
           {visibleIncomplete.length === 0 ? (
             <p style={{ color: 'var(--mist)', marginBottom: 28 }}>No incomplete jobs need attention right now.</p>
           ) : (
-            <div style={{ marginBottom: 28, overflowX: 'auto' }}>
-              <table className="data-table" style={{ minWidth: 1500 }}>
+            <div className="jm-scroll" style={{ marginBottom: 28 }}>
+              <table className="data-table" style={{ minWidth: 2460 }}>
                 <thead>
                   <tr>
-                    <th>Job #</th>
-                    <th className="col-seg">Seg</th>
-                    <th>Customer</th>
-                    <th>Phone</th>
-                    <th>Reason</th>
-                    <th>Estimate</th>
-                    <th>Brand</th>
-                    <th>Model #</th>
-                    <th>Serial #</th>
-                    <th>Warranty or Cash</th>
-                    <th>Claim Status</th>
-                    <th>Customer Comm.</th>
-                    <th>Expected Delivery</th>
-                    <th>Verbal Approval</th>
-                    <th>Create Next Segment</th>
-                    <th style={{ minWidth: 120, whiteSpace: 'nowrap' }}>Job Status</th>
-                    <th className="sticky-actions"></th>
+                    <th className="jm-fz jm-c1"></th>
+                    <th className="jm-fz jm-c2">Job #</th>
+                    <th className="jm-fz jm-c3">Seg</th>
+                    <th style={{ width: 160 }}>Customer</th>
+                    <th style={{ width: 130 }}>Phone</th>
+                    <th style={{ width: 220 }}>Reason</th>
+                    <th style={{ width: 140 }}>Estimate</th>
+                    <th style={{ width: 120 }}>Brand</th>
+                    <th style={{ width: 130 }}>Model #</th>
+                    <th style={{ width: 140 }}>Serial #</th>
+                    <th style={{ width: 150 }}>Warranty or Cash</th>
+                    <th style={{ width: 150 }}>Claim Status</th>
+                    <th style={{ width: 130 }}>Price</th>
+                    <th style={{ width: 140 }}>Availability</th>
+                    <th style={{ width: 175 }}>Verbal Approval</th>
+                    <th style={{ width: 180 }}>Create Next Segment</th>
+                    <th style={{ width: 130 }}>Job Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -454,22 +433,41 @@ export default function JobsManagement({ profile }) {
                     const editing = editingRecId === rec.id
                     const claimOpts = claimStatusOptions(editing ? recDraft.warranty_or_cash : rec.warranty_or_cash)
                     const declined = (rec.estimate_approval || '').toLowerCase() === 'declined'
+                    const rowBg = rec.isRed ? '#FBEBE9' : '#FDF4E6'
+                    const frz = (c) => ({ className: `jm-fz ${c}`, style: { background: rowBg } })
                     return (
                     <>
-                      <tr key={rec.id} style={{ background: rec.isRed ? 'rgba(255, 107, 107, 0.08)' : 'rgba(242, 169, 60, 0.08)' }}>
-                        <td>{rec.job.job_number}</td>
-                        <td className="col-seg">{rec.job.segment}</td>
+                      <tr key={rec.id} style={{ background: rowBg }}>
+                        <td {...frz('jm-c1')}>
+                          <div className="jm-fz-actions">
+                            {editing ? (
+                              <>
+                                <button className="auth-button" style={editBtn} disabled={savingRec} onClick={() => saveRec(rec.id)}>{savingRec ? 'Saving…' : 'Save'}</button>
+                                {declined && <button style={deleteBtn} disabled={busyRecId === rec.id} onClick={() => markComplete(rec)}>Flip to Complete</button>}
+                                <button className="logout-button" onClick={() => setEditingRecId(null)}>Cancel</button>
+                              </>
+                            ) : (
+                              <>
+                                <button className="auth-button" style={editBtn} onClick={() => startEditRec(rec)}>Edit</button>
+                                <button className="logout-button" onClick={() => startAddPart(rec)}>+ Add Part</button>
+                                <button style={deleteBtn} disabled={busyRecId === rec.id} onClick={() => deleteRecord(rec)}>Delete</button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                        <td {...frz('jm-c2')}>{rec.job.job_number}</td>
+                        <td {...frz('jm-c3')}>{rec.job.segment}</td>
                         <td>{rec.job.properties?.customers?.display_name || '—'}</td>
                         <td>{rec.job.properties?.customers?.primary_phone || '—'}</td>
-                        <td style={{ maxWidth: 180, fontSize: 12 }}>{rec.reason || '—'}</td>
+                        <td style={{ fontSize: 12 }}>{rec.reason || '—'}</td>
                         <td>
                           <button className="auth-button" style={{ width: 'auto', padding: '4px 12px', margin: 0, whiteSpace: 'nowrap' }} onClick={() => openEstimate(rec)}>Open Estimate</button>
                         </td>
                         {editing ? (
                           <>
-                            <td><input type="text" value={recDraft.equipment_brand} onChange={(e) => setRecDraft({ ...recDraft, equipment_brand: e.target.value })} style={{ width: 90 }} /></td>
-                            <td><input type="text" value={recDraft.equipment_model} onChange={(e) => setRecDraft({ ...recDraft, equipment_model: e.target.value })} style={{ width: 90 }} /></td>
-                            <td><input type="text" value={recDraft.equipment_serial} onChange={(e) => setRecDraft({ ...recDraft, equipment_serial: e.target.value })} style={{ width: 90 }} /></td>
+                            <td><input type="text" value={recDraft.equipment_brand} onChange={(e) => setRecDraft({ ...recDraft, equipment_brand: e.target.value })} /></td>
+                            <td><input type="text" value={recDraft.equipment_model} onChange={(e) => setRecDraft({ ...recDraft, equipment_model: e.target.value })} /></td>
+                            <td><input type="text" value={recDraft.equipment_serial} onChange={(e) => setRecDraft({ ...recDraft, equipment_serial: e.target.value })} /></td>
                             <td>
                               <select value={recDraft.warranty_or_cash} onChange={(e) => setRecDraft({ ...recDraft, warranty_or_cash: e.target.value, claim_status: '' })}>
                                 <option value="">Select…</option>
@@ -482,12 +480,8 @@ export default function JobsManagement({ profile }) {
                                 {claimOpts.map((o) => <option key={o} value={o}>{o}</option>)}
                               </select>
                             </td>
-                            <td>
-                              <select value={recDraft.customer_communication} onChange={(e) => setRecDraft({ ...recDraft, customer_communication: e.target.value })}>
-                                <option value="">Select…</option>
-                                {COMM_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                              </select>
-                            </td>
+                            <td><input type="text" value={recDraft.price} onChange={(e) => setRecDraft({ ...recDraft, price: e.target.value })} placeholder="Price" /></td>
+                            <td><input type="date" value={recDraft.availability_date} onChange={(e) => setRecDraft({ ...recDraft, availability_date: e.target.value })} /></td>
                           </>
                         ) : (
                           <>
@@ -497,18 +491,14 @@ export default function JobsManagement({ profile }) {
                             <td>{capitalize(rec.warranty_or_cash) || '—'}</td>
                             <td>{rec.claim_status || '—'}</td>
                             <td>{rec.customer_communication || '—'}</td>
+                            <td>{fmtDate(rec.availability_date)}</td>
                           </>
                         )}
-                        <td>
-                          {rec.nextDeliveryDate ? (
-                            <span style={deliveryDateStyle(rec.nextDeliveryDate)}>{new Date(rec.nextDeliveryDate + 'T00:00:00').toLocaleDateString()}</span>
-                          ) : '—'}
-                        </td>
                         {/* Verbal Approval: new estimate amount + approval status */}
-                        <td style={{ minWidth: 150 }}>
+                        <td>
                           {editing ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                              <input type="number" step="0.01" placeholder="New estimate $" value={recDraft.new_estimate_amount} onChange={(e) => setRecDraft({ ...recDraft, new_estimate_amount: e.target.value })} style={{ width: 120 }} />
+                              <input type="number" step="0.01" placeholder="New estimate $" value={recDraft.new_estimate_amount} onChange={(e) => setRecDraft({ ...recDraft, new_estimate_amount: e.target.value })} />
                               <select value={recDraft.estimate_approval} onChange={(e) => setRecDraft({ ...recDraft, estimate_approval: e.target.value })}>
                                 <option value="">Approval…</option>
                                 {ESTIMATE_APPROVAL_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -524,37 +514,20 @@ export default function JobsManagement({ profile }) {
                           )}
                         </td>
                         {/* Create Next Segment */}
-                        <td style={{ minWidth: 150 }}>
+                        <td>
                           {rec.nextSegmentJob ? (
                             <div style={{ fontSize: 13 }}>
                               <div>Seg {rec.nextSegmentJob.segment} staged</div>
                               <span className="status-pill" style={{ background: rec.nextSegmentJob.job_date ? '#E7F6EC' : (rec.nextSegmentJob.parts_ready ? '#FAF2E0' : '#EEF1F5'), color: rec.nextSegmentJob.job_date ? '#0B7A3B' : (rec.nextSegmentJob.parts_ready ? '#9C6A12' : '#64748B') }}>
-                                {rec.nextSegmentJob.job_date ? `Scheduled ${new Date(rec.nextSegmentJob.job_date + 'T00:00:00').toLocaleDateString()}` : (rec.nextSegmentJob.parts_ready ? 'Parts in · ready' : 'Awaiting schedule')}
+                                {rec.nextSegmentJob.job_date ? `Scheduled ${fmtDate(rec.nextSegmentJob.job_date)}` : (rec.nextSegmentJob.parts_ready ? 'Parts in · ready' : 'Awaiting schedule')}
                               </span>
                             </div>
                           ) : (
                             <button className="logout-button" style={{ whiteSpace: 'nowrap' }} disabled={busyRecId === rec.id} onClick={() => stageSegment(rec)}>+ New Segment</button>
                           )}
                         </td>
-                        <td style={{ minWidth: 120, whiteSpace: 'nowrap' }}>
+                        <td style={{ whiteSpace: 'nowrap' }}>
                           <span className={`status-pill status-${rec.currentStatus}`} style={{ display: 'inline-block' }}>{STATUS_LABELS[rec.currentStatus] || rec.currentStatus}</span>
-                        </td>
-                        <td className="sticky-actions">
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            {editing ? (
-                              <>
-                                <button className="auth-button" style={editBtn} disabled={savingRec} onClick={() => saveRec(rec.id)}>{savingRec ? 'Saving…' : 'Save'}</button>
-                                {declined && <button style={deleteBtn} disabled={busyRecId === rec.id} onClick={() => markComplete(rec)}>Flip to Complete</button>}
-                                <button className="logout-button" onClick={() => setEditingRecId(null)}>Cancel</button>
-                              </>
-                            ) : (
-                              <>
-                                <button className="auth-button" style={editBtn} onClick={() => startEditRec(rec)}>Edit</button>
-                                <button className="logout-button" onClick={() => startAddPart(rec)}>+ Add Part</button>
-                                <button style={deleteBtn} disabled={busyRecId === rec.id} onClick={() => deleteRecord(rec)}>Delete</button>
-                              </>
-                            )}
-                          </div>
                         </td>
                       </tr>
                       {addingPartFor === rec.id && (
@@ -612,43 +585,59 @@ export default function JobsManagement({ profile }) {
           {visibleParts.length === 0 ? (
             <p style={{ color: 'var(--mist)' }}>No parts on order.</p>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="data-table" style={{ minWidth: 1200 }}>
+            <div className="jm-scroll">
+              <table className="data-table" style={{ minWidth: 1560 }}>
                 <thead>
                   <tr>
-                    <th>Job #</th>
-                    <th className="col-seg">Seg</th>
-                    <th>Part Description</th>
-                    <th>Part # (optional)</th>
-                    <th>PO #</th>
-                    <th>Vendor</th>
-                    <th>Vendor Phone</th>
-                    <th>Expected Delivery</th>
-                    <th>Delivery Verified</th>
-                    <th>Schedule Confirmed</th>
-                    <th className="sticky-actions"></th>
+                    <th className="jm-fz jm-c1"></th>
+                    <th className="jm-fz jm-c2">Job #</th>
+                    <th className="jm-fz jm-c3">Seg</th>
+                    <th style={{ width: 210 }}>Part Description</th>
+                    <th style={{ width: 140 }}>Part # (optional)</th>
+                    <th style={{ width: 120 }}>PO #</th>
+                    <th style={{ width: 160 }}>Vendor</th>
+                    <th style={{ width: 130 }}>Vendor Phone</th>
+                    <th style={{ width: 150 }}>Expected Delivery</th>
+                    <th style={{ width: 130 }}>Delivery Verified</th>
+                    <th style={{ width: 160 }}>Schedule Confirmed</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleParts.map((p) => {
                     const originJob = allJobs.find((j) => j.id === p.job_id)
                     const scheduledDate = scheduleConfirmedFor(p.job_id, p.segment_assigned)
+                    const editingP = editingPartId === p.id
                     return (
                       <tr key={p.id}>
-                        <td>{originJob?.job_number || '—'}</td>
-                        {editingPartId === p.id ? (
-                          <td className="col-seg"><input type="number" value={partDraft.segment_assigned} onChange={(e) => setPartDraft({ ...partDraft, segment_assigned: e.target.value })} /></td>
+                        <td className="jm-fz jm-c1">
+                          <div className="jm-fz-actions">
+                            {editingP ? (
+                              <>
+                                <button className="auth-button" style={editBtn} disabled={savingPartRow} onClick={() => savePart(p.id)}>{savingPartRow ? 'Saving…' : 'Save'}</button>
+                                <button className="logout-button" onClick={() => setEditingPartId(null)}>Cancel</button>
+                              </>
+                            ) : (
+                              <>
+                                <button className="auth-button" style={editBtn} onClick={() => startEditPart(p)}>Edit</button>
+                                <button style={deleteBtn} disabled={busyPartId === p.id} onClick={() => deletePart(p)}>Delete</button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                        <td className="jm-fz jm-c2">{originJob?.job_number || '—'}</td>
+                        {editingP ? (
+                          <td className="jm-fz jm-c3"><input type="number" value={partDraft.segment_assigned} onChange={(e) => setPartDraft({ ...partDraft, segment_assigned: e.target.value })} /></td>
                         ) : (
-                          <td className="col-seg">{p.segment_assigned || '—'}</td>
+                          <td className="jm-fz jm-c3">{p.segment_assigned || '—'}</td>
                         )}
                         <td>{p.part_description}</td>
-                        {editingPartId === p.id ? (
-                          <td><input type="text" value={partDraft.part_number} onChange={(e) => setPartDraft({ ...partDraft, part_number: e.target.value })} style={{ width: 110 }} /></td>
+                        {editingP ? (
+                          <td><input type="text" value={partDraft.part_number} onChange={(e) => setPartDraft({ ...partDraft, part_number: e.target.value })} /></td>
                         ) : (
                           <td>{p.part_number || '—'}</td>
                         )}
                         <td>{p.po_number || '—'}</td>
-                        {editingPartId === p.id ? (
+                        {editingP ? (
                           <td>
                             <select value={partDraft.vendor_id} onChange={(e) => setPartDraft({ ...partDraft, vendor_id: e.target.value })}>
                               <option value="">Select…</option>
@@ -659,13 +648,13 @@ export default function JobsManagement({ profile }) {
                           <td>{p.vendor_id ? <Link to={`/vendors/${p.vendor_id}`}>{vendorName(p.vendor_id)}</Link> : '—'}</td>
                         )}
                         <td>{vendorPhone(p.vendor_id) || '—'}</td>
-                        {editingPartId === p.id ? (
+                        {editingP ? (
                           <td><input type="date" value={partDraft.expected_delivery_date} onChange={(e) => setPartDraft({ ...partDraft, expected_delivery_date: e.target.value })} /></td>
                         ) : (
                           <td>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                               {p.expected_delivery_date ? (
-                                <span style={deliveryDateStyle(p.expected_delivery_date)}>{new Date(p.expected_delivery_date + 'T00:00:00').toLocaleDateString()}</span>
+                                <span style={deliveryDateStyle(p.expected_delivery_date)}>{fmtDate(p.expected_delivery_date)}</span>
                               ) : '—'}
                               {p.expected_delivery_date === todayISO() && !p.delivery_verified && (
                                 <span className="status-pill status-active">Today</span>
@@ -680,20 +669,8 @@ export default function JobsManagement({ profile }) {
                         </td>
                         <td>
                           <span className={`status-pill ${scheduledDate ? 'status-active' : 'status-canceled'}`}>
-                            {scheduledDate ? `Scheduled ${new Date(scheduledDate + 'T00:00:00').toLocaleDateString()}` : 'Not Scheduled'}
+                            {scheduledDate ? `Scheduled ${fmtDate(scheduledDate)}` : 'Not Scheduled'}
                           </span>
-                        </td>
-                        <td className="sticky-actions">
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            {editingPartId === p.id ? (
-                              <>
-                                <button className="auth-button" style={{ width: 'auto', padding: '4px 10px', margin: 0 }} disabled={savingPartRow} onClick={() => savePart(p.id)}>{savingPartRow ? 'Saving…' : 'Save'}</button>
-                                <button className="logout-button" onClick={() => setEditingPartId(null)}>Cancel</button>
-                              </>
-                            ) : (
-                              <button className="logout-button" onClick={() => startEditPart(p)}>Edit</button>
-                            )}
-                          </div>
                         </td>
                       </tr>
                     )
@@ -705,8 +682,6 @@ export default function JobsManagement({ profile }) {
         </>
       )}
 
-      {/* Open Estimate — right-docked panel; the page reserves space (paddingRight)
-          so the Add Part fields stay fully visible while it's open. */}
       {estPanel.open && (
         <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 440, background: '#fff', borderLeft: '1px solid var(--border, #d5dae1)', boxShadow: '-4px 0 16px rgba(0,0,0,0.12)', zIndex: 60, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid var(--border, #d5dae1)', background: 'var(--route-blue, #176E7A)', color: '#fff' }}>
@@ -763,4 +738,3 @@ export default function JobsManagement({ profile }) {
     </div>
   )
 }
-
