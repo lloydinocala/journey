@@ -149,7 +149,7 @@ export default function ElementsPurchaseOrders({ profile }) {
   function addNewLine() {
     const name = addTerm.trim()
     if (!name) return
-    setNpLines((ls) => [...ls, { item_id: null, isNew: true, _k: `new-${Date.now()}-${ls.length}`, name, category: '', qty: '1', cost: '', stock_type: 'special_order' }])
+    setNpLines((ls) => [...ls, { item_id: null, isNew: true, _k: `new-${Date.now()}-${ls.length}`, name, category: '', qty: '1', cost: '', stock_type: 'stock' }])
     setAddTerm(''); setAddOpen(false)
   }
   const exactMatch = useMemo(() => {
@@ -193,7 +193,7 @@ export default function ElementsPurchaseOrders({ profile }) {
         const cost = (l.cost === '' || l.cost == null) ? null : Number(l.cost)
         const { data: item, error: ie } = await addItem(org.selectedOrg, {
           sku, description: l.name, item_class: 'part',
-          stock_type: l.stock_type || 'special_order',
+          stock_type: l.stock_type || 'stock',
           standard_cost: (cost != null && !isNaN(cost)) ? cost : null,
         })
         if (ie) { setBusy(false); setErr(`Could not create part "${l.name}": ${ie.message}`); return }
@@ -431,8 +431,8 @@ export default function ElementsPurchaseOrders({ profile }) {
                           <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span className="badge" style={{ background: '#E3F1E8', color: '#166534' }}>New part</span>
                             <select value={l.stock_type} onChange={(e) => setLine(idx, 'stock_type', e.target.value)} style={{ fontSize: 12, padding: '1px 4px' }}>
-                              <option value="special_order">Special order</option>
                               <option value="stock">Stock</option>
+                              <option value="special_order">Special order</option>
                             </select>
                           </div>
                         ) : null}</td>

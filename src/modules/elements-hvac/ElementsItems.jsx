@@ -102,7 +102,7 @@ export default function ElementsItems({ profile }) {
           vendor_part_no: findHeader(['Vendor Part #', 'Vendor Part', 'Mfg #', 'Mfg Number']),
           last_cost: findHeader(['Last Cost', 'Cost', 'Price per unit', 'Price']),
           barcode: findHeader(['Barcode', 'UPC']),
-          vendor: findHeader(['Vendor', 'Primary Vendor', 'Supplier']),
+          vendor: findHeader(['Preferred Vendor', 'Vendor', 'Primary Vendor', 'Supplier']),
           active: findHeader(['Active', 'Is Active']),
         }
         const get = (row, hdr) => (hdr && row[hdr] !== undefined ? String(row[hdr]).trim() : '')
@@ -174,7 +174,7 @@ export default function ElementsItems({ profile }) {
     const rows = filtered.map((it) => ({
       ID: it.id, SKU: it.sku, Description: it.description || '', Category: it.category || '',
       Class: it.item_class, 'Base Unit': it.base_uom || '', 'Stock Unit': it.stock_uom || '',
-      'Units per Stock': it.units_per_stock_uom ?? '', Vendor: vendorName(it.primary_vendor_id),
+      'Units per Stock': it.units_per_stock_uom ?? '', 'Preferred Vendor': vendorName(it.primary_vendor_id),
       'Vendor Part #': it.vendor_part_no || '', 'Last Cost': it.last_cost ?? '', Barcode: it.barcode || '',
       Active: it.is_active ? 'TRUE' : 'FALSE',
     }))
@@ -182,7 +182,7 @@ export default function ElementsItems({ profile }) {
   }
 
   function downloadTemplate() {
-    const example = { ID: '', SKU: '', Description: 'Blower Motor 1/2 HP', Category: 'PARTS', Class: 'part', 'Base Unit': 'each', 'Stock Unit': '', 'Units per Stock': '', Vendor: '', 'Vendor Part #': '', 'Last Cost': '', Barcode: '', Active: 'TRUE' }
+    const example = { ID: '', SKU: '', Description: 'Blower Motor 1/2 HP', Category: 'PARTS', Class: 'part', 'Base Unit': 'each', 'Stock Unit': '', 'Units per Stock': '', 'Preferred Vendor': '', 'Vendor Part #': '', 'Last Cost': '', Barcode: '', Active: 'TRUE' }
     downloadCsv(Papa.unparse([example]), 'item-catalog-template.csv')
   }
 
@@ -360,7 +360,7 @@ export default function ElementsItems({ profile }) {
 
       <table className="data-table">
         <thead>
-          <tr><th>Actions</th><th>Part</th><th>Category</th><th>Class</th><th>Vendor part #</th><th>Units</th><th>On hand</th><th>Last cost</th></tr>
+          <tr><th>Actions</th><th>Part</th><th>Category</th><th>Class</th><th>Preferred Vendor</th><th>Vendor part #</th><th>Units</th><th>On hand</th><th>Last cost</th></tr>
         </thead>
         <tbody>
           {filtered.map((it) => {
@@ -385,6 +385,12 @@ export default function ElementsItems({ profile }) {
                   <option value="consumable">Consumable</option>
                 </select>
               </td>
+              <td>
+                <select value={it.primary_vendor_id || ''} onChange={(e) => inlineUpdate(it, { primary_vendor_id: e.target.value || null })} style={{ maxWidth: 170 }} title="Preferred vendor — parts are ordered from this parts house by default">
+                  <option value="">—</option>
+                  {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </td>
               <td style={{ color: 'var(--mist)' }}>{it.vendor_part_no || '—'}</td>
               <td style={{ color: 'var(--mist)', fontSize: 13 }}>
                 {it.base_uom}{it.stock_uom ? ` · ${it.units_per_stock_uom || '?'}/${it.stock_uom}` : ''}
@@ -397,7 +403,7 @@ export default function ElementsItems({ profile }) {
             )
           })}
           {filtered.length === 0 && (
-            <tr><td colSpan="8" style={{ color: 'var(--mist)' }}>No parts yet. Add them here, or use Service Mapping to auto-create them from your pricebook.</td></tr>
+            <tr><td colSpan="9" style={{ color: 'var(--mist)' }}>No parts yet. Add them here, or use Service Mapping to auto-create them from your pricebook.</td></tr>
           )}
         </tbody>
       </table>

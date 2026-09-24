@@ -43,6 +43,7 @@ export default function Vendors({ profile, scope }) {
       name: v.name || '', phone: v.phone || '', email: v.email || '',
       website: v.website || '', account_number: v.account_number || '', sales_rep_name: v.sales_rep_name || '',
       category: v.category || 'Parts & Supplies',
+      street_address: v.street_address || '', city: v.city || '', state: v.state || '', zip: v.zip || '',
     })
   }
   function setField(k, val) { setEditRow((r) => ({ ...r, [k]: val })) }
@@ -59,6 +60,10 @@ export default function Vendors({ profile, scope }) {
       account_number: (editRow.account_number || '').trim() || null,
       sales_rep_name: (editRow.sales_rep_name || '').trim() || null,
       category: editRow.category || 'Parts & Supplies',
+      street_address: (editRow.street_address || '').trim() || null,
+      city: (editRow.city || '').trim() || null,
+      state: (editRow.state || '').trim() || null,
+      zip: (editRow.zip || '').trim() || null,
     }).eq('id', id)
     setSavingRow(false)
     setEditingId(null)
@@ -268,6 +273,7 @@ export default function Vendors({ profile, scope }) {
               <th>Phone</th>
               <th>Email</th>
               <th>Website</th>
+              <th>Address</th>
               <th>Account #</th>
               <th>Sales Rep</th>
               <th>Brands</th>
@@ -308,6 +314,21 @@ export default function Vendors({ profile, scope }) {
                     <a href={vendorSiteUrl(v.website)} target="_blank" rel="noreferrer">{v.website}</a>
                   ) : '—'}
                 </td>
+                <td>{editingId === v.id ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 170 }}>
+                    <input type="text" value={editRow.street_address} onChange={(e) => setField('street_address', e.target.value)} placeholder="Street" style={ci} />
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <input type="text" value={editRow.city} onChange={(e) => setField('city', e.target.value)} placeholder="City" style={{ ...ci, minWidth: 70 }} />
+                      <input type="text" value={editRow.state} onChange={(e) => setField('state', e.target.value)} placeholder="ST" style={{ ...ci, minWidth: 40, width: 48 }} />
+                      <input type="text" value={editRow.zip} onChange={(e) => setField('zip', e.target.value)} placeholder="Zip" style={{ ...ci, minWidth: 56, width: 70 }} />
+                    </div>
+                  </div>
+                ) : (
+                  (() => {
+                    const line = [v.street_address, [v.city, v.state].filter(Boolean).join(', '), v.zip].filter(Boolean).join(' · ')
+                    return line || '—'
+                  })()
+                )}</td>
                 <td>{editingId === v.id
                   ? <input type="text" value={editRow.account_number} onChange={(e) => setField('account_number', e.target.value)} style={ci} />
                   : (v.account_number || '—')}</td>
@@ -327,7 +348,7 @@ export default function Vendors({ profile, scope }) {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan="9" style={{ color: 'var(--mist)' }}>No vendors found.</td></tr>
+              <tr><td colSpan="10" style={{ color: 'var(--mist)' }}>No vendors found.</td></tr>
             )}
           </tbody>
         </table>
