@@ -1,7 +1,27 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-export default function NewItemDropdown({ onSelect }) {
+// Every menu item this dropdown can show, keyed so a caller can restrict/reorder
+// them via the optional `items` prop. Default (no prop) = the full app-wide menu
+// in its original order, so existing callers are unaffected.
+// An item either emits a mode via onSelect, or navigates to a route itself.
+const ITEMS = {
+  job:            { label: 'New Job', mode: 'job' },
+  task:           { label: 'New Task', mode: 'task' },
+  todo:           { label: 'New To-Do Item', route: '/to-do' },
+  segment:        { label: 'New Segment', mode: 'continueJob' },      // the continue-an-existing-job (add a segment) flow
+  continueJob:    { label: 'Continue an Existing Job', mode: 'continueJob' },
+  customer:       { label: 'New Customer', mode: 'customer' },
+  property:       { label: 'New Property', mode: 'property' },
+  estimate:       { label: 'New Estimate', mode: 'pickEstimateJob' },
+  followupEstimate: { label: 'Follow-up Estimate', route: '/new-followup-estimate' },
+  systemEstimate: { label: 'New System Estimate', route: '/new-system-estimate' },
+  invoice:        { label: 'New Invoice', mode: 'pickInvoiceJob' },
+}
+
+const DEFAULT_ORDER = ['job', 'task', 'todo', 'continueJob', 'customer', 'property', 'estimate', 'followupEstimate', 'systemEstimate', 'invoice']
+
+export default function NewItemDropdown({ onSelect, items }) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef(null)
   const navigate = useNavigate()
@@ -14,9 +34,13 @@ export default function NewItemDropdown({ onSelect }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  function choose(mode) {
+  const order = (Array.isArray(items) && items.length ? items : DEFAULT_ORDER).filter((k) => ITEMS[k])
+
+  function pick(key) {
+    const it = ITEMS[key]
     setOpen(false)
-    onSelect(mode)
+    if (it.route) navigate(it.route)
+    else onSelect(it.mode)
   }
 
   return (
@@ -26,16 +50,9 @@ export default function NewItemDropdown({ onSelect }) {
       </button>
       {open && (
         <div className="org-picker-list">
-          <div className="org-picker-item" onClick={() => choose('job')}>New Job</div>
-          <div className="org-picker-item" onClick={() => choose('task')}>New Task</div>
-          <div className="org-picker-item" onClick={() => { setOpen(false); navigate('/to-do') }}>New To-Do Item</div>
-          <div className="org-picker-item" onClick={() => choose('continueJob')}>Continue an Existing Job</div>
-          <div className="org-picker-item" onClick={() => choose('customer')}>New Customer</div>
-          <div className="org-picker-item" onClick={() => choose('property')}>New Property</div>
-          <div className="org-picker-item" onClick={() => choose('pickEstimateJob')}>New Estimate</div>
-          <div className="org-picker-item" onClick={() => { setOpen(false); navigate('/new-followup-estimate') }}>Follow-up Estimate</div>
-          <div className="org-picker-item" onClick={() => { setOpen(false); navigate('/new-system-estimate') }}>New System Estimate</div>
-          <div className="org-picker-item" onClick={() => choose('pickInvoiceJob')}>New Invoice</div>
+          {order.map((key) => (
+            <div key={key} className="org-picker-item" onClick={() => pick(key)}>{ITEMS[key].label}</div>
+          ))}
         </div>
       )}
     </div>
