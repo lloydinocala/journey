@@ -672,6 +672,14 @@ export const HELP_ARTICLES = [
       {
         "h": "How to use it",
         "body": "Keep your suppliers in Vendors and your parts (with cost and price) in Parts Catalog. You can bulk-load both from Bulk Import — Import Parts Catalog and Import Vendor Price File — instead of typing them in one at a time."
+      },
+      {
+        "h": "Vendor details that matter",
+        "items": [
+          "Email — the order email a purchase order is sent to. Keep it current so \"Email to vendor\" on a PO reaches the right inbox.",
+          "Address (street, city, state, zip) — shown as its own column and editable inline; use it to task an employee with a parts pickup.",
+          "You can add a vendor on the spot with + New Vendor from a Purchase Order or a Special Order — handy for a one-time supplier — without leaving that screen."
+        ]
       }
     ]
   },

@@ -9,6 +9,7 @@ import {
   setVendorInvoiceStatus, deleteVendorInvoice, extractInvoiceFile, uploadInvoiceFile,
   getInvoiceFileUrl, createVendor, findPurchaseOrdersForVendor, updateVendorInvoiceLine,
   getPurchaseOrder, listVendors, listItems, receivePO, listItemVendors, learnAliases,
+  listInboundInvoices, setInboundStatus,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -93,13 +94,16 @@ export default function ElementsVendorInvoices({ profile }) {
   const [cap, setCap] = useState(null)               // { docType, vendorId, newVendorName, invoiceNumber, invoiceDate, dueDate, poId, lines, file, extracted }
   const [candPOs, setCandPOs] = useState([])
   const [vendorAliases, setVendorAliases] = useState([])   // this vendor's learned SKU/description → item aliases
+  const [inbound, setInbound] = useState([])               // emailed invoices awaiting review (Quincy inbox)
+  const [inboundBusy, setInboundBusy] = useState('')       // id of the inbound row being dismissed
 
   async function loadList() {
     if (!org.selectedOrg) return
-    const [inv, v, its] = await Promise.all([
+    const [inv, v, its, inb] = await Promise.all([
       listVendorInvoices(org.selectedOrg), listVendors(org.selectedOrg), listItems(org.selectedOrg),
+      listInboundInvoices(org.selectedOrg),
     ])
-    setInvoices(inv); setVendors(v); setItems(its)
+    setInvoices(inv); setVendors(v); setItems(its); setInbound(inb)
   }
   useEffect(() => { loadList() }, [org.selectedOrg])
 
@@ -156,48 +160,72 @@ export default function ElementsVendorInvoices({ profile }) {
       const fileBase64 = await fileToBase64(file)
       const { data, error } = await extractInvoiceFile(fileBase64, file.type || 'application/pdf')
       if (error) { setCapErr(error.message || 'Could not read that file.'); setCapBusy(false); return }
-
-      // vendor fuzzy match
-      let vId = '__new__', vName = data.vendor_name || '', vScore = 0, vMatch = null
-      for (const v of vendors) { const s = overlap(data.vendor_name, v.name); if (s > vScore) { vScore = s; vMatch = v } }
-      if (vMatch && vScore >= 0.5) { vId = vMatch.id; vName = '' }
-
-      // candidate POs + auto-pick by customer_po ↔ po_number / job_name
-      const pos = await findPurchaseOrdersForVendor(org.selectedOrg, vId === '__new__' ? null : vId)
-      setCandPOs(pos)
-      // this vendor's learned aliases drive SKU-first line matching
-      const aliases = await listItemVendors(org.selectedOrg, vId === '__new__' ? null : vId)
-      setVendorAliases(aliases)
-      const ref = norm(data.customer_po)
-      let poId = ''
-      if (ref) {
-        const hit = pos.find((p) => norm(p.po_number) === ref || (p.job_name && norm(p.job_name) === ref))
-          || pos.find((p) => (norm(p.po_number).includes(ref) || ref.includes(norm(p.po_number))) && norm(p.po_number))
-          || pos.find((p) => p.job_name && overlap(p.job_name, data.customer_po) >= 0.5)
-        if (hit) poId = hit.id
-      }
-
-      const lines = (data.lines || []).map((ln) => {
-        const q = Number(ln.quantity) || 0
-        const unit = (ln.unit_cost != null) ? Number(ln.unit_cost)
-          : (ln.extended_cost != null && q > 0 ? Number(ln.extended_cost) / q : null)
-        return {
-          sku: ln.sku || '', description: ln.description || '', quantity: ln.quantity != null ? String(ln.quantity) : '1',
-          unit_of_measure: ln.unit_of_measure || '', unit_cost: unit != null ? String(unit) : '',
-          extended_cost: ln.extended_cost != null ? String(ln.extended_cost) : (unit != null ? String(unit * q) : ''),
-          item_id: matchItem(ln, aliases) || '', po_line_id: '',
-        }
-      })
-      setCap({
-        docType: data.doc_type === 'quote' ? 'quote' : (data.doc_type === 'packing_slip' ? 'packing_slip' : 'invoice'),
-        vendorId: vId, newVendorName: vName,
-        invoiceNumber: data.invoice_number || '', customerPo: data.customer_po || '',
-        invoiceDate: data.invoice_date && /^\d{4}-\d{2}-\d{2}$/.test(data.invoice_date) ? data.invoice_date : '',
-        dueDate: '', poId, lines, file, extracted: data,
-      })
-      setCapStep('review')
+      await prepareReview(data, { file })
     } catch (e2) { setCapErr(e2.message || String(e2)) }
     setCapBusy(false)
+  }
+
+  // Build the review-step `cap` from extracted invoice data — from a freshly
+  // uploaded file OR an emailed invoice already sitting in the Quincy inbox —
+  // matching the vendor, the PO, and each line to the catalog.
+  async function prepareReview(data, { file = null, inboundId = null } = {}) {
+    // vendor fuzzy match
+    let vId = '__new__', vName = data.vendor_name || '', vScore = 0, vMatch = null
+    for (const v of vendors) { const s = overlap(data.vendor_name, v.name); if (s > vScore) { vScore = s; vMatch = v } }
+    if (vMatch && vScore >= 0.5) { vId = vMatch.id; vName = '' }
+
+    // candidate POs + auto-pick by customer_po ↔ po_number / job_name
+    const pos = await findPurchaseOrdersForVendor(org.selectedOrg, vId === '__new__' ? null : vId)
+    setCandPOs(pos)
+    // this vendor's learned aliases drive SKU-first line matching
+    const aliases = await listItemVendors(org.selectedOrg, vId === '__new__' ? null : vId)
+    setVendorAliases(aliases)
+    const ref = norm(data.customer_po)
+    let poId = ''
+    if (ref) {
+      const hit = pos.find((p) => norm(p.po_number) === ref || (p.job_name && norm(p.job_name) === ref))
+        || pos.find((p) => (norm(p.po_number).includes(ref) || ref.includes(norm(p.po_number))) && norm(p.po_number))
+        || pos.find((p) => p.job_name && overlap(p.job_name, data.customer_po) >= 0.5)
+      if (hit) poId = hit.id
+    }
+
+    const lines = (data.lines || []).map((ln) => {
+      const q = Number(ln.quantity) || 0
+      const unit = (ln.unit_cost != null) ? Number(ln.unit_cost)
+        : (ln.extended_cost != null && q > 0 ? Number(ln.extended_cost) / q : null)
+      return {
+        sku: ln.sku || '', description: ln.description || '', quantity: ln.quantity != null ? String(ln.quantity) : '1',
+        unit_of_measure: ln.unit_of_measure || '', unit_cost: unit != null ? String(unit) : '',
+        extended_cost: ln.extended_cost != null ? String(ln.extended_cost) : (unit != null ? String(unit * q) : ''),
+        item_id: matchItem(ln, aliases) || '', po_line_id: '',
+      }
+    })
+    const okDate = (d) => (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '')
+    const okText = (t) => (t && t !== '<UNKNOWN>' ? t : '')
+    setCap({
+      docType: data.doc_type === 'quote' ? 'quote' : (data.doc_type === 'packing_slip' ? 'packing_slip' : 'invoice'),
+      vendorId: vId, newVendorName: vName,
+      invoiceNumber: okText(data.invoice_number), customerPo: okText(data.customer_po),
+      invoiceDate: okDate(data.invoice_date),
+      dueDate: '', poId, lines, file, extracted: data, inboundId,
+    })
+    setCapStep('review')
+  }
+
+  // Open the review modal seeded from an emailed invoice in the Quincy inbox.
+  function reviewInboundRow(row) {
+    setCap(null); setCapErr(''); setCapStep('review'); setCapOpen(true); setCandPOs([]); setCapBusy(true)
+    prepareReview(row.extracted || {}, { inboundId: row.id })
+      .catch((e2) => setCapErr(e2.message || String(e2)))
+      .finally(() => setCapBusy(false))
+  }
+
+  async function dismissInbound(id) {
+    if (!window.confirm('Dismiss this emailed invoice? It will be removed from the inbox (not applied to A/P).')) return
+    setInboundBusy(id)
+    await setInboundStatus(id, 'dismissed')
+    setInboundBusy('')
+    const inb = await listInboundInvoices(org.selectedOrg); setInbound(inb)
   }
 
   // when vendor changes in review, refresh candidate POs
@@ -263,6 +291,7 @@ export default function ElementsVendorInvoices({ profile }) {
       await learnAliases(org.selectedOrg, vId, linked
         .filter((l) => l.item_id)
         .map((l) => ({ item_id: l.item_id, vendor_sku: l.sku, vendor_description: l.description, last_cost: l.unit_cost })))
+      if (c.inboundId) await setInboundStatus(c.inboundId, 'applied', invoice.id)
       setCapOpen(false); setCapBusy(false)
       await loadList()
       openInvoice(invoice.id)
@@ -342,18 +371,51 @@ export default function ElementsVendorInvoices({ profile }) {
           <h2>Vendor Invoices · A/P</h2>
           <span className="badge">{counts.review} to review</span>
           {counts.staged > 0 && <span className="badge" style={{ background: '#E3F1E8', color: '#166534' }}>{counts.staged} staged</span>}
+          {inbound.length > 0 && <span className="badge" style={{ background: '#F8EEDD', color: '#B0600A' }}>✉ {inbound.length} emailed</span>}
         </div>
         <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={openCapture}>+ Capture invoice</button>
       </div>
       <OrgBar {...org} />
 
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>
-        Snap or upload a vendor bill — Quincy reads it, matches it to its PO, and checks ordered vs. received vs. billed.
-        Approve it to stage it for payment; the future Bookkeeping module will pick up staged bills.
+        Emailed invoices land in the Quincy inbox below — already read and ready to review. Or snap/upload one yourself.
+        Quincy matches each to its PO and checks ordered vs. received vs. billed. Approve to stage it for payment;
+        the future Bookkeeping module picks up staged bills.
       </p>
 
       {msg && <div style={{ marginBottom: 12, background: '#E3F1E8', border: '1px solid #166534', color: '#166534', padding: '8px 12px', borderRadius: 8, fontWeight: 600, fontSize: 13 }}>{msg}</div>}
       {err && <div className="auth-error" style={{ marginBottom: 12 }}>{err}</div>}
+
+      {/* Quincy inbox — emailed invoices from the repository, already extracted, waiting to be reviewed into A/P */}
+      {inbound.length > 0 && (
+        <div style={{ border: '1px solid #E4B36B', background: '#FCF6EA', borderRadius: 10, padding: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontWeight: 700, color: '#B0600A' }}>✉ Quincy inbox</span>
+            <span className="badge" style={{ background: '#F8EEDD', color: '#B0600A' }}>{inbound.length} emailed invoice{inbound.length === 1 ? '' : 's'} to review</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {inbound.map((r) => {
+              const ex = r.extracted || {}
+              const nLines = Array.isArray(ex.lines) ? ex.lines.length : 0
+              const vName = ex.vendor_name && ex.vendor_name !== '<UNKNOWN>' ? ex.vendor_name : (r.from_email || 'Unknown sender')
+              return (
+                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: '#fff', border: '1px solid #EADFC7', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ minWidth: 220 }}>
+                    <div style={{ fontWeight: 600, color: '#132A4C' }}>{vName}</div>
+                    <div style={{ fontSize: 12, color: 'var(--mist)' }}>
+                      {ex.invoice_number && ex.invoice_number !== '<UNKNOWN>' ? `#${ex.invoice_number} · ` : ''}{nLines} line{nLines === 1 ? '' : 's'}{r.received_at ? ` · ${fmtDate(r.received_at)}` : ''}{r.attachment_name ? ` · ${r.attachment_name}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '6px 14px' }} onClick={() => reviewInboundRow(r)}>Review</button>
+                    <button className="logout-button" disabled={inboundBusy === r.id} onClick={() => dismissInbound(r.id)}>{inboundBusy === r.id ? '…' : 'Dismiss'}</button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         {/* LEFT — A/P queue */}

@@ -126,7 +126,8 @@ export const HELP_ARTICLES = [
         "h": "Key fields",
         "items": [
           "Description & Category — how the part reads everywhere else in the module.",
-          "Type (stock vs special order) — stock parts feed replenishment and forecasting; special-order parts are bought per job and skip both. Set it when you create a part, and change it any time.",
+          "Type (stock vs special order) — new parts default to Stock. Aftermarket parts are stock items even if you keep them at zero on-hand; reserve Special order for OEM or one-off parts bought per job. Stock parts feed replenishment and forecasting; special-order parts skip both. Change it any time.",
+          "Preferred Vendor — the parts house this part is ordered from by default, shown as its own column and editable right in the row.",
           "Cost, vendor part number, barcode, and units (each, or a stock unit like a box with a conversion)."
         ]
       },
@@ -141,7 +142,7 @@ export const HELP_ARTICLES = [
       },
       {
         "h": "Good to know",
-        "body": "Special-order parts show a tag and are deliberately kept out of replenishment and demand forecast — since nothing stays the same forever, you can flip a part between stock and special order whenever it changes."
+        "body": "New parts default to Stock — the rule of thumb is aftermarket = stock (even at a zero level), OEM = special order. Special-order parts show a tag and are deliberately kept out of replenishment and demand forecast; you can flip a part between stock and special order whenever it changes. Set a Preferred Vendor so replenishment and POs know which parts house to buy it from."
       }
     ]
   },
@@ -306,25 +307,34 @@ export const HELP_ARTICLES = [
       "numbering",
       "specialty part"
     ],
-    "purpose": "Create and receive purchase orders to your vendors. POs are numbered automatically, can carry a job name, and receiving flows straight into stock and cost.",
+    "purpose": "One place for every purchase order — replenishment and stock POs you raise here, plus parts ordered against a job over in Jobs Management — each tagged by its purpose. Create and receive POs, email them to the vendor, and receiving flows straight into stock and cost.",
     "sections": [
+      {
+        "h": "The list",
+        "items": [
+          "Every PO shows in one table: PO #, Designation, Vendor, Date issued, Status, received count, and Value.",
+          "Designation tells you what an order is for — Replenishment (stock you raised here) or a Job #·Segment (a part ordered for a job in Jobs Management).",
+          "Job-part rows are owned by Jobs Management — click Open in Jobs to verify their delivery there. Replenishment/stock POs open in the panel below to receive.",
+          "Search by number, job, vendor, or part; the default \"Relevant\" view shows in-flight POs plus receipts from the last 30 days."
+        ]
+      },
       {
         "h": "How to use it",
         "items": [
-          "Create a PO, pick the vendor and deliver-to location, add parts, and (optionally) a job name so you know what the order is for.",
-          "Add catalog parts by searching, or type a part that isn’t in your catalog yet and create it on the spot (it defaults to special-order).",
+          "Create a PO, pick the vendor (required) and deliver-to location, add parts, and optionally a job name. Need a vendor that isn't on file? Use + New Vendor right in the picker (add its order email so you can send the PO).",
+          "Add catalog parts by searching, or type a part that isn’t in your catalog yet and create it on the spot (it defaults to Stock — switch it to Special order if it's a one-off).",
           "Use \"Pull low items\" to auto-fill the PO with everything below its reorder point at the deliver-to location — the quick way to turn a Replenishment shortfall into an order.",
-          "When goods arrive, open the PO and receive against it — on-hand and costs update, and the PO advances to Partial or Received.",
-          "Search by number, job name, vendor, or part. The default \"Relevant\" view shows in-flight POs plus anything received in the last 30 days; switch the filter to see all, cancelled, or older receipts."
+          "Email to vendor — send the PO straight to the vendor's Email on file (you press the button and confirm; it's marked \"Emailed\" once sent). If the vendor has no email, add one on the Vendors page first.",
+          "When goods arrive, open the PO and receive against it — on-hand and costs update, and the PO advances to Partial or Received."
         ]
       },
       {
         "h": "Numbering",
-        "body": "New POs get the next number automatically (PO-1001, PO-1002…). If you’re moving from another system, use the numbering control on this screen to set the next number so your sequence continues where you left off."
+        "body": "New POs get the next number automatically (PO-1001, PO-1002…). If you’re moving from another system, use the numbering control on this screen to set the next number so your sequence continues where you left off. Job POs from Jobs Management draw from the same sequence, so numbers never collide."
       },
       {
         "h": "Good to know",
-        "body": "A draft you change your mind about can be deleted; an ordered PO can be cancelled. Open POs awaiting receipt also surface on the Inventory Dashboard."
+        "body": "A draft you change your mind about can be deleted; an ordered PO can be cancelled. Open POs awaiting receipt, and any emailed invoices to review, surface on the Inventory Dashboard."
       }
     ]
   },
@@ -348,7 +358,8 @@ export const HELP_ARTICLES = [
       {
         "h": "How to use it",
         "items": [
-          "Create a special order, search your customer list to link it (or just type a name), describe the part, and add a vendor, estimated cost, PO reference, and needed-by date.",
+          "Create a special order, search your customer list to link it (or just type a name), describe the part, and add estimated cost, PO reference, and needed-by date.",
+          "A vendor is required — special orders must be tied to a recorded vendor. If you're buying from somewhere new (say a copy machine from a one-time supplier), use + New Vendor in the picker to add them before the order can be saved.",
           "Move it along with one click: Requested → Ordered → Received → Ready → Closed. Each step is timestamped.",
           "Filter by stage; the header shows how many are active and how many are ready for pickup. Anything past its needed-by date is flagged overdue."
         ]
@@ -376,12 +387,16 @@ export const HELP_ARTICLES = [
       "packing slip",
       "quote"
     ],
-    "purpose": "Capture a vendor’s bill, match it against its purchase order and what was received (a 3-way match), and stage it for payment. The original file is kept on the record.",
+    "purpose": "Vendor bills, matched against their purchase order and what was received (a 3-way match) and staged for payment. Invoices emailed to you land here automatically, already read by Quincy — or capture one yourself.",
     "sections": [
+      {
+        "h": "The Quincy inbox",
+        "body": "Invoices emailed to your intake address arrive in the Quincy inbox at the top of this page, already read and extracted — no file to hunt for. Each shows the vendor, invoice number, and line count. Press Review to open it pre-filled (vendor, PO, and catalog lines matched for you), confirm, and save it into A/P; or Dismiss it if it isn't a bill. The count of waiting emailed invoices also shows as a task on the Inventory Dashboard."
+      },
       {
         "h": "How to use it",
         "items": [
-          "Capture a bill by uploading a photo or PDF — Quincy reads the vendor, invoice number, dates, and line items, and matches them to a vendor, a PO, and your catalog parts for you to confirm.",
+          "Review an emailed invoice from the inbox, or capture one yourself by uploading a photo or PDF — either way Quincy reads the vendor, invoice number, dates, and line items, and matches them to a vendor, a PO, and your catalog parts for you to confirm.",
           "The 3-way match compares ordered vs received vs billed on each line and flags price or quantity variances.",
           "Stage for payment when a bill is good to go; put it On hold if something is off. Staged bills wait for the future Bookkeeping module.",
           "From a matched bill you can receive the goods into stock, and open the original file any time."
@@ -420,7 +435,7 @@ export const HELP_ARTICLES = [
       },
       {
         "h": "Good to know",
-        "body": "The crosswalk also fills itself in every time you confirm a captured vendor invoice — seeding here just gives it a head start. Once a vendor’s SKU is learned, their future bills auto-match without guessing."
+        "body": "The crosswalk also fills itself in every time you confirm a captured vendor invoice — seeding here just gives it a head start. Once a vendor’s SKU is learned, their future bills auto-match without guessing. The Inventory Dashboard flags any vendor that has purchase history but hasn’t been cross-referenced yet, so you know whose parts still need verifying — the flag clears for a vendor once you’ve saved matches for them."
       }
     ]
   },

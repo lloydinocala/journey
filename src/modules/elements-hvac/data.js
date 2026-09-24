@@ -632,6 +632,26 @@ export async function getInvoiceFileUrl(path) {
   return data?.signedUrl || null
 }
 
+// Emailed vendor invoices waiting in the Quincy inbox. The inbound-email pipeline
+// drops them here already AI-extracted; A/P pulls the pending ones in for review
+// instead of the user hunting for a file to upload.
+export async function listInboundInvoices(orgId) {
+  const { data } = await supabase.from('part_inbound_invoices')
+    .select('id, from_email, subject, attachment_name, attachment_path, extracted, status, received_at, created_at')
+    .eq('org_id', orgId).eq('status', 'pending').order('received_at', { ascending: false })
+  return data || []
+}
+export async function countInboundInvoices(orgId) {
+  const { count } = await supabase.from('part_inbound_invoices')
+    .select('id', { count: 'exact', head: true }).eq('org_id', orgId).eq('status', 'pending')
+  return count || 0
+}
+export async function setInboundStatus(id, status, appliedBatch) {
+  const patch = { status }
+  if (appliedBatch) patch.applied_batch = appliedBatch
+  return supabase.from('part_inbound_invoices').update(patch).eq('id', id)
+}
+
 export async function listVendorInvoices(orgId) {
   const { data } = await supabase.from('elements_vendor_invoices')
     .select('id, vendor_id, po_id, doc_type, invoice_number, invoice_date, due_date, total, status, match_status, created_at, vendor:vendors(name), po:elements_purchase_orders(po_number, job_name)')
