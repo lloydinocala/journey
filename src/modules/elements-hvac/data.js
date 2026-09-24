@@ -500,7 +500,7 @@ export async function listPurchaseOrders(orgId) {
 
 export async function getPurchaseOrder(orgId, poId) {
   const { data: po } = await supabase.from('elements_purchase_orders')
-    .select('*, vendor:vendors(id, name), location:elements_locations(id, name, type)')
+    .select('*, vendor:vendors(id, name, email), location:elements_locations(id, name, type)')
     .eq('org_id', orgId).eq('id', poId).maybeSingle()
   if (!po) return null
   const { data: lines } = await supabase.from('elements_po_lines')
@@ -585,8 +585,36 @@ export async function extractInvoiceFile(fileBase64, mediaType) {
   return { data }
 }
 
-export async function createVendor(orgId, name) {
-  return supabase.from('vendors').insert({ org_id: orgId, name: (name || '').trim(), is_active: true }).select('id, name').single()
+export async function createVendor(orgId, nameOrObj) {
+  // Accepts a bare name (legacy callers) or { name, email, phone } so a vendor
+  // can be created inline with the email a PO will be sent to.
+  const o = typeof nameOrObj === 'string' ? { name: nameOrObj } : (nameOrObj || {})
+  const row = { org_id: orgId, name: (o.name || '').trim(), is_active: true }
+  if (o.email != null) row.email = (o.email || '').trim() || null
+  if (o.phone != null) row.phone = (o.phone || '').trim() || null
+  if (o.category != null) row.category = o.category || null
+  return supabase.from('vendors').insert(row).select('id, name, email').single()
+}
+
+// All job-part orders (from Jobs Management) mapped for the unified PO list.
+// These live in parts_orders and stay owned by Jobs Management (delivery is
+// verified there); the Purchase Orders page shows them read-only alongside
+// real POs so every order is visible in one place.
+export async function listJobPartOrders(orgId) {
+  const { data } = await supabase.from('parts_orders')
+    .select('id, po_number, part_description, part_number, segment_assigned, expected_delivery_date, delivery_verified, sent_at, created_at, job_id, vendor:vendors(id, name, email), job:jobs(job_number)')
+    .eq('org_id', orgId).order('created_at', { ascending: false })
+  return data || []
+}
+
+// Email a purchase order (kind 'po') or a job-part order (kind 'job') to the
+// vendor's email on file, via the send-po-email edge function. The user presses
+// the button; nothing is sent automatically.
+export async function sendPoEmail(kind, id) {
+  const { data, error } = await supabase.functions.invoke('send-po-email', { body: { kind, id } })
+  if (error) return { error }
+  if (data?.error) return { error: { message: data.error } }
+  return { data }
 }
 
 // Store the original invoice file under {org_id}/{invoice_id}/... and return its path.

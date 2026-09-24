@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   listSpecialOrders, createSpecialOrder, updateSpecialOrder, setSpecialOrderStatus,
-  deleteSpecialOrder, searchCustomers, listVendors, listItems,
+  deleteSpecialOrder, searchCustomers, listVendors, listItems, createVendor,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -36,6 +36,7 @@ export default function ElementsSpecialOrders({ profile }) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
+  const [newVendor, setNewVendor] = useState({ open: false, name: '', email: '' })
 
   // customer typeahead
   const [custResults, setCustResults] = useState([])
@@ -96,8 +97,22 @@ export default function ElementsSpecialOrders({ profile }) {
     setF({ vendor_id: vId, vendor_name: v ? v.name : '' })
   }
 
+  async function addSpecialVendor() {
+    const name = (newVendor.name || '').trim()
+    if (!name) { setErr('Enter a vendor name.'); return }
+    setBusy(true); setErr('')
+    const { data, error } = await createVendor(org.selectedOrg, { name, email: newVendor.email })
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    const vs = await listVendors(org.selectedOrg); setVendors(vs)
+    setF({ vendor_id: data.id, vendor_name: data.name })
+    setNewVendor({ open: false, name: '', email: '' })
+    setMsg(`Added vendor "${data.name}".`)
+  }
+
   async function save() {
     if (!form.description.trim()) { setErr('Describe the part being ordered.'); return }
+    if (!form.vendor_id) { setErr('Choose a vendor, or add one with + New Vendor — special orders must be tied to a recorded vendor.'); return }
     setBusy(true); setErr(''); setMsg('')
     if (mode === 'new') {
       const { data, error } = await createSpecialOrder(org.selectedOrg, { ...form, created_by: profile?.id })
@@ -248,11 +263,23 @@ export default function ElementsSpecialOrders({ profile }) {
 
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <div className="field" style={{ flex: '1 1 200px', marginBottom: 8 }}>
-                  <label>Vendor</label>
-                  <select value={form.vendor_id} onChange={(e) => onPickVendor(e.target.value)}>
-                    <option value="">— none —</option>
+                  <label>Vendor *</label>
+                  <select value={form.vendor_id} onChange={(e) => { const val = e.target.value; if (val === '__new__') { setNewVendor({ open: true, name: '', email: '' }) } else { onPickVendor(val) } }}>
+                    <option value="">— pick vendor —</option>
                     {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    <option value="__new__">+ New Vendor…</option>
                   </select>
+                  {newVendor.open && (
+                    <div style={{ marginTop: 6, padding: 10, border: '1px solid #CBD5E1', borderRadius: 8, background: '#F8FAFC' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#132A4C', marginBottom: 6 }}>New vendor</div>
+                      <input type="text" value={newVendor.name} onChange={(e) => setNewVendor((s) => ({ ...s, name: e.target.value }))} placeholder="Vendor name" style={{ width: '100%', marginBottom: 6 }} />
+                      <input type="email" value={newVendor.email} onChange={(e) => setNewVendor((s) => ({ ...s, email: e.target.value }))} placeholder="Order email (optional)" style={{ width: '100%', marginBottom: 6 }} />
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button type="button" className="auth-button" style={{ width: 'auto', margin: 0, padding: '5px 12px' }} disabled={busy} onClick={addSpecialVendor}>Add</button>
+                        <button type="button" className="logout-button" onClick={() => setNewVendor({ open: false, name: '', email: '' })}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="field" style={{ flex: '1 1 140px', marginBottom: 8 }}>
                   <label>PO # (reference)</label>

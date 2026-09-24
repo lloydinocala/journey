@@ -3,11 +3,12 @@
 // it. Receiving flows through the same ledger as manual receiving, so on-hand
 // and costs update the moment goods land.
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   listPurchaseOrders, getPurchaseOrder, createPurchaseOrder, updatePurchaseOrder,
   deletePOLine, receivePO, adjustReceived, listVendors, listAllLocations, listItems, listReplenishment,
   getPoSettings, setPoNextNumber, addItem, deriveSku, deletePurchaseOrder,
+  listJobPartOrders, sendPoEmail, createVendor,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -24,8 +25,12 @@ const pill = (s) => { const m = STATUS[s] || STATUS.draft; return <span classNam
 
 export default function ElementsPurchaseOrders({ profile }) {
   const org = useOrgSelector(profile)
+  const nav = useNavigate()
   const [sp] = useSearchParams()
   const [pos, setPos] = useState([])
+  const [jobOrders, setJobOrders] = useState([])   // job-part orders from Jobs Management (parts_orders)
+  const [emailing, setEmailing] = useState(false)
+  const [newVendor, setNewVendor] = useState({ open: false, name: '', email: '' })
   const [vendors, setVendors] = useState([])
   const [locations, setLocations] = useState([])
   const [items, setItems] = useState([])
@@ -60,11 +65,12 @@ export default function ElementsPurchaseOrders({ profile }) {
 
   async function loadList() {
     if (!org.selectedOrg) return
-    const [p, v, locs, its, settings] = await Promise.all([
+    const [p, v, locs, its, settings, jobs] = await Promise.all([
       listPurchaseOrders(org.selectedOrg), listVendors(org.selectedOrg),
       listAllLocations(org.selectedOrg), listItems(org.selectedOrg), getPoSettings(org.selectedOrg),
+      listJobPartOrders(org.selectedOrg),
     ])
-    setPos(p); setVendors(v); setLocations(locs); setItems(its); setPoSettings(settings)
+    setPos(p); setVendors(v); setLocations(locs); setItems(its); setPoSettings(settings); setJobOrders(jobs)
   }
   useEffect(() => { loadList() }, [org.selectedOrg])
 
@@ -126,6 +132,76 @@ export default function ElementsPurchaseOrders({ profile }) {
       return true
     })
   }, [pos, statusFilter, search])
+
+  const fmtD = (d) => (d ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? d + 'T12:00:00' : d).toLocaleDateString() : '—')
+
+  // Job-part orders (from Jobs Management) filtered to match the chosen view.
+  const jobRows = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    return (jobOrders || []).filter((j) => {
+      switch (statusFilter) {
+        case 'draft': case 'partial': case 'cancelled': return false
+        case 'received': return !!j.delivery_verified
+        case 'open': case 'ordered': return !j.delivery_verified
+        default: return true // relevant, all
+      }
+    }).filter((j) => !term || `${j.po_number || ''} ${j.part_description || ''} ${j.part_number || ''} ${j.vendor?.name || ''} ${j.job?.job_number || ''}`.toLowerCase().includes(term))
+  }, [jobOrders, statusFilter, search])
+
+  // One list, both sources. Real POs open in the detail pane; job-part rows link
+  // back to Jobs Management (delivery is verified there, not here).
+  const unified = useMemo(() => {
+    const po = rows.map((p) => ({
+      key: 'po-' + p.id, kind: 'po', id: p.id, po_number: p.po_number || '(no #)',
+      designation: p.job_name ? `Job: ${p.job_name}` : 'Replenishment',
+      vendor: p.vendor?.name || '—', date: p.ordered_at || p.created_at, status: p.status,
+      rcvd: `${p.received}/${p.ordered}`, value: p.value,
+    }))
+    const jb = jobRows.map((j) => ({
+      key: 'job-' + j.id, kind: 'job', id: j.id, po_number: j.po_number || '(no #)',
+      designation: `Job ${j.job?.job_number || '?'}${j.segment_assigned != null ? ` · Seg ${j.segment_assigned}` : ''}`,
+      vendor: j.vendor?.name || '—', date: j.created_at, status: j.delivery_verified ? 'received' : 'ordered',
+      rcvd: j.delivery_verified ? '✓' : '—', value: null, part: j.part_description,
+    }))
+    return [...po, ...jb].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+  }, [rows, jobRows])
+
+  async function emailToVendor() {
+    if (!po) return
+    const vEmail = po.vendor?.email
+    if (!vEmail) { setErr('This vendor has no email on file. Add one on the Vendors page first.'); return }
+    if (!window.confirm(`Email ${po.po_number || 'this PO'} to ${po.vendor?.name} at ${vEmail}?`)) return
+    setEmailing(true); setErr(''); setMsg('')
+    const { error } = await sendPoEmail('po', po.id)
+    setEmailing(false)
+    if (error) { setErr(error.message); return }
+    setMsg(`Purchase order emailed to ${po.vendor?.name} (${vEmail}).`); await loadList(); openPO(po.id)
+  }
+
+  async function emailJobOrder(r) {
+    if (!window.confirm(`Email parts order ${r.po_number} to ${r.vendor}?`)) return
+    setEmailing(true); setErr(''); setMsg('')
+    const { error } = await sendPoEmail('job', r.id)
+    setEmailing(false)
+    if (error) { setErr(error.message); return }
+    setMsg(`Parts order emailed to ${r.vendor}.`); await loadList()
+  }
+
+  // Inline "+ New Vendor" on the new-PO form — so a special/outside-catalog order
+  // to a not-yet-recorded vendor forces the vendor on file (with its order email)
+  // before the PO can be saved and sent.
+  async function addInlineVendor() {
+    const name = (newVendor.name || '').trim()
+    if (!name) { setErr('Enter a vendor name.'); return }
+    setBusy(true); setErr('')
+    const { data, error } = await createVendor(org.selectedOrg, { name, email: newVendor.email })
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    const v = await listVendors(org.selectedOrg); setVendors(v)
+    setNp((s) => ({ ...s, vendor_id: data.id }))
+    setNewVendor({ open: false, name: '', email: '' })
+    setMsg(`Added vendor "${data.name}".`)
+  }
 
   // ---- new PO ----
   function startNew() {
@@ -320,51 +396,74 @@ export default function ElementsPurchaseOrders({ profile }) {
       {msg && <div style={{ marginBottom: 12, background: '#E3F1E8', border: '1px solid #166534', color: '#166534', padding: '8px 12px', borderRadius: 8, fontWeight: 600, fontSize: 13 }}>{msg}</div>}
       {err && <div className="auth-error" style={{ marginBottom: 12 }}>{err}</div>}
 
-      <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        {/* LEFT — PO list */}
-        <div style={{ flex: '1 1 320px', minWidth: 280, maxWidth: 420 }}>
-          <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div className="field" style={{ marginBottom: 0, flex: 1, minWidth: 140 }}><label>Search</label>
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search — number, name, vendor, or part…" />
-            </div>
-            <div className="field" style={{ marginBottom: 0 }}><label>Show</label>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="relevant">Relevant</option>
-                <option value="open">Open (awaiting receipt)</option>
-                <option value="draft">Draft</option>
-                <option value="ordered">Ordered</option>
-                <option value="partial">Partial</option>
-                <option value="received">Received (all)</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="all">Everything</option>
-              </select>
-            </div>
-          </div>
-          <div style={{ border: '1px solid var(--line, #E2E8F0)', borderRadius: 10, overflow: 'hidden', maxHeight: 620, overflowY: 'auto' }}>
-            {rows.map((p) => {
-              const active = p.id === selectedId
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="field" style={{ marginBottom: 0, flex: 1, minWidth: 220, maxWidth: 380 }}><label>Search</label>
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search — number, part, vendor, or job…" />
+        </div>
+        <div className="field" style={{ marginBottom: 0 }}><label>Show</label>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="relevant">Relevant</option>
+            <option value="open">Open (awaiting receipt)</option>
+            <option value="draft">Draft</option>
+            <option value="ordered">Ordered</option>
+            <option value="partial">Partial</option>
+            <option value="received">Received (all)</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="all">Everything</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Unified PO list — replenishment/manual POs plus job-part orders from Jobs Management */}
+      <div style={{ border: '1px solid var(--line, #E2E8F0)', borderRadius: 10, overflowX: 'auto', marginBottom: 18 }}>
+        <table className="data-table" style={{ margin: 0 }}>
+          <thead>
+            <tr>
+              <th>PO #</th><th>Designation</th><th>Vendor</th><th>Date issued</th>
+              <th>Status</th><th style={{ textAlign: 'right' }}>Rcvd</th><th style={{ textAlign: 'right' }}>Value</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {unified.map((r) => {
+              const active = r.kind === 'po' && r.id === selectedId
               return (
-                <div key={p.id} onClick={() => openPO(p.id)}
-                  style={{ padding: '10px 13px', cursor: 'pointer', borderBottom: '1px solid #EEF1F6', background: active ? '#EEF3FB' : '#fff', borderLeft: active ? '3px solid #1B3A6B' : '3px solid transparent' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                    <div style={{ fontWeight: 600, color: '#132A4C' }}>
-                      {p.po_number || '(no #)'}
-                      {p.job_name ? <span style={{ fontWeight: 400, color: '#1B3A6B' }}> · {p.job_name}</span> : null}
-                    </div>
-                    {pill(p.status)}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--mist)' }}>
-                    {p.vendor?.name || 'No vendor'}{p.location?.name ? ` → ${p.location.name}` : ''} · {p.received}/{p.ordered} rcvd{p.value ? ` · ${money(p.value)}` : ''}
-                  </div>
-                </div>
+                <tr key={r.key}
+                  onClick={() => (r.kind === 'po' ? openPO(r.id) : null)}
+                  style={{ cursor: r.kind === 'po' ? 'pointer' : 'default', background: active ? '#EEF3FB' : undefined }}>
+                  <td style={{ fontWeight: 600, color: '#132A4C' }}>{r.po_number}</td>
+                  <td>
+                    {r.kind === 'job'
+                      ? <span className="badge" style={{ background: '#E7EEFB', color: '#1B3A6B' }}>{r.designation}</span>
+                      : r.designation === 'Replenishment'
+                        ? <span className="badge" style={{ background: '#EEF1F6', color: '#475569' }}>Replenishment</span>
+                        : <span style={{ color: '#1B3A6B' }}>{r.designation}</span>}
+                  </td>
+                  <td>{r.vendor}</td>
+                  <td style={{ color: 'var(--mist)' }}>{fmtD(r.date)}</td>
+                  <td>{pill(r.status)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--mist)' }}>{r.rcvd}</td>
+                  <td style={{ textAlign: 'right' }}>{r.value ? money(r.value) : '—'}</td>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {r.kind === 'job' ? (
+                      <>
+                        <button className="logout-button" style={{ marginRight: 6 }} disabled={emailing} onClick={(e) => { e.stopPropagation(); emailJobOrder(r) }}>Email</button>
+                        <button className="logout-button" onClick={(e) => { e.stopPropagation(); nav('/jobs-management') }}>Open in Jobs</button>
+                      </>
+                    ) : (
+                      <button className="logout-button" onClick={(e) => { e.stopPropagation(); openPO(r.id) }}>Open</button>
+                    )}
+                  </td>
+                </tr>
               )
             })}
-            {rows.length === 0 && <div style={{ padding: 16, color: 'var(--mist)' }}>{search.trim() ? 'No matches in this view. Try the "Received (all)" or "Everything" filter for older or cancelled POs.' : 'No purchase orders for this filter.'}</div>}
-          </div>
-        </div>
+            {unified.length === 0 && <tr><td colSpan="8" style={{ color: 'var(--mist)' }}>{search.trim() ? 'No matches in this view. Try “Received (all)” or “Everything”.' : 'No purchase orders for this filter.'}</td></tr>}
+          </tbody>
+        </table>
+      </div>
 
-        {/* RIGHT — new or detail */}
-        <div style={{ flex: '2 1 460px', minWidth: 320 }}>
+      {/* Detail / new PO — full width below the list */}
+      <div>
           {mode === 'new' ? (
             <div style={{ border: '1px solid var(--line, #E2E8F0)', borderRadius: 12, padding: 18 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -372,11 +471,23 @@ export default function ElementsPurchaseOrders({ profile }) {
                 <div style={{ fontSize: 12.5, color: 'var(--mist)' }}>Will be numbered <strong style={{ color: '#1B3A6B' }}>{nextPoLabel}</strong></div>
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <div className="field" style={{ minWidth: 200, flex: 1 }}><label>Vendor</label>
-                  <select value={np.vendor_id} onChange={(e) => setNp({ ...np, vendor_id: e.target.value })}>
+                <div className="field" style={{ minWidth: 200, flex: 1 }}><label>Vendor *</label>
+                  <select value={np.vendor_id} onChange={(e) => { const val = e.target.value; if (val === '__new__') { setNewVendor({ open: true, name: '', email: '' }) } else { setNp({ ...np, vendor_id: val }) } }}>
                     <option value="">— pick vendor —</option>
                     {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    <option value="__new__">+ New Vendor…</option>
                   </select>
+                  {newVendor.open && (
+                    <div style={{ marginTop: 6, padding: 10, border: '1px solid #CBD5E1', borderRadius: 8, background: '#F8FAFC' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#132A4C', marginBottom: 6 }}>New vendor</div>
+                      <input type="text" value={newVendor.name} onChange={(e) => setNewVendor((s) => ({ ...s, name: e.target.value }))} placeholder="Vendor name" style={{ width: '100%', marginBottom: 6 }} />
+                      <input type="email" value={newVendor.email} onChange={(e) => setNewVendor((s) => ({ ...s, email: e.target.value }))} placeholder="Order email (for sending POs)" style={{ width: '100%', marginBottom: 6 }} />
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button type="button" className="auth-button" style={{ width: 'auto', margin: 0, padding: '5px 12px' }} disabled={busy} onClick={addInlineVendor}>Add</button>
+                        <button type="button" className="logout-button" onClick={() => setNewVendor({ open: false, name: '', email: '' })}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="field" style={{ minWidth: 180, flex: 1 }}><label>Deliver to</label>
                   <select value={np.location_id} onChange={(e) => setNp({ ...np, location_id: e.target.value })}>
@@ -454,11 +565,7 @@ export default function ElementsPurchaseOrders({ profile }) {
                 </div>
               </div>
             </div>
-          ) : !po ? (
-            <div style={{ border: '1px dashed #CBD5E1', borderRadius: 12, padding: '48px 24px', textAlign: 'center', color: 'var(--mist)' }}>
-              Select a purchase order, or start a new one.
-            </div>
-          ) : (
+          ) : !po ? null : (
             <div style={{ border: '1px solid var(--line, #E2E8F0)', borderRadius: 12, padding: 18 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
                 <div>
@@ -468,9 +575,11 @@ export default function ElementsPurchaseOrders({ profile }) {
                     {po.vendor?.name || 'No vendor'} → {po.location?.name || 'no location'}{po.expected_at ? ` · expected ${new Date(po.expected_at).toLocaleDateString()}` : ''}
                   </div>
                   {po.notes && <div style={{ fontSize: 13, color: '#475569', marginTop: 4 }}>{po.notes}</div>}
+                  {po.sent_at && <div style={{ fontSize: 12, color: '#166534', marginTop: 3 }}>✓ Emailed to vendor {new Date(po.sent_at).toLocaleDateString()}{po.sent_to ? ` · ${po.sent_to}` : ''}</div>}
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {po.status === 'draft' && <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={busy} onClick={markOrdered}>Mark ordered</button>}
+                  {!editRecv && po.status !== 'cancelled' && <button className="logout-button" disabled={emailing || busy} onClick={emailToVendor} title={po.vendor?.email ? `Email to ${po.vendor.email}` : 'No vendor email on file — add one on Vendors'}>{emailing ? 'Sending…' : (po.sent_at ? 'Re-email to vendor' : 'Email to vendor')}</button>}
                   {(po.status === 'ordered' || po.status === 'partial' || po.status === 'received') && !editRecv && <button className="logout-button" disabled={busy} onClick={startEditRecv}>Edit received</button>}
                   {(po.status === 'ordered' || po.status === 'partial') && !editRecv && <button className="logout-button" disabled={busy} onClick={cancelPO}>Cancel PO</button>}
                   {po.status === 'draft' && !editRecv && <button className="logout-button" style={{ color: '#B00020', borderColor: '#F0B4B4' }} disabled={busy} onClick={deleteDraft}>Delete draft</button>}
@@ -544,7 +653,6 @@ export default function ElementsPurchaseOrders({ profile }) {
             </div>
           )}
         </div>
-      </div>
     </div>
   )
 }
