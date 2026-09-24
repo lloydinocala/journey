@@ -61,6 +61,29 @@ async function completedNotInvoiced(org) {
   const invoiced = new Set((inv || []).map((i) => i.job_id))
   return ids.filter((id) => !invoiced.has(id)).length
 }
+// Incomplete jobs shown in Jobs Management: an incomplete record still needs a
+// hand until the newest segment of its job reaches Complete (mirrors that page's
+// visibleIncomplete filter).
+async function incompleteJobsCount(org) {
+  const { data: recs } = await supabase.from('job_incomplete_records')
+    .select('job_id, jobs ( job_number, segment, deleted_at )').eq('org_id', org)
+  const list = (recs || []).filter((r) => r.jobs && !r.jobs.deleted_at)
+  if (!list.length) return 0
+  const { data: jobs } = await supabase.from('jobs').select('job_number, segment, status').eq('org_id', org).is('deleted_at', null)
+  const maxByNum = {}, statusBySeg = {}
+  for (const j of jobs || []) {
+    maxByNum[j.job_number] = Math.max(maxByNum[j.job_number] || 1, j.segment || 1)
+    statusBySeg[j.job_number + '|' + (j.segment || 1)] = j.status
+  }
+  let n = 0
+  for (const r of list) {
+    const num = r.jobs.job_number
+    const maxSeg = maxByNum[num] || r.jobs.segment
+    if (statusBySeg[num + '|' + maxSeg] === 'completed') continue
+    n++
+  }
+  return n
+}
 async function postjobCount(org) {
   const { data: jobs } = await supabase.from('jobs').select('property_id').eq('org_id', org).eq('status', 'completed').gte('completed_at', d30()).not('property_id', 'is', null)
   const propIds = [...new Set((jobs || []).map((j) => j.property_id))]
@@ -101,6 +124,9 @@ export const REGISTRY = [
   { key: 'completed-not-invoiced', station: 'work', hub: 'start', name: 'Completed — needs invoicing', tone: 'red', href: '/jobs', cta: 'Open jobs', audience: 'office',
     line: (n) => `${n} finished job${n === 1 ? '' : 's'} not yet billed`,
     count: (org) => completedNotInvoiced(org) },
+  { key: 'jobs-incomplete', station: 'work', hub: 'start', name: 'Incomplete jobs', tone: 'amber', href: '/jobs-management', cta: 'Open Jobs Management', audience: 'office',
+    line: (n) => `${n} job${n === 1 ? '' : 's'} awaiting parts or a follow-up`,
+    count: (org) => incompleteJobsCount(org) },
   { key: 'invoices-to-send', station: 'work', hub: 'start', name: 'Invoices to send', tone: 'amber', href: '/invoices', cta: 'Open invoices', audience: 'office',
     line: (n) => `${n} invoice${n === 1 ? '' : 's'} created, not sent`,
     count: headCount('invoices', (q) => q.eq('kind', 'invoice').not('is_filter_order', 'is', true).is('deleted_at', null).is('sent_at', null)) },
@@ -113,6 +139,9 @@ export const REGISTRY = [
   { key: 'system-estimates-to-convert', station: 'work', hub: 'start', name: 'System estimates to convert', tone: 'amber', href: '/system-estimates', cta: 'Open system estimates', audience: 'office',
     line: (n) => `${n} approved system estimate${n === 1 ? '' : 's'} ready to build into a job`,
     count: headCount('invoices', (q) => q.eq('kind', 'estimate').eq('estimate_type', 'system').ilike('approval_status', 'approved').is('spawned_job_id', null).is('converted_to_job_id', null).is('deleted_at', null).eq('is_archived', false)) },
+  { key: 'estimates-to-send', station: 'work', hub: 'start', name: 'Estimates to send', tone: 'amber', href: '/estimates', cta: 'Open estimates', audience: 'office',
+    line: (n) => `${n} drafted, not yet sent`,
+    count: headCount('invoices', (q) => q.eq('kind', 'estimate').is('sent_at', null).is('deleted_at', null).eq('is_archived', false).is('spawned_job_id', null).is('converted_to_job_id', null).or('approval_status.eq.Pending,approval_status.is.null')) },
   { key: 'estimates-out', station: 'work', hub: 'start', name: 'Estimates out', tone: 'amber', href: '/estimates', cta: 'Open estimates', audience: 'office',
     line: (n) => `${n} sent, awaiting a customer decision`,
     count: headCount('invoices', (q) => q.eq('kind', 'estimate').not('sent_at', 'is', null).is('deleted_at', null).eq('is_archived', false).or('approval_status.eq.Pending,approval_status.is.null')) },
