@@ -32,13 +32,16 @@ export default function JobsStation({ profile }) {
     let live = true
     const run = async () => {
       const since30 = new Date(Date.now() - 30 * 86400000).toISOString()
-      const [arRes, paidRes] = await Promise.all([
+      const [arRes, paidRes, wonRes] = await Promise.all([
         supabase.from('invoices').select('balance, amount_due').eq('org_id', selectedOrg).is('deleted_at', null).not('is_filter_order', 'is', true).eq('kind', 'invoice').not('sent_at', 'is', null).is('paid_at', null),
         supabase.from('invoices').select('total_paid, job_total, amount_due').eq('org_id', selectedOrg).is('deleted_at', null).not('is_filter_order', 'is', true).eq('kind', 'invoice').not('paid_at', 'is', null).gte('paid_at', since30),
+        // Estimates won (approved) in the last 30 days — sales landed.
+        supabase.from('invoices').select('job_total, amount_due, subtotal').eq('org_id', selectedOrg).is('deleted_at', null).eq('kind', 'estimate').eq('is_archived', false).ilike('approval_status', 'approved').gte('approved_at', since30),
       ])
       const arTotal = (arRes.data || []).reduce((s, r) => s + (Number(r.balance ?? r.amount_due) || 0), 0)
       const collected = (paidRes.data || []).reduce((s, r) => s + (Number(r.total_paid || r.job_total || r.amount_due) || 0), 0)
-      if (live) setMoney({ arTotal, collected })
+      const won = (wonRes.data || []).reduce((s, r) => s + (Number(r.job_total ?? r.amount_due ?? r.subtotal) || 0), 0)
+      if (live) setMoney({ arTotal, collected, won })
     }
     run()
     return () => { live = false }
@@ -57,6 +60,7 @@ export default function JobsStation({ profile }) {
   const ownerCards = money ? (<>
     <StationKpi label="A/R outstanding" big={money0(money.arTotal)} sub={`${unpaid} unpaid invoice${unpaid === 1 ? '' : 's'}`} tone={money.arTotal > 0 ? 'alert' : 'opp'} onClick={() => nav('/invoices')} />
     <StationKpi label="Collected (30 days)" big={money0(money.collected)} sub="payments received" tone="opp" />
+    <StationKpi label="Won (30 days)" big={money0(money.won)} sub="estimates approved" tone="opp" onClick={() => nav('/estimates')} />
   </>) : null
   const opsCards = (<>
     <StationKpi label="Unbilled completed" big={String(completed)} sub="finished, not invoiced" tone={completed > 0 ? 'alert' : undefined} onClick={() => nav('/jobs')} />
@@ -82,3 +86,4 @@ export default function JobsStation({ profile }) {
     </div>
   )
 }
+
