@@ -2443,6 +2443,28 @@ html { overflow-x: hidden; }
 .data-table tbody tr:nth-child(odd) td.sticky-actions { background: var(--ink); }
 
 /* ============================================================
+   Jobs Management: scrollable tables with a sticky header row
+   (vertical) AND frozen left columns — Actions, Job #, Seg —
+   (horizontal). Wrap the table in .jm-scroll. Mark the three
+   left cells with .jm-fz plus .jm-c1/.jm-c2/.jm-c3.
+   ============================================================ */
+.jm-scroll { overflow: auto; max-height: calc(100vh - 220px); border: 1px solid var(--line-strong); border-radius: 8px; }
+.jm-scroll .data-table { margin-bottom: 0; }
+.jm-scroll .data-table thead th { position: sticky; top: 0; z-index: 3; }
+/* frozen left cells */
+.data-table th.jm-fz, .data-table td.jm-fz { position: sticky; z-index: 2; }
+.jm-scroll .data-table thead th.jm-fz { z-index: 6; } /* corner sits above the scrolling headers */
+.data-table th.jm-c1, .data-table td.jm-c1 { left: 0; width: 200px; min-width: 200px; }
+.data-table th.jm-c2, .data-table td.jm-c2 { left: 200px; width: 84px; min-width: 84px; }
+.data-table th.jm-c3, .data-table td.jm-c3 { left: 284px; width: 52px; min-width: 52px; box-shadow: 7px 0 8px -7px rgba(0, 0, 0, 0.22); }
+.jm-fz-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.jm-fz-actions button, .jm-fz-actions a { flex: 0 0 auto; }
+/* opaque striped backgrounds so scrolling cells don't show through the frozen ones
+   (the Incomplete table overrides these inline to match its red/yellow row tint) */
+.data-table tbody tr:nth-child(even) td.jm-fz { background: var(--panel); }
+.data-table tbody tr:nth-child(odd) td.jm-fz { background: var(--ink); }
+
+/* ============================================================
    Tablet responsive (>= 768px). Phones (< 768px) are unaffected —
    every rule below lives inside a min-width media query. The goal
    is to use the tablet's width (multi-column lists and card
