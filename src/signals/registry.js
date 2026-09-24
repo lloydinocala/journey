@@ -91,19 +91,6 @@ async function postjobCount(org) {
   const { count } = await supabase.from('property_maintenance_status').select('*', { count: 'exact', head: true }).eq('org_id', org).in('property_id', propIds).not('status', 'in', '("active","opted_out")')
   return count || 0
 }
-// Vendors that have purchase history (part offerings) but no learned cross-
-// reference aliases yet — their parts still need to be verified/mapped so future
-// invoices auto-match. Drops to zero as each vendor is cross-referenced.
-async function crossrefToVerify(org) {
-  const { data: offer } = await supabase.from('part_vendor_offerings').select('vendor_id').eq('org_id', org)
-  const withHistory = new Set((offer || []).map((o) => o.vendor_id).filter(Boolean))
-  if (!withHistory.size) return 0
-  const { data: al } = await supabase.from('elements_item_vendors').select('vendor_id').eq('org_id', org)
-  const withAliases = new Set((al || []).map((a) => a.vendor_id))
-  let n = 0; for (const v of withHistory) if (!withAliases.has(v)) n++
-  return n
-}
-
 export const REGISTRY = [
   // ========================= TRAIN STATION (hub: start) =====================
   // --- Dispatch ---
@@ -209,9 +196,9 @@ export const REGISTRY = [
   { key: 'ap-emailed-invoices', station: 'stock-purchasing', hub: 'inventory-central', name: 'Emailed invoices to review', tone: 'amber', href: '/elements/ap', cta: 'Open Vendor Invoices', audience: 'office',
     line: (n) => `${n} emailed invoice${n === 1 ? '' : 's'} waiting in the Quincy inbox`,
     count: headCount('part_inbound_invoices', (q) => q.eq('status', 'pending')) },
-  { key: 'crossref-verify', station: 'stock-purchasing', hub: 'inventory-central', name: 'Vendor cross-references to verify', tone: 'amber', href: '/elements/vendor-crossref', cta: 'Open cross-reference', audience: 'office',
-    line: (n) => `${n} vendor${n === 1 ? '' : 's'} with purchase history not yet cross-referenced`,
-    count: (org) => crossrefToVerify(org) },
+  { key: 'crossref-verify', station: 'stock-purchasing', hub: 'inventory-central', name: 'Vendor part-matches to verify', tone: 'amber', href: '/elements/vendor-crossref', cta: 'Open cross-reference', audience: 'office',
+    line: (n) => `${n} new vendor part-match${n === 1 ? '' : 'es'} from invoices to verify`,
+    count: headCount('elements_item_vendors', (q) => q.is('verified_at', null)) },
 
   // --- Fleet ---
   { key: 'fleet-inspections', station: 'fleet', hub: 'inventory-central', name: 'Inspections due', tone: 'amber', href: '/fleet/inspections', cta: 'Open inspections', audience: 'office',

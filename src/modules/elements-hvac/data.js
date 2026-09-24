@@ -737,27 +737,63 @@ export async function listItemVendors(orgId, vendorId) {
 // Remember confirmed line→item mappings for this vendor. lines: [{ item_id,
 // vendor_sku, vendor_description, last_cost }]. Exact-SKU aliases upsert on
 // (org, vendor, sku_norm); description-only aliases dedupe by vendor+item+desc.
-export async function learnAliases(orgId, vendorId, lines) {
+// opts.verified: true (default) marks the alias verified now — used when a human
+// approves it on the Cross-Reference page. Pass { verified:false } for mappings
+// learned automatically from a captured invoice; those land unverified and show
+// up in the dashboard "to verify" queue. Re-learning an existing alias never
+// clears a verified_at that's already set (a verified mapping won't re-flag).
+export async function learnAliases(orgId, vendorId, lines, opts = {}) {
   if (!vendorId || vendorId === '__new__') return
+  const verified = opts.verified !== false
+  const source = opts.source || (verified ? 'crossref' : 'invoice')
+  const nowIso = new Date().toISOString()
   for (const l of lines || []) {
     if (!l.item_id) continue
     const sn = skuNorm(l.vendor_sku)
-    const payload = {
+    const base = {
       org_id: orgId, vendor_id: vendorId, item_id: l.item_id,
       vendor_sku: l.vendor_sku || null, sku_norm: sn || null,
       vendor_description: l.vendor_description || null,
-      last_cost: numOrNull(l.last_cost), last_seen_at: new Date().toISOString(),
+      last_cost: numOrNull(l.last_cost), last_seen_at: nowIso,
     }
+    // Locate an existing alias for this key (SKU first, else vendor+item+desc).
+    let existing = null
     if (sn) {
-      await supabase.from('elements_item_vendors').upsert(payload, { onConflict: 'org_id,vendor_id,sku_norm' })
+      const { data } = await supabase.from('elements_item_vendors').select('id, verified_at')
+        .eq('org_id', orgId).eq('vendor_id', vendorId).eq('sku_norm', sn).limit(1)
+      existing = data && data[0]
     } else if (l.vendor_description) {
-      const { data: ex } = await supabase.from('elements_item_vendors').select('id')
+      const { data } = await supabase.from('elements_item_vendors').select('id, verified_at')
         .eq('org_id', orgId).eq('vendor_id', vendorId).eq('item_id', l.item_id).is('sku_norm', null)
         .ilike('vendor_description', l.vendor_description).limit(1)
-      if (ex && ex[0]) await supabase.from('elements_item_vendors').update(payload).eq('id', ex[0].id)
-      else await supabase.from('elements_item_vendors').insert(payload)
+      existing = data && data[0]
+    } else {
+      continue
+    }
+    if (existing) {
+      const patch = { ...base }
+      if (verified) patch.verified_at = nowIso   // an explicit approval verifies it; invoice re-learns leave it as-is
+      await supabase.from('elements_item_vendors').update(patch).eq('id', existing.id)
+    } else {
+      await supabase.from('elements_item_vendors').insert({ ...base, source, verified_at: verified ? nowIso : null })
     }
   }
+}
+
+// New vendor part-matches Quincy learned from invoices that a human hasn't
+// verified yet — the source of the dashboard "to verify" task and the queue on
+// the Vendor Cross-Reference page.
+export async function listUnverifiedAliases(orgId) {
+  const { data } = await supabase.from('elements_item_vendors')
+    .select('id, vendor_id, item_id, vendor_sku, vendor_description, last_cost, source, created_at, item:elements_items(description, sku, category), vendor:vendors(name)')
+    .eq('org_id', orgId).is('verified_at', null).order('created_at', { ascending: false })
+  return data || []
+}
+export async function verifyAlias(id) {
+  return supabase.from('elements_item_vendors').update({ verified_at: new Date().toISOString() }).eq('id', id)
+}
+export async function updateAliasItem(id, itemId) {
+  return supabase.from('elements_item_vendors').update({ item_id: itemId, verified_at: new Date().toISOString() }).eq('id', id)
 }
 
 // Weighted moving average across all locations, refreshed on each receipt.

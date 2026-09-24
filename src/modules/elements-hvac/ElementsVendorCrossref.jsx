@@ -7,7 +7,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   listAliasVendorStats, suggestAliases, learnAliases,
-  listVendorAliasesDetailed, deleteItemVendor,
+  listVendorAliasesDetailed, deleteItemVendor, listItems,
+  listUnverifiedAliases, verifyAlias, updateAliasItem,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -30,12 +31,29 @@ export default function ElementsVendorCrossref({ profile }) {
   const [rows, setRows] = useState(null)
   const [stats, setStats] = useState(null)
   const [existing, setExisting] = useState([])
+  const [toVerify, setToVerify] = useState([])   // invoice-learned matches awaiting verification
+  const [allItems, setAllItems] = useState([])   // catalog items for the "Fix" dropdown
 
   async function loadVendors() {
     if (!org.selectedOrg) return
     setVendorStats(await listAliasVendorStats())
   }
-  useEffect(() => { loadVendors(); setVendorId(''); setRows(null); setStats(null); setExisting([]) }, [org.selectedOrg])
+  async function loadToVerify() {
+    if (!org.selectedOrg) { setToVerify([]); return }
+    setToVerify(await listUnverifiedAliases(org.selectedOrg))
+  }
+  useEffect(() => {
+    loadVendors(); loadToVerify()
+    if (org.selectedOrg) listItems(org.selectedOrg).then(setAllItems).catch(() => setAllItems([]))
+    setVendorId(''); setRows(null); setStats(null); setExisting([])
+  }, [org.selectedOrg])
+
+  async function verifyMatch(id) { setBusy(true); await verifyAlias(id); setBusy(false); loadToVerify() }
+  async function fixMatch(id, itemId) { if (!itemId) return; setBusy(true); await updateAliasItem(id, itemId); setBusy(false); loadToVerify() }
+  async function removeUnverified(id) {
+    if (!window.confirm("Remove this match? It won't be used to auto-match this vendor's invoices.")) return
+    setBusy(true); await deleteItemVendor(id); setBusy(false); loadToVerify()
+  }
 
   const vendor = useMemo(() => vendorStats.find((v) => v.vendor_id === vendorId) || null, [vendorStats, vendorId])
 
@@ -88,13 +106,14 @@ export default function ElementsVendorCrossref({ profile }) {
       return { item_id: r.item_id, vendor_sku: c.vendor_sku, vendor_description: c.vendor_description, last_cost: c.last_cost }
     })
     try {
-      await learnAliases(org.selectedOrg, vendorId, lines)
+      await learnAliases(org.selectedOrg, vendorId, lines, { source: 'crossref', verified: true })
       setMsg(`Saved ${lines.length} alias${lines.length === 1 ? '' : 'es'}. Future invoices from this vendor will auto-match these parts.`)
       // Drop saved rows from the worklist and refresh the learned list + counts.
       const savedItems = new Set(chosen.map((r) => r.item_id))
       setRows((rs) => rs.filter((r) => !savedItems.has(r.item_id)))
       await loadExisting(vendorId)
       await loadVendors()
+      await loadToVerify()
     } catch (e) { setErr(e.message || String(e)) }
     setBusy(false)
   }
@@ -123,6 +142,44 @@ export default function ElementsVendorCrossref({ profile }) {
 
       {msg && <div style={{ marginBottom: 12, background: '#E3F1E8', border: '1px solid #166534', color: '#166534', padding: '8px 12px', borderRadius: 8, fontWeight: 600, fontSize: 13 }}>{msg}</div>}
       {err && <div className="auth-error" style={{ marginBottom: 12 }}>{err}</div>}
+
+      {/* To-verify queue — part matches Quincy learned from invoices, awaiting a human check */}
+      {toVerify.length > 0 && (
+        <div style={{ border: '1px solid #E4B36B', background: '#FCF6EA', borderRadius: 10, padding: 14, marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <span style={{ fontWeight: 700, color: '#B0600A' }}>Matches to verify</span>
+            <span className="badge" style={{ background: '#F8EEDD', color: '#B0600A' }}>{toVerify.length}</span>
+          </div>
+          <p style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 0, marginBottom: 10 }}>
+            Quincy learned these part matches from recent invoices. Confirm each is right so this vendor's future invoices auto-match with confidence — or fix the item, or remove a wrong one.
+          </p>
+          <div style={{ overflowX: 'auto', border: '1px solid var(--line, #E2E8F0)', borderRadius: 8, background: '#fff' }}>
+            <table className="data-table" style={{ width: '100%', margin: 0 }}>
+              <thead><tr><th>Your catalog item</th><th>Vendor's part (as billed)</th><th style={{ width: 90, textAlign: 'right' }}>Last cost</th><th style={{ width: 120 }}>Vendor</th><th style={{ width: 250 }}>Verify</th></tr></thead>
+              <tbody>
+                {toVerify.map((a) => (
+                  <tr key={a.id}>
+                    <td style={{ fontWeight: 600, color: '#152238' }}>{a.item?.description || '(item)'}{a.item?.sku ? <span style={{ color: 'var(--mist)', fontSize: 11 }}> · {a.item.sku}</span> : null}</td>
+                    <td>{a.vendor_description || '—'}{a.vendor_sku ? <span style={{ color: 'var(--mist)', fontSize: 11 }}> · {a.vendor_sku}</span> : null}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--mist)' }}>{money(a.last_cost)}</td>
+                    <td style={{ fontSize: 12 }}>{a.vendor?.name || '—'}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '4px 12px' }} disabled={busy} onClick={() => verifyMatch(a.id)}>Looks right</button>
+                        <select defaultValue="" disabled={busy} onChange={(e) => { fixMatch(a.id, e.target.value); e.target.value = '' }} style={{ maxWidth: 150 }} title="Map to a different catalog item">
+                          <option value="">Fix…</option>
+                          {allItems.map((it) => <option key={it.id} value={it.id}>{it.description}</option>)}
+                        </select>
+                        <button className="logout-button" style={{ color: '#B00020', borderColor: '#F0B4B4', padding: '4px 10px' }} disabled={busy} onClick={() => removeUnverified(a.id)}>Remove</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Vendor picker */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 16 }}>

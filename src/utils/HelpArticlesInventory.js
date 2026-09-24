@@ -435,7 +435,7 @@ export const HELP_ARTICLES = [
       },
       {
         "h": "Good to know",
-        "body": "The crosswalk also fills itself in every time you confirm a captured vendor invoice — seeding here just gives it a head start. Once a vendor’s SKU is learned, their future bills auto-match without guessing. The Inventory Dashboard flags any vendor that has purchase history but hasn’t been cross-referenced yet, so you know whose parts still need verifying — the flag clears for a vendor once you’ve saved matches for them."
+        "body": "The crosswalk also fills itself in every time you confirm a captured or emailed vendor invoice — Quincy records each line's part→item match so the next bill from that vendor auto-matches. Because Quincy enters those automatically, each new one lands in the \"Matches to verify\" queue at the top of this page and is counted on the Inventory Dashboard, so a human can confirm it's correct. Verify (looks right), Fix (map to a different item), or Remove each one; verifying clears it from the dashboard. Matches you approve here on the page are already verified and never enter the queue."
       }
     ]
   },

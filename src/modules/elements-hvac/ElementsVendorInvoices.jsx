@@ -290,7 +290,8 @@ export default function ElementsVendorInvoices({ profile }) {
       // invoice from them auto-matches by SKU without guessing.
       await learnAliases(org.selectedOrg, vId, linked
         .filter((l) => l.item_id)
-        .map((l) => ({ item_id: l.item_id, vendor_sku: l.sku, vendor_description: l.description, last_cost: l.unit_cost })))
+        .map((l) => ({ item_id: l.item_id, vendor_sku: l.sku, vendor_description: l.description, last_cost: l.unit_cost })),
+        { source: 'invoice', verified: false })
       if (c.inboundId) await setInboundStatus(c.inboundId, 'applied', invoice.id)
       setCapOpen(false); setCapBusy(false)
       await loadList()
