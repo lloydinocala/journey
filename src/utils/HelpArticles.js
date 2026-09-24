@@ -153,8 +153,10 @@ export const HELP_ARTICLES = [
       { h: 'What it is for', body: 'This is where finished work becomes cash. Every tile is a step in that pipeline that still needs a hand, so the board is empty only when every job is billed, every invoice is sent, and A/R is clear. Managers and owners get an extra view with the dollars behind the tasks.' },
       { h: 'The task tiles (Needs a hand)', items: [
         'Completed — needs invoicing: finished jobs with no invoice yet. Create the bill.',
+        'Incomplete jobs: jobs held up awaiting parts or a follow-up visit → opens Jobs Management.',
         'Invoices to send: invoices created but not sent. Send them.',
         'Unpaid invoices: sent and still unpaid. Follow up to collect.',
+        'Estimates to send: drafted estimates not yet sent to the customer.',
         'Estimates to convert / System estimates to convert: approved estimates ready to build into a job.',
         'Estimates out: sent, awaiting the customer’s decision.',
         'Click any tile to open the exact list behind it.',
@@ -162,7 +164,7 @@ export const HELP_ARTICLES = [
       { h: 'Office vs Owner view', items: [
         'Use the "Viewing as" toggle (top-right) to switch between Office and Owner / Admin.',
         'Office / operational access shows health tiles: Unbilled completed (opens Jobs) and Unsent invoices (opens Invoices).',
-        'Owner access adds dollar KPIs: A/R outstanding (opens the unpaid list) and Collected in the last 30 days.',
+        'Owner access adds dollar KPIs: A/R outstanding (opens the unpaid list), Collected in the last 30 days, and Won in the last 30 days (dollar value of estimates approved).',
         'It is the same underlying data — a follow-up task for the office, a dollar figure for the owner.',
       ]},
       { h: 'Good to know', body: 'Everything is scoped to the selected organization (platform owners get a picker). Which view you can see depends on your operational- and owner-metrics permissions.' },
