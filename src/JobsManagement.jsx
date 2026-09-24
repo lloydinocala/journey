@@ -461,7 +461,7 @@ export default function JobsManagement({ profile }) {
                         <td>{rec.job.properties?.customers?.primary_phone || '—'}</td>
                         <td style={{ fontSize: 12 }}>{rec.reason || '—'}</td>
                         <td>
-                          <button className="auth-button" style={{ width: 'auto', padding: '4px 12px', margin: 0, whiteSpace: 'nowrap' }} onClick={() => openEstimate(rec)}>Open Estimate</button>
+                          <button className="auth-button" style={{ width: 88, padding: '10px 6px', margin: 0, whiteSpace: 'normal', lineHeight: 1.15 }} onClick={() => openEstimate(rec)}>Open Estimate</button>
                         </td>
                         {editing ? (
                           <>
