@@ -366,10 +366,28 @@ export const HELP_ARTICLES = [
     id: 'jobs-management',
     title: 'Jobs Management',
     area: 'Operations',
-    keywords: ['jobs management', 'deleted', 'recover', 'cleanup', 'audit', 'bulk', 'oversight'],
-    purpose: 'A higher-level view of jobs for oversight and cleanup — including jobs that have been deleted, so nothing is lost by accident.',
+    keywords: ['jobs management', 'incomplete jobs', 'parts', 'parts orders', 'po', 'purchase order', 'vendor', 'warranty', 'claim', 'estimate approval', 'verbal approval', 'segment', 'delivery', 'staged', 'dispatch'],
+    purpose: 'Jobs Management is the parts-and-follow-up desk. When a job needs a part before it can be finished, it lands here so the office can price it, order it, track its delivery, and stage the return visit — all in one place, feeding Dispatch automatically once the part arrives.',
     sections: [
-      { h: 'How to use it', body: 'Use it to review and audit jobs beyond the day-to-day list, including recently deleted ones (with when they were removed) so you can recover or account for them. For everyday scheduling and editing, use the Jobs table instead.' },
+      { h: 'What it is for', body: 'A job appears in the Incomplete Jobs list the moment a customer signs off on a follow-up estimate (or a tech marks a job incomplete). The office works each row left to right: confirm the equipment, get the estimate approved, order the part, then stage the next segment so Dispatch can schedule the return visit when the part is in. A row clears itself once that return visit is marked Complete. Red = nothing done yet; yellow = a return visit already exists.' },
+      { h: 'Working an incomplete job', items: [
+        'Open Estimate opens the follow-up estimate in a side panel that stays visible while you fill in the parts fields.',
+        'Brand / Model # / Serial # auto-fill from the property’s equipment on file; edit them if needed.',
+        'Warranty or Cash: choose Warranty, Cash, or Punchlist. Claim Status then offers only the valid choices — Warranty → Pending / Approved; Cash → Not Warranty Eligible; Punchlist → Punchlist.',
+        'Verbal Approval records the new estimate amount and its status (Pending / Verbal Approval / Declined / Punchlist). If it’s Declined, Edit shows "Flip to Complete" to close the job out (it also reads Completed on the Jobs table).',
+        'Edit saves the row; Delete removes the entry from Jobs Management (it does not delete the job).',
+      ]},
+      { h: 'Ordering the part', items: [
+        '+ Add Part opens the parts form. The Vendor list is filtered to the suppliers that carry the equipment’s brand (★ = your preferred vendor for that brand, set on the vendor’s page).',
+        'PO # is auto-assigned from the same purchase-order sequence as stock replenishment — leave it blank and Journey takes the next number (no duplicates), or type your own.',
+        'Set the part, quantity of segment it’s for (Seg # Assigned), and Expected Delivery. The part shows in the Parts Orders table below.',
+      ]},
+      { h: 'Staging the return visit', items: [
+        '+ New Segment creates the next job segment with no date, time, or technician and drops it into the Calendar’s "Needs Dispatch" tray — so Dispatch can schedule it whenever the part lands.',
+        'In Parts Orders, Mark Verified when a part arrives. That flags the staged segment as "Parts in — ready to schedule," which shows on its Dispatch card.',
+        'Schedule Confirmed shows whether that segment has been put on the calendar yet.',
+      ]},
+      { h: 'Good to know', body: 'The + New button here is scoped to New Job, New Segment, New Invoice, New Task, and New To-Do Item. Everything is scoped to the selected organization (platform owners get a picker).' },
     ],
   },
   {
