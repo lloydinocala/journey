@@ -374,7 +374,8 @@ export const HELP_ARTICLES = [
         'Open Estimate opens the follow-up estimate in a side panel that stays visible while you fill in the parts fields.',
         'Brand / Model # / Serial # auto-fill from the property’s equipment on file; edit them if needed.',
         'Warranty or Cash: choose Warranty, Cash, or Punchlist. Claim Status then offers only the valid choices — Warranty → Pending / Approved; Cash → Not Warranty Eligible; Punchlist → Punchlist.',
-        'Verbal Approval records the new estimate amount and its status (Pending / Verbal Approval / Declined / Punchlist). If it’s Declined, Edit shows "Flip to Complete" to close the job out (it also reads Completed on the Jobs table).',
+        'Price is a free-text field you fill in; Availability is a date you enter for when the part will be available.',
+        'Verbal Approval records the new estimate amount and its status (Pending / Approved / Declined / Punchlist). If it’s Declined, Edit shows "Flip to Complete" to close the job out (it also reads Completed on the Jobs table).',
         'Edit saves the row; Delete removes the entry from Jobs Management (it does not delete the job).',
       ]},
       { h: 'Ordering the part', items: [
@@ -387,7 +388,7 @@ export const HELP_ARTICLES = [
         'In Parts Orders, Mark Verified when a part arrives. That flags the staged segment as "Parts in — ready to schedule," which shows on its Dispatch card.',
         'Schedule Confirmed shows whether that segment has been put on the calendar yet.',
       ]},
-      { h: 'Good to know', body: 'The + New button here is scoped to New Job, New Segment, New Invoice, New Task, and New To-Do Item. Everything is scoped to the selected organization (platform owners get a picker).' },
+      { h: 'Good to know', body: 'On both tables the action buttons plus Job # and Seg stay pinned on the left while the rest scrolls sideways, and the header row stays put as you scroll down. The + New button here is scoped to New Job, New Segment, New Invoice, New Task, and New To-Do Item. Everything is scoped to the selected organization (platform owners get a picker).' },
     ],
   },
   {
