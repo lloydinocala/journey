@@ -53,6 +53,9 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile }) {
       <div style={{ fontWeight: 700, fontSize: 14 }}>{job.customer_name}</div>
       {job.job_type && <div style={{ fontSize: 12.5, color: 'var(--mist)' }}>{job.job_type}</div>}
       {job.address && <div style={{ fontSize: 12, color: 'var(--mist)' }}>{job.address}</div>}
+      {job.parts_ready && (
+        <div style={{ marginTop: 4, display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#0B7A3B', background: '#E7F6EC', borderRadius: 6, padding: '1px 7px' }}>✓ Parts in — ready to schedule</div>
+      )}
     </div>
   )
   return (
@@ -207,7 +210,7 @@ export default function Calendar({ profile }) {
     const { data } = await supabase
       .from('jobs')
       .select(
-        'id, job_number, job_date, date_pending, requested_window, self_booked, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(id, display_name, is_banned))'
+        'id, job_number, job_date, date_pending, parts_ready, requested_window, self_booked, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(id, display_name, is_banned))'
       )
       .eq('org_id', selectedOrg)
       .is('deleted_at', null)
