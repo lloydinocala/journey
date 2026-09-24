@@ -229,6 +229,9 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
         service_complaint: contComplaint.trim() || null,
         trip_charge_price_id: contTripChargeId || null,
         status: contJobDate ? 'scheduled' : 'unscheduled',
+        // With no date, stage it into the Calendar's Needs Dispatch tray so it
+        // can be scheduled later (the tray reads date_pending).
+        date_pending: contJobDate ? false : true,
       })
       .select()
       .single()
