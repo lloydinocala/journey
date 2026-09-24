@@ -235,10 +235,11 @@ export const HELP_ARTICLES = [
     purpose: 'The Dispatch Station is your front-of-house board — everything coming IN (new requests, calls to return) and everything going OUT (jobs to schedule, techs to dispatch, filters to fulfill) on one screen. Each tile is a live count that opens the exact worklist behind it. The goal is to clear the board to zero.',
     sections: [
       { h: 'What it is for', body: 'Open Dispatch first thing and at intervals through the day to see, in one place, everything front-of-house that needs a hand. It reads the same shared signal registry as the Train Station roll-up, so anything you clear here also clears there — the numbers never disagree. You do not do the work on this page; each tile takes you to the page where you do it.' },
-      { h: 'The seven things it watches', items: [
+      { h: 'The eight things it watches', items: [
         'New service requests — customer requests waiting to be reviewed and booked → opens Service Requests.',
         'Jobs to schedule — approved jobs not yet on the board → opens the Calendar.',
         'Needs dispatch — scheduled jobs with no technician assigned → opens the Dispatch Map.',
+        'Parts in — schedule return — a staged return visit whose part has arrived (marked Delivery Verified in Jobs Management) and can now be booked → opens the Calendar.',
         'Filter orders to fulfill — filter orders awaiting fulfillment → opens Filter Orders.',
         'To-Dos — open office reminders → opens the To-Do list.',
         'Calls to return (shown red — most urgent) — calls flagged for a call-back → opens the Call Log.',
