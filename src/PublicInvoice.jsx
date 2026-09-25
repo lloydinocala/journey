@@ -14,6 +14,9 @@ export default function PublicInvoice() {
   const [deciding, setDeciding] = useState(false)
   const [decideError, setDecideError] = useState('')
   const [decidedStatus, setDecidedStatus] = useState('')
+  const [methodBusy, setMethodBusy] = useState('')     // which method button is saving
+  const [methodDone, setMethodDone] = useState('')     // recorded non-card choice
+  const [methodError, setMethodError] = useState('')
 
   async function handleDecision(d) {
     setDeciding(true); setDecideError('')
@@ -43,6 +46,24 @@ export default function PublicInvoice() {
     } finally {
       setPayingNow(false)
     }
+  }
+
+  // Cash / Check / Financing: record the customer's choice (server-side, since this
+  // page is unauthenticated). Never marks the invoice paid — the office confirms.
+  async function recordMethod(method) {
+    setMethodBusy(method); setMethodError('')
+    try {
+      const { data: result, error } = await supabase.functions.invoke('set-invoice-payment-method', { body: { invoiceId, method } })
+      if (error || result?.error) {
+        let msg = result?.error || ''
+        if (!msg && error?.context && typeof error.context.json === 'function') { try { const b = await error.context.json(); msg = b?.error || '' } catch (_) { /* ignore */ } }
+        setMethodError(msg || error?.message || 'We couldn’t save that just now. Please try again, or call us and we’ll take care of it.')
+        return
+      }
+      setMethodDone(method)
+    } catch (e) {
+      setMethodError('We couldn’t save that just now. Please try again, or call us and we’ll take care of it.')
+    } finally { setMethodBusy('') }
   }
 
   useEffect(() => {
@@ -98,35 +119,50 @@ export default function PublicInvoice() {
     </div>
   )
 
-  const footer = isEstimate ? estimateFooter : data.invoice.paid_at ? (
+  const brand = data.org?.brand_primary_color || '#2F5DE3'
+  const orgName = data.org?.name || 'us'
+  const amt = Number(data.invoice.amount_due || 0).toFixed(2)
+  const lane = { width: '100%', maxWidth: 360, minHeight: 50, borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'block', margin: '0 auto' }
+
+  const paidFooter = (
     <div style={{ textAlign: 'center', marginTop: 28, color: '#4CD97B', fontWeight: 600 }}>
       ✓ Paid on {new Date(data.invoice.paid_at).toLocaleDateString()}
     </div>
-  ) : (
-    <div style={{ textAlign: 'center', marginTop: 28 }}>
-      <button
-        onClick={handlePayNow}
-        disabled={payingNow}
-        style={{
-          background: data.org?.brand_primary_color || '#2F5DE3',
-          color: 'white',
-          border: 'none',
-          borderRadius: 10,
-          padding: '16px 40px',
-          fontSize: 17,
-          fontWeight: 700,
-          cursor: payingNow ? 'default' : 'pointer',
-          opacity: payingNow ? 0.7 : 1,
-          width: '100%',
-          maxWidth: 360,
-          minHeight: 52,
-        }}
-      >
-        {payingNow ? 'Loading…' : `Pay Now — $${data.invoice.amount_due?.toFixed(2)}`}
-      </button>
-      {payError && <p style={{ color: '#C0392B', fontSize: 14, marginTop: 12, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.4 }}>{payError}</p>}
+  )
+  const doneMsg = {
+    cash: `Thanks! Please have $${amt} ready in cash — we’ll mark it paid when we collect it.`,
+    check: `Thanks! Please make your check for $${amt} out to ${orgName} — we’ll mark it paid when we receive it.`,
+    financing: `Great — we’ll send you financing options to apply. Your invoice stays open until financing is approved, then we’ll take care of the rest.`,
+  }
+  const doneFooter = (
+    <div style={{ textAlign: 'center', marginTop: 28, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto' }}>
+      <div style={{ color: '#1F7A43', fontWeight: 700, fontSize: 15, lineHeight: 1.45 }}>{doneMsg[methodDone]}</div>
+      <button onClick={() => { setMethodDone(''); setMethodError('') }} style={{ marginTop: 12, background: 'none', border: 'none', color: '#64748B', fontSize: 13, textDecoration: 'underline', cursor: 'pointer' }}>Choose a different way to pay</button>
     </div>
   )
+  const chooserFooter = (
+    <div style={{ textAlign: 'center', marginTop: 28 }}>
+      <p style={{ color: '#152238', fontSize: 15, fontWeight: 600, marginBottom: 14 }}>How would you like to pay?</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+        <button onClick={handlePayNow} disabled={payingNow || !!methodBusy} style={{ ...lane, background: brand, color: 'white', border: 'none', opacity: payingNow ? 0.7 : 1 }}>
+          {payingNow ? 'Loading…' : `Pay by card — $${amt}`}
+        </button>
+        <button onClick={() => recordMethod('financing')} disabled={!!methodBusy || payingNow} style={{ ...lane, background: '#fff', color: brand, border: `1px solid ${brand}` }}>
+          {methodBusy === 'financing' ? 'Saving…' : 'Apply for financing'}
+        </button>
+        <div style={{ display: 'flex', gap: 10, width: '100%', maxWidth: 360, margin: '0 auto' }}>
+          <button onClick={() => recordMethod('cash')} disabled={!!methodBusy || payingNow} style={{ ...lane, flex: 1, maxWidth: 'none', background: '#fff', color: '#334155', border: '1px solid #CBD5E1' }}>{methodBusy === 'cash' ? '…' : 'Cash'}</button>
+          <button onClick={() => recordMethod('check')} disabled={!!methodBusy || payingNow} style={{ ...lane, flex: 1, maxWidth: 'none', background: '#fff', color: '#334155', border: '1px solid #CBD5E1' }}>{methodBusy === 'check' ? '…' : 'Check'}</button>
+        </div>
+      </div>
+      {(payError || methodError) && <p style={{ color: '#C0392B', fontSize: 14, marginTop: 12, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.4 }}>{payError || methodError}</p>}
+    </div>
+  )
+
+  const footer = isEstimate ? estimateFooter
+    : data.invoice.paid_at ? paidFooter
+      : methodDone ? doneFooter
+        : chooserFooter
 
   return (
     <div style={{

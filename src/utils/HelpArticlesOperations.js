@@ -678,6 +678,7 @@ export const HELP_ARTICLES = [
         "items": [
           "Email — the order email a purchase order is sent to. Keep it current so \"Email to vendor\" on a PO reaches the right inbox.",
           "Address (street, city, state, zip) — shown as its own column and editable inline; use it to task an employee with a parts pickup.",
+          "Brands — the brands this vendor supplies, shown as tags with a ★ on your preferred source for each brand (edit them on the vendor's profile). This is what routes a brand's parts to the right parts house.",
           "You can add a vendor on the spot with + New Vendor from a Purchase Order or a Special Order — handy for a one-time supplier — without leaving that screen."
         ]
       }

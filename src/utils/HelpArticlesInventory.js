@@ -23,21 +23,20 @@ export const HELP_ARTICLES = [
       "open pos",
       "at a glance"
     ],
-    "purpose": "The landing page for Inventory Management — an at-a-glance dashboard of the four things worth watching (low stock, open POs, recent variance, and inventory value), plus module stats and shortcuts into each area.",
+    "purpose": "The landing page for Inventory Management — a Quincy briefing, the inventory tasks that need a hand, the money figures owners care about, plus module stats and shortcuts into each area.",
     "sections": [
       {
-        "h": "At a glance",
-        "items": [
-          "Low stock — how many stock lines are at or under their reorder point; click through to Replenishment. It turns red when anything needs reordering.",
-          "Open purchase orders — POs that are ordered or partially received, with the next expected delivery date and the dollar value on order; click through to Purchase Orders.",
-          "Variance (90 days) — the net dollar impact of posted count adjustments and matched-invoice price/qty differences over the last 90 days; click through to Inventory Variance.",
-          "Inventory value — what stock on hand is worth right now at cost; click through to Inventory Valuation."
-        ]
+        "h": "What needs a hand",
+        "body": "The Inventory Station panel lists live tasks pulled from across the module — low stock to reorder, open POs to receive, emailed invoices to review, vendor part-matches to verify, and receiving issues flagged from the dock. Each tile shows a count, links straight to where you handle it, and clears itself once the work is done."
+      },
+      {
+        "h": "Owner & ops figures",
+        "body": "Alongside the tasks, dollar figures show for the roles allowed to see them: owners get Inventory value (stock on hand at cost) and Variance over 90 days; operations roles get variance exceptions. A short Quincy briefing at the top of the page summarizes the module's health from the live numbers."
       },
       {
         "h": "The rest of the page",
         "items": [
-          "Below the cards, the stat tiles count your trucks, warehouses, catalog parts, and services with a parts kit mapped.",
+          "The stat tiles count your trucks, warehouses, catalog parts, and services with a parts kit mapped.",
           "The navigation cards link into Locations, Item Catalog, Stock & Receiving, Cycle Counts, Purchase Orders, Service → Part Mapping, and Inventory Settings.",
           "The pill by the title shows whether the module is enabled; turn it on in Inventory Settings once your items, trucks, and mappings are ready. Use Refresh to repull the live numbers."
         ]
@@ -219,7 +218,7 @@ export const HELP_ARTICLES = [
       },
       {
         "h": "Good to know",
-        "body": "Posting adjusts to the current on-hand at the moment you post, so a part pulled mid-count is respected. Posted counts are permanent history — to fix a mistake, run another count. Use \"Add an item found on the shelf\" for stock that shouldn’t be there but is."
+        "body": "Posting adjusts to the current on-hand at the moment you post, so a part pulled mid-count is respected. Posted counts are permanent history — to fix a mistake, run another count. Use \"Add an item found on the shelf\" for stock that shouldn’t be there but is. The same count engine also runs on the mobile Receiver app and the field-supervisor app (anyone with the Run cycle counts permission) — a count is one record wherever it's started."
       }
     ]
   },
@@ -245,7 +244,8 @@ export const HELP_ARTICLES = [
         "items": [
           "Pick the warehouse to \"Refill trucks from\". For each truck shortfall, Transfer moves the suggested quantity from that warehouse in one click.",
           "When the warehouse itself is short, the row is flagged to purchase instead.",
-          "Filter by location or search by part; the header shows the total dollar value to top up."
+          "Filter by location or search by part; the header shows the total dollar value to top up.",
+          "Tap \"✨ AI: prioritize restocking\" for a short Quincy plan of which trucks and items to restock first, and anything that looks unusual."
         ]
       },
       {
@@ -314,7 +314,7 @@ export const HELP_ARTICLES = [
         "items": [
           "Every PO shows in one table: PO #, Designation, Vendor, Date issued, Status, received count, and Value.",
           "Designation tells you what an order is for — Replenishment (stock you raised here) or a Job #·Segment (a part ordered for a job in Jobs Management).",
-          "Job-part rows are owned by Jobs Management — click Open in Jobs to verify their delivery there. Replenishment/stock POs open in the panel below to receive.",
+          "Job-part rows are owned by Jobs Management — Open in Jobs to verify their delivery there, or Email to send the parts order to the vendor. Replenishment/stock POs open in the panel below to receive.",
           "Search by number, job, vendor, or part; the default \"Relevant\" view shows in-flight POs plus receipts from the last 30 days."
         ]
       },
@@ -334,7 +334,7 @@ export const HELP_ARTICLES = [
       },
       {
         "h": "Good to know",
-        "body": "A draft you change your mind about can be deleted; an ordered PO can be cancelled. Open POs awaiting receipt, and any emailed invoices to review, surface on the Inventory Dashboard."
+        "body": "A draft you change your mind about can be deleted; an ordered PO can be cancelled. Open POs awaiting receipt, and any emailed invoices to review, surface on the Inventory Dashboard. When the shop flags a delivery problem from the Receiver app, the PO shows a red \"Receiving issues flagged from the dock\" panel with a Resolve button, and the issue also appears as a dashboard task until you resolve it."
       }
     ]
   },
@@ -640,7 +640,8 @@ export const HELP_ARTICLES = [
         "h": "How to use it",
         "items": [
           "Choose the history window it learns from and the number of days of cover you want to hold.",
-          "Each part shows its monthly usage, on-hand, days of cover, projected run-out, a trend arrow (rising / steady / easing), and how many to order to hit your coverage target. Most urgent sorts to the top."
+          "Each part shows its monthly usage, on-hand, days of cover, projected run-out, a trend arrow (rising / steady / easing), and how many to order to hit your coverage target. Most urgent sorts to the top.",
+          "Tap \"✨ AI: explain this forecast\" for a short Quincy read on what the numbers mean and what to act on."
         ]
       },
       {
