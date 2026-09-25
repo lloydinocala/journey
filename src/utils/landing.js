@@ -12,5 +12,6 @@ export const LANDING_OPTIONS = [
   { path: '/maintenance-dashboard', label: 'Maintenance' },
   { path: '/permits', label: 'Permitting' },
   { path: '/to-do', label: 'To-Do List' },
+  { path: '/receiver', label: 'Receiving (shop)' },
 ]
 export const LANDING_PATHS = new Set(LANDING_OPTIONS.map((o) => o.path).filter(Boolean))

@@ -7,12 +7,13 @@ const CATEGORY_LABEL = {
   field: 'Field / Mobile',
   estimates: 'Estimates & Approvals',
   pricing: 'Pricing & Money',
+  inventory: 'Inventory & Receiving',
   customers: 'Customers',
   accounting: 'Accounting & Reporting',
   marketing: 'Marketing',
   admin: 'Company & Admin',
 }
-const CATEGORY_ORDER = ['jobs', 'field', 'estimates', 'pricing', 'customers', 'accounting', 'marketing', 'admin']
+const CATEGORY_ORDER = ['jobs', 'field', 'estimates', 'pricing', 'inventory', 'customers', 'accounting', 'marketing', 'admin']
 const DEPT_ORDER = ['Admin', 'Field', 'Shop', 'Front Office', 'Back Office']
 
 export default function RolesConfig({ profile }) {

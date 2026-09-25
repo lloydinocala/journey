@@ -105,6 +105,9 @@ import TechInvoiceView from './TechInvoiceView'
 import TechMessages from './TechMessages'
 import TextArchive from './TextArchive'
 import TechGate from './TechGate'
+import ReceiverGate from './ReceiverGate'
+import ReceiverHome from './ReceiverHome'
+import ReceiverReceive from './ReceiverReceive'
 import TechSettings from './TechSettings'
 import TechCycleCounts from './TechCycleCounts'
 import TechManual from './TechManual'
@@ -246,6 +249,12 @@ function AuthenticatedApp() {
         <Route path="/tech/messages/:jobId" element={<TechMessages profile={profile} />} />
         <Route path="/tech/pm-checklist/:instanceId" element={<TechPMChecklist profile={profile} />} />
         <Route path="/tech/checklist/:jobId" element={<TechChecklistRun profile={profile} />} />
+      </Route>
+      {/* Receiver · shop receiving app (mobile) — gated by the access_receiver permission */}
+      <Route element={<ReceiverGate profile={profile} />}>
+        <Route path="/receiver" element={<ReceiverHome profile={profile} />} />
+        <Route path="/receiver/receive" element={<ReceiverReceive profile={profile} />} />
+        <Route path="/receiver/receive/:poId" element={<ReceiverReceive profile={profile} />} />
       </Route>
       {/* Rewards-HVAC · employee self-service portal — any logged-in employee, own data only (RLS) */}
       <Route path="/my" element={<MyPortal profile={profile} />} />
