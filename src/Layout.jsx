@@ -109,6 +109,7 @@ const CATEGORIES = [
     { label: 'Job Estimates', path: '/estimates' },
     { label: 'System Estimates', path: '/system-estimates' },
     { label: 'Invoices', path: '/invoices' },
+    { label: 'Payments to Confirm', path: '/payments-to-confirm' },
   ]},
   { key: 'maintenance', label: 'Maintenance', items: [
     { label: 'Maintenance Station', path: '/maintenance-station', perm: 'view_maintenance_dashboard' },
