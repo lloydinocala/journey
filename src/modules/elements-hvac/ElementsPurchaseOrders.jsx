@@ -8,7 +8,7 @@ import {
   listPurchaseOrders, getPurchaseOrder, createPurchaseOrder, updatePurchaseOrder,
   deletePOLine, receivePO, adjustReceived, listVendors, listAllLocations, listItems, listReplenishment,
   getPoSettings, setPoNextNumber, addItem, deriveSku, deletePurchaseOrder,
-  listJobPartOrders, sendPoEmail, createVendor,
+  listJobPartOrders, sendPoEmail, createVendor, getReceivingFlags, resolveReceivingFlag,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
 
@@ -29,6 +29,7 @@ export default function ElementsPurchaseOrders({ profile }) {
   const [sp] = useSearchParams()
   const [pos, setPos] = useState([])
   const [jobOrders, setJobOrders] = useState([])   // job-part orders from Jobs Management (parts_orders)
+  const [poFlags, setPoFlags] = useState([])       // open receiving discrepancy flags for the selected PO
   const [emailing, setEmailing] = useState(false)
   const [newVendor, setNewVendor] = useState({ open: false, name: '', email: '' })
   const [vendors, setVendors] = useState([])
@@ -85,6 +86,7 @@ export default function ElementsPurchaseOrders({ profile }) {
     setMode('view'); setSelectedId(id); setMsg(''); setErr(''); setRecv({}); setEditRecv(false); setAdj({})
     const detail = await getPurchaseOrder(org.selectedOrg, id)
     setPo(detail)
+    getReceivingFlags(org.selectedOrg, id).then(setPoFlags).catch(() => setPoFlags([]))
     // default receive inputs = remaining qty, line cost or item cost
     const r = {}
     ;(detail?.lines || []).forEach((l) => {
@@ -185,6 +187,14 @@ export default function ElementsPurchaseOrders({ profile }) {
     setEmailing(false)
     if (error) { setErr(error.message); return }
     setMsg(`Parts order emailed to ${r.vendor}.`); await loadList()
+  }
+
+  async function resolveFlag(id) {
+    setBusy(true)
+    await resolveReceivingFlag(org.selectedOrg, id, profile?.id)
+    setBusy(false)
+    const f = await getReceivingFlags(org.selectedOrg, po.id); setPoFlags(f)
+    loadList()
   }
 
   // Inline "+ New Vendor" on the new-PO form — so a special/outside-catalog order
@@ -585,6 +595,22 @@ export default function ElementsPurchaseOrders({ profile }) {
                   {po.status === 'draft' && !editRecv && <button className="logout-button" style={{ color: '#B00020', borderColor: '#F0B4B4' }} disabled={busy} onClick={deleteDraft}>Delete draft</button>}
                 </div>
               </div>
+
+              {poFlags.length > 0 && (
+                <div style={{ marginTop: 14, border: '1px solid #E3B0B0', background: '#FCEFEF', borderRadius: 10, padding: 12 }}>
+                  <div style={{ fontWeight: 700, color: '#B00020', marginBottom: 6 }}>Receiving issues flagged from the dock</div>
+                  {poFlags.map((f) => (
+                    <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '6px 0', borderTop: '1px solid #F0D2D2' }}>
+                      <div style={{ fontSize: 13 }}>
+                        <span style={{ fontWeight: 600, color: '#152238' }}>{f.kind || 'Issue'}</span>
+                        {f.note ? <span style={{ color: '#475569' }}> — {f.note}</span> : null}
+                        <span style={{ color: 'var(--mist)', fontSize: 11 }}> · {f.created_at ? new Date(f.created_at).toLocaleDateString() : ''}</span>
+                      </div>
+                      <button className="logout-button" disabled={busy} onClick={() => resolveFlag(f.id)}>Resolve</button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <table className="data-table" style={{ marginTop: 14 }}>
                 <thead>

@@ -6,9 +6,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconChevronLeft } from './MobileIcons'
-import { listPurchaseOrders, getPurchaseOrder, receivePO } from './modules/elements-hvac/data'
+import { listPurchaseOrders, getPurchaseOrder, receivePO, createReceivingFlag } from './modules/elements-hvac/data'
 
 const fmtD = (d) => (d ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? d + 'T12:00:00' : d).toLocaleDateString() : '')
+const FLAG_KINDS = ['Short shipment', 'Wrong part sent', 'Damaged', 'Other']
 
 export default function ReceiverReceive({ profile }) {
   const nav = useNavigate()
@@ -21,6 +22,10 @@ export default function ReceiverReceive({ profile }) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
+  const [flagOpen, setFlagOpen] = useState(false)
+  const [flagKind, setFlagKind] = useState('')
+  const [flagNote, setFlagNote] = useState('')
+  const [flagBusy, setFlagBusy] = useState(false)
 
   useEffect(() => {
     if (!orgId) return
@@ -52,6 +57,15 @@ export default function ReceiverReceive({ profile }) {
     if (error) { setErr(error.message); return }
     setMsg(`Received ${count} line${count === 1 ? '' : 's'}. On-hand updated.`)
     openPo(po.id)
+  }
+
+  async function submitFlag() {
+    if (!flagKind) { setErr('Pick what went wrong.'); return }
+    setFlagBusy(true); setErr(''); setMsg('')
+    const { error } = await createReceivingFlag(orgId, { po_id: po.id, kind: flagKind, note: flagNote, created_by: profile?.id })
+    setFlagBusy(false)
+    if (error) { setErr(error.message); return }
+    setMsg('Problem reported — the office will see it on the dashboard.'); setFlagOpen(false); setFlagKind(''); setFlagNote('')
   }
 
   // ---------------- detail ----------------
@@ -92,6 +106,29 @@ export default function ReceiverReceive({ profile }) {
                 )
               })}
               {(po.lines || []).length === 0 && <p className="jc-muted-note">This PO has no lines.</p>}
+
+              <div style={{ marginTop: 14 }}>
+                {!flagOpen ? (
+                  <button className="logout-button" onClick={() => { setFlagOpen(true); setErr('') }}>⚠ Report a problem with this delivery</button>
+                ) : (
+                  <div style={{ border: '1px solid #E4B36B', background: '#FCF6EA', borderRadius: 10, padding: 12 }}>
+                    <div style={{ fontWeight: 700, color: '#B0600A', marginBottom: 8 }}>Report a problem</div>
+                    <div className="field"><label>What’s wrong?</label>
+                      <select value={flagKind} onChange={(e) => setFlagKind(e.target.value)}>
+                        <option value="">— choose —</option>
+                        {FLAG_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+                      </select>
+                    </div>
+                    <div className="field"><label>Details (optional)</label>
+                      <textarea rows={2} value={flagNote} onChange={(e) => setFlagNote(e.target.value)} placeholder="e.g. 2 of 5 blower motors missing" style={{ resize: 'vertical', width: '100%' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '8px 16px' }} disabled={flagBusy} onClick={submitFlag}>{flagBusy ? 'Sending…' : 'Send to office'}</button>
+                      <button className="logout-button" onClick={() => { setFlagOpen(false); setFlagKind(''); setFlagNote('') }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>

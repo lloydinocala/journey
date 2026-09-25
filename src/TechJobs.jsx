@@ -250,6 +250,7 @@ export default function TechJobs({ profile }) {
             <div className="supervisor-tools-row">
               <button onClick={() => navigate('/tech/tower')}>The Tower</button>
               <button onClick={() => navigate('/tech/cycle-counts')}>Cycle Count</button>
+              {can(profile, 'access_receiver') && <button onClick={() => navigate('/receiver')}>Receiving</button>}
               <button onClick={() => navigate('/tech/schedule')}>Everyone's Schedule</button>
               <button onClick={() => navigate('/tech/new-job')}>+ New Job</button>
               <button onClick={() => navigate('/tech/new-service-estimate')}>+ Service Estimate</button>

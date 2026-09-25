@@ -199,6 +199,9 @@ export const REGISTRY = [
   { key: 'crossref-verify', station: 'stock-purchasing', hub: 'inventory-central', name: 'Vendor part-matches to verify', tone: 'amber', href: '/elements/vendor-crossref', cta: 'Open cross-reference', audience: 'office',
     line: (n) => `${n} new vendor part-match${n === 1 ? '' : 'es'} from invoices to verify`,
     count: headCount('elements_item_vendors', (q) => q.is('verified_at', null)) },
+  { key: 'receiving-issues', station: 'stock-purchasing', hub: 'inventory-central', name: 'Receiving issues to resolve', tone: 'red', href: '/elements/purchasing', cta: 'Open purchase orders', audience: 'office',
+    line: (n) => `${n} receiving issue${n === 1 ? '' : 's'} flagged from the dock`,
+    count: headCount('receiving_flags', (q) => q.is('resolved_at', null)) },
 
   // --- Fleet ---
   { key: 'fleet-inspections', station: 'fleet', hub: 'inventory-central', name: 'Inspections due', tone: 'amber', href: '/fleet/inspections', cta: 'Open inspections', audience: 'office',

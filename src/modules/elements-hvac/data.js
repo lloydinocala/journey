@@ -617,6 +617,33 @@ export async function sendPoEmail(kind, id) {
   return { data }
 }
 
+// Receiving discrepancy flags — raised from the shop Receiver surface when a
+// delivery is short/wrong/damaged. Each one becomes an office dashboard task and
+// leaves a note on the PO; the office resolves it from the PO detail.
+export async function createReceivingFlag(orgId, { po_id, line_id, item_id, kind, note, created_by }) {
+  const { data, error } = await supabase.from('receiving_flags')
+    .insert({ org_id: orgId, po_id: po_id || null, line_id: line_id || null, item_id: item_id || null, kind: kind || null, note: note || null, created_by: created_by || null })
+    .select().single()
+  if (error) return { error }
+  if (po_id) {
+    const { data: po } = await supabase.from('elements_purchase_orders').select('notes').eq('id', po_id).maybeSingle()
+    const stamp = new Date().toLocaleDateString()
+    const line = `⚠ Receiving flag (${stamp}): ${kind || 'issue'}${note ? ' — ' + note : ''}`
+    const notes = po?.notes ? `${po.notes}\n${line}` : line
+    await supabase.from('elements_purchase_orders').update({ notes }).eq('id', po_id)
+  }
+  return { data }
+}
+export async function getReceivingFlags(orgId, poId, { openOnly = true } = {}) {
+  let q = supabase.from('receiving_flags').select('*').eq('org_id', orgId).eq('po_id', poId).order('created_at', { ascending: false })
+  if (openOnly) q = q.is('resolved_at', null)
+  const { data } = await q
+  return data || []
+}
+export async function resolveReceivingFlag(orgId, id, userId) {
+  return supabase.from('receiving_flags').update({ resolved_at: new Date().toISOString(), resolved_by: userId || null }).eq('org_id', orgId).eq('id', id)
+}
+
 // Store the original invoice file under {org_id}/{invoice_id}/... and return its path.
 export async function uploadInvoiceFile(orgId, invoiceId, file) {
   const safe = (file.name || 'invoice').replace(/[^a-zA-Z0-9._-]/g, '_')

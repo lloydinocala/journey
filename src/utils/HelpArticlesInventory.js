@@ -678,10 +678,55 @@ export const HELP_ARTICLES = [
         "body": "The starting number for purchase orders is set on the Purchase Orders screen, not here."
       }
     ]
+  },
+  {
+    "id": "inv-receiver",
+    "title": "Receiver Surface (shop receiving app)",
+    "area": "Inventory",
+    "keywords": [
+      "receiver",
+      "receiving",
+      "shop",
+      "dock",
+      "mobile",
+      "receive",
+      "cycle count",
+      "transfer",
+      "discrepancy",
+      "flag",
+      "permissions",
+      "clerical",
+      "physical"
+    ],
+    "purpose": "A phone-first app for the shop employee who receives goods and keeps stock honest — without touching purchasing, pricing, or payment. Reached at /receiver and gated by permission, so a dedicated receiver, an office user, or a field supervisor can all use it based on their role.",
+    "sections": [
+      {
+        "h": "Clerical vs Physical",
+        "body": "Receiving work splits in two. Physical (this app): receive what arrives, count stock, move stock, flag problems. Clerical (the office desktop): create and send POs, process vendor invoices and A/P, set pricing. One person can have both, but usually they're separate — the person who confirms what showed up isn't the one who ordered it or pays for it. That separation is the honesty control."
+      },
+      {
+        "h": "What the receiver can do",
+        "items": [
+          "Receive against a PO — enter what physically arrived, line by line, and post. On-hand updates immediately. Quantities only — no prices; cost is set later from the vendor's invoice in A/P.",
+          "Cycle counts — count a location and post adjustments (same count engine as the office and the field app).",
+          "Transfer stock — move parts between the warehouse and trucks, or truck to truck.",
+          "Report a problem — flag a short, wrong, or damaged delivery. It raises a task on the Inventory Dashboard and leaves a note on the PO for the office to resolve."
+        ]
+      },
+      {
+        "h": "Permissions",
+        "body": "Under Roles & Tags → Inventory & Receiving: Access the Receiving app, Receive deliveries & POs, Run cycle counts, Transfer stock. Grant them to any tag. A ready-made \"Receiver\" tag (Shop) already carries the bundle — assign it in Team, and set the person's landing to \"Receiving (shop)\" so they open straight into the app. Prices stay hidden unless the tag also has \"See prices.\""
+      },
+      {
+        "h": "What it does NOT do",
+        "body": "No creating or sending POs, no vendor-invoice/A-P processing, no pricing, no payments — those live in the office. And an install can't be scheduled until payment is confirmed, which is handled on the office side, not here."
+      }
+    ]
   }
 ]
 
 export const ROUTE_HELP = {
+  "/receiver": "inv-receiver",
   "/elements/locations": "inv-locations",
   "/elements/items": "inv-items",
   "/elements/stock": "inv-stock",
