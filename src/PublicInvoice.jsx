@@ -164,10 +164,6 @@ export default function PublicInvoice() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
               <button onClick={() => recordMethod('card')} disabled={!!methodBusy} style={{ ...eLane, background: eBrand, color: 'white', border: 'none' }}>{methodBusy === 'card' ? 'Saving…' : 'Pay by card'}</button>
               <button onClick={openFinancing} disabled={!!methodBusy} style={{ ...eLane, background: '#fff', color: eBrand, border: `1px solid ${eBrand}` }}>Apply for financing</button>
-              <div style={{ display: 'flex', gap: 10, width: '100%', maxWidth: 340, margin: '0 auto' }}>
-                <button onClick={() => recordMethod('cash')} disabled={!!methodBusy} style={{ ...eLane, flex: 1, maxWidth: 'none', background: '#fff', color: '#334155', border: '1px solid #CBD5E1' }}>{methodBusy === 'cash' ? '…' : 'Cash'}</button>
-                <button onClick={() => recordMethod('check')} disabled={!!methodBusy} style={{ ...eLane, flex: 1, maxWidth: 'none', background: '#fff', color: '#334155', border: '1px solid #CBD5E1' }}>{methodBusy === 'check' ? '…' : 'Check'}</button>
-              </div>
             </div>
           )}
           {methodError && <p style={{ color: '#C0392B', fontSize: 13, marginTop: 10 }}>{methodError}</p>}
@@ -219,10 +215,6 @@ export default function PublicInvoice() {
         <button onClick={openFinancing} disabled={!!methodBusy || payingNow} style={{ ...lane, background: '#fff', color: brand, border: `1px solid ${brand}` }}>
           Apply for financing
         </button>
-        <div style={{ display: 'flex', gap: 10, width: '100%', maxWidth: 360, margin: '0 auto' }}>
-          <button onClick={() => recordMethod('cash')} disabled={!!methodBusy || payingNow} style={{ ...lane, flex: 1, maxWidth: 'none', background: '#fff', color: '#334155', border: '1px solid #CBD5E1' }}>{methodBusy === 'cash' ? '…' : 'Cash'}</button>
-          <button onClick={() => recordMethod('check')} disabled={!!methodBusy || payingNow} style={{ ...lane, flex: 1, maxWidth: 'none', background: '#fff', color: '#334155', border: '1px solid #CBD5E1' }}>{methodBusy === 'check' ? '…' : 'Check'}</button>
-        </div>
       </div>
       )}
       {(payError || methodError) &&<p style={{ color: '#C0392B', fontSize: 14, marginTop: 12, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.4 }}>{payError || methodError}</p>}
