@@ -7,8 +7,9 @@
 // variances → Post. Posting writes the corrections straight to the ledger.
 // Field supervisors + admins only; any active location in the org.
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { isFieldAdmin } from './MobileNav'
+import { can } from './utils/permissions'
 import { IconChevronLeft } from './MobileIcons'
 import {
   listCycleCounts, createCycleCount, getCycleCount, setCycleCountLine,
@@ -22,9 +23,13 @@ const useDark = () => {
 
 export default function TechCycleCounts({ profile }) {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const backPath = pathname.startsWith('/receiver') ? '/receiver' : '/tech'
   const dark = useDark()
   const orgId = profile?.org_id
-  const admin = isFieldAdmin(profile)
+  // Field supervisors/admins reach this from /tech; the shop receiver reaches it
+  // from /receiver with the count_stock permission — same count engine either way.
+  const admin = isFieldAdmin(profile) || can(profile, 'count_stock')
 
   const [view, setView] = useState('list')     // 'list' | 'start' | 'count'
   const [counts, setCounts] = useState([])
@@ -110,7 +115,7 @@ export default function TechCycleCounts({ profile }) {
     return (
       <div className={shell}>
         <div className="jc-header">
-          <button className="jc-back" onClick={() => navigate('/tech')}><IconChevronLeft /></button>
+          <button className="jc-back" onClick={() => navigate(backPath)}><IconChevronLeft /></button>
           <div className="jc-header-text"><div className="jc-title">Cycle Counts</div></div>
         </div>
         <div className="jc-body"><p className="jc-muted-note" style={{ padding: 16 }}>Cycle counts are for field supervisors.</p></div>

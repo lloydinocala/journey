@@ -108,6 +108,7 @@ import TechGate from './TechGate'
 import ReceiverGate from './ReceiverGate'
 import ReceiverHome from './ReceiverHome'
 import ReceiverReceive from './ReceiverReceive'
+import ReceiverTransfer from './ReceiverTransfer'
 import TechSettings from './TechSettings'
 import TechCycleCounts from './TechCycleCounts'
 import TechManual from './TechManual'
@@ -255,6 +256,8 @@ function AuthenticatedApp() {
         <Route path="/receiver" element={<ReceiverHome profile={profile} />} />
         <Route path="/receiver/receive" element={<ReceiverReceive profile={profile} />} />
         <Route path="/receiver/receive/:poId" element={<ReceiverReceive profile={profile} />} />
+        <Route path="/receiver/counts" element={<TechCycleCounts profile={profile} />} />
+        <Route path="/receiver/transfer" element={<ReceiverTransfer profile={profile} />} />
       </Route>
       {/* Rewards-HVAC · employee self-service portal — any logged-in employee, own data only (RLS) */}
       <Route path="/my" element={<MyPortal profile={profile} />} />
