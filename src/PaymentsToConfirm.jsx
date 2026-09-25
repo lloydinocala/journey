@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
-import { listPaymentsToConfirm, confirmPaymentMethod, setFinancingStatus, markInvoicePaid, methodLabel } from './utils/payments'
+import { listPaymentsToConfirm, confirmPaymentMethod, setFinancingStatus, markInvoicePaid, methodLabel, setPaymentMethodOffice } from './utils/payments'
 
 const money = (n) => (n == null || isNaN(n) ? '—' : `$${Number(n).toFixed(2)}`)
 const fmt = (d) => (d ? new Date(d).toLocaleDateString() : '')
@@ -50,6 +50,7 @@ export default function PaymentsToConfirm({ profile }) {
   }
 
   const stateBadge = (r) => {
+    if (!r.payment_method) return <span className="badge" style={{ background: '#F8EEDD', color: '#B0600A' }}>Awaiting method</span>
     if (r.payment_method === 'financing') {
       const s = r.financing_status || 'applied'
       const map = { applied: ['#F8EEDD', '#B0600A', 'Financing — applied'], approved: ['#E3F1E8', '#166534', 'Financing — approved'], denied: ['#FBE7E7', '#B00020', 'Financing — denied'], funded: ['#E3F1E8', '#166534', 'Financing — funded'] }
@@ -71,7 +72,7 @@ export default function PaymentsToConfirm({ profile }) {
         {isSuper && <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />}
       </div>
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0, maxWidth: 780 }}>
-        Invoices where the customer picked how they'll pay but the money isn't in yet. Confirm the method (or approve financing) to clear the way for scheduling, and mark the invoice paid once it's collected.
+        Invoices and approved System Estimates where the customer picked how they'll pay but it isn't settled yet. Confirm the method (or approve financing) to release the install for scheduling, and mark invoices paid once collected.
       </p>
 
       {msg && <div style={{ marginBottom: 12, background: '#E3F1E8', border: '1px solid #166534', color: '#166534', padding: '8px 12px', borderRadius: 8, fontWeight: 600, fontSize: 13 }}>{msg}</div>}
@@ -85,27 +86,45 @@ export default function PaymentsToConfirm({ profile }) {
             <tr><th>Invoice</th><th>Customer</th><th>Method</th><th style={{ textAlign: 'right' }}>Balance</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td>{r.job_id ? <Link to={`/invoice/${r.job_id}`}>{r.invoice_number || '(no #)'}</Link> : (r.invoice_number || '(no #)')}<div style={{ fontSize: 11, color: 'var(--mist)' }}>chose {fmt(r.payment_method_at)}</div></td>
-                <td>{r.customer_name || '—'}</td>
-                <td>{methodLabel(r.payment_method)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{money(r.balance ?? r.amount_due)}</td>
-                <td>{stateBadge(r)}</td>
-                <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {r.payment_method === 'financing' && (r.financing_status || 'applied') === 'applied' && (
-                    <>
-                      <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '5px 12px' }} onClick={() => approve(r)}>Approve financing</button>
-                      <button className="logout-button" onClick={() => deny(r)}>Deny</button>
-                    </>
-                  )}
-                  {r.payment_method !== 'financing' && !r.payment_confirmed_at && (
-                    <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '5px 12px' }} onClick={() => confirm(r)}>Confirm method</button>
-                  )}
-                  <button className="logout-button" disabled={busy === r.id} onClick={() => paid(r)}>{busy === r.id ? 'Saving…' : 'Mark PAID'}</button>
-                </td>
-              </tr>
-            ))}
+            {rows.map((r) => {
+              const isEst = r.kind === 'estimate'
+              return (
+                <tr key={r.id}>
+                  <td>
+                    {isEst
+                      ? <Link to={`/system-estimate-p/${r.id}`}>{r.invoice_number || '(estimate)'}</Link>
+                      : (r.job_id ? <Link to={`/invoice/${r.job_id}`}>{r.invoice_number || '(no #)'}</Link> : (r.invoice_number || '(no #)'))}
+                    <div style={{ fontSize: 11, color: 'var(--mist)' }}>{isEst ? 'System estimate' : 'Invoice'} · chose {fmt(r.payment_method_at)}</div>
+                  </td>
+                  <td>{r.customer_name || '—'}</td>
+                  <td>
+                    {isEst && !r.payment_method ? (
+                      <select defaultValue="" onChange={(e) => { if (e.target.value) act(() => setPaymentMethodOffice(selectedOrg, r.id, e.target.value), 'Payment method set.') }} style={{ fontSize: 13 }}>
+                        <option value="">Set method…</option>
+                        <option value="cash">Cash</option>
+                        <option value="check">Check</option>
+                        <option value="card">Card</option>
+                        <option value="financing">Financing</option>
+                      </select>
+                    ) : methodLabel(r.payment_method)}
+                  </td>
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{money(r.balance ?? r.amount_due)}</td>
+                  <td>{stateBadge(r)}</td>
+                  <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {r.payment_method === 'financing' && (r.financing_status || 'applied') === 'applied' && (
+                      <>
+                        <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '5px 12px' }} onClick={() => approve(r)}>Approve financing</button>
+                        <button className="logout-button" onClick={() => deny(r)}>Deny</button>
+                      </>
+                    )}
+                    {r.payment_method && r.payment_method !== 'financing' && !r.payment_confirmed_at && (
+                      <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '5px 12px' }} onClick={() => confirm(r)}>Confirm method</button>
+                    )}
+                    {!isEst && <button className="logout-button" disabled={busy === r.id} onClick={() => paid(r)}>{busy === r.id ? 'Saving…' : 'Mark PAID'}</button>}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       )}

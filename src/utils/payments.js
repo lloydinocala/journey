@@ -13,12 +13,20 @@ export const methodLabel = (m) => METHOD_LABEL[m] || (m ? m[0].toUpperCase() + m
 // work queue: confirm the method (unlocks scheduling), approve financing, mark paid.
 export async function listPaymentsToConfirm(orgId) {
   const { data } = await supabase.from('invoices')
-    .select('id, invoice_number, kind, amount_due, balance, total_paid, paid_at, payment_method, payment_method_at, financing_status, payment_confirmed_at, bills_to_customer_id, job_id')
-    .eq('org_id', orgId).eq('kind', 'invoice')
+    .select('id, invoice_number, kind, estimate_type, approval_status, amount_due, balance, total_paid, paid_at, payment_method, payment_method_at, financing_status, payment_confirmed_at, bills_to_customer_id, job_id, spawned_job_id, converted_to_job_id')
+    .eq('org_id', orgId)
     .is('paid_at', null).is('deleted_at', null)
-    .not('payment_method', 'is', null)
+    .or('kind.eq.invoice,and(kind.eq.estimate,estimate_type.eq.system)')
     .order('payment_method_at', { ascending: true })
-  const rows = data || []
+  // Invoices appear once a method is chosen and stay until paid. System estimates
+  // appear once approved into an install and stay until payment is confirmed — even
+  // with no method yet, so the office can set it and confirm here (which is what
+  // releases the install scheduling gate for an office-driven sale).
+  const rows = (data || []).filter((r) => {
+    if (r.kind === 'invoice') return !!r.payment_method
+    const approved = (r.approval_status || '').toLowerCase() === 'approved' || r.spawned_job_id || r.converted_to_job_id
+    return approved && !r.payment_confirmed_at
+  })
   // Resolve customer display names without relying on an embed FK name.
   const ids = [...new Set(rows.map((r) => r.bills_to_customer_id).filter(Boolean))]
   let names = {}
@@ -35,6 +43,13 @@ export async function confirmPaymentMethod(orgId, invoiceId) {
   return supabase.from('invoices')
     .update({ payment_confirmed_at: new Date().toISOString() })
     .eq('org_id', orgId).eq('id', invoiceId)
+}
+
+// Office sets the payment method on an estimate/invoice (in-person sale where the
+// customer didn't pick online).
+export async function setPaymentMethodOffice(orgId, invoiceId, method) {
+  const patch = { payment_method: method, payment_method_at: new Date().toISOString(), financing_status: method === 'financing' ? 'applied' : null }
+  return supabase.from('invoices').update(patch).eq('org_id', orgId).eq('id', invoiceId)
 }
 
 export async function setFinancingStatus(orgId, invoiceId, status) {

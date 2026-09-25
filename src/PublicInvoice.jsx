@@ -100,10 +100,36 @@ export default function PublicInvoice() {
   const isEstimate = data.invoice.kind === 'estimate'
 
   const estStatus = decidedStatus || data.invoice.approval_status
+  const eBrand = data.org?.brand_primary_color || '#2F5DE3'
+  const eLane = { width: '100%', maxWidth: 340, minHeight: 48, borderRadius: 10, fontSize: 15.5, fontWeight: 700, cursor: 'pointer', margin: '0 auto', display: 'block' }
+  const estDoneMsg = {
+    card: 'Great — we’ll take your card for the deposit when we confirm your install date.',
+    financing: 'Great — we’ll send you financing options to apply. We’ll schedule your install once financing is approved.',
+    cash: 'Great — we’ll arrange your cash deposit when we confirm your install date.',
+    check: 'Great — we’ll confirm the deposit amount and your install date shortly.',
+  }
   const estimateFooter = (
     <div style={{ textAlign: 'center', marginTop: 28 }}>
       {estStatus === 'Approved' ? (
-        <div style={{ color: '#1F7A43', fontWeight: 700, fontSize: 16 }}>✓ Approved — thank you! We&rsquo;ll be in touch to schedule the work.</div>
+        <div>
+          <div style={{ color: '#1F7A43', fontWeight: 700, fontSize: 16, marginBottom: 16 }}>✓ Approved — thank you! Now, how would you like to handle payment?</div>
+          {methodDone ? (
+            <div style={{ maxWidth: 440, margin: '0 auto', color: '#1F7A43', fontWeight: 600, fontSize: 15, lineHeight: 1.45 }}>
+              {estDoneMsg[methodDone]}
+              <button onClick={() => { setMethodDone(''); setMethodError('') }} style={{ display: 'block', margin: '12px auto 0', background: 'none', border: 'none', color: '#64748B', fontSize: 13, textDecoration: 'underline', cursor: 'pointer' }}>Choose a different way</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+              <button onClick={() => recordMethod('card')} disabled={!!methodBusy} style={{ ...eLane, background: eBrand, color: 'white', border: 'none' }}>{methodBusy === 'card' ? 'Saving…' : 'Pay by card'}</button>
+              <button onClick={() => recordMethod('financing')} disabled={!!methodBusy} style={{ ...eLane, background: '#fff', color: eBrand, border: `1px solid ${eBrand}` }}>{methodBusy === 'financing' ? 'Saving…' : 'Apply for financing'}</button>
+              <div style={{ display: 'flex', gap: 10, width: '100%', maxWidth: 340, margin: '0 auto' }}>
+                <button onClick={() => recordMethod('cash')} disabled={!!methodBusy} style={{ ...eLane, flex: 1, maxWidth: 'none', background: '#fff', color: '#334155', border: '1px solid #CBD5E1' }}>{methodBusy === 'cash' ? '…' : 'Cash'}</button>
+                <button onClick={() => recordMethod('check')} disabled={!!methodBusy} style={{ ...eLane, flex: 1, maxWidth: 'none', background: '#fff', color: '#334155', border: '1px solid #CBD5E1' }}>{methodBusy === 'check' ? '…' : 'Check'}</button>
+              </div>
+            </div>
+          )}
+          {methodError && <p style={{ color: '#C0392B', fontSize: 13, marginTop: 10 }}>{methodError}</p>}
+        </div>
       ) : estStatus === 'Declined' ? (
         <div style={{ color: '#64748B', fontWeight: 600, fontSize: 15 }}>You declined this estimate. Contact us any time if you&rsquo;d like to revisit it.</div>
       ) : (
