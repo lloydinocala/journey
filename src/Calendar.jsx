@@ -42,10 +42,10 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile }) {
   const card = (job) => (
     <div
       key={job.id}
-      draggable="true"
-      onDragStart={(e) => e.dataTransfer.setData('text/plain', job.id)}
+      draggable={!job.payment_gated}
+      onDragStart={(e) => { if (job.payment_gated) { e.preventDefault(); return } e.dataTransfer.setData('text/plain', job.id) }}
       onClick={() => onJobClick(job)}
-      style={{ background: '#fff', borderLeft: '4px solid #DC2626', borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'grab', boxShadow: '0 1px 3px rgba(16,42,67,.12)' }}
+      style={{ background: '#fff', borderLeft: `4px solid ${job.payment_gated ? '#9CA3AF' : '#DC2626'}`, borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: job.payment_gated ? 'not-allowed' : 'grab', boxShadow: '0 1px 3px rgba(16,42,67,.12)', opacity: job.payment_gated ? 0.9 : 1 }}
     >
       <div style={{ fontSize: 11, fontWeight: 800, color: '#DC2626', textTransform: 'uppercase', letterSpacing: '.03em' }}>
         {job.requested_window === 'asap' ? '\u26A1 ASAP' : trayWindowLabel(job)}
@@ -55,6 +55,9 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile }) {
       {job.address && <div style={{ fontSize: 12, color: 'var(--mist)' }}>{job.address}</div>}
       {job.parts_ready && (
         <div style={{ marginTop: 4, display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#0B7A3B', background: '#E7F6EC', borderRadius: 6, padding: '1px 7px' }}>✓ Parts in — ready to schedule</div>
+      )}
+      {job.payment_gated && (
+        <div style={{ marginTop: 4, display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#B00020', background: '#FBE7E7', borderRadius: 6, padding: '1px 7px' }}>🔒 Payment not confirmed</div>
       )}
     </div>
   )
@@ -104,6 +107,7 @@ export default function Calendar({ profile }) {
   const [businessEnd, setBusinessEnd] = useState('19:00')
   const [jobs, setJobs] = useState([])
   const [trayJobs, setTrayJobs] = useState([])
+  const [blockMsg, setBlockMsg] = useState('')
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState(null)
   const [trayCollapsed, setTrayCollapsed] = useState(false)
@@ -217,10 +221,28 @@ export default function Calendar({ profile }) {
       .eq('date_pending', true)
       .neq('status', 'cancelled')
       .order('job_date', { ascending: true })
-    setTrayJobs((data || []).map((j) => {
+    const rows = data || []
+    // Installs whose source System Estimate isn't payment-confirmed can't be scheduled yet.
+    const gated = new Set()
+    const trayIds = rows.map((j) => j.id)
+    if (trayIds.length) {
+      const { data: ests } = await supabase
+        .from('invoices')
+        .select('spawned_job_id, converted_to_job_id, payment_confirmed_at, paid_at')
+        .eq('org_id', selectedOrg).eq('estimate_type', 'system')
+        .or(`spawned_job_id.in.(${trayIds.join(',')}),converted_to_job_id.in.(${trayIds.join(',')})`)
+      ;(ests || []).forEach((e) => {
+        if (!e.payment_confirmed_at && !e.paid_at) {
+          if (e.spawned_job_id) gated.add(e.spawned_job_id)
+          if (e.converted_to_job_id) gated.add(e.converted_to_job_id)
+        }
+      })
+    }
+    setTrayJobs(rows.map((j) => {
       const techs = (j.job_technicians || []).slice().sort((a, b) => a.sort_order - b.sort_order)
       return {
         ...j,
+        payment_gated: gated.has(j.id),
         customer_name: j.properties?.customers?.display_name || 'Unknown',
         customer_id: j.properties?.customers?.id || null,
         address: j.properties?.street_address || '',
@@ -255,7 +277,25 @@ export default function Calendar({ profile }) {
     else setCurrentDate((d) => addDays(d, 1))
   }
 
+  // An install spawned from a System Estimate can't be scheduled until its payment
+  // is confirmed (card paid / cash-check confirmed / financing approved) — checked
+  // authoritatively here at drop time, not just visually in the tray.
+  async function installPaymentBlocked(jobId) {
+    const { data } = await supabase
+      .from('invoices')
+      .select('payment_confirmed_at, paid_at')
+      .eq('org_id', selectedOrg).eq('estimate_type', 'system')
+      .or(`spawned_job_id.eq.${jobId},converted_to_job_id.eq.${jobId}`)
+      .limit(1)
+    const src = data && data[0]
+    return !!(src && !src.payment_confirmed_at && !src.paid_at)
+  }
+
   async function handleGridDrop(jobId, newDateStr, newTimeStr) {
+    if (await installPaymentBlocked(jobId)) {
+      setBlockMsg("This install can't be scheduled yet — its payment isn't confirmed. Confirm the method (Cash / Check / Card / approved financing) in Payments to Confirm first.")
+      loadTray(); return
+    }
     // newTimeStr is where on the grid the job was dropped — a local wall-clock
     // time. Building it into a real Date and using toISOString() (rather than
     // sending the bare "YYYY-MM-DDTHH:MM:00" string straight to Supabase) makes
@@ -274,6 +314,10 @@ export default function Calendar({ profile }) {
   }
 
   async function handleMonthDrop(jobId, newDateStr) {
+    if (await installPaymentBlocked(jobId)) {
+      setBlockMsg("This install can't be scheduled yet — its payment isn't confirmed. Confirm the method (Cash / Check / Card / approved financing) in Payments to Confirm first.")
+      loadTray(); return
+    }
     await supabase.from('jobs').update({ job_date: newDateStr, date_pending: false }).eq('id', jobId)
     loadJobs(); loadTray()
   }
@@ -287,6 +331,12 @@ export default function Calendar({ profile }) {
 
   return (
 <div style={{ background: '#CDD9E5', margin: '-32px', padding: '32px' }}>
+      {blockMsg && (
+        <div style={{ background: '#FBE7E7', border: '1px solid #E3B0B0', color: '#B00020', padding: '10px 14px', borderRadius: 8, marginBottom: 12, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+          <span style={{ fontWeight: 600, fontSize: 13 }}>{blockMsg}</span>
+          <button onClick={() => setBlockMsg('')} style={{ background: 'none', border: 'none', color: '#B00020', cursor: 'pointer', fontWeight: 700, fontSize: 16 }}>✕</button>
+        </div>
+      )}
       <div className="page-header-bar">
         <h2>Calendar</h2>
         <NewItemDropdown onSelect={setNewItemMode} />
