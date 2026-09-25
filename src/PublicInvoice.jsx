@@ -17,6 +17,9 @@ export default function PublicInvoice() {
   const [methodBusy, setMethodBusy] = useState('')     // which method button is saving
   const [methodDone, setMethodDone] = useState('')     // recorded non-card choice
   const [methodError, setMethodError] = useState('')
+  const [finOpen, setFinOpen] = useState(false)        // financing menu shown
+  const [finOpts, setFinOpts] = useState([])           // applicable financing options
+  const [finLoading, setFinLoading] = useState(false)
 
   async function handleDecision(d) {
     setDeciding(true); setDecideError('')
@@ -50,10 +53,10 @@ export default function PublicInvoice() {
 
   // Cash / Check / Financing: record the customer's choice (server-side, since this
   // page is unauthenticated). Never marks the invoice paid — the office confirms.
-  async function recordMethod(method) {
-    setMethodBusy(method); setMethodError('')
+  async function recordMethod(method, lender) {
+    setMethodBusy(lender || method); setMethodError('')
     try {
-      const { data: result, error } = await supabase.functions.invoke('set-invoice-payment-method', { body: { invoiceId, method } })
+      const { data: result, error } = await supabase.functions.invoke('set-invoice-payment-method', { body: { invoiceId, method, lender } })
       if (error || result?.error) {
         let msg = result?.error || ''
         if (!msg && error?.context && typeof error.context.json === 'function') { try { const b = await error.context.json(); msg = b?.error || '' } catch (_) { /* ignore */ } }
@@ -64,6 +67,20 @@ export default function PublicInvoice() {
     } catch (e) {
       setMethodError('We couldn’t save that just now. Please try again, or call us and we’ll take care of it.')
     } finally { setMethodBusy('') }
+  }
+
+  // Financing lane: pull the curated options for this doc, then let the customer
+  // pick a lender (which records the choice and opens that lender's application).
+  async function openFinancing() {
+    setMethodError(''); setFinOpen(true); setFinLoading(true)
+    try {
+      const { data: result } = await supabase.functions.invoke('list-financing-options', { body: { invoiceId } })
+      setFinOpts(result?.options || [])
+    } catch (_) { setFinOpts([]) } finally { setFinLoading(false) }
+  }
+  async function chooseLender(opt) {
+    await recordMethod('financing', opt.name)
+    if (opt.apply_url) { try { window.open(opt.apply_url, '_blank', 'noopener') } catch (_) { /* ignore */ } }
   }
 
   useEffect(() => {
@@ -108,6 +125,31 @@ export default function PublicInvoice() {
     cash: 'Great — we’ll arrange your cash deposit when we confirm your install date.',
     check: 'Great — we’ll confirm the deposit amount and your install date shortly.',
   }
+  const finCardBtn = { display: 'block', width: '100%', textAlign: 'left', background: '#fff', border: '1px solid #CBD5E1', borderRadius: 10, padding: '12px 14px', marginBottom: 10, cursor: 'pointer' }
+  const financingMenu = (
+    <div style={{ maxWidth: 380, margin: '0 auto', textAlign: 'left' }}>
+      <p style={{ color: '#152238', fontSize: 15, fontWeight: 600, marginBottom: 12, textAlign: 'center' }}>Choose a financing option</p>
+      {finLoading ? (
+        <p style={{ color: '#8A93A6', textAlign: 'center' }}>Loading…</p>
+      ) : finOpts.length === 0 ? (
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ color: '#152238', fontSize: 14 }}>We’ll set you up with financing options.</p>
+          <button onClick={() => recordMethod('financing')} disabled={!!methodBusy} style={{ ...eLane, background: eBrand, color: '#fff', border: 'none' }}>{methodBusy ? 'Saving…' : 'Continue with financing'}</button>
+        </div>
+      ) : finOpts.map((o) => (
+        <button key={o.id} onClick={() => chooseLender(o)} disabled={!!methodBusy} style={finCardBtn}>
+          <div style={{ fontWeight: 700, color: '#132A4C' }}>{o.name}</div>
+          {o.best_for && <div style={{ fontSize: 13, color: '#475569', marginTop: 2 }}>{o.best_for}</div>}
+          {o.terms_note && <div style={{ fontSize: 12, color: '#8A93A6', marginTop: 2 }}>{o.terms_note}</div>}
+          <div style={{ fontSize: 13, fontWeight: 700, color: eBrand, marginTop: 6 }}>{methodBusy === o.name ? 'Saving…' : (o.apply_url ? `Apply with ${o.name} →` : `Choose ${o.name}`)}</div>
+        </button>
+      ))}
+      <div style={{ textAlign: 'center', marginTop: 6 }}>
+        <button onClick={() => setFinOpen(false)} style={{ background: 'none', border: 'none', color: '#64748B', fontSize: 13, textDecoration: 'underline', cursor: 'pointer' }}>← Back to payment options</button>
+      </div>
+      <p style={{ fontSize: 11, color: '#8A93A6', textAlign: 'center', marginTop: 8 }}>Estimated terms are illustrative — your exact rate and terms are set by the lender.</p>
+    </div>
+  )
   const estimateFooter = (
     <div style={{ textAlign: 'center', marginTop: 28 }}>
       {estStatus === 'Approved' ? (
@@ -118,10 +160,10 @@ export default function PublicInvoice() {
               {estDoneMsg[methodDone]}
               <button onClick={() => { setMethodDone(''); setMethodError('') }} style={{ display: 'block', margin: '12px auto 0', background: 'none', border: 'none', color: '#64748B', fontSize: 13, textDecoration: 'underline', cursor: 'pointer' }}>Choose a different way</button>
             </div>
-          ) : (
+          ) : finOpen ? financingMenu : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
               <button onClick={() => recordMethod('card')} disabled={!!methodBusy} style={{ ...eLane, background: eBrand, color: 'white', border: 'none' }}>{methodBusy === 'card' ? 'Saving…' : 'Pay by card'}</button>
-              <button onClick={() => recordMethod('financing')} disabled={!!methodBusy} style={{ ...eLane, background: '#fff', color: eBrand, border: `1px solid ${eBrand}` }}>{methodBusy === 'financing' ? 'Saving…' : 'Apply for financing'}</button>
+              <button onClick={openFinancing} disabled={!!methodBusy} style={{ ...eLane, background: '#fff', color: eBrand, border: `1px solid ${eBrand}` }}>Apply for financing</button>
               <div style={{ display: 'flex', gap: 10, width: '100%', maxWidth: 340, margin: '0 auto' }}>
                 <button onClick={() => recordMethod('cash')} disabled={!!methodBusy} style={{ ...eLane, flex: 1, maxWidth: 'none', background: '#fff', color: '#334155', border: '1px solid #CBD5E1' }}>{methodBusy === 'cash' ? '…' : 'Cash'}</button>
                 <button onClick={() => recordMethod('check')} disabled={!!methodBusy} style={{ ...eLane, flex: 1, maxWidth: 'none', background: '#fff', color: '#334155', border: '1px solid #CBD5E1' }}>{methodBusy === 'check' ? '…' : 'Check'}</button>
@@ -169,19 +211,21 @@ export default function PublicInvoice() {
   const chooserFooter = (
     <div style={{ textAlign: 'center', marginTop: 28 }}>
       <p style={{ color: '#152238', fontSize: 15, fontWeight: 600, marginBottom: 14 }}>How would you like to pay?</p>
+      {finOpen ? financingMenu : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
         <button onClick={handlePayNow} disabled={payingNow || !!methodBusy} style={{ ...lane, background: brand, color: 'white', border: 'none', opacity: payingNow ? 0.7 : 1 }}>
           {payingNow ? 'Loading…' : `Pay by card — $${amt}`}
         </button>
-        <button onClick={() => recordMethod('financing')} disabled={!!methodBusy || payingNow} style={{ ...lane, background: '#fff', color: brand, border: `1px solid ${brand}` }}>
-          {methodBusy === 'financing' ? 'Saving…' : 'Apply for financing'}
+        <button onClick={openFinancing} disabled={!!methodBusy || payingNow} style={{ ...lane, background: '#fff', color: brand, border: `1px solid ${brand}` }}>
+          Apply for financing
         </button>
         <div style={{ display: 'flex', gap: 10, width: '100%', maxWidth: 360, margin: '0 auto' }}>
           <button onClick={() => recordMethod('cash')} disabled={!!methodBusy || payingNow} style={{ ...lane, flex: 1, maxWidth: 'none', background: '#fff', color: '#334155', border: '1px solid #CBD5E1' }}>{methodBusy === 'cash' ? '…' : 'Cash'}</button>
           <button onClick={() => recordMethod('check')} disabled={!!methodBusy || payingNow} style={{ ...lane, flex: 1, maxWidth: 'none', background: '#fff', color: '#334155', border: '1px solid #CBD5E1' }}>{methodBusy === 'check' ? '…' : 'Check'}</button>
         </div>
       </div>
-      {(payError || methodError) && <p style={{ color: '#C0392B', fontSize: 14, marginTop: 12, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.4 }}>{payError || methodError}</p>}
+      )}
+      {(payError || methodError) &&<p style={{ color: '#C0392B', fontSize: 14, marginTop: 12, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.4 }}>{payError || methodError}</p>}
     </div>
   )
 

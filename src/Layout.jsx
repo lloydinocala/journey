@@ -122,6 +122,7 @@ const CATEGORIES = [
   { key: 'financials', label: 'Financials', items: [] },
   { key: 'admin', label: 'Admin', items: [
     { label: 'Settings', path: '/settings' },
+    { label: 'Financing Options', path: '/financing-options' },
   ]},
   { key: 'permitting', label: 'Permitting', items: [
     { label: 'Permits', path: '/permits' },
