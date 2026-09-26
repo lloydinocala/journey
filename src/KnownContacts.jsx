@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { Link } from 'react-router-dom'
 
 // "Known Others" — everyone who isn't a Customer, Vendor, or Employee:
 // salesmen, friends & family, and any other named contact we want on file.
@@ -29,6 +30,8 @@ export default function KnownContacts({ profile }) {
   const [form, setForm] = useState(null)      // null = closed; object = add/edit
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+  const [matching, setMatching] = useState(false)
+  const [matches, setMatches] = useState(null) // null = not run; [] = ran, none
 
   useEffect(() => { if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || [])) }, [isSuper])
   useEffect(() => {
@@ -76,6 +79,32 @@ export default function KnownContacts({ profile }) {
     if (!showInactive && !active) setRows((rs) => rs.filter((x) => x.id !== r.id))
   }
 
+  // Deterministic "is this Known Other actually a customer?" check — matches on
+  // shared phone (last 10 digits) or email. Honest: it only flags real overlaps
+  // and shows why; nothing is merged automatically.
+  const digits10 = (s) => (s || '').replace(/\D/g, '').slice(-10)
+  async function findMatches() {
+    if (!selectedOrg) return
+    setMatching(true); setMatches(null)
+    const { data: custs } = await supabase.from('customers')
+      .select('id, display_name, primary_phone, secondary_phone, email_1, email_2')
+      .eq('org_id', selectedOrg)
+    const phoneIdx = new Map(); const emailIdx = new Map()
+    ;(custs || []).forEach((c) => {
+      [c.primary_phone, c.secondary_phone].forEach((p) => { const d = digits10(p); if (d.length === 10) (phoneIdx.get(d) || phoneIdx.set(d, []).get(d)).push(c) })
+      ;[c.email_1, c.email_2].forEach((e) => { const k = (e || '').trim().toLowerCase(); if (k) (emailIdx.get(k) || emailIdx.set(k, []).get(k)).push(c) })
+    })
+    const found = []
+    rows.forEach((r) => {
+      const hits = new Map(); const reasons = new Map()
+      ;[r.phone, r.phone_alt].forEach((p) => { const d = digits10(p); if (d.length === 10) (phoneIdx.get(d) || []).forEach((c) => { hits.set(c.id, c); reasons.set(c.id, `shared phone ${p}`) }) })
+      const ek = (r.email || '').trim().toLowerCase()
+      if (ek) (emailIdx.get(ek) || []).forEach((c) => { hits.set(c.id, c); reasons.set(c.id, (reasons.get(c.id) ? reasons.get(c.id) + ', ' : '') + `shared email ${r.email}`) })
+      if (hits.size) found.push({ contact: r, customers: [...hits.values()].map((c) => ({ ...c, why: reasons.get(c.id) })) })
+    })
+    setMatches(found); setMatching(false)
+  }
+
   const term = search.trim().toLowerCase()
   const termDigits = term.replace(/\D/g, '')
   const shown = rows.filter((r) => (filter === 'all' || r.category === filter) && (!term
@@ -96,7 +125,10 @@ export default function KnownContacts({ profile }) {
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '20px 24px' }}>
       <div className="page-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <h2 style={{ margin: 0 }}>Known Others</h2>
-        <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '9px 16px' }} onClick={openAdd} disabled={!selectedOrg}>+ Add contact</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="logout-button" style={{ padding: '9px 14px' }} onClick={findMatches} disabled={!selectedOrg || matching || loading}>{matching ? 'Checking…' : 'Check for customer matches'}</button>
+          <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '9px 16px' }} onClick={openAdd} disabled={!selectedOrg}>+ Add contact</button>
+        </div>
       </div>
       {isSuper && (
         <div style={{ marginBottom: 12, maxWidth: 340 }}>
@@ -105,6 +137,25 @@ export default function KnownContacts({ profile }) {
         </div>
       )}
       <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--mist)' }}>Everyone who isn't a customer, vendor, or employee — salesmen, friends &amp; family, and any other contact worth keeping. These are the people the Call Console can recognize by phone number.</p>
+
+      {matches != null && (
+        <div className="section-card" style={{ padding: 16, marginBottom: 16, border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: matches.length ? 10 : 0 }}>
+            <strong style={{ fontSize: 14 }}>Possible customer matches</strong>
+            <span style={{ fontSize: 12, color: 'var(--mist)' }}>{matches.length ? 'these Known Others share a phone or email with a customer' : 'none found — no Known Other shares a phone or email with a customer'}</span>
+            <button onClick={() => setMatches(null)} style={{ marginLeft: 'auto', border: 'none', background: 'none', color: 'var(--mist)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }} aria-label="Dismiss">×</button>
+          </div>
+          {matches.map(({ contact, customers }) => (
+            <div key={contact.id} style={{ fontSize: 13, padding: '6px 0', borderTop: '1px solid var(--border)' }}>
+              <strong>{contact.name}</strong>
+              <span style={{ color: 'var(--mist)' }}> may be: </span>
+              {customers.map((c, i) => (
+                <span key={c.id}>{i ? ', ' : ''}<Link to={`/customers/${c.id}`}>{c.display_name}</Link> <span style={{ color: 'var(--mist)' }}>({c.why})</span></span>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
 
       {form && (
         <div className="section-card" style={{ padding: 18, marginBottom: 16, border: '1px solid var(--border)' }}>

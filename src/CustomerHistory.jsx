@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import AiAssist from './AiAssist'
+import CustomerInsights from './CustomerInsights'
 import { useParams, Link } from 'react-router-dom'
 import ReceivePayment from './ReceivePayment'
 import { supabase } from './utils/supabase'
@@ -431,19 +432,15 @@ export default function CustomerHistory({ profile }) {
           <p style={{ color: '#a33', marginTop: -8 }}>Reason: {customer.banned_reason}</p>
         )}
 
-        <div style={{ margin: '10px 0 18px' }}>
-          <AiAssist inline title="AI account summary" label="✨ AI: summarize this customer"
-            system={CUST_SUMMARY_SYS}
-            prompt="Give a quick account summary and flag any opportunities or risks for this customer, using the facts provided."
-            context={{
-              customer: { name: customer.display_name, company: customer.company, customer_since: customer.acquire_date, notes: customer.notes },
-              properties: properties.length,
-              jobs: jobs.slice(0, 25).map((j) => ({ number: j.job_number, status: j.status, date: j.job_date })),
-              invoices: invoices.slice(0, 25).map((i) => ({ number: i.invoice_number, total: i.job_total, balance: i.balance, paid: !!i.paid_at, sent: i.sent_at })),
-              maintenance_agreements: agreements.map((a) => ({ status: a.status, next_visit_due: a.next_visit_due_date })),
-              warranties: warranties.length,
-            }} />
-        </div>
+        <CustomerInsights
+          customer={customer}
+          properties={properties}
+          jobs={jobs}
+          invoices={invoices}
+          agreements={agreements}
+          equipment={equipment}
+          warranties={warranties}
+        />
 
         <div style={{ display: 'flex', gap: 40, flexWrap: 'wrap', margin: '16px 0 28px' }}>
           <div>

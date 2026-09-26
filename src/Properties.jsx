@@ -8,6 +8,7 @@ import { fetchAllRows } from './utils/csvImport'
 import { Link } from 'react-router-dom'
 import CustomerSearchSelect from './CustomerSearchSelect'
 import { warrantyFor, decodeSerial } from './Warranty'
+import EquipmentInference from './EquipmentInference'
 
 function formatPhone(raw) {
   if (!raw) return raw
@@ -782,6 +783,7 @@ export default function Properties({ profile }) {
                     <p style={{ color: 'var(--mist)' }}>Loading equipment…</p>
                   ) : (
                     <>
+                      <EquipmentInference propertyId={p.id} orgId={selectedOrg} />
                       {equipmentList.filter((eq) => eq.status !== 'retired').length === 0 ? (
                         <p style={{ color: 'var(--mist)', marginTop: 0 }}>No active equipment on file for this property yet.</p>
                       ) : (
