@@ -5,6 +5,10 @@ import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
 import FilterOrderModal from './FilterOrderModal'
 import QuickAddModal from './QuickAddModal'
+import AiAssist from './AiAssist'
+
+const CALL_DRAFT_SYS = `You turn a phone call into a clear service request for HVAC office staff to schedule.
+From the caller and the purpose given, write: (1) a one-line complaint in plain terms; (2) suggested urgency (Emergency / Soon / Flexible) with a short reason; (3) what to schedule (visit type). Keep it short and factual. Use ONLY the facts given — if the purpose is vague, say what to confirm with the caller rather than inventing details.`
 
 const money = (v) => '$' + (Number(v) || 0).toFixed(2)
 const fmtDate = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
@@ -341,10 +345,15 @@ export default function CallConsole({ profile }) {
           )}
           {!selected && !vendorMatch && employeeMatch && (
             <div className="section-card" style={{ padding: 20, borderLeft: '4px solid #2E7D32' }}>
-              <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: '#2E7D32' }}>Employee</div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{employeeMatch.full_name}</div>
-              {employeeMatch.role && <div style={{ color: 'var(--mist)', fontSize: 13, textTransform: 'capitalize' }}>{String(employeeMatch.role).replace(/_/g, ' ')}</div>}
-              {employeeMatch.phone && <div style={{ marginTop: 4, fontSize: 14.5 }}>📞 {employeeMatch.phone}</div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: '#2E7D32' }}>Employee</div>
+                  <div style={{ fontSize: 22, fontWeight: 800 }}>{employeeMatch.full_name}</div>
+                  {employeeMatch.role && <div style={{ color: 'var(--mist)', fontSize: 13, textTransform: 'capitalize' }}>{String(employeeMatch.role).replace(/_/g, ' ')}</div>}
+                  {employeeMatch.phone && <div style={{ marginTop: 4, fontSize: 14.5 }}>📞 {employeeMatch.phone}</div>}
+                </div>
+                <Link className="auth-button" style={{ width: 'auto', textDecoration: 'none', padding: '10px 20px', flex: 'none' }} to="/team">Open in Team →</Link>
+              </div>
             </div>
           )}
           {!selected && !vendorMatch && !employeeMatch && knownMatch && (
@@ -380,6 +389,11 @@ export default function CallConsole({ profile }) {
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--mist)', cursor: 'pointer', whiteSpace: 'nowrap' }}><input type="checkbox" checked={needsCb} onChange={(e) => setNeedsCb(e.target.checked)} /> Needs call back</label>
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--mist)', cursor: 'pointer', whiteSpace: 'nowrap' }}><input type="checkbox" checked={followUp} onChange={(e) => setFollowUp(e.target.checked)} /> Follow-up</label>
                 <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '8px 18px' }} disabled={logging || !purpose.trim()} onClick={logCall}>{logging ? 'Logging…' : 'Log call'}</button>
+                <AiAssist compact title="Draft service request" label="✨ AI: draft request"
+                  system={CALL_DRAFT_SYS}
+                  prompt="Draft a clear service request from this call for the office to schedule, using only the facts given."
+                  context={{ caller: matchedCaller?.name || callerName || null, account: selected?.display_name || null, purpose: purpose || null, phone }}
+                  onInsert={(t) => { setNoteBody(t); setNoteOpen(true) }} insertLabel="Use as note" />
                 {loggedMsg && <span style={{ fontSize: 12.5, color: '#1a7f37', fontWeight: 700 }}>{loggedMsg}</span>}
               </div>
               {callHistory.length > 0 && (

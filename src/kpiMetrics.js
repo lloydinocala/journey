@@ -56,6 +56,12 @@ export const METRIC_GROUPS = [
   { group: 'People', metrics: [
     { key: 'team_active', label: 'Active Team Members', format: 'number' },
   ] },
+  { group: 'Service Requests (QR)', metrics: [
+    { key: 'sr_received_ytd', label: 'Service Requests Y-T-D', format: 'number' },
+    { key: 'sr_converted_ytd', label: 'Requests → Jobs Y-T-D', format: 'number' },
+    { key: 'sr_conversion_pct', label: 'Request Conversion Rate', format: 'percent' },
+    { key: 'sr_received_month', label: 'Service Requests This Month', format: 'number' },
+  ] },
 ]
 
 export const METRICS = METRIC_GROUPS.flatMap((g) => g.metrics)
@@ -78,13 +84,14 @@ export async function computeMetrics(org) {
   const smlyToDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate(), 23, 59, 59)
   const d30 = new Date(now.getTime() - 30 * 86400000)
 
-  const [invRes, payRes, jobRes, agrRes, teamRes] = await Promise.all([
+  const [invRes, payRes, jobRes, agrRes, teamRes, srRes] = await Promise.all([
     supabase.from('invoices').select('kind, invoice_date, approved_at, sent_at, paid_at, job_total, amount_due, total_paid, balance, profit, approval_status, is_filter_order, estimate_type, spawned_job_id, converted_to_job_id')
       .eq('org_id', org).is('deleted_at', null).eq('is_archived', false).or(`invoice_date.gte.${lyStart.toISOString()},sent_at.gte.${lyStart.toISOString()},approved_at.gte.${lyStart.toISOString()}`),
     supabase.from('invoice_payments').select('amount, recorded_at').eq('org_id', org).gte('recorded_at', lyStart.toISOString()),
     supabase.from('jobs').select('status, completed_at').eq('org_id', org).is('deleted_at', null).gte('completed_at', lyStart.toISOString()),
     supabase.from('maintenance_agreements').select('price, billing_cycle, status').eq('org_id', org).eq('is_archived', false),
     supabase.from('users').select('*', { count: 'exact', head: true }).eq('org_id', org).or('is_active.is.null,is_active.eq.true').is('deleted_at', null),
+    supabase.from('service_requests').select('status, created_at').eq('org_id', org).gte('created_at', lyStart.toISOString()),
   ])
   const inv = invRes.data || [], pays = payRes.data || [], jobs = jobRes.data || [], agr = agrRes.data || []
   const sale = (i) => Number(i.job_total || i.amount_due || 0)
@@ -149,6 +156,16 @@ export async function computeMetrics(org) {
 
   // People
   out.team_active = teamRes.count || 0
+
+  // Service Requests (QR stickers) — proves the feature drives real jobs.
+  const sr = srRes.data || []
+  const srY = sr.filter((r) => inR(r.created_at, yStart, now))
+  out.sr_received_ytd = srY.length
+  out.sr_converted_ytd = srY.filter((r) => r.status === 'converted').length
+  const srDeclinedY = srY.filter((r) => r.status === 'declined').length
+  const srResolved = out.sr_converted_ytd + srDeclinedY
+  out.sr_conversion_pct = srResolved ? (out.sr_converted_ytd / srResolved) * 100 : 0
+  out.sr_received_month = sr.filter((r) => inR(r.created_at, mStart, now)).length
 
   return out
 }

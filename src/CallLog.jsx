@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import AiAssist from './AiAssist'
+
+const DIGEST_SYS = `You summarize an HVAC office's phone calls for the day. From the call rows given, write a short digest (2-4 lines) of what came in, then list who needs a call-back or follow-up and why. Use ONLY the rows provided — do not invent callers, numbers, or reasons. If nothing needs follow-up, say so.`
 
 // How far back the EARLIER (archive) table reaches. Today always lives in the
 // top table, so these only scope the searchable history below it.
@@ -214,6 +217,14 @@ export default function CallLog({ profile }) {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
             <h3 style={{ margin: 0, fontSize: 16 }}>Today</h3>
             <span style={{ fontSize: 13, color: 'var(--mist)' }}>{todayLabel} · {todayRows.length} call{todayRows.length === 1 ? '' : 's'}</span>
+            {todayRows.length > 0 && (
+              <span style={{ marginLeft: 'auto' }}>
+                <AiAssist compact title="Today's calls — digest & follow-ups"
+                  system={DIGEST_SYS}
+                  prompt="Summarize today's calls and list who needs a call-back or follow-up and why, using only these rows."
+                  context={{ calls: todayRows.map((r) => ({ caller: r.caller_name || 'Unknown', type: typeLabel(r), phone: r.phone, purpose: r.purpose, needs_callback: !!r.needs_callback, follow_up: !!r.follow_up, route_to: r.route_to || null })) }} />
+              </span>
+            )}
           </div>
           {todayRows.length === 0 ? (
             <div className="section-card" style={{ padding: 18, marginBottom: 26 }}><p style={{ margin: 0, color: 'var(--mist)' }}>No calls logged yet today.</p></div>
