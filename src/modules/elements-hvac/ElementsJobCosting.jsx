@@ -5,6 +5,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { jobCosting } from './data'
 import { useOrgSelector, OrgBar } from './shared'
+import AiAssist from '../../AiAssist'
+
+const MARGIN_LEAK_SYS = `You are a job-costing analyst for an HVAC contractor. You are given costed jobs (billed amount and actual material cost, so material % of billed). Find the margin leaks: the jobs where material eats an unusually high share of the bill, and any pattern (a customer, job type, or size that repeatedly runs high). Point to the specific jobs and %s, and suggest what to check (underpricing, waste, wrong part cost, unbilled labor). Note labor isn't in this data. Use ONLY the figures given — do not invent jobs or numbers. A few lines, worst first.`
 
 const money = (n) => (n == null || isNaN(n) ? '—' : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
 const fmtDate = (d) => (d ? new Date(d + 'T12:00:00').toLocaleDateString() : '')
@@ -70,6 +73,19 @@ export default function ElementsJobCosting({ profile }) {
           </div>
         ))}
       </div>
+
+      {rows.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <AiAssist compact label="✦ Find margin leaks" title="Margin-leak finder"
+            system={MARGIN_LEAK_SYS}
+            prompt="Find the margin leaks in these costed jobs and what to check, using only the figures given."
+            context={{
+              totals: { jobs: totals.jobs, billed: Math.round(totals.billed), material: Math.round(totals.material), material_pct_overall: totals.pct == null ? null : Math.round(totals.pct) },
+              worst_jobs: rows.map((r) => ({ invoice: r.invoice_number, customer: r.customer_name, billed: Math.round(Number(r.billed || 0)), material: Math.round(Number(r.material_cost || 0)), material_pct: Number(r.billed) > 0 ? Math.round((Number(r.material_cost || 0) / Number(r.billed)) * 100) : null }))
+                .filter((r) => r.material_pct != null).sort((a, b) => b.material_pct - a.material_pct).slice(0, 25),
+            }} />
+        </div>
+      )}
 
       {loading ? (
         <div style={{ border: '1px dashed #CBD5E1', borderRadius: 12, padding: '40px 24px', textAlign: 'center', color: 'var(--mist)' }}>Loading…</div>

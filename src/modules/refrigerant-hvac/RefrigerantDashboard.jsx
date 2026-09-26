@@ -9,6 +9,9 @@ import { useOrgSelector, OrgBar } from '../elements-hvac/shared'
 import { can } from '../../utils/permissions'
 import StationShell, { StationKpi } from '../../StationShell'
 import QuincyBrief from '../../QuincyBrief'
+import AiAssist from '../../AiAssist'
+
+const EPA_REPORT_SYS = `You draft a plain-language EPA Section 608 refrigerant compliance summary for an HVAC contractor's records. Using ONLY the figures provided, produce a short structured report with these parts: (1) Covered systems over their leak threshold and the required corrective action / 30-day repair window (name each system, its leak rate vs threshold); (2) Refrigerant added vs recovered over the period; (3) Recovered cylinders awaiting reclaim or disposal. Be factual and specific with the numbers. Do not invent systems, dates, or amounts beyond the data. Note the leak rate is a trailing-12-month estimate. This is a draft for the contractor to review, not a filed document.`
 import { useSignals } from '../../signals/useSignals'
 
 const lbs = (n) => (n == null || isNaN(n) ? '—' : `${Number(n).toLocaleString(undefined, { maximumFractionDigits: 1 })} lb`)
@@ -81,6 +84,21 @@ export default function RefrigerantDashboard({ profile }) {
           poundsOnHand: d ? d.onHandLbs : 0,
           recoveredCylindersAwaitingReclaimOrDisposal: d ? d.awaitingReclaimCount : 0,
         }} />
+        {d && (
+          <div style={{ marginTop: 8 }}>
+            <AiAssist compact label="✦ Draft EPA compliance report" title="EPA 608 compliance summary (draft)"
+              system={EPA_REPORT_SYS}
+              prompt="Draft a Section 608 refrigerant compliance summary from these figures, for the contractor to review."
+              context={{
+                systemsTracked: d.systemsTracked,
+                lbsAddedLast90Days: d.added90,
+                lbsRecoveredLast90Days: d.recovered90,
+                coveredSystemsOverLeakThreshold: d.overThresholdCount,
+                overThresholdSystems: d.overThreshold.map((s) => ({ system: s.label, location: s.location, refrigerant: s.type, leakRatePct: s.leakRate, thresholdPct: s.threshold })),
+                recoveredCylindersAwaitingReclaimOrDisposal: d.awaitingReclaimCount,
+              }} />
+          </div>
+        )}
       </div>
 
       <div style={{ margin: '4px 0 22px' }}>

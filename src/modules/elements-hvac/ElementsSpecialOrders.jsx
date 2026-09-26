@@ -8,6 +8,7 @@ import {
   deleteSpecialOrder, searchCustomers, listVendors, listItems, createVendor,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
+import SpecialOrderEta from './SpecialOrderEta'
 
 const money = (n) => (n == null || n === '' || isNaN(n) ? '—' : `$${Number(n).toFixed(2)}`)
 const fmtDate = (d) => (d ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? d + 'T12:00:00' : d).toLocaleDateString() : '')
@@ -160,6 +161,8 @@ export default function ElementsSpecialOrders({ profile }) {
         <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={startNew}>+ New special order</button>
       </div>
       <OrgBar {...org} />
+
+      <SpecialOrderEta orgId={org.selectedOrg} />
 
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0, maxWidth: 780 }}>
         Parts you order for a specific customer or job that you don't keep in stock. Log it here so it never slips through the
