@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../utils/supabase'
+import AiAssist from '../../AiAssist'
 import './marketing.css'
+
+const REVIEW_SENTIMENT_SYS = `You summarize customer-review sentiment for an HVAC contractor. From the review rows given (platform, star rating, date, and any text), describe the overall sentiment, the rating trend over time (improving/declining/steady), and flag any low ratings or themes to act on. Use ONLY the rows provided — do not invent reviews or quotes. Keep it to a few lines.`
 
 const TRIGGER_STEPS = [
   'Job marked complete (Journey)',
@@ -57,7 +60,15 @@ export default function MarketingReviews({ profile }) {
       </div>
 
       <div className="card">
-        <div className="card-head"><h3>Recent review requests</h3></div>
+        <div className="card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h3>Recent review requests</h3>
+          {requests && requests.length > 0 && (
+            <AiAssist compact title="Review sentiment & trend"
+              system={REVIEW_SENTIMENT_SYS}
+              prompt="Summarize the sentiment and rating trend from these review requests, and flag anything to act on. Use only the rows given."
+              context={{ reviews: requests.map((r) => ({ platform: r.platform, rating: r.rating ?? null, date: r.created_at, text: r.review_text || r.comment || r.response || null })) }} />
+          )}
+        </div>
         <div className="card-body">
           {requests === null && <p className="muted">Loading…</p>}
           {requests && requests.length === 0 && (

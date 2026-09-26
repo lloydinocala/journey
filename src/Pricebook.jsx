@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import MarginWatch from './MarginWatch'
 import { fetchAllRows, normalizeForMatch, readFileSmart, normPrice } from './utils/csvImport'
 
 const LOCATIONS = ['Ground Level', 'Attic or Ceiling', 'Roof or Sub-Level']
@@ -589,6 +590,8 @@ async function loadVariants(serviceId) {
           <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
         </div>
       )}
+
+      <MarginWatch orgId={selectedOrg} />
 
       <form className="inline-form" onSubmit={handleAddService} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
         <div className="field">

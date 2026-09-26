@@ -20,6 +20,14 @@ export default function PublicInvoice() {
   const [finOpen, setFinOpen] = useState(false)        // financing menu shown
   const [finOpts, setFinOpts] = useState([])           // applicable financing options
   const [finLoading, setFinLoading] = useState(false)
+  const [explain, setExplain] = useState({ open: false, loading: false, text: '', err: '' })
+
+  async function explainCharges() {
+    setExplain({ open: true, loading: true, text: '', err: '' })
+    const { data: result, error } = await supabase.functions.invoke('explain-invoice', { body: { invoiceId } })
+    if (error || result?.error) { setExplain({ open: true, loading: false, text: '', err: result?.error || error?.message || 'Could not load an explanation right now.' }); return }
+    setExplain({ open: true, loading: false, text: result?.text || '', err: '' })
+  }
 
   async function handleDecision(d) {
     setDeciding(true); setDecideError('')
@@ -241,6 +249,24 @@ export default function PublicInvoice() {
       ) : (
         <div style={{ maxWidth: 800, margin: '0 auto', background: 'white', borderRadius: 12, padding: '24px 28px', textAlign: 'center', color: '#1F7A43', fontWeight: 600, boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}>
           No repairs are recommended at this time — your system is in good working order.
+        </div>
+      )}
+
+      {data.lineItems && data.lineItems.length > 0 && (
+        <div style={{ maxWidth: 800, margin: '12px auto 0' }}>
+          {!explain.open ? (
+            <button onClick={explainCharges}
+              style={{ border: '1px solid #CBD5E1', background: '#fff', color: '#334155', fontWeight: 600, fontSize: 13.5, borderRadius: 10, padding: '10px 16px', cursor: 'pointer', width: '100%' }}>
+              What’s this charge? — explain in plain language
+            </button>
+          ) : (
+            <div style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}>
+              <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 14 }}>About these charges <span style={{ fontWeight: 400, fontSize: 11, color: '#94A3B8' }}>· plain-language summary — ask your contractor for specifics</span></div>
+              {explain.loading ? <div style={{ color: '#64748B', fontSize: 13 }}>Reading your invoice…</div>
+                : explain.err ? <div style={{ color: '#B00020', fontSize: 13 }}>{explain.err}</div>
+                : <div style={{ whiteSpace: 'pre-wrap', fontSize: 13.5, lineHeight: 1.5, color: '#1F2A37' }}>{explain.text}</div>}
+            </div>
+          )}
         </div>
       )}
     </div>

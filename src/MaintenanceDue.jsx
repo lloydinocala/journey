@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import AiAssist from './AiAssist'
+import WinBack from './WinBack'
 
 function dateDisplay(val) {
   if (!val) return '—'
@@ -182,6 +183,8 @@ export default function MaintenanceDue({ profile }) {
           <Section title="Upcoming" list={upcoming} kind="due" tone="#94A3B8" />
         </>
       )}
+
+      {selectedOrg && <WinBack orgId={selectedOrg} />}
     </div>
   )
 }
