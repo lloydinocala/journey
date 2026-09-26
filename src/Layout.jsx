@@ -122,7 +122,9 @@ const CATEGORIES = [
   { key: 'financials', label: 'Financials', items: [] },
   { key: 'admin', label: 'Admin', items: [
     { label: 'Settings', path: '/settings' },
+    { label: 'Financing Central', path: '/financing-central' },
     { label: 'Financing Options', path: '/financing-options' },
+    { label: 'Lender Directory', path: '/financing-directory', super: true },
   ]},
   { key: 'permitting', label: 'Permitting', items: [
     { label: 'Permits', path: '/permits' },
@@ -502,7 +504,7 @@ export default function Layout({ profile }) {
                 </Link>
               ))
             ) : (
-              (activeCategoryData?.items || []).filter((item) => !item.perm || isSuperAdmin || can(profile, item.perm)).map((item) => (
+              (activeCategoryData?.items || []).filter((item) => (item.super ? isSuperAdmin : (!item.perm || isSuperAdmin || can(profile, item.perm)))).map((item) => (
                 item.header ? (
                   HEADER_DASH[item.header] ? (
                     <Link

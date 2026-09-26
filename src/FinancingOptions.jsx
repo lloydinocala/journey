@@ -3,7 +3,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 
 const KINDS = [['traditional', 'Traditional'], ['lease_to_own', 'Lease-to-Own'], ['bnpl', 'Buy-now-pay-later']]
-const blank = { name: '', kind: 'traditional', best_for: '', apply_url: '', terms_note: '', min_amount: '', max_amount: '', for_service: true, for_system: true, suppress_top_tier: false, sort_order: 100, is_active: true }
+const blank = { name: '', kind: 'traditional', best_for: '', apply_url: '', dashboard_url: '', dealer_id: '', terms_note: '', min_amount: '', max_amount: '', for_service: true, for_system: true, suppress_top_tier: false, sort_order: 100, is_active: true }
 const numOrNull = (v) => (v === '' || v == null || isNaN(Number(v)) ? null : Number(v))
 
 export default function FinancingOptions({ profile }) {
@@ -37,6 +37,7 @@ export default function FinancingOptions({ profile }) {
     setEditingId(o.id); setShowForm(true); setErr('')
     setForm({
       name: o.name || '', kind: o.kind || 'traditional', best_for: o.best_for || '', apply_url: o.apply_url || '',
+      dashboard_url: o.dashboard_url || '', dealer_id: o.dealer_id || '',
       terms_note: o.terms_note || '', min_amount: o.min_amount ?? '', max_amount: o.max_amount ?? '',
       for_service: !!o.for_service, for_system: !!o.for_system, suppress_top_tier: !!o.suppress_top_tier,
       sort_order: o.sort_order ?? 100, is_active: !!o.is_active,
@@ -50,7 +51,8 @@ export default function FinancingOptions({ profile }) {
     setSaving(true); setErr('')
     const payload = {
       org_id: selectedOrg, name: form.name.trim(), kind: form.kind, best_for: form.best_for.trim() || null,
-      apply_url: form.apply_url.trim() || null, terms_note: form.terms_note.trim() || null,
+      apply_url: form.apply_url.trim() || null, dashboard_url: form.dashboard_url.trim() || null,
+      dealer_id: form.dealer_id.trim() || null, terms_note: form.terms_note.trim() || null,
       min_amount: numOrNull(form.min_amount), max_amount: numOrNull(form.max_amount),
       for_service: form.for_service, for_system: form.for_system, suppress_top_tier: form.suppress_top_tier,
       sort_order: Number(form.sort_order) || 100, is_active: form.is_active,
@@ -87,7 +89,9 @@ export default function FinancingOptions({ profile }) {
           <div className="field" style={{ minWidth: 200 }}><label>Name</label><input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. FTL — 10-Year Plan" required /></div>
           <div className="field"><label>Kind</label><select value={form.kind} onChange={(e) => set('kind', e.target.value)}>{KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
           <div className="field" style={{ minWidth: 220 }}><label>Best for (one line)</label><input value={form.best_for} onChange={(e) => set('best_for', e.target.value)} placeholder="Lowest monthly, with approved credit" /></div>
-          <div className="field" style={{ minWidth: 260 }}><label>Application URL</label><input value={form.apply_url} onChange={(e) => set('apply_url', e.target.value)} placeholder="https://… your direct link" /></div>
+          <div className="field" style={{ minWidth: 260 }}><label>Customer application URL</label><input value={form.apply_url} onChange={(e) => set('apply_url', e.target.value)} placeholder="https://… where the customer applies" /></div>
+          <div className="field" style={{ minWidth: 260 }}><label>Your dashboard URL</label><input value={form.dashboard_url} onChange={(e) => set('dashboard_url', e.target.value)} placeholder="https://… your dealer login to follow up" /></div>
+          <div className="field" style={{ minWidth: 140 }}><label>Dealer ID (optional)</label><input value={form.dealer_id} onChange={(e) => set('dealer_id', e.target.value)} placeholder="your dealer #" /></div>
           <div className="field" style={{ minWidth: 180 }}><label>Terms note</label><input value={form.terms_note} onChange={(e) => set('terms_note', e.target.value)} placeholder="10-year term, WAC" /></div>
           <div className="field" style={{ width: 120 }}><label>Min $ (optional)</label><input type="number" value={form.min_amount} onChange={(e) => set('min_amount', e.target.value)} /></div>
           <div className="field" style={{ width: 120 }}><label>Max $ (optional)</label><input type="number" value={form.max_amount} onChange={(e) => set('max_amount', e.target.value)} placeholder="e.g. 7500" /></div>
@@ -112,7 +116,10 @@ export default function FinancingOptions({ profile }) {
                 <td style={{ fontWeight: 600 }}>{o.name}{o.suppress_top_tier ? <span style={{ fontSize: 11, color: 'var(--mist)' }}> · not on top tier</span> : null}</td>
                 <td>{(KINDS.find((k) => k[0] === o.kind) || [])[1] || o.kind}</td>
                 <td style={{ color: 'var(--mist)', fontSize: 13 }}>{o.best_for || '—'}{o.terms_note ? <div style={{ fontSize: 11 }}>{o.terms_note}</div> : null}</td>
-                <td>{o.apply_url ? <a href={o.apply_url} target="_blank" rel="noreferrer">link ↗</a> : <span style={{ color: '#B0600A', fontSize: 12 }}>no link yet</span>}</td>
+                <td>
+                  {o.apply_url ? <a href={o.apply_url} target="_blank" rel="noreferrer">apply ↗</a> : <span style={{ color: '#B0600A', fontSize: 12 }}>no link yet</span>}
+                  {o.dashboard_url ? <div style={{ fontSize: 11 }}><a href={o.dashboard_url} target="_blank" rel="noreferrer">dashboard ↗</a></div> : null}
+                </td>
                 <td style={{ fontSize: 12, color: 'var(--mist)' }}>{[o.for_service && 'Service', o.for_system && 'System'].filter(Boolean).join(' + ') || '—'}{o.max_amount ? ` · ≤ $${o.max_amount}` : ''}{o.min_amount ? ` · ≥ $${o.min_amount}` : ''}</td>
                 <td><button className="logout-button" onClick={() => toggleActive(o)}>{o.is_active ? 'Active' : 'Off'}</button></td>
                 <td style={{ whiteSpace: 'nowrap' }}>
