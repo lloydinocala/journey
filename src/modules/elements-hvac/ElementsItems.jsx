@@ -5,6 +5,7 @@ import { supabase } from '../../utils/supabase'
 import { listItems, addItem, updateItem, deleteItem, deriveSku, listItemStock, listMaps } from './data'
 import { fetchAllRows, readFileSmart, normPrice, normalizeForMatch } from '../../utils/csvImport'
 import { useOrgSelector, OrgBar } from './shared'
+import ItemDuplicates from './ItemDuplicates'
 
 const blank = {
   description: '', category: '', item_class: 'part', stock_type: 'stock',
@@ -289,6 +290,8 @@ export default function ElementsItems({ profile }) {
         </button>
       </div>
       <OrgBar {...org} />
+
+      <ItemDuplicates orgId={org.selectedOrg} />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, margin: '8px 0', flexWrap: 'wrap', alignItems: 'center' }}>
         <label className="logout-button" style={{ cursor: 'pointer', margin: 0 }}>

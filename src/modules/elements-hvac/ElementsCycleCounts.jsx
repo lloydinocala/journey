@@ -9,6 +9,7 @@ import {
   deleteCycleCount, listAllLocations, listItems,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
+import CountPriorities from './CountPriorities'
 
 const STATUS = {
   open: { t: 'In progress', bg: '#F8EEDD', c: '#B0600A' },
@@ -150,6 +151,8 @@ export default function ElementsCycleCounts({ profile }) {
         <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => { setShowStart((v) => !v); setErr('') }}>+ Start a count</button>
       </div>
       <OrgBar {...org} />
+
+      <CountPriorities orgId={org.selectedOrg} />
 
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0, maxWidth: 760 }}>
         Count what's physically on a truck or in the warehouse, then post the corrections. Blind counts hide the expected

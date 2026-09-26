@@ -3,6 +3,7 @@ import StatusFilter from './StatusFilter'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import VendorScorecards from './VendorScorecards'
 import { fetchAllRows } from './utils/csvImport'
 
 function vendorSiteUrl(url) {
@@ -169,6 +170,8 @@ export default function Vendors({ profile, scope }) {
           <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
         </div>
       )}
+
+      {scope !== 'fleet' && selectedOrg && <VendorScorecards orgId={selectedOrg} />}
 
       {showAddForm && (
         <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap' }}>

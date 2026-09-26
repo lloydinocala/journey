@@ -5,6 +5,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { listAnomalies } from './data'
 import { useOrgSelector, OrgBar } from './shared'
+import AiAssist from '../../AiAssist'
+
+const ANOMALY_SYS = `You are an inventory analyst for an HVAC contractor. From the detected inventory anomalies given (types with counts and severity, plus the highest-severity specifics), write a short prioritized action list: what to fix first and why, most costly or risky first, and the concrete next step for each (reorder, run a count, check a receipt, correct a cost). Reference the actual counts. Use ONLY the data provided — do not invent items or numbers. A few lines, most urgent first.`
 
 const money = (n) => (n == null || isNaN(n) ? '—' : `$${Number(n).toFixed(2)}`)
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : '')
@@ -95,7 +98,18 @@ export default function ElementsAnomalies({ profile }) {
           {counts.medium > 0 && <span className="badge" style={{ background: SEV.medium.bg, color: SEV.medium.c }}>{counts.medium} medium</span>}
           {counts.low > 0 && <span className="badge" style={{ background: SEV.low.bg, color: SEV.low.c }}>{counts.low} low</span>}
         </div>
-        <button className="logout-button" style={{ margin: 0 }} disabled={loading} onClick={load}>{loading ? 'Checking…' : 'Refresh'}</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {rows.length > 0 && (
+            <AiAssist compact title="What to fix first"
+              system={ANOMALY_SYS}
+              prompt="From these inventory anomalies, give a short prioritized action list — what to fix first and why — using only the data provided."
+              context={{
+                summary: groups.map((g) => ({ type: g.meta.label, severity: g.meta.sev, count: g.items.length })),
+                high_severity_items: rows.filter((r) => r.severity === 'high').slice(0, 15).map((r) => ({ item: r.item_description, issue: KIND[r.kind]?.line(r) })),
+              }} />
+          )}
+          <button className="logout-button" style={{ margin: 0 }} disabled={loading} onClick={load}>{loading ? 'Checking…' : 'Refresh'}</button>
+        </div>
       </div>
       <OrgBar {...org} />
 

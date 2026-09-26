@@ -19,6 +19,20 @@ const CONF = {
   low: { t: 'Low', bg: '#EEF1F6', c: '#475569' },
 }
 
+// Deterministic confidence for an invoice-learned match: how well the vendor's
+// billed description/SKU overlaps the catalog item it was mapped to (token
+// Jaccard). High-overlap matches are "obvious" and can be verified in one click;
+// uncertain ones stay queued for a human. Nothing is auto-written silently.
+const normTokens = (s) => new Set((s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 2))
+function aliasConfidence(a) {
+  const v = normTokens(`${a.vendor_description || ''} ${a.vendor_sku || ''}`)
+  const it = normTokens(`${a.item?.description || ''} ${a.item?.sku || ''}`)
+  if (!v.size || !it.size) return 'low'
+  let inter = 0; v.forEach((w) => { if (it.has(w)) inter++ })
+  const j = inter / (v.size + it.size - inter)
+  return j >= 0.5 ? 'high' : j >= 0.25 ? 'medium' : 'low'
+}
+
 export default function ElementsVendorCrossref({ profile }) {
   const org = useOrgSelector(profile)
   const [vendorStats, setVendorStats] = useState([])
@@ -49,6 +63,14 @@ export default function ElementsVendorCrossref({ profile }) {
   }, [org.selectedOrg])
 
   async function verifyMatch(id) { setBusy(true); await verifyAlias(id); setBusy(false); loadToVerify() }
+  async function verifyAllHigh() {
+    const highs = toVerify.filter((a) => aliasConfidence(a) === 'high')
+    if (!highs.length) return
+    if (!window.confirm(`Verify ${highs.length} high-confidence match${highs.length === 1 ? '' : 'es'}? These strongly match your catalog item; you can still remove any later.`)) return
+    setBusy(true)
+    for (const a of highs) { await verifyAlias(a.id) }
+    setBusy(false); loadToVerify()
+  }
   async function fixMatch(id, itemId) { if (!itemId) return; setBusy(true); await updateAliasItem(id, itemId); setBusy(false); loadToVerify() }
   async function removeUnverified(id) {
     if (!window.confirm("Remove this match? It won't be used to auto-match this vendor's invoices.")) return
@@ -149,6 +171,9 @@ export default function ElementsVendorCrossref({ profile }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <span style={{ fontWeight: 700, color: '#B0600A' }}>Matches to verify</span>
             <span className="badge" style={{ background: '#F8EEDD', color: '#B0600A' }}>{toVerify.length}</span>
+            {(() => { const n = toVerify.filter((a) => aliasConfidence(a) === 'high').length; return n > 0 ? (
+              <button className="auth-button" style={{ width: 'auto', margin: 0, marginLeft: 'auto', padding: '5px 12px' }} disabled={busy} onClick={verifyAllHigh}>Verify all high-confidence ({n})</button>
+            ) : null })()}
           </div>
           <p style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 0, marginBottom: 10 }}>
             Quincy learned these part matches from recent invoices. Confirm each is right so this vendor's future invoices auto-match with confidence — or fix the item, or remove a wrong one.
@@ -165,6 +190,7 @@ export default function ElementsVendorCrossref({ profile }) {
                     <td style={{ fontSize: 12 }}>{a.vendor?.name || '—'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {(() => { const c = CONF[aliasConfidence(a)]; return <span className="badge" style={{ background: c.bg, color: c.c }} title="Match confidence (name/SKU overlap)">{c.t}</span> })()}
                         <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '4px 12px' }} disabled={busy} onClick={() => verifyMatch(a.id)}>Looks right</button>
                         <select defaultValue="" disabled={busy} onChange={(e) => { fixMatch(a.id, e.target.value); e.target.value = '' }} style={{ maxWidth: 150 }} title="Map to a different catalog item">
                           <option value="">Fix…</option>
