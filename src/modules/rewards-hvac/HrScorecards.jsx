@@ -186,8 +186,18 @@ export default function HrScorecards({ profile }) {
           </div>
           <form className="inline-form" onSubmit={saveMetric} style={{ flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
             <div className="field"><label>Category</label>
-              <input list="sc-cats" value={mForm.category} onChange={(e) => setMForm({ ...mForm, category: e.target.value })} />
-              <datalist id="sc-cats">{CATEGORY_ORDER.map((c) => <option key={c} value={c} />)}</datalist></div>
+              <select
+                value={(mForm.category === '' || CATEGORY_ORDER.includes(mForm.category)) ? mForm.category : '__other__'}
+                onChange={(e) => setMForm({ ...mForm, category: e.target.value === '__other__' ? '' : e.target.value, _customCat: e.target.value === '__other__' })}
+              >
+                <option value="">— select —</option>
+                {CATEGORY_ORDER.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="__other__">Other (type your own)…</option>
+              </select>
+              {(mForm._customCat || (mForm.category && !CATEGORY_ORDER.includes(mForm.category))) && (
+                <input style={{ marginTop: 6 }} placeholder="New category name" value={mForm.category}
+                  onChange={(e) => setMForm({ ...mForm, category: e.target.value })} />
+              )}</div>
             <div className="field"><label>Metric</label><input value={mForm.name} onChange={(e) => setMForm({ ...mForm, name: e.target.value })} required /></div>
             <div className="field" style={{ minWidth: 200 }}><label>Description</label><input value={mForm.description} onChange={(e) => setMForm({ ...mForm, description: e.target.value })} /></div>
             <div className="field"><label>Unit</label><select value={mForm.unit} onChange={(e) => setMForm({ ...mForm, unit: e.target.value })}>{UNITS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
