@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { exportToCSV } from './utils/csvExport'
+import SessionAnomalies from './SessionAnomalies'
 
 function formatDuration(ms) {
   if (ms == null || ms < 0) return '—'
@@ -160,6 +161,8 @@ export default function SessionLog({ profile }) {
           <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
         </div>
       )}
+
+      {!loading && <SessionAnomalies rows={rows} durationMap={durationMap} />}
 
       {filterUserId && (
         <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>

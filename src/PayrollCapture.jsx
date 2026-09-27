@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import PayrollReconcile from './PayrollReconcile'
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -351,6 +352,8 @@ export default function PayrollCapture({ profile }) {
           Week payroll owed: {money(orgTotal)}
         </div>
       </div>
+
+      {!loading && <PayrollReconcile employees={employees} weeks={weeks} clockHours={clockHours} />}
 
       {loading ? (
         <p>Loading…</p>

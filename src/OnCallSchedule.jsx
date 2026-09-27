@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import OnCallOptimizer from './OnCallOptimizer'
 
 // datetime <-> <input type="datetime-local"> (local time, no seconds)
 function toLocalInput(d) {
@@ -235,6 +236,8 @@ export default function OnCallSchedule({ profile }) {
         <h2 style={{ margin: 0 }}>On-Call Schedule</h2>
         {isSuperAdmin && <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />}
       </div>
+
+      {!loading && <OnCallOptimizer periods={periods} users={users} />}
       <p style={{ color: 'var(--mist)', margin: '0 0 4px' }}>
         Set who's on call and when. Each period hands off nose-to-nose with the next &mdash; a new period's start defaults to the last one's end, so a coverage gap can't slip in by accident.
       </p>
