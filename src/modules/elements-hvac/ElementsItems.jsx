@@ -342,6 +342,9 @@ export default function ElementsItems({ profile }) {
           </div>
           <div className="field" style={{ minWidth: 150 }}>
             <label>Sourcing</label>
+            <select value={form.sourcing_pref} onChange={(e) => setForm({ ...form, sourcing_pref: e.target.value })} title="Which vendor the PO drafter buys this from">
+              <option value="preferred">Preferred vendor</option>
+              <option value="cheapest">Cheapest vendor</option>
             </select>
           </div>
           <div className="field"><label>Vendor part #</label><input type="text" value={form.vendor_part_no} onChange={(e) => setForm({ ...form, vendor_part_no: e.target.value })} /></div>
