@@ -233,7 +233,11 @@ export const HELP_ARTICLES = [
       "documents",
       "time off",
       "pto",
-      "compliance"
+      "compliance",
+      "roster",
+      "login accounts",
+      "add employee",
+      "add from logins"
     ],
     "purpose": "The people module — headcount, a compliance watchdog for expiring certifications and licenses, and the full employee lifecycle from hire to separation. It’s a paid add-on; turn it on in HR Settings.",
     "sections": [
@@ -249,12 +253,109 @@ export const HELP_ARTICLES = [
         ]
       },
       {
+        "h": "Getting your roster in fast",
+        "items": [
+          "Employees are separate from login accounts on purpose — a person can be an employee with no login (a seasonal helper), or a login you don't score. Every HR page (Scorecards, Skills, Certifications, Time Off) lists employees, so build the roster first or those pages look empty.",
+          "Fastest way: on Employees, click \"+ From login accounts\", check the people who already sign in, and Add selected — each becomes an active employee linked to their login in one step. Accounts already linked are greyed out so you can't double-add.",
+          "Or click \"+ New Employee\" to add someone by hand, with an optional login link — use this for staff who don't sign in.",
+          "Either way, open the new record's Edit to fill in pay, role, and hire date. The moment an employee exists, they appear everywhere else in HR."
+        ]
+      },
+      {
         "h": "The compliance watchdog",
         "body": "The dashboard flags expiring or expired certifications and licenses and any open compliance items, most urgent first. The same certification records back the EPA-cert check on the Refrigerant Usage Log — so keeping HR current pays off across the app."
       },
       {
         "h": "Good to know",
         "body": "HR is the fuller module and implies Payroll access. Turn it on and set defaults in HR Settings before entering people."
+      }
+    ]
+  },
+  {
+    "id": "employees",
+    "title": "Employees (HR Roster)",
+    "area": "Human Resources",
+    "keywords": [
+      "employees",
+      "roster",
+      "add employee",
+      "login accounts",
+      "add from logins",
+      "direct deposit",
+      "pay",
+      "hire date",
+      "staff",
+      "headcount",
+      "ssn"
+    ],
+    "purpose": "The people roster every HR page draws from — add staff, link them to logins, and hold pay, tax, and direct-deposit details securely.",
+    "sections": [
+      {
+        "h": "Employees are separate from logins",
+        "body": "An employee record and a sign-in account are two different things, on purpose: someone can be an employee with no login (a seasonal helper), or a login you don't track as an employee. Every HR page — Scorecards, Skills, Certifications, Time Off — lists employees, so if this roster is empty those pages look blank. Build it first."
+      },
+      {
+        "h": "Two ways to add people",
+        "items": [
+          "“+ From login accounts” — the fast path. Check everyone who already signs in and add them all at once; each becomes an active employee linked to their login. Accounts already linked are greyed out so you can't double-add.",
+          "“+ New Employee” — add someone by hand, with an optional login link. Use this for staff who don't sign in."
+        ]
+      },
+      {
+        "h": "Fill in the details (Edit)",
+        "body": "Open a record's Edit to set pay type and rate, hire date, role, and — under Secure info (encrypted) — the Direct Deposit routing and account numbers and SSN. Secure fields are stored encrypted; only office roles can save or reveal them, and employees never see them. Deactivating someone keeps their history; use the Show inactive toggle to see past staff."
+      }
+    ]
+  },
+  {
+    "id": "scorecards",
+    "title": "Employee Scorecards",
+    "area": "Human Resources",
+    "keywords": [
+      "scorecard",
+      "scorecards",
+      "metrics",
+      "performance",
+      "review",
+      "quarter",
+      "quarterly",
+      "technician",
+      "rating",
+      "goals",
+      "minimum",
+      "customer experience",
+      "productivity",
+      "professionalism",
+      "workmanship"
+    ],
+    "purpose": "Fair, numbers-based quarterly performance scorecards — you define the metrics, record each quarter's values, and get an evidence-grounded review draft. Turn it on in HR Settings.",
+    "sections": [
+      {
+        "h": "What it is for",
+        "body": "A quarterly performance record built on real numbers, not opinions. You choose the metrics that matter, record each person's results per quarter, and every quarter is kept as a permanent history. It's built to be fair and defensible: cells that miss the accepted minimum are highlighted, and last quarter shows next to this one so trends are plain."
+      },
+      {
+        "h": "Set up your metrics (Manage metrics)",
+        "items": [
+          "Click “Manage metrics”. Add a metric with a Category (Customer experience, Productivity, Professionalism, Workmanship, or your own via “Other”), a name, a unit, and a Goal direction — higher is better, lower is better, or just track the actual value.",
+          "Set the Minimum accepted rating where one applies; results under it get flagged.",
+          "In a hurry, click “Load starter metrics” to drop in a standard set of 11 you can edit, instead of starting blank. Edit or Archive any metric later."
+        ]
+      },
+      {
+        "h": "Record a quarter",
+        "items": [
+          "Pick the Employee, Quarter, and Year, then click “Record / edit [quarter]”, enter each metric's value, and Save.",
+          "Cells that miss the minimum are highlighted; the prior quarter shows beside the current one. Nothing is overwritten — use the quarter/year selectors to review any past quarter."
+        ]
+      },
+      {
+        "h": "Manager notes & goals — and the fair AI draft",
+        "body": "Write a short summary and next-quarter goals; the employee sees these on their scorecard. Click “✦ Draft summary from the metrics” and the assistant writes a balanced summary using ONLY the numbers you recorded — it credits genuine strengths and names shortfalls even-handedly, notes improvement or decline versus last quarter, and never invents a figure or speculates about the person's character, motives, or anything personal. It's a draft: review and edit before saving."
+      },
+      {
+        "h": "Good to know",
+        "body": "Scorecards must be turned on in HR Settings, and the page lists people from your Employees roster — add them there first. The whole point is honesty: the review is grounded strictly in recorded numbers, so a scorecard can back up a raise, a coaching conversation, or a hard decision with evidence rather than opinion."
       }
     ]
   },
@@ -334,7 +435,7 @@ export const ROUTE_HELP = {
   "/session-log": "sign-in-log",
   "/settings": "settings",
   "/announcements": "announcements",
-  "/rewards/employees": "hr",
+  "/rewards/employees": "employees",
   "/rewards/job-descriptions": "hr",
   "/rewards/hiring": "hr",
   "/rewards/onboarding": "hr",
@@ -342,7 +443,7 @@ export const ROUTE_HELP = {
   "/rewards/separations": "hr",
   "/rewards/certifications": "hr",
   "/rewards/skills": "hr",
-  "/rewards/scorecards": "hr",
+  "/rewards/scorecards": "scorecards",
   "/rewards/documents": "hr",
   "/rewards/time-off": "hr",
   "/rewards/settings": "hr",
