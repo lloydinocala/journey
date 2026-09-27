@@ -9,6 +9,7 @@ import {
 } from './payrollData'
 import { loadStateRules, computeStateWithholding } from './stateTax'
 import { useOrgSelector, OrgBar, FlagChip } from './shared'
+import PayrollAnomalyCheck from './PayrollAnomalyCheck'
 
 const DELIVERY = [
   { v: 'manual', l: 'Manual (record only)' },
@@ -133,6 +134,8 @@ export default function PreparePayroll({ profile }) {
         </button>
       </div>
       <OrgBar {...org} />
+
+      {!loading && rows.length > 0 && <PayrollAnomalyCheck rows={rows} />}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0 16px', flexWrap: 'wrap' }}>
         <button className="logout-button" onClick={() => setWeekStart(addDays(weekStart, -7))}>&larr; Prev</button>
