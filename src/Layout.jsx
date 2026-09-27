@@ -11,7 +11,6 @@ import { ELEMENTS_FLEET_NAV, TOOLS_NAV } from './modules/elements-hvac'
 import { REFRIGERANT_NAV } from './modules/refrigerant-hvac'
 import { SUPPLIES_NAV } from './modules/supplies-hvac'
 import { REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV } from './modules/rewards-hvac'
-import { MARKETING_NAV } from './modules/marketing-hvac'
 
 // Human page titles for the top-bar "Viewing Organization" pill. Longest-prefix
 // match, with a title-cased fallback so newly-added pages still read cleanly.
@@ -56,6 +55,33 @@ const RAIL_ICON_PATHS = {
   admin: 'M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z',
   refresh: 'M4 12a8 8 0 0114-5m2-3v5h-5M20 12a8 8 0 01-14 5m-2 3v-5h5',
   signout: 'M15 12H4m0 0l4-4m-4 4l4 4M14 4h4a2 2 0 012 2v12a2 2 0 01-2 2h-4',
+  // Train Station stations
+  work: 'M4 7h16v13H4zM9 7V5a2 2 0 012-2h2a2 2 0 012 2v2',
+  dispatch: 'M4 5h4l2 5-3 2a12 12 0 006 6l2-3 5 2v4a2 2 0 01-2 2A16 16 0 013 7a2 2 0 011-2z',
+  maintenance: 'M14 6a4 4 0 01-5.2 5.2L5 15l4 4 3.8-3.8A4 4 0 0018 10l-2 2-2-2 2-2z',
+  permitting: 'M7 3h7l4 4v14H7zM14 3v4h4M9 12h6M9 16h6',
+  refrigerant: 'M12 2v20M3 7l18 10M21 7L3 17',
+  import: 'M12 3v10m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2',
+  // Inventory Central stations
+  stock: 'M3 8l9-4 9 4-9 4-9-4zM3 8v8l9 4 9-4V8',
+  insights: 'M4 20v-6M10 20V6M16 20v-9M3 20h18',
+  fleet: 'M3 6h11v9H3zM14 9h4l3 3v3h-7zM7.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
+  supplies: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 016 0v2',
+  tools: 'M14 4l6 6-3 3-6-6zM11 7l-7 7 3 3 7-7',
+  // WorkForce stations
+  tag: 'M4 4h7l9 9-7 7-9-9zM8 8h.01',
+  clock: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 8v5l3 2',
+  money: 'M3 6h18v12H3zM12 9a3 3 0 100 6 3 3 0 000-6M6 9h.01M18 15h.01',
+  log: 'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01',
+  idcard: 'M3 5h18v14H3zM7 10a2 2 0 104 0 2 2 0 00-4 0M6 16a3 3 0 016 0M14 9h4M14 13h4',
+  certificate: 'M12 3a5 5 0 100 10 5 5 0 000-10zM9 12l-2 8 5-3 5 3-2-8',
+  // Command Center + Admin items
+  approval: 'M12 3a9 9 0 100 18 9 9 0 000-18zM8 12l3 3 5-6',
+  channels: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  reviews: 'M12 3l2.5 6 6.5.5-5 4.2 1.6 6.3L12 16l-5.6 3.5 1.6-6.3-5-4.2 6.5-.5z',
+  directory: 'M5 4h11a2 2 0 012 2v14H7a2 2 0 01-2-2zM7 4v14M10 8h5M10 12h5',
+  organizations: 'M4 21V7l6-4 6 4v14M4 21h16M9 10h.01M9 14h.01M13 10h.01M13 14h.01',
+  settings: 'M12 8a4 4 0 100 8 4 4 0 000-8zM19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L14.5 2h-5l-.4 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4L3 11a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1l.4 2.6h5l.4-2.6a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5a7 7 0 00.1-1z',
 }
 function RailIcon({ k }) {
   const d = RAIL_ICON_PATHS[k] || 'M5 12h14'
@@ -158,56 +184,62 @@ function buildSections(profile) {
   const trainStation = {
     key: 'train-station', label: 'Train Station', icon: 'start', dash: '/train-station',
     children: [
-      { key: 'work', label: 'Jobs & Customers', dash: '/jobs-dash', children: WORK_PAGES },
-      { key: 'dispatch', label: 'Dispatch Station', dash: '/dispatch', children: DISPATCH_PAGES },
-      { key: 'maintenance', label: 'Maintenance Station', dash: '/maintenance-station', children: MAINT_PAGES },
-      { key: 'permitting', label: 'Permitting Station', dash: '/permits', children: PERMIT_PAGES },
-      { key: 'refrigerant', label: '608 Refrigeration Compliance', dash: '/refrigerant', children: REFRIGERANT_NAV.items },
-      { key: 'import', label: 'Data Station', dash: '/import', children: IMPORT_PAGES },
+      { key: 'work', label: 'Jobs & Customers', icon: 'work', dash: '/jobs-dash', children: WORK_PAGES },
+      { key: 'dispatch', label: 'Dispatch Station', icon: 'dispatch', dash: '/dispatch', children: DISPATCH_PAGES },
+      { key: 'maintenance', label: 'Maintenance Station', icon: 'maintenance', dash: '/maintenance-station', children: MAINT_PAGES },
+      { key: 'permitting', label: 'Permitting Station', icon: 'permitting', dash: '/permits', children: PERMIT_PAGES },
+      { key: 'refrigerant', label: '608 Refrigeration Compliance', icon: 'refrigerant', dash: '/refrigerant', children: REFRIGERANT_NAV.items },
+      { key: 'import', label: 'Data Station', icon: 'import', dash: '/import', children: IMPORT_PAGES },
     ],
   }
 
   const invStations = [
-    { key: 'stock-purchasing', label: 'Stock & Purchasing', dash: '/elements', children: STOCK_PAGES },
-    { key: 'insights-planning', label: 'Insights & Planning', dash: '/elements/service-map', children: INSIGHTS_PAGES },
-    { key: 'fleet', label: 'Fleet Dashboard', dash: '/fleet', children: ELEMENTS_FLEET_NAV.items },
-    { key: 'supplies', label: 'Non-Inventory Supplies', dash: '/supplies', children: SUPPLIES_NAV.items },
+    { key: 'stock-purchasing', label: 'Stock & Purchasing', icon: 'stock', dash: '/elements', children: STOCK_PAGES },
+    { key: 'insights-planning', label: 'Insights & Planning', icon: 'insights', dash: '/elements/service-map', children: INSIGHTS_PAGES },
+    { key: 'fleet', label: 'Fleet Dashboard', icon: 'fleet', dash: '/fleet', children: ELEMENTS_FLEET_NAV.items },
+    { key: 'supplies', label: 'Non-Inventory Supplies', icon: 'supplies', dash: '/supplies', children: SUPPLIES_NAV.items },
   ]
-  if (showTools) invStations.push({ key: 'tools', label: 'Tools Dashboard', dash: '/tools', children: TOOLS_NAV.items })
+  if (showTools) invStations.push({ key: 'tools', label: 'Tools Dashboard', icon: 'tools', dash: '/tools', children: TOOLS_NAV.items })
   const inventoryCentral = { key: 'inventory-central', label: 'Inventory Central', icon: 'inventory-central', dash: '/inventory-central', children: invStations }
 
   const wfStations = [
-    { label: 'Team', path: '/team' },
-    { label: 'Roles & Tags', path: '/roles' },
-    { label: 'Time Clock', path: '/time-clock' },
-    { label: 'Payroll Capture', path: '/payroll' },
-    { label: 'Sign-In Log', path: '/session-log' },
+    { label: 'Team', icon: 'workforce', path: '/team' },
+    { label: 'Roles & Tags', icon: 'tag', path: '/roles' },
+    { label: 'Time Clock', icon: 'clock', path: '/time-clock' },
+    { label: 'Payroll Capture', icon: 'money', path: '/payroll' },
+    { label: 'Sign-In Log', icon: 'log', path: '/session-log' },
   ]
-  if (showHR) wfStations.push({ key: 'rewards', label: 'Human Resources', dash: '/rewards', children: REWARDS_HR_NAV.items })
+  if (showHR) wfStations.push({ key: 'rewards', label: 'Human Resources', icon: 'idcard', dash: '/rewards', children: REWARDS_HR_NAV.items })
   if (showPayroll) {
     // Payroll staff work the employee pay/tax profile too, so surface Employees
     // at the top of the Payroll station (essential for Payroll-only orgs).
     const payrollItems = [{ label: 'Employees', path: '/rewards/employees' }, ...REWARDS_PAYROLL_NAV.items]
-    wfStations.push({ key: 'rewards-payroll', label: 'Payroll', dash: '/rewards/payroll', children: payrollItems })
-    wfStations.push({ key: 'rewards-cert', label: 'Certified Payroll', dash: '/rewards/certified', children: REWARDS_CERT_NAV.items })
+    wfStations.push({ key: 'rewards-payroll', label: 'Payroll', icon: 'money', dash: '/rewards/payroll', children: payrollItems })
+    wfStations.push({ key: 'rewards-cert', label: 'Certified Payroll', icon: 'certificate', dash: '/rewards/certified', children: REWARDS_CERT_NAV.items })
   }
   const workforce = { key: 'workforce', label: 'WorkForce', icon: 'workforce', dash: '/workforce', children: wfStations }
 
   // Command Center = the Marketing module (already labeled Command Center in its nav).
-  const commandCenter = { key: 'command-center', label: 'Command Center', icon: 'marketing', dash: '/marketing', children: MARKETING_NAV.items }
+  const commandCenterItems = [
+    { label: 'Command Center', icon: 'marketing', path: '/marketing' },
+    { label: 'Approval Queue', icon: 'approval', path: '/marketing/queue' },
+    { label: 'Channels & Assets', icon: 'channels', path: '/marketing/channels' },
+    { label: 'Reviews', icon: 'reviews', path: '/marketing/reviews' },
+  ]
+  const commandCenter = { key: 'command-center', label: 'Command Center', icon: 'marketing', dash: '/marketing', children: commandCenterItems }
 
   const financials = { key: 'financials', label: 'Financials', icon: 'financials', path: '/financials' }
 
   const admin = {
     key: 'admin', label: 'Admin', icon: 'admin', dash: '/admin',
     children: [
-      { label: 'Settings', path: '/settings' },
-      { label: 'Financing Central', path: '/financing-central' },
-      { label: 'Financing Options', path: '/financing-options' },
+      { label: 'Settings', icon: 'settings', path: '/settings' },
+      { label: 'Financing Central', icon: 'financials', path: '/financing-central' },
+      { label: 'Financing Options', icon: 'money', path: '/financing-options' },
       // Platform / super-admin-only controls, tucked here so subscriber orgs never see them.
-      { label: 'Lender Directory', path: '/financing-directory', super: true },
-      { label: 'Organizations', path: '/organizations', super: true },
-      { label: 'Announcements', path: '/announcements', super: true },
+      { label: 'Lender Directory', icon: 'directory', path: '/financing-directory', super: true },
+      { label: 'Organizations', icon: 'organizations', path: '/organizations', super: true },
+      { label: 'Announcements', icon: 'marketing', path: '/announcements', super: true },
     ],
   }
 
@@ -441,9 +473,9 @@ export default function Layout({ profile }) {
                 key={item.key}
                 className="rail-item"
                 onClick={() => openGroup(item)}
-                style={atRoot ? undefined : { paddingLeft: 20 }}
+                style={item.icon ? undefined : { paddingLeft: 20 }}
               >
-                {atRoot && item.icon ? <RailIcon k={item.icon} /> : null}
+                {item.icon ? <RailIcon k={item.icon} /> : null}
                 <span className="rail-label">{item.label}</span>
                 <span className="rail-caret" aria-hidden="true">›</span>
               </button>
@@ -452,9 +484,9 @@ export default function Layout({ profile }) {
                 key={item.path}
                 to={item.path}
                 className={'rail-item' + (activePath && item.path === activePath ? ' active' : '')}
-                style={atRoot ? undefined : { paddingLeft: 20 }}
+                style={item.icon ? undefined : { paddingLeft: 20 }}
               >
-                {atRoot && item.icon ? <RailIcon k={item.icon} /> : null}
+                {item.icon ? <RailIcon k={item.icon} /> : null}
                 <span className="rail-label">{item.label}</span>
               </Link>
             )
