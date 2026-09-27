@@ -10,7 +10,7 @@ import {
   listReviews, upsertReview,
   CATEGORY_ORDER, UNITS, DIRECTIONS, fmtValue, fmtMinimum, isFail, currentQuarter,
 } from './scorecardData'
-import { useOrgSelector, OrgBar } from './shared'
+import { useOrgSelector, OrgBar, EmptyRoster } from './shared'
 import AiAssist from '../../AiAssist'
 
 // Drafts the written review FROM the recorded numbers — the "honesty in
@@ -170,6 +170,7 @@ export default function HrScorecards({ profile }) {
         <button className="logout-button" onClick={() => setShowSetup(!showSetup)}>{showSetup ? 'Done editing metrics' : 'Manage metrics'}</button>
       </div>
       <OrgBar {...org} />
+      <EmptyRoster count={employees.length} />
 
       {!enabled && (
         <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', padding: '10px 14px', borderRadius: 10, marginBottom: 18, fontSize: 14 }}>

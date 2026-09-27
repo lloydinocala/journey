@@ -3,7 +3,7 @@
 // this is a proficiency grid to help with job assignment and development.
 import { useState, useEffect, useMemo } from 'react'
 import { listEmployees, listSkills, addSkill, updateSkill, listEmployeeSkills, setEmployeeSkill, SKILL_LEVELS } from './hrData'
-import { useOrgSelector, OrgBar } from './shared'
+import { useOrgSelector, OrgBar, EmptyRoster } from './shared'
 import AiAssist from '../../AiAssist'
 
 const LEVEL_COLOR = ['#F1F5F9', '#FEF3C7', '#DBEAFE', '#DCFCE7']
@@ -66,6 +66,7 @@ export default function HrSkills({ profile }) {
         <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ New Skill'}</button>
       </div>
       <OrgBar {...org} />
+      <EmptyRoster count={employees.length} />
 
       {showForm && (
         <form className="inline-form" onSubmit={addNew} style={{ marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { listEmployees } from './hrData'
 import { listPtoPolicies, addPtoPolicy, updatePtoPolicy, listPtoBalances, addPtoTransaction, listPtoTransactions, listPtoRequests, approvePtoRequest, denyPtoRequest } from './r4Data'
-import { useOrgSelector, OrgBar } from './shared'
+import { useOrgSelector, OrgBar, EmptyRoster } from './shared'
 
 const METHOD_LABEL = { per_hour: 'Per hour worked', per_period: 'Per pay period', frontload: 'Front-loaded (annual)' }
 const blankPolicy = { name: '', leave_type: 'pto', accrual_method: 'per_hour', accrual_rate: '', hours_cap: '', carryover_cap: '' }
@@ -80,6 +80,7 @@ export default function TimeOff({ profile }) {
         <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => setShowPform(!showPform)}>{showPform ? 'Cancel' : '+ New Policy'}</button>
       </div>
       <OrgBar {...org} />
+      <EmptyRoster count={employees.length} />
 
       {(() => {
         const empName = (id) => (employees.find((e) => e.id === id) || {}).full_name || 'Employee'

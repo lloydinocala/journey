@@ -1,7 +1,7 @@
 // Rewards-HVAC · Certifications & Licenses — with expiry status (EPA 608, NATE, licenses…)
 import { useState, useEffect, useMemo } from 'react'
 import { listEmployees, listCertifications, addCertification, updateCertification, deleteCertification, CERT_TYPES, certLabel, uploadHrFile, signedHrUrl } from './hrData'
-import { useOrgSelector, OrgBar, FlagChip, daysUntil } from './shared'
+import { useOrgSelector, OrgBar, FlagChip, daysUntil, EmptyRoster } from './shared'
 import AiAssist from '../../AiAssist'
 
 async function openFile(path) { const u = await signedHrUrl(path); if (u) window.open(u, '_blank') }
@@ -75,6 +75,7 @@ export default function HrCertifications({ profile }) {
         <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ New Cert'}</button>
       </div>
       <OrgBar {...org} />
+      <EmptyRoster count={employees.length} />
 
       {showForm && (
         <form className="inline-form" onSubmit={submit} style={{ marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>

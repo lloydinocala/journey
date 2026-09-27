@@ -278,8 +278,8 @@ export default function HrEmployees({ profile }) {
             <div className="inline-form" style={{ flexWrap: 'wrap', gap: 12 }}>
               <div className="field"><label>Full SSN{selected.hr.ssn_enc ? ' (on file)' : ''}</label>
                 <input value={selected.hr._newSsn || ''} placeholder={selected.hr.ssn_enc ? '••• stored •••' : 'XXX-XX-XXXX'} onChange={(e) => setHr({ _newSsn: e.target.value })} /></div>
-              <div className="field"><label>DD routing #</label><input value={selected.hr._newRouting || ''} onChange={(e) => setHr({ _newRouting: e.target.value })} /></div>
-              <div className="field"><label>DD account #{selected.hr.bank_enc?.account_last4 ? ` (…${selected.hr.bank_enc.account_last4})` : ''}</label>
+              <div className="field"><label>Direct Deposit routing #</label><input value={selected.hr._newRouting || ''} onChange={(e) => setHr({ _newRouting: e.target.value })} /></div>
+              <div className="field"><label>Direct Deposit account #{selected.hr.bank_enc?.account_last4 ? ` (…${selected.hr.bank_enc.account_last4})` : ''}</label>
                 <input value={selected.hr._newAccount || ''} onChange={(e) => setHr({ _newAccount: e.target.value })} /></div>
               {selected.hr.ssn_enc && (
                 <button type="button" className="logout-button" style={{ marginTop: 18 }} onClick={async () => { const { data, error } = await revealEmployeeSsn(selected.emp.id); setReveal(error ? error.message : (data || '—')) }}>Reveal SSN</button>

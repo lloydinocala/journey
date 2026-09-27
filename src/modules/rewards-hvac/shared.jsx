@@ -55,6 +55,22 @@ export function SetupNotice({ enabled }) {
   )
 }
 
+// Shown on any HR screen that lists employees when the roster is still empty, so
+// the page teaches the next step instead of just looking blank.
+export function EmptyRoster({ count }) {
+  if (count > 0) return null
+  return (
+    <div style={{
+      background: '#F5F8FC', border: '1px solid #DCE6F2', color: '#1B3A6B',
+      padding: '12px 14px', borderRadius: 10, marginBottom: 18, fontSize: 14,
+    }}>
+      No employees yet. This page lists people from your HR roster — add them first in{' '}
+      <Link to="/rewards/employees" style={{ color: '#1B3A6B', fontWeight: 700 }}>HR → Employees</Link>{' '}
+      (use the <strong>“+ From login accounts”</strong> button to add everyone who already signs in), then come back here.
+    </div>
+  )
+}
+
 // A small red/amber compliance chip used on the dashboard + cert screens.
 export function FlagChip({ severity, children }) {
   const red = severity === 'red'
