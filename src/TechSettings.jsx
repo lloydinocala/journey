@@ -40,6 +40,16 @@ export default function TechSettings({ profile }) {
           </div>
         </div>
 
+        {(profile?.role === 'org_admin' || profile?.role === 'super_admin') && (
+          <div className="jc-task">
+            <div className="jc-task-head blue" style={{ cursor: 'default' }}><span className="jc-th-title">Office App</span></div>
+            <div className="jc-task-body">
+              <p className="jc-muted-note">You have office access. Switch this device to the office app — your other device stays where it is.</p>
+              <button className="jc-btn ghost wide" style={{ marginTop: 10 }} onClick={() => navigate('/home')}>Switch to Office App</button>
+            </div>
+          </div>
+        )}
+
         <div className="jc-task">
           <div className="jc-task-head blue" style={{ cursor: 'default' }}><span className="jc-th-title">Terms &amp; Consent</span></div>
           <div className="jc-task-body">

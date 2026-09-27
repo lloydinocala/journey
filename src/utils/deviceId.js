@@ -33,6 +33,20 @@ export function devicePlatform() {
   try { return (navigator.platform || null) } catch { return null }
 }
 
+// Device kind for the single-session rule: 'mobile' (phone / field app) vs
+// 'desktop' (office app). Classified from the userAgent, which reliably names
+// Android/iOS — navigator.platform does not. A person may hold ONE active
+// device of each kind at once (desktop + phone), but never two of the same
+// kind, so the field app stays strictly one-per-person.
+export function deviceKind() {
+  try {
+    const ua = navigator.userAgent || ''
+    return /Mobi|Android|iPhone|iPod|iPad|Windows Phone|BlackBerry|IEMobile|Opera Mini/i.test(ua)
+      ? 'mobile'
+      : 'desktop'
+  } catch { return 'desktop' }
+}
+
 // One best-effort GPS fix. Never rejects — resolves null if denied/unavailable,
 // so a clock action is never blocked by location.
 export function getPosition(timeoutMs = 8000) {
