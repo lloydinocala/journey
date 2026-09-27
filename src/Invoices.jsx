@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import CollectionsSequencer from './CollectionsSequencer'
 import ReceivePayment from './ReceivePayment'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
@@ -500,6 +501,8 @@ export default function Invoices({ profile }) {
           <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
         </div>
       )}
+
+      {!loading && <CollectionsSequencer invoices={invoices} />}
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="field" style={{ marginBottom: 0, minWidth: 160 }}>

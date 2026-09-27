@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import PermitPanel from './PermitPanel'
 import { supabase } from './utils/supabase'
 import RoutingSummary from './RoutingSummary'
+import TierBuilder from './TierBuilder'
 
 // Render a section description line-by-line, bolding only the equipment name — the line that
 // sits directly under an INDOOR UNIT / OUTDOOR UNIT / FURNACE label (not AHRI or model #).
@@ -536,6 +537,9 @@ export default function SystemEstimate({ profile }) {
                   {sizeOptions.map((s) => <option key={s} value={s}>{s} Tons</option>)}
                 </select>
               </div>
+            )}
+            {pickSystemType && pickSize && matchingEquipment.length > 1 && (
+              <TierBuilder equipment={matchingEquipment} systemType={pickSystemType} size={pickSize} />
             )}
             {pickSystemType && pickSize && (seerOptions.length > 1 || brandOptions.length > 1) && (
               <div className="field" style={{ display: 'flex', gap: 10 }}>

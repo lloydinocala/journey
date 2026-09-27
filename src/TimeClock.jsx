@@ -3,6 +3,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import TimeClockAnomalies from './TimeClockAnomalies'
 import TimeClockSecurity from './TimeClockSecurity'
+import GeofenceSites from './GeofenceSites'
 
 function fmt(ts) {
   if (!ts) return '—'
@@ -158,7 +159,8 @@ export default function TimeClock({ profile }) {
         Review and correct clock entries. Corrections preserve the original times as a permanent record.
       </p>
 
-      {selectedOrg && <TimeClockSecurity orgId={selectedOrg} userId={profile.id} />}
+      {selectedOrg && <TimeClockSecurity orgId={selectedOrg} userId={profile.id} role={profile.role} />}
+      {selectedOrg && <GeofenceSites orgId={selectedOrg} />}
 
       {/* NEEDS ATTENTION */}
       {needsAttention.length > 0 && (
