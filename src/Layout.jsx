@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
+import { getDeviceId } from './utils/deviceId'
 import AnnouncementBanner from './AnnouncementBanner'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
@@ -383,7 +384,8 @@ export default function Layout({ profile }) {
         if (openBreaks && openBreaks.length > 0) {
           await supabase.from('clock_breaks').update({ break_end: new Date().toISOString() }).eq('id', openBreaks[0].id)
         }
-        await supabase.from('time_clock_events').update({ clock_out: new Date().toISOString() }).eq('id', shiftId)
+        // Route through the device-bound RPC (stamps device; location skipped for a fast logout).
+        await supabase.rpc('tc_clock_out', { p_event_id: shiftId, p_device_id: getDeviceId(), p_lat: null, p_lng: null, p_acc: null })
       }
     } catch (e) { /* ignore clock hiccup */ }
 

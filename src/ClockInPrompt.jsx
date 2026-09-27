@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
+import { getDeviceId, deviceLabel, devicePlatform, getPosition } from './utils/deviceId'
 
 // Shown once per app session after an org employee logs in, IF they aren't
 // already clocked in. Big "Clock In" to start paid time, small "Skip for now"
@@ -60,11 +61,11 @@ export default function ClockInPrompt({ profile }) {
 
   async function clockIn() {
     setBusy(true)
-    const { error } = await supabase.from('time_clock_events').insert({
-      org_id: profile.org_id,
-      user_id: profile.id,
-      clock_in: new Date().toISOString(),
-      source: 'desktop',
+    const pos = await getPosition()
+    const { error } = await supabase.rpc('tc_clock_in', {
+      p_org: profile.org_id, p_device_id: getDeviceId(),
+      p_lat: pos?.lat ?? null, p_lng: pos?.lng ?? null, p_acc: pos?.acc ?? null,
+      p_source: 'desktop', p_label: deviceLabel(), p_platform: devicePlatform(),
     })
     setBusy(false)
     if (error) { alert('Could not clock in: ' + error.message); return }

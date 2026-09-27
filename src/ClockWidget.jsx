@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './utils/supabase'
+import { getDeviceId, deviceLabel, devicePlatform, getPosition } from './utils/deviceId'
 
 // Shift-level clock with nested breaks (Option A). Records compensable
 // "hours worked" — the legally defensible number. One open shift = a
@@ -63,15 +64,16 @@ export default function ClockWidget({ userId, orgId, variant = 'mobile', onChang
   async function clockIn() {
     if (!userId || !orgId) { alert('Missing user or organization.'); return }
     setBusy(true)
-    const { data, error } = await supabase.from('time_clock_events').insert({
-      org_id: orgId,
-      user_id: userId,
-      clock_in: new Date().toISOString(),
-      source: variant === 'desktop' ? 'desktop' : 'mobile',
-    }).select().single()
+    const pos = await getPosition()
+    const { data, error } = await supabase.rpc('tc_clock_in', {
+      p_org: orgId, p_device_id: getDeviceId(),
+      p_lat: pos?.lat ?? null, p_lng: pos?.lng ?? null, p_acc: pos?.acc ?? null,
+      p_source: variant === 'desktop' ? 'desktop' : 'mobile',
+      p_label: deviceLabel(), p_platform: devicePlatform(),
+    })
     setBusy(false)
     if (error) { alert('Could not clock in: ' + error.message); return }
-    setOpenShift(data)
+    await loadState()   // refetch the freshly opened shift (with device + location)
     if (onChange) onChange()
   }
 
@@ -79,9 +81,11 @@ export default function ClockWidget({ userId, orgId, variant = 'mobile', onChang
     if (!openShift) return
     if (openBreak) await endBreak(true)
     setBusy(true)
-    const { error } = await supabase.from('time_clock_events')
-      .update({ clock_out: new Date().toISOString() })
-      .eq('id', openShift.id)
+    const pos = await getPosition()
+    const { error } = await supabase.rpc('tc_clock_out', {
+      p_event_id: openShift.id, p_device_id: getDeviceId(),
+      p_lat: pos?.lat ?? null, p_lng: pos?.lng ?? null, p_acc: pos?.acc ?? null,
+    })
     setBusy(false)
     if (error) { alert('Could not clock out: ' + error.message); return }
     setOpenShift(null)
