@@ -18,7 +18,14 @@ export const HELP_ARTICLES = [
       "permissions",
       "access",
       "tags",
-      "grant"
+      "grant",
+      "manager",
+      "office manager",
+      "field manager",
+      "warehouse manager",
+      "department",
+      "stack",
+      "combine"
     ],
     "purpose": "Team is your people; Roles & Tags controls what each of them can do.",
     "sections": [
@@ -26,13 +33,29 @@ export const HELP_ARTICLES = [
         "h": "How to use it",
         "items": [
           "Team lists your users and lets you add or manage them.",
-          "Roles & Tags defines roles and the granular permissions attached to them — who can see the Maintenance Dashboard, void invoices, and so on.",
-          "Assign a person a role to grant them its permissions."
+          "Roles & Tags defines roles (tags) and the granular permissions attached to each one — who can see the Maintenance Dashboard, void invoices, and so on.",
+          "Assign a person one or more tags to grant them those permissions."
+        ]
+      },
+      {
+        "h": "Build a separate tag for each real role",
+        "items": [
+          "Every tag is independent and carries its own set of permissions, so you can make one for each real job — for example Office Mgr, Field Mgr, and Warehouse Mgr — and give each only what that role needs. There is no single fixed \"manager\" role you are stuck with.",
+          "Create one with New tag: give it a name, pick a department, then check the permissions it should have and Save.",
+          "The department (Admin, Field, Shop, Front Office, Back Office) is only a grouping label on this screen — it does not limit which permissions you can grant. A Warehouse Mgr can have full inventory and purchasing power with no field access, and a Field Mgr the reverse."
+        ]
+      },
+      {
+        "h": "Permissions add up across tags",
+        "items": [
+          "A person's access is the sum of every tag they hold. Give someone only \"Field Mgr\" and they get exactly that set; add \"Bookkeeping\" on top and they get both combined.",
+          "So you can build a manager as one focused tag, or assemble one from a base tag plus add-ons — whichever is easier to keep straight.",
+          "You can keep a broad manager tag, narrow it, or stop using it once the specific tags cover your people."
         ]
       },
       {
         "h": "Good to know",
-        "body": "On-call technicians can be granted extra permissions automatically, only for their on-call window — see the On-Call Schedule."
+        "body": "Saving a tag replaces its permissions with exactly what is checked at that moment, so glance over the boxes before you save. On-call technicians can also be granted extra permissions automatically, only for their on-call window — see the On-Call Schedule."
       }
     ]
   },
