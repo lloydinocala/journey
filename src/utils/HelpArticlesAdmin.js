@@ -123,13 +123,23 @@ export const HELP_ARTICLES = [
       "payroll",
       "pay",
       "timesheet",
-      "capture"
+      "capture",
+      "device",
+      "phone",
+      "computer",
+      "reset device",
+      "security",
+      "locked"
     ],
     "purpose": "Time Clock is where staff clock in and out; Payroll Capture pulls those hours together for payroll.",
     "sections": [
       {
         "h": "How to use it",
         "body": "Staff clock in and out on the Time Clock. Payroll Capture gathers the recorded hours so you can run payroll from them. (Sign-In Log is separate — that tracks app access, not work hours.)"
+      },
+      {
+        "h": "Device security — one computer + one phone",
+        "body": "Clocking in and opening the app bind to the device you're on. Each person can be signed in on at most one computer and one phone at the same time — never two of the same kind. That keeps the field app one-per-person, so a login can't be shared to clock someone else in, while a manager can still work a desktop and a phone at once. Opening a second computer (or a second phone) locks the first with a \"Locked for security\" screen. The device-security panel on this page logs new devices, switches, and rapid back-and-forth switching (flagged red), and an org admin can reset an employee's device here when they replace a phone. Only the platform owner is exempt."
       }
     ]
   },
@@ -151,7 +161,7 @@ export const HELP_ARTICLES = [
     "sections": [
       {
         "h": "Good to know",
-        "body": "Use it to review app access. This is about signing into the software, not clocking in for work — for hours worked, see Time Clock."
+        "body": "Use it to review app access. This is about signing into the software, not clocking in for work — for hours worked, see Time Clock. Note the sign-in rule: each person can be signed in on only one computer and one phone at a time; a second device of the same kind locks the first, and those device switches are detailed on the Time Clock's device-security panel."
       }
     ]
   },

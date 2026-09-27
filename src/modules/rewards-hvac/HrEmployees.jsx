@@ -9,6 +9,7 @@ import { useOrgSelector, OrgBar } from './shared'
 import HrOnboardingCompleteness from './HrOnboardingCompleteness'
 
 const blankNew = { full_name: '', role: '', pay_type: 'hourly', hourly_rate: '', annual_salary: '', hire_date: '', user_id: '', manager_id: '', department: '' }
+const ROLE_LABEL = { super_admin: 'Super Admin', org_admin: 'Owner / Admin', csr: 'Office', tech: 'Field Tech' }
 
 export default function HrEmployees({ profile }) {
   const org = useOrgSelector(profile)
@@ -22,6 +23,10 @@ export default function HrEmployees({ profile }) {
   const [selected, setSelected] = useState(null)   // { emp, hr }
   const [reveal, setReveal] = useState('')
   const [structureOn, setStructureOn] = useState(false)
+  const [showImport, setShowImport] = useState(false)   // "add from login accounts" picker
+  const [pickUsers, setPickUsers] = useState([])
+  const [importing, setImporting] = useState(false)
+  const [importMsg, setImportMsg] = useState('')
 
   async function load() {
     if (!org.selectedOrg) return
@@ -56,6 +61,28 @@ export default function HrEmployees({ profile }) {
     setForm(blankNew); setShowForm(false); load()
   }
 
+  // Create employee records in bulk from existing login accounts. Each becomes an
+  // active employee linked to that login, with pay/role left blank to fill in later.
+  async function addFromLogins() {
+    const ids = pickUsers.filter((id) => !linkedUserIds.has(id))
+    if (ids.length === 0) return
+    setImporting(true); setImportMsg('')
+    let added = 0, failed = 0
+    for (const id of ids) {
+      const u = users.find((x) => x.id === id)
+      if (!u) continue
+      const { data: emp, error: err } = await addEmployee(org.selectedOrg, {
+        full_name: (u.full_name || '').trim() || 'Unnamed', pay_type: 'hourly', user_id: u.id, is_active: true,
+      })
+      if (err || !emp) { failed++; continue }
+      try { await seedOnboarding(org.selectedOrg, emp.id) } catch { /* onboarding seed is non-fatal */ }
+      added++
+    }
+    setImporting(false); setPickUsers([])
+    setImportMsg(`Added ${added} employee${added === 1 ? '' : 's'}${failed ? `, ${failed} failed` : ''}. Click Edit on each to fill in pay, role, and hire date.`)
+    load()
+  }
+
   async function openDetail(emp) {
     const hr = await getEmployeeHr(org.selectedOrg, emp.id)
     setSelected({ emp: { ...emp }, hr: hr || {} })
@@ -84,6 +111,7 @@ export default function HrEmployees({ profile }) {
 
   const setEmp = (patch) => setSelected((s) => ({ ...s, emp: { ...s.emp, ...patch } }))
   const setHr = (patch) => setSelected((s) => ({ ...s, hr: { ...s.hr, ...patch } }))
+  const linkedUserIds = new Set(employees.map((e) => e.user_id).filter(Boolean))
 
   return (
     <div>
@@ -92,11 +120,47 @@ export default function HrEmployees({ profile }) {
           <h2>Employees</h2>
           <span className="badge">{employees.length} shown</span>
         </div>
+        <button className="auth-button" style={{ width: 'auto', margin: 0, background: '#1F7A43' }} onClick={() => { setShowImport((v) => !v); setImportMsg('') }}>
+          {showImport ? 'Close' : '+ From login accounts'}
+        </button>
         <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => setShowForm(!showForm)}>
           {showForm ? 'Cancel' : '+ New Employee'}
         </button>
       </div>
       <OrgBar {...org} />
+
+      {showImport && (
+        <div className="section-card" style={{ padding: 16, marginBottom: 16, borderLeft: '4px solid #1F7A43' }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Add employees from login accounts</div>
+          <div style={{ fontSize: 12.5, color: 'var(--mist)', marginBottom: 12 }}>
+            Pick the sign-in accounts to turn into employee records. Each becomes an active employee linked to that login; fill in pay, role, and hire date afterward with Edit. Accounts already linked to an employee are greyed out.
+          </div>
+          {users.length === 0 ? (
+            <p style={{ color: 'var(--mist)', fontSize: 13, margin: 0 }}>No login accounts in this organization.</p>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gap: 6, marginBottom: 12 }}>
+                {users.map((u) => {
+                  const linked = linkedUserIds.has(u.id)
+                  return (
+                    <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, opacity: linked ? 0.5 : 1, cursor: linked ? 'default' : 'pointer' }}>
+                      <input type="checkbox" disabled={linked} checked={linked || pickUsers.includes(u.id)}
+                        onChange={(e) => setPickUsers((p) => e.target.checked ? [...p, u.id] : p.filter((x) => x !== u.id))} />
+                      <span style={{ fontWeight: 600 }}>{u.full_name || '(no name)'}</span>
+                      <span style={{ fontSize: 12, color: 'var(--mist)' }}>{ROLE_LABEL[u.role] || u.role}</span>
+                      {linked && <span style={{ fontSize: 11.5, color: '#166534', marginLeft: 'auto' }}>already an employee</span>}
+                    </label>
+                  )
+                })}
+              </div>
+              <button className="auth-button" style={{ width: 'auto' }} disabled={importing || pickUsers.length === 0} onClick={addFromLogins}>
+                {importing ? 'Adding…' : `Add selected (${pickUsers.length})`}
+              </button>
+              {importMsg && <div style={{ fontSize: 12.5, color: '#166534', marginTop: 8, fontWeight: 600 }}>{importMsg}</div>}
+            </>
+          )}
+        </div>
+      )}
 
       <HrOnboardingCompleteness orgId={org.selectedOrg} />
 

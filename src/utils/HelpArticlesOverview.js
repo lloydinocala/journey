@@ -24,7 +24,13 @@ export const HELP_ARTICLES = [
       "add kpi",
       "gross margin",
       "on-time",
-      "sales"
+      "sales",
+      "menu",
+      "navigation",
+      "back to",
+      "field app",
+      "office app",
+      "sections"
     ],
     "purpose": "HOME is your daily command board — the whole business at a glance for one organization and one time window. It is read-only reporting, not a place you edit records: every tile is a live number that links straight to the page where you act on it. A manager can run the entire morning review from here.",
     "sections": [
@@ -64,6 +70,14 @@ export const HELP_ARTICLES = [
           "+ Add KPI — pick a base measure (Revenue, Gross profit, Estimate value, Jobs completed) and a breakdown (total, by tech, by job type, by customer, by month, by status); the builder picks the right chart and adds the tile to the end of the board.",
           "Arrange — drag any tile by its handle to reorder, and use the − S/M/L + control to resize (single-value tiles cap at M, charts go to L). Every change saves automatically; click Done arranging when finished.",
           "Remove a tile with its × ; Reset to default restores the standard 12-tile board (that button only shows once an org has customized). The factory default can never be lost."
+        ]
+      },
+      {
+        "h": "Getting around (the left menu)",
+        "items": [
+          "The menu is a single column. HOME stays pinned at the top on every screen — tap it to jump back to the top level.",
+          "Tap a section — Train Station, Inventory Central, WorkForce, Command Center, Financials, or Admin — and its menu opens in place, with a \"BACK TO:\" line just under HOME to step back one level at a time.",
+          "Owners and admins see a \"Field App\" button near the bottom of the menu that opens the phone / field app on this device. From inside the field app, Mobile App Settings → \"Switch to Office App\" brings you back. Because you can be signed in on one computer and one phone at once, your desktop can stay in the office while your phone is in the field app."
         ]
       },
       {
