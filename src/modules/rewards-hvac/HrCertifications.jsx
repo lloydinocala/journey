@@ -1,9 +1,15 @@
 // Rewards-HVAC · Certifications & Licenses — with expiry status (EPA 608, NATE, licenses…)
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { listEmployees, listCertifications, addCertification, updateCertification, deleteCertification, CERT_TYPES, certLabel, uploadHrFile, signedHrUrl } from './hrData'
 import { useOrgSelector, OrgBar, FlagChip, daysUntil } from './shared'
+import AiAssist from '../../AiAssist'
 
 async function openFile(path) { const u = await signedHrUrl(path); if (u) window.open(u, '_blank') }
+
+// Turns the expiring/expired credential list into a prioritized renewal plan.
+// EPA 608 is called out because a lapsed 608 legally bars a tech from buying or
+// handling refrigerant — that's not just a reminder, it's "can't work" risk.
+const CERT_WATCH_SYS = `You are a compliance assistant for an HVAC contractor. You are given credentials that are expired or expiring soon (employee, credential, days until expiry — negative means already expired). Write a short, prioritized renewal plan: who needs to renew what and by when, MOST urgent first. Call out EPA 608 specifically — a lapsed EPA 608 legally bars that tech from purchasing or handling refrigerant, so treat expired/expiring 608s as top priority ("cannot legally do refrigerant work"). Also flag driver's licenses and DOT medical cards as work-blocking if present. Then add one short, friendly reminder line the office could send each affected tech. Use ONLY the data given; do not invent people or dates. Under 14 lines, no headers.`
 
 const blank = { employee_id: '', cert_type: 'epa_608', identifier: '', issued_date: '', expires_date: '' }
 
@@ -36,6 +42,14 @@ export default function HrCertifications({ profile }) {
   useEffect(() => { load() }, [org.selectedOrg, filterEmp])
 
   const empName = (id) => (employees.find((e) => e.id === id) || {}).full_name || '—'
+
+  // Expired, or expiring within 90 days — the renewal-watch working set.
+  const atRisk = useMemo(() => rows
+    .map((r) => ({ r, d: daysUntil(r.expires_date) }))
+    .filter((x) => x.d !== null && x.d <= 90)
+    .sort((a, b) => a.d - b.d)
+    .map(({ r, d }) => ({ employee: empName(r.employee_id), credential: certLabel(r.cert_type), cert_type: r.cert_type, expires: r.expires_date, days_until: d })),
+    [rows, employees])
 
   async function submit(e) {
     e.preventDefault()
@@ -76,6 +90,19 @@ export default function HrCertifications({ profile }) {
           <div className="field"><label>Card scan / photo (optional)</label><input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
           <button className="auth-button" type="submit" style={{ width: 'auto' }} disabled={saving}>{saving ? 'Saving…' : 'Add'}</button>
         </form>
+      )}
+
+      {atRisk.length > 0 && (
+        <div style={{ marginBottom: 14, border: '1px solid #F1D9B8', background: '#FFF9F0', borderRadius: 10, padding: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <strong style={{ color: '#9A3412', fontSize: 13.5 }}>{atRisk.length} credential{atRisk.length === 1 ? '' : 's'} expired or expiring ≤ 90 days</strong>
+            <AiAssist inline title="Renewal watch" label="✦ Draft renewal plan"
+              system={CERT_WATCH_SYS}
+              prompt="Draft the prioritized renewal plan and a reminder line per tech, most urgent first."
+              context={{ at_risk: atRisk }} />
+          </div>
+          <span style={{ fontSize: 12, color: 'var(--mist)' }}>Sends only names, credential types, and dates. EPA 608 lapses are treated as work-blocking.</span>
+        </div>
       )}
 
       <div className="field" style={{ maxWidth: 300, marginBottom: 12 }}>

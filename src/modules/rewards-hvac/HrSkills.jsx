@@ -1,13 +1,19 @@
 // Rewards-HVAC · Skills / training matrix — who-can-do-what across the crew.
 // Distinct from Certifications (which tracks licensed/expiring credentials);
 // this is a proficiency grid to help with job assignment and development.
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { listEmployees, listSkills, addSkill, updateSkill, listEmployeeSkills, setEmployeeSkill, SKILL_LEVELS } from './hrData'
 import { useOrgSelector, OrgBar } from './shared'
+import AiAssist from '../../AiAssist'
 
 const LEVEL_COLOR = ['#F1F5F9', '#FEF3C7', '#DBEAFE', '#DCFCE7']
 const LEVEL_TEXT = ['#94A3B8', '#B0600A', '#1D4ED8', '#166534']
 const blank = { name: '', category: '' }
+
+// Reads the proficiency grid and finds the real risks: skills nobody can do, and
+// single points of failure where only one person is capable. Feeds that to the AI
+// to draft a cross-training / hiring plan. Names + skills + levels only.
+const SKILLS_GAP_SYS = `You are a workforce-planning analyst for an HVAC contractor. You are given the crew size and, per skill, how many people are at each level (None / Learning / Proficient / Expert) and who is capable (Proficient or Expert). Identify the coverage risks and draft a prioritized plan: (1) skills with NO capable person (biggest risk); (2) single points of failure — only ONE capable person (a vacation or resignation leaves you exposed); (3) thin coverage relative to crew size. For each, recommend a concrete next step — who to cross-train toward what (name a Learning-level person to develop where sensible), or where to hire. Keep it practical and specific to the skills given; use ONLY the data provided. Under 14 lines, no headers.`
 
 export default function HrSkills({ profile }) {
   const org = useOrgSelector(profile)
@@ -40,6 +46,19 @@ export default function HrSkills({ profile }) {
     await setEmployeeSkill(org.selectedOrg, empId, skillId, level)
   }
 
+  // Per-skill coverage summary for the gap analysis (names + levels only).
+  const matrixSummary = useMemo(() => skills.map((s) => {
+    const counts = [0, 0, 0, 0]
+    const capable = [], learners = []
+    employees.forEach((e) => {
+      const lvl = levels[e.id + ':' + s.id] || 0
+      counts[lvl]++
+      if (lvl >= 2) capable.push({ name: e.full_name, level: SKILL_LEVELS[lvl] })
+      else if (lvl === 1) learners.push(e.full_name)
+    })
+    return { skill: s.name, category: s.category || null, none: counts[0], learning: counts[1], proficient: counts[2], expert: counts[3], capable, learners_in_progress: learners }
+  }), [skills, employees, levels])
+
   return (
     <div>
       <div className="page-header-bar">
@@ -56,12 +75,20 @@ export default function HrSkills({ profile }) {
         </form>
       )}
 
-      <div style={{ display: 'flex', gap: 14, marginBottom: 14, flexWrap: 'wrap', fontSize: 12, color: 'var(--mist)' }}>
+      <div style={{ display: 'flex', gap: 14, marginBottom: 14, flexWrap: 'wrap', fontSize: 12, color: 'var(--mist)', alignItems: 'center' }}>
         {SKILL_LEVELS.map((l, i) => (
           <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <span style={{ width: 12, height: 12, borderRadius: 3, background: LEVEL_COLOR[i], border: '1px solid var(--border)' }} />{i === 0 ? 'None' : l}
           </span>
         ))}
+        {skills.length > 0 && employees.length > 0 && (
+          <span style={{ marginLeft: 'auto' }}>
+            <AiAssist inline title="Skills-gap & training plan" label="✦ Find gaps → training plan"
+              system={SKILLS_GAP_SYS}
+              prompt="Analyze coverage and draft a prioritized cross-training and hiring plan."
+              context={{ crew_size: employees.length, skills: matrixSummary }} />
+          </span>
+        )}
       </div>
 
       {skills.length === 0 ? (

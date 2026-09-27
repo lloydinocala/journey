@@ -7,8 +7,15 @@
 import { useState, useEffect } from 'react'
 import { listEmployees, updateEmployee, listSeparations, addSeparation, SEPARATION_REASONS, separationReasonLabel } from './hrData'
 import { useOrgSelector, OrgBar } from './shared'
+import AiAssist from '../../AiAssist'
 
 const TYPE_LABEL = { voluntary: 'Voluntary', involuntary: 'Involuntary', layoff: 'Layoff' }
+
+// Drafts a PROCESS checklist for offboarding — property return, access removal,
+// final pay, benefits notices. It deliberately never touches WHY the person left:
+// no reason, no performance narrative, nothing that could feed an unemployment
+// claim or a lawsuit. Same posture as this module's behavior-only record.
+const OFFBOARDING_SYS = `You are an HR coordinator for an HVAC contractor drafting an OFFBOARDING CHECKLIST for a departing employee, given only their role and separation type (voluntary / involuntary / layoff). List the concrete steps to close out cleanly: recover company property (truck, keys/fobs, tools, phone/tablet, uniforms, fuel/purchase cards), revoke system and building access, disable logins, collect final timesheet, confirm final-pay timing per state rules, provide required benefits/COBRA and final-pay notices, and note documents to retain. Tailor property items to the role. STRICT RULES: do NOT state or infer the REASON for the separation, and never include performance commentary, accusations, or any characterization of the person — this is a process list only. Group as Immediate (last day) / Within a few days / Within 30 days. Keep it concise.`
 const blank = {
   employee_id: '', separation_type: 'involuntary', effective_date: '', last_day_worked: '',
   rehire_eligible: 'yes', reasons: [], confidential_note: '', mark_inactive: true,
@@ -132,6 +139,18 @@ export default function HrSeparations({ profile }) {
             <input type="checkbox" checked={form.mark_inactive} onChange={(e) => setForm({ ...form, mark_inactive: e.target.checked })} style={{ marginRight: 6 }} />
             Also mark this employee inactive
           </label>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+            {form.employee_id ? (
+              <AiAssist inline title="Offboarding checklist" label="✦ Draft offboarding checklist"
+                system={OFFBOARDING_SYS}
+                prompt="Draft the offboarding checklist for this departure — process steps only, no reason."
+                context={{ separation_type: form.separation_type, role: (employees.find((e) => e.id === form.employee_id) || {}).role || 'field employee' }} />
+            ) : (
+              <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>Select an employee to draft their offboarding checklist.</span>
+            )}
+            <span style={{ fontSize: 12, color: 'var(--mist)' }}>Process steps only — never the reason for leaving. Copy into your offboarding notes.</span>
+          </div>
 
           {error && <div className="auth-error" style={{ marginTop: 12 }}>{error}</div>}
           <div><button className="auth-button" type="submit" style={{ width: 'auto', marginTop: 14 }} disabled={saving}>{saving ? 'Saving…' : 'Record separation'}</button></div>
