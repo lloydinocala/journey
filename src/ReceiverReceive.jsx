@@ -6,7 +6,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconChevronLeft } from './MobileIcons'
+import { supabase } from './utils/supabase'
 import { listPurchaseOrders, getPurchaseOrder, receivePO, createReceivingFlag } from './modules/elements-hvac/data'
+
+const fileToB64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(file) })
+const slipTokens = (s) => new Set((s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 2))
 
 const fmtD = (d) => (d ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? d + 'T12:00:00' : d).toLocaleDateString() : '')
 const FLAG_KINDS = ['Short shipment', 'Wrong part sent', 'Damaged', 'Other']
@@ -26,6 +30,41 @@ export default function ReceiverReceive({ profile }) {
   const [flagKind, setFlagKind] = useState('')
   const [flagNote, setFlagNote] = useState('')
   const [flagBusy, setFlagBusy] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [scanNote, setScanNote] = useState('')
+
+  // Photo-receive: read a packing slip photo and PREFILL the arrived quantities for
+  // the receiver to confirm. Reuses the invoice-extract vision function (it already
+  // handles packing slips). Nothing is posted from the photo — the receiver still
+  // reviews every line and taps Receive.
+  async function scanSlip(e) {
+    const file = e.target.files?.[0]; e.target.value = ''
+    if (!file || !po) return
+    setScanning(true); setErr(''); setScanNote('')
+    try {
+      const fileBase64 = await fileToB64(file)
+      const { data, error } = await supabase.functions.invoke('invoice-extract', { body: { fileBase64, mediaType: file.type } })
+      if (error || data?.error) { setErr(data?.error || error?.message || 'Could not read that slip — enter quantities by hand.'); setScanning(false); return }
+      const slipLines = data?.lines || []
+      const openLines = (po.lines || []).filter((l) => Math.max(0, Number(l.qty_ordered || 0) - Number(l.qty_received || 0)) > 0)
+      const next = { ...recv }; let matched = 0; const unmatched = []
+      slipLines.forEach((sl) => {
+        const st = slipTokens(`${sl.sku || ''} ${sl.description || ''}`)
+        let best = null; let bestScore = 0
+        openLines.forEach((l) => {
+          const lt = slipTokens(`${l.item?.sku || ''} ${l.item?.description || l.description || ''}`)
+          let inter = 0; st.forEach((w) => { if (lt.has(w)) inter++ })
+          const j = st.size ? inter / (st.size + lt.size - inter) : 0
+          if (j > bestScore) { bestScore = j; best = l }
+        })
+        if (best && bestScore >= 0.3 && sl.quantity != null) { next[best.id] = String(sl.quantity); matched++ }
+        else unmatched.push(sl.description || sl.sku || 'a line')
+      })
+      setRecv(next)
+      setScanNote(`Prefilled ${matched} line${matched === 1 ? '' : 's'} from the slip — please confirm each quantity before you tap Receive.${unmatched.length ? ` Couldn't match: ${unmatched.slice(0, 4).join(', ')}${unmatched.length > 4 ? '…' : ''} — enter those by hand.` : ''}`)
+    } catch (ex) { setErr(String(ex)) }
+    setScanning(false)
+  }
 
   useEffect(() => {
     if (!orgId) return
@@ -85,6 +124,11 @@ export default function ReceiverReceive({ profile }) {
               {msg && <div style={{ background: '#E3F1E8', border: '1px solid #166534', color: '#166534', padding: '8px 12px', borderRadius: 8, fontWeight: 600, fontSize: 13, marginBottom: 10 }}>{msg}</div>}
               {err && <div className="auth-error" style={{ marginBottom: 10 }}>{err}</div>}
               <p className="jc-muted-note" style={{ marginTop: 0 }}>Enter how many of each part actually arrived. Leave a line at 0 if it didn’t come.</p>
+              <label className="auth-button" style={{ width: 'auto', display: 'inline-block', margin: '0 0 10px', padding: '8px 14px', cursor: 'pointer' }}>
+                {scanning ? 'Reading slip…' : '📷 Scan packing slip'}
+                <input type="file" accept="image/*,application/pdf" capture="environment" onChange={scanSlip} disabled={scanning} style={{ display: 'none' }} />
+              </label>
+              {scanNote && <div style={{ background: '#EAF1F8', border: '1px solid #B9D0EA', color: '#1B3A6B', padding: '8px 12px', borderRadius: 8, fontSize: 13, marginBottom: 10 }}>{scanNote}</div>}
               {(po.lines || []).map((l) => {
                 const rem = Math.max(0, Number(l.qty_ordered || 0) - Number(l.qty_received || 0))
                 const done = rem <= 0

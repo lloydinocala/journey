@@ -10,7 +10,7 @@ import ItemDuplicates from './ItemDuplicates'
 const blank = {
   description: '', category: '', item_class: 'part', stock_type: 'stock',
   base_uom: 'each', stock_uom: '', units_per_stock_uom: '', vendor_part_no: '',
-  last_cost: '', barcode: '', primary_vendor_id: '',
+  last_cost: '', barcode: '', primary_vendor_id: '', sourcing_pref: 'preferred',
 }
 
 // On import, a blank/absent "Active" means active. Only an explicit falsey turns it off.
@@ -200,6 +200,7 @@ export default function ElementsItems({ profile }) {
       last_cost: form.last_cost ? parseFloat(form.last_cost) : null,
       barcode: form.barcode.trim() || null,
       primary_vendor_id: form.primary_vendor_id || null,
+      sourcing_pref: form.sourcing_pref || 'preferred',
     }
   }
 
@@ -225,6 +226,7 @@ export default function ElementsItems({ profile }) {
       last_cost: it.last_cost != null ? String(it.last_cost) : '',
       barcode: it.barcode || '',
       primary_vendor_id: it.primary_vendor_id || '',
+      sourcing_pref: it.sourcing_pref || 'preferred',
     })
     setShowForm(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -336,6 +338,10 @@ export default function ElementsItems({ profile }) {
             <select value={form.primary_vendor_id} onChange={(e) => setForm({ ...form, primary_vendor_id: e.target.value })}>
               <option value="">—</option>
               {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+          </div>
+          <div className="field" style={{ minWidth: 150 }}>
+            <label>Sourcing</label>
             </select>
           </div>
           <div className="field"><label>Vendor part #</label><input type="text" value={form.vendor_part_no} onChange={(e) => setForm({ ...form, vendor_part_no: e.target.value })} /></div>

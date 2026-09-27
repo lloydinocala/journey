@@ -11,6 +11,7 @@ import {
   listJobPartOrders, sendPoEmail, createVendor, getReceivingFlags, resolveReceivingFlag,
 } from './data'
 import { useOrgSelector, OrgBar } from './shared'
+import PoDrafter from './PoDrafter'
 
 const money = (n) => (n == null || n === '' || isNaN(n) ? '—' : `$${Number(n).toFixed(2)}`)
 const costOf = (it) => (it ? (it.last_cost ?? it.standard_cost ?? null) : null)
@@ -380,6 +381,8 @@ export default function ElementsPurchaseOrders({ profile }) {
         </div>
       </div>
       <OrgBar {...org} />
+
+      <PoDrafter orgId={org.selectedOrg} onCreated={loadList} />
 
       {settingsOpen && (
         <div style={{ border: '1px solid #CBD5E1', borderRadius: 12, padding: 16, marginBottom: 14, background: '#F8FAFC', maxWidth: 520 }}>
