@@ -109,6 +109,7 @@ import TechInvoiceView from './TechInvoiceView'
 import TechMessages from './TechMessages'
 import TextArchive from './TextArchive'
 import TechGate from './TechGate'
+import DeviceSessionGuard from './DeviceSessionGuard'
 import ReceiverGate from './ReceiverGate'
 import ReceiverHome from './ReceiverHome'
 import ReceiverReceive from './ReceiverReceive'
@@ -229,6 +230,7 @@ function AuthenticatedApp() {
   if (!profile) return null
 
   return (
+    <DeviceSessionGuard profile={profile}>
     <Routes>
       {/* All mobile field views sit behind the terms consent gate. */}
       <Route element={<TechGate profile={profile} />}>
@@ -385,6 +387,7 @@ function AuthenticatedApp() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+    </DeviceSessionGuard>
   )
 }
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import TimeClockAnomalies from './TimeClockAnomalies'
+import TimeClockSecurity from './TimeClockSecurity'
 
 function fmt(ts) {
   if (!ts) return '—'
@@ -156,6 +157,8 @@ export default function TimeClock({ profile }) {
       <p style={{ color: 'var(--mist)', marginTop: 4 }}>
         Review and correct clock entries. Corrections preserve the original times as a permanent record.
       </p>
+
+      {selectedOrg && <TimeClockSecurity orgId={selectedOrg} userId={profile.id} />}
 
       {/* NEEDS ATTENTION */}
       {needsAttention.length > 0 && (

@@ -3,7 +3,6 @@ import { Outlet } from 'react-router-dom'
 import TechLocationReporter from './TechLocationReporter'
 import { supabase } from './utils/supabase'
 import { TERMS_VERSION, TERMS } from './techTerms'
-import { getDeviceId, deviceLabel, devicePlatform } from './utils/deviceId'
 
 // Consent gate wrapping every mobile job view. Any signed-in employee who opens
 // the field app must accept the current terms (message archiving + always-on GPS)
@@ -13,44 +12,8 @@ export default function TechGate({ profile }) {
   const [agree, setAgree] = useState(false)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
-  // Single active device: only ONE Field App may be live per person at a time.
-  const [deviceState, setDeviceState] = useState('checking') // checking | active | superseded
-  const [claiming, setClaiming] = useState(false)
 
   useEffect(() => { check() }, [])
-
-  async function claimDevice() {
-    try {
-      await supabase.rpc('tc_claim_device', {
-        p_org: profile?.org_id || null, p_device_id: getDeviceId(),
-        p_label: deviceLabel(), p_platform: devicePlatform(),
-      })
-    } catch { /* don't hard-fail the app on a claim hiccup */ }
-    setDeviceState('active')
-  }
-  async function pollActive() {
-    try {
-      const { data } = await supabase.rpc('tc_device_active', { p_device_id: getDeviceId() })
-      setDeviceState(data === false ? 'superseded' : 'active')
-    } catch { /* transient — ignore */ }
-  }
-
-  // Once past consent, claim this device and keep checking it's still the active one.
-  useEffect(() => {
-    if (state !== 'ok') return
-    let stopped = false
-    claimDevice()
-    const iv = setInterval(() => { if (!stopped && document.visibilityState === 'visible') pollActive() }, 60000)
-    const onVis = () => { if (document.visibilityState === 'visible') pollActive() }
-    document.addEventListener('visibilitychange', onVis)
-    return () => { stopped = true; clearInterval(iv); document.removeEventListener('visibilitychange', onVis) }
-  }, [state]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function takeOverDevice() {
-    setClaiming(true)
-    await claimDevice()
-    setClaiming(false)
-  }
 
   async function check() {
     try {
@@ -90,35 +53,7 @@ export default function TechGate({ profile }) {
       </div>
     )
   }
-  if (state === 'ok') {
-    if (deviceState === 'superseded') {
-      return (
-        <div className="mobile-shell job-card-v2 consent-shell">
-          <div className="jc-header">
-            <div className="jc-header-text">
-              <div className="jc-title">Signed in on another device</div>
-              <div className="jc-sub">Only one device can use the Field App at a time</div>
-            </div>
-          </div>
-          <div className="jc-body">
-            <div className="consent-declined">
-              <div className="consent-declined-badge">Locked for security</div>
-              <h2>This account is active on a different device</h2>
-              <p>
-                For security, the Air-Care Field App can only be used on one device at a time. Your account was opened on
-                another device. If that was you, you can take over on this device — the other one will be signed out, and
-                the switch is recorded.
-              </p>
-              <button className="jc-btn wide" disabled={claiming} onClick={takeOverDevice}>
-                {claiming ? 'Switching…' : 'Use this device'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )
-    }
-    return (<><TechLocationReporter profile={profile} /><Outlet /></>)
-  }
+  if (state === 'ok') return (<><TechLocationReporter profile={profile} /><Outlet /></>)
 
   return (
     <div className="mobile-shell job-card-v2 consent-shell">
