@@ -8,6 +8,7 @@ import { addPtoRequest, listPtoRequests, cancelPtoRequest } from './r4Data'
 import { listCertifications, listOnboarding, listDocuments, certLabel, signedHrUrl } from './hrData'
 import { listMetrics, listEntries, listReviews, currentQuarter } from './scorecardData'
 import { ScorecardTable } from './HrScorecards'
+import MyPayExplainer from './MyPayExplainer'
 import { getLang, setLang, makeT } from './i18n'
 
 const money = (n) => (n == null || isNaN(n) ? '—' : '$' + Number(n).toFixed(2))
@@ -126,6 +127,9 @@ export default function MyPortal({ profile }) {
         <>
           {tab === 'pay' && (
             calcs.length === 0 ? <p style={{ color: 'var(--mist)' }}>{t('no_pay')}</p> : (
+              <>
+              <MyPayExplainer checks={calcs} lang={lang}
+                pto={balances.map((b) => ({ name: policies[b.policy_id]?.name || 'Time off', hours: Number(b.balance_hours || 0) }))} />
               <table className="data-table">
                 <thead><tr><th>{t('pay_week')}</th><th>{t('gross')}</th><th>{t('taxes')}</th><th>{t('net')}</th><th></th></tr></thead>
                 <tbody>
@@ -140,6 +144,7 @@ export default function MyPortal({ profile }) {
                   ))}
                 </tbody>
               </table>
+              </>
             )
           )}
 

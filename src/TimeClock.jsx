@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import TimeClockAnomalies from './TimeClockAnomalies'
 
 function fmt(ts) {
   if (!ts) return '—'
@@ -188,6 +189,8 @@ export default function TimeClock({ profile }) {
           </div>
         ))}
       </div>
+
+      {!loading && <TimeClockAnomalies events={events} breaksByEvent={breaksByEvent} empName={empName} />}
 
       {/* ALL ENTRIES */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>

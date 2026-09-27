@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import AiAssist from './AiAssist'
+
+// Recommends a LEAST-PRIVILEGE permission set for a role from its name + department.
+// Advisory: it fills the checkboxes for the admin to review and Save — it never
+// grants anything itself. Keeping access tight as the org grows is the security win.
+const RBAC_SYS = `You recommend a LEAST-PRIVILEGE permission set for a job role at an HVAC contractor. You are given the role name, its department, and the full catalog of permissions (each with key, label, category). Return ONLY the permission keys this role genuinely needs to do its job — no more. Examples: a field technician needs field/mobile and basic job/customer visibility, NOT pricing, accounting, or company/admin permissions; an office/admin role may need more. When unsure, LEAVE IT OUT — under-granting is safer than over-granting. Reply with ONLY a comma-separated list of permission keys drawn from the catalog, and nothing else.`
 
 const CATEGORY_LABEL = {
   jobs: 'Jobs & Scheduling',
@@ -168,9 +174,36 @@ export default function RolesConfig({ profile }) {
                   <p style={{ fontSize: 12, color: '#8a5a00', margin: '6px 0 0' }}>On-call tag &mdash; these permissions apply only during an active on-call window.</p>
                 )}
 
-                <div style={{ display: 'flex', gap: 8, margin: '10px 0 14px' }}>
+                {(() => {
+                  const adminHeld = [...draftPerms].filter((k) => (catalog.find((p) => p.key === k) || {}).category === 'admin')
+                  const total = catalog.length || 1
+                  const broad = draftPerms.size >= Math.ceil(total * 0.8)
+                  const nonAdminWithAdmin = selectedTag.department !== 'Admin' && adminHeld.length > 0
+                  if (!broad && !nonAdminWithAdmin) return null
+                  return (
+                    <div style={{ margin: '10px 0 0', background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', borderRadius: 8, padding: '8px 12px', fontSize: 12.5 }}>
+                      ⚠ <strong>Possibly over-permissioned.</strong>{' '}
+                      {nonAdminWithAdmin && <>This {selectedTag.department} role holds {adminHeld.length} company/admin permission{adminHeld.length === 1 ? '' : 's'} it may not need. </>}
+                      {broad && <>It has {draftPerms.size} of {total} permissions. </>}
+                      Review for least privilege — tighten what isn't needed.
+                    </div>
+                  )
+                })()}
+
+                <div style={{ display: 'flex', gap: 8, margin: '10px 0 14px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <button type="button" className="logout-button" onClick={() => { setDraftPerms(new Set(catalog.map((p) => p.key))); setDirty(true) }}>Select all</button>
                   <button type="button" className="logout-button" onClick={() => { setDraftPerms(new Set()); setDirty(true) }}>Clear all</button>
+                  <AiAssist compact title={`Least-privilege for ${draftName || selectedTag.name}`} label="✦ Suggest least-privilege"
+                    insertLabel="Apply to checkboxes"
+                    system={RBAC_SYS}
+                    prompt={`Recommend the least-privilege permission keys for this role. Role: "${draftName || selectedTag.name}". Department: "${selectedTag.department || '—'}".`}
+                    context={{ role: draftName || selectedTag.name, department: selectedTag.department || null, permission_catalog: catalog.map((p) => ({ key: p.key, label: p.label, category: p.category })) }}
+                    onInsert={(text) => {
+                      const valid = new Set(catalog.map((p) => p.key))
+                      const keys = (text || '').split(/[\s,]+/).map((s) => s.trim()).filter((k) => valid.has(k))
+                      if (keys.length) { setDraftPerms(new Set(keys)); setDirty(true) }
+                    }} />
+                  <span style={{ fontSize: 12, color: 'var(--mist)' }}>Review the checkboxes, then Save.</span>
                 </div>
 
                 {catalogByCategory.map(({ cat, perms }) => (
