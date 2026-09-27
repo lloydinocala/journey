@@ -6,6 +6,7 @@ import {
   setEmployeeSsn, setEmployeeBank, revealEmployeeSsn, getSettings,
 } from './hrData'
 import { useOrgSelector, OrgBar } from './shared'
+import HrOnboardingCompleteness from './HrOnboardingCompleteness'
 
 const blankNew = { full_name: '', role: '', pay_type: 'hourly', hourly_rate: '', annual_salary: '', hire_date: '', user_id: '', manager_id: '', department: '' }
 
@@ -96,6 +97,8 @@ export default function HrEmployees({ profile }) {
         </button>
       </div>
       <OrgBar {...org} />
+
+      <HrOnboardingCompleteness orgId={org.selectedOrg} />
 
       {showForm && (
         <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>

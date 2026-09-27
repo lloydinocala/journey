@@ -2,8 +2,38 @@
 import { useState, useEffect } from 'react'
 import { listJobDescriptions, addJobDescription, updateJobDescription } from './hrData'
 import { useOrgSelector, OrgBar } from './shared'
+import AiAssist from '../../AiAssist'
 
 const blank = { title: '', classification: '', flsa_status: 'non_exempt', pay_range_low: '', pay_range_high: '', summary: '', duties: '', requirements: '' }
+
+// AI drafts a job description from the role details already typed in. It returns
+// three clearly-marked sections so we can drop each into its own field. Nothing
+// is saved until the user reviews and clicks Add/Update — this only fills the form.
+const JD_SYS = `You are an HR writer for an HVAC contracting company. Write a clear, professional job description from the role details given. Ground it in real HVAC field-service work (installs, service, maintenance, EPA 608 where relevant, safety, customer interaction). Do NOT invent a pay rate, benefits, or an FLSA status — use only what is given. Keep it honest and specific, not inflated. Return EXACTLY three sections in this format, nothing else:
+### SUMMARY
+<2-3 sentence overview of the role>
+### DUTIES
+<6-9 bullet lines, each starting with "- ", action-first>
+### REQUIREMENTS
+<5-8 bullet lines, each starting with "- ": skills, certifications, experience, physical/licensing requirements>`
+
+// Split the AI's marked-up draft back into the three form fields. If the markers
+// are missing for any reason, fall back to putting everything in Summary.
+function parseJd(text) {
+  const t = (text || '').replace(/\r/g, '')
+  const grab = (label, next) => {
+    const re = new RegExp(`###\\s*${label}\\s*\\n([\\s\\S]*?)(?=\\n###\\s*(?:${next})|$)`, 'i')
+    const m = t.match(re)
+    return m ? m[1].trim() : ''
+  }
+  const summary = grab('SUMMARY', 'DUTIES|REQUIREMENTS')
+  const duties = grab('DUTIES', 'REQUIREMENTS')
+  const requirements = grab('REQUIREMENTS', 'SUMMARY')
+  if (!summary && !duties && !requirements) return { summary: t.trim(), duties: '', requirements: '' }
+  return { summary, duties, requirements }
+}
+
+const flsaLabel = (s) => (s === 'exempt' ? 'Exempt (no overtime)' : 'Non-exempt (overtime eligible)')
 
 export default function HrJobDescriptions({ profile }) {
   const org = useOrgSelector(profile)
@@ -61,6 +91,24 @@ export default function HrJobDescriptions({ profile }) {
                 <option value="non_exempt">Non-exempt (OT eligible)</option><option value="exempt">Exempt</option></select></div>
             <div className="field"><label>Pay range low</label><input type="number" value={form.pay_range_low} onChange={(e) => setForm({ ...form, pay_range_low: e.target.value })} /></div>
             <div className="field"><label>Pay range high</label><input type="number" value={form.pay_range_high} onChange={(e) => setForm({ ...form, pay_range_high: e.target.value })} /></div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+            {form.title.trim() ? (
+              <AiAssist inline title={`Draft: ${form.title.trim()}`} label="✦ Draft with AI"
+                insertLabel="Fill Summary / Duties / Requirements"
+                system={JD_SYS}
+                prompt="Write the job description for this role using only the details provided."
+                context={{
+                  title: form.title.trim(),
+                  classification: form.classification || null,
+                  flsa_status: flsaLabel(form.flsa_status),
+                  pay_range: (form.pay_range_low || form.pay_range_high) ? `$${form.pay_range_low || '?'}–$${form.pay_range_high || '?'}` : null,
+                }}
+                onInsert={(text) => { const p = parseJd(text); setForm((f) => ({ ...f, summary: p.summary || f.summary, duties: p.duties || f.duties, requirements: p.requirements || f.requirements })) }} />
+            ) : (
+              <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>Enter a title above, then draft the description with AI.</span>
+            )}
+            <span style={{ fontSize: 12, color: 'var(--mist)' }}>Fills the three fields below — review and edit before saving.</span>
           </div>
           <div className="field" style={{ marginTop: 12 }}><label>Summary</label><textarea rows="2" value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} style={{ width: '100%' }} /></div>
           <div className="field" style={{ marginTop: 12 }}><label>Duties</label><textarea rows="3" value={form.duties} onChange={(e) => setForm({ ...form, duties: e.target.value })} style={{ width: '100%' }} /></div>
