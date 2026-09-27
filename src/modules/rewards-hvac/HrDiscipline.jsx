@@ -2,9 +2,30 @@
 import { useState, useEffect } from 'react'
 import { listEmployees, listDiscipline, addDiscipline, DISCIPLINE_TYPES } from './hrData'
 import { useOrgSelector, OrgBar } from './shared'
+import AiAssist from '../../AiAssist'
 
 const TYPE_LABEL = { verbal: 'Verbal warning', written: 'Written warning', final: 'Final warning', suspension: 'Suspension', termination: 'Termination' }
 const blank = { employee_id: '', type: 'verbal', incident_date: '', incident: '', description: '', improvement_plan: '', follow_up_date: '' }
+
+// Drafts a consistent, defensible write-up from the facts the manager entered.
+// Deliberately conservative — same posture as the Separations reason list: stick to
+// observable behavior, never diagnose, never touch protected characteristics, and
+// always leave the decision (and any termination) to a human reviewer.
+const DISCIPLINE_SYS = `You are an HR writing assistant for an HVAC contractor, drafting a progressive-discipline write-up. Write in clear, neutral, professional language that is factual and defensible. STRICT RULES: use ONLY the facts given; never invent events, dates, or witnesses. Describe observable behavior and its business impact — never the person's character, motives, or presumed intent. NEVER reference or infer protected characteristics (age, race, sex, religion, national origin, disability, medical condition, pregnancy/family status, or any protected class) and never speculate about mental health or personal circumstances. Do not state legal conclusions. Keep it consistent with progressive discipline (state the expectation, the gap, and that continued issues may lead to further action up to termination). Return EXACTLY two sections:
+### WRITE-UP
+<the incident write-up: what was observed, the standard/policy expectation it fell short of, and prior related steps if given>
+### IMPROVEMENT PLAN
+<specific, measurable, time-bound corrective actions and the support offered>`
+
+// Split the draft into the Details + Improvement plan fields.
+function parseWriteup(text) {
+  const t = (text || '').replace(/\r/g, '')
+  const w = t.match(/###\s*WRITE-?UP\s*\n([\s\S]*?)(?=\n###\s*IMPROVEMENT|$)/i)
+  const p = t.match(/###\s*IMPROVEMENT[^\n]*\n([\s\S]*)$/i)
+  const writeup = w ? w[1].trim() : (p ? '' : t.trim())
+  const plan = p ? p[1].trim() : ''
+  return { writeup, plan }
+}
 
 export default function HrDiscipline({ profile }) {
   const org = useOrgSelector(profile)
@@ -63,6 +84,24 @@ export default function HrDiscipline({ profile }) {
           <div className="field" style={{ marginTop: 12 }}><label>Incident summary</label><input value={form.incident} onChange={(e) => setForm({ ...form, incident: e.target.value })} style={{ width: '100%' }} /></div>
           <div className="field" style={{ marginTop: 12 }}><label>Details</label><textarea rows="3" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ width: '100%' }} /></div>
           <div className="field" style={{ marginTop: 12 }}><label>Improvement plan</label><textarea rows="2" value={form.improvement_plan} onChange={(e) => setForm({ ...form, improvement_plan: e.target.value })} style={{ width: '100%' }} /></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+            {(form.incident || form.description) ? (
+              <AiAssist inline title="Draft the write-up" label="✦ Draft write-up (HR-safe)"
+                insertLabel="Fill Details + Improvement plan"
+                system={DISCIPLINE_SYS}
+                prompt="Draft a consistent, defensible write-up from these facts only."
+                context={{
+                  action_type: TYPE_LABEL[form.type] || form.type,
+                  incident_summary: form.incident || null,
+                  facts_entered: form.description || null,
+                  improvement_notes_so_far: form.improvement_plan || null,
+                }}
+                onInsert={(text) => { const p = parseWriteup(text); setForm((f) => ({ ...f, description: p.writeup || f.description, improvement_plan: p.plan || f.improvement_plan })) }} />
+            ) : (
+              <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>Enter the incident summary or details, then draft the write-up.</span>
+            )}
+            <span style={{ fontSize: 12, color: 'var(--mist)' }}>Facts-only, protected-class-safe. Review before saving; have counsel review any termination.</span>
+          </div>
           <button className="auth-button" type="submit" style={{ width: 'auto', marginTop: 14 }} disabled={saving}>{saving ? 'Saving…' : 'Add record'}</button>
         </form>
       )}

@@ -2,9 +2,15 @@
 import { useState, useEffect } from 'react'
 import { listApplicants, addApplicant, updateApplicant, hireApplicant, listJobDescriptions, HIRING_STAGES } from './hrData'
 import { useOrgSelector, OrgBar } from './shared'
+import AiAssist from '../../AiAssist'
 
 const STAGE_LABEL = { applied: 'Applied', screen: 'Screening', interview: 'Interview', offer: 'Offer', hired: 'Hired', rejected: 'Rejected' }
 const blank = { name: '', email: '', phone: '', source: 'indeed', job_description_id: '' }
+
+// Generates a structured interview kit from the ROLE — never ranks or judges the
+// person. Hard guardrails against protected-class bias, and the hiring manager
+// always makes the call. This is prep, not a decision.
+const INTERVIEW_SYS = `You are a hiring assistant for an HVAC contractor helping a manager PREPARE to interview a candidate for a specific role. Produce: (1) 6-8 structured interview questions tailored to the role — a mix of technical HVAC, safety, real-world troubleshooting, customer-service, and behavioral; and (2) a short list of job-related areas to assess. STRICT RULES: base everything ONLY on the job requirements and general HVAC field-service knowledge. NEVER write questions that ask about or infer protected characteristics — age, race, color, religion, sex, national origin, disability, medical/health, pregnancy or family status, marital status, or similar — and avoid anything that isn't job-related. Do NOT score, rank, or recommend hiring/rejecting the candidate; the hiring manager makes that decision. End with one line: "Prep only — evaluate answers against the job requirements; the hiring decision is yours."`
 
 export default function HrHiring({ profile }) {
   const org = useOrgSelector(profile)
@@ -44,6 +50,7 @@ export default function HrHiring({ profile }) {
   }
 
   const jdTitle = (id) => (jds.find((j) => j.id === id) || {}).title || ''
+  const jdFor = (id) => jds.find((j) => j.id === id) || null
 
   return (
     <div>
@@ -84,11 +91,17 @@ export default function HrHiring({ profile }) {
                   <div key={a.id} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 10, padding: 10, marginBottom: 8 }}>
                     <div style={{ fontWeight: 600 }}>{a.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--mist)' }}>{jdTitle(a.job_description_id) || a.source || ''}</div>
-                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       {next && next !== 'rejected' && (
                         <button className="logout-button" onClick={() => advance(a, next)}>→ {STAGE_LABEL[next]}</button>
                       )}
                       {a.stage !== 'hired' && <button className="logout-button" onClick={() => advance(a, 'rejected')}>Reject</button>}
+                      {(() => { const jd = jdFor(a.job_description_id); return (
+                        <AiAssist compact title={`Interview kit${jd?.title ? ` — ${jd.title}` : ''}`} label="✦ Interview kit"
+                          system={INTERVIEW_SYS}
+                          prompt="Prepare role-tailored interview questions and job-related areas to assess."
+                          context={{ position: jd?.title || 'HVAC field-service role', requirements: jd?.requirements || null, role_summary: jd?.summary || null, key_duties: jd?.duties || null }} />
+                      ) })()}
                     </div>
                   </div>
                 )

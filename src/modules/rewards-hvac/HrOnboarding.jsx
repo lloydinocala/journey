@@ -2,6 +2,12 @@
 import { useState, useEffect } from 'react'
 import { listEmployees, listOnboarding, seedOnboarding, updateOnboardingTask } from './hrData'
 import { useOrgSelector, OrgBar } from './shared'
+import AiAssist from '../../AiAssist'
+
+// Drafts a role-tailored onboarding plan that goes BEYOND the fixed compliance
+// checklist (I-9/W-4/etc.) — the trade-specific ramp for this role. Advisory only:
+// the office reads/copies it; it never changes the checklist automatically.
+const ONBOARDING_SYS = `You are an onboarding coordinator for an HVAC contractor. Given a new hire's role, draft a practical, role-tailored onboarding plan for their first 90 days. Assume the standard compliance items (I-9, W-4, direct deposit, handbook, state new-hire report) are already tracked separately — do NOT repeat them; focus on the trade-specific ramp: tool/equipment issue, truck/vehicle assignment, required certifications (e.g. EPA 608 for anyone handling refrigerant), safety and PPE, systems/app logins, ride-alongs or shadowing, and early competency checkpoints. Organize as First week / 30 days / 60 days / 90 days with short bullet lines. Be specific to the role given; if the role is unclear, give a sensible field-service default. Keep it concise.`
 
 export default function HrOnboarding({ profile }) {
   const org = useOrgSelector(profile)
@@ -31,6 +37,7 @@ export default function HrOnboarding({ profile }) {
   }
 
   const done = tasks.filter((t) => t.status === 'complete').length
+  const selectedEmp = employees.find((e) => e.id === empId)
 
   return (
     <div>
@@ -47,7 +54,14 @@ export default function HrOnboarding({ profile }) {
 
       {empId && (
         <>
-          <div style={{ marginBottom: 12, color: 'var(--mist)' }}>{done} of {tasks.length} complete</div>
+          <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ color: 'var(--mist)' }}>{done} of {tasks.length} complete</span>
+            <AiAssist inline title={`Onboarding plan${selectedEmp?.role ? ` — ${selectedEmp.role}` : ''}`} label="✦ Draft role onboarding plan"
+              system={ONBOARDING_SYS}
+              prompt="Draft the role-tailored 90-day onboarding plan for this new hire."
+              context={{ role: selectedEmp?.role || 'HVAC field service (unspecified)', compliance_items_already_tracked: ['I-9', 'W-4', 'Direct deposit', 'Handbook', 'State new-hire report'] }} />
+            <span style={{ fontSize: 12, color: 'var(--mist)' }}>Trade-specific ramp beyond the compliance checklist — copy into your plan.</span>
+          </div>
           {loading ? <p style={{ color: 'var(--mist)' }}>Loading…</p> : (
             <table className="data-table">
               <thead><tr><th></th><th>Task</th><th>Status</th><th>Completed</th></tr></thead>
