@@ -11,6 +11,13 @@ import {
   CATEGORY_ORDER, UNITS, DIRECTIONS, fmtValue, fmtMinimum, isFail, currentQuarter,
 } from './scorecardData'
 import { useOrgSelector, OrgBar } from './shared'
+import AiAssist from '../../AiAssist'
+
+// Drafts the written review FROM the recorded numbers — the "honesty in
+// management" win: a fair, evidence-based summary that cites the actual metrics,
+// credits real strengths and names real misses even-handedly, and never invents
+// data or speculates about the person. The manager reviews and edits before saving.
+const SCORECARD_SYS = `You are a manager writing a FAIR, evidence-based quarterly performance summary for an HVAC technician. You are given the scorecard metrics with this quarter's recorded value, the prior quarter's value, the minimum standard, and whether each missed its minimum. Write a balanced narrative that: cites the actual numbers; credits genuine strengths AND names areas below standard even-handedly; notes improvement or decline versus last quarter where the numbers show it. STRICT: use ONLY the values given — never invent a number — and never speculate about the person's character, motives, personal circumstances, health, or any protected characteristic. Keep it factual, constructive, and honest. 1-2 short paragraphs; this is a draft the manager will review and edit.`
 
 function orderedByCategory(metrics) {
   const cats = [...new Set([...CATEGORY_ORDER, ...metrics.map((m) => m.category)])]
@@ -241,6 +248,27 @@ export default function HrScorecards({ profile }) {
           <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 18, marginTop: 18, maxWidth: 820 }}>
             <h3 style={{ margin: '0 0 4px' }}>Manager notes &amp; goals — {curLabel}</h3>
             <div style={{ color: 'var(--mist)', fontSize: 12.5, marginBottom: 12 }}>The written half of the review. The employee sees this on their scorecard. Keep it factual and behavior-based.</div>
+            {(() => {
+              const recorded = metrics
+                .map((m) => ({ m, cur: valueOf(m.id, curLabel), last: valueOf(m.id, lastLabel) }))
+                .filter((x) => x.cur != null && x.cur !== '')
+                .map(({ m, cur, last }) => ({ category: m.category, metric: m.name, unit: m.unit, this_quarter: Number(cur), last_quarter: last == null || last === '' ? null : Number(last), minimum: m.minimum, goal_direction: m.direction, missed_minimum: isFail(m, cur) }))
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                  {recorded.length > 0 ? (
+                    <AiAssist inline title={`Review summary — ${curLabel}`} label="✦ Draft summary from the metrics"
+                      insertLabel="Use as summary"
+                      system={SCORECARD_SYS}
+                      prompt="Write a fair, evidence-based summary of this quarter using only these recorded metrics."
+                      context={{ period: curLabel, prior_period: lastLabel, metrics: recorded }}
+                      onInsert={(text) => setReviewDraft((d) => ({ ...d, summary: text }))} />
+                  ) : (
+                    <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>Record this quarter's metric values (above) to draft an evidence-based summary.</span>
+                  )}
+                  <span style={{ fontSize: 12, color: 'var(--mist)' }}>Grounded only in the recorded numbers — review and edit before saving.</span>
+                </div>
+              )
+            })()}
             <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 4 }}>Summary of this quarter</label>
             <textarea rows="3" value={reviewDraft.summary} onChange={(e) => setReviewDraft({ ...reviewDraft, summary: e.target.value })} style={{ width: '100%', marginBottom: 12 }} />
             <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 4 }}>Goals for next quarter</label>

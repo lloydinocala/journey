@@ -108,21 +108,30 @@ export default function TimeOff({ profile }) {
               <div style={{ border: '1px solid #FDE68A', background: '#FFFBEB', borderRadius: 12, padding: 16, marginBottom: 22 }}>
                 <h3 style={{ margin: '0 0 10px' }}>Pending requests <span className="badge" style={{ background: '#B0600A', color: '#fff' }}>{pending.length}</span></h3>
                 <table className="data-table">
-                  <thead><tr><th>Employee</th><th>Dates</th><th>Policy</th><th style={{ textAlign: 'right' }}>Hours</th><th>Note</th><th></th></tr></thead>
+                  <thead><tr><th>Employee</th><th>Dates</th><th>Policy</th><th style={{ textAlign: 'right' }}>Hours</th><th>Note</th><th>Coverage</th><th></th></tr></thead>
                   <tbody>
-                    {pending.map((r) => (
+                    {pending.map((r) => {
+                      // Coverage conflict: others already APPROVED off on overlapping dates.
+                      const clash = approved.filter((a) => a.employee_id !== r.employee_id && a.start_date <= r.end_date && a.end_date >= r.start_date)
+                      const clashNames = [...new Set(clash.map((a) => empName(a.employee_id).split(' ')[0]))]
+                      return (
                       <tr key={r.id}>
                         <td>{empName(r.employee_id)}</td>
                         <td>{r.start_date}{r.end_date !== r.start_date ? ` – ${r.end_date}` : ''}</td>
                         <td>{polName(r.policy_id)}</td>
                         <td style={{ textAlign: 'right' }}>{Number(r.hours || 0)}</td>
                         <td>{r.note || '—'}</td>
+                        <td style={{ fontSize: 12.5 }}>
+                          {clashNames.length === 0
+                            ? <span style={{ color: '#166534' }}>✓ Clear</span>
+                            : <span style={{ color: '#B0600A', fontWeight: 600 }} title={clashNames.join(', ')}>⚠ {clashNames.length} already off{clashNames.length <= 2 ? ` (${clashNames.join(', ')})` : ''}</span>}
+                        </td>
                         <td style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                           <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={saving} onClick={() => decide(r, true)}>Approve</button>
                           <button className="logout-button" disabled={saving} onClick={() => decide(r, false)}>Deny</button>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
                 <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 8 }}>Approving posts the hours as usage against the employee's balance automatically.</p>
