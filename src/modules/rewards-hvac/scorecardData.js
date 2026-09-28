@@ -39,11 +39,17 @@ export const METRIC_CATALOG = [
   { category: 'Professionalism', name: 'Attendance & clock-in reliability', unit: 'percent', direction: 'higher', minimum: 95, description: 'On-time clock-ins ÷ scheduled shifts', source: 'Journey: time clock', sourced: true },
   { category: 'Professionalism', name: 'Certifications current', unit: 'percent', direction: 'higher', minimum: 100, description: 'Required certifications not expired', source: 'Journey: HR certifications', sourced: true },
   { category: 'Professionalism', name: 'Training & improvement', unit: 'percent', direction: 'actual', minimum: null, description: 'Required training and skill progress', source: 'You enter', sourced: false },
-  { category: 'Workmanship', name: 'Technician-attributable callback rate', unit: 'percent', direction: 'lower', minimum: 0, description: 'Attributable callbacks ÷ completed jobs', source: 'You enter (flagged callbacks)', sourced: false },
+  { category: 'Workmanship', name: 'Technician-attributable callback rate', unit: 'percent', direction: 'lower', minimum: 0, description: 'Attributable callbacks ÷ completed jobs (rolling ~90 days; exclude defective parts, unrelated failures, and declined repairs)', source: 'You enter (flagged callbacks)', sourced: false },
+  { category: 'Workmanship', name: 'Quality-audit score', unit: 'percent', direction: 'higher', minimum: 80, description: 'Random audit of ~5 completed calls/month: correct diagnosis, real measurements, root-cause fix, safe operation, photos, clean work area', source: 'You enter (random audit)', sourced: false },
   { category: 'Workmanship', name: 'Documentation completeness', unit: 'percent', direction: 'higher', minimum: 100, description: 'Jobs with checklist and photos complete', source: 'Journey: job checklists', sourced: true },
+  { category: 'Responsible revenue generation', name: 'Options-presented compliance', unit: 'percent', direction: 'higher', minimum: 90, description: 'Qualifying calls where the tech properly presented the safe-minimum, full-repair, higher-reliability, replacement, and eligible-maintenance options — measures the responsibility, not what the customer bought', source: 'You enter (call audit)', sourced: false },
+  { category: 'Responsible revenue generation', name: 'Substantiated overselling', unit: 'number', direction: 'lower', minimum: 0, description: 'Complaints or audits confirming unnecessary work was sold — an honesty guardrail', source: 'You enter (flagged)', sourced: false },
+  { category: 'Customer experience', name: 'Review-request compliance', unit: 'percent', direction: 'higher', minimum: 80, description: 'Eligible visits where the tech asked for a review (separates effort from luck)', source: 'You enter', sourced: false },
+  { category: 'Customer experience', name: 'Qualifying reviews (count)', unit: 'number', direction: 'higher', minimum: null, description: 'Number of attributable reviews — guards against one-review outliers (require a minimum before full credit)', source: 'You enter (Google / reviews)', sourced: false },
+  { category: 'Professionalism', name: 'Safety & procedure compliance', unit: 'percent', direction: 'higher', minimum: 100, description: 'Non-negotiable safety items followed (electrical, combustion/CO, refrigerant, PPE, safe driving). A serious violation should override an otherwise high score', source: 'You enter (audit)', sourced: false },
 ]
 
-export const CATEGORY_ORDER = ['Customer experience', 'Productivity', 'Professionalism', 'Workmanship']
+export const CATEGORY_ORDER = ['Customer experience', 'Productivity', 'Responsible revenue generation', 'Professionalism', 'Workmanship']
 export const UNITS = [['stars', 'Stars'], ['percent', 'Percent'], ['currency', 'Dollars'], ['number', 'Number']]
 export const DIRECTIONS = [['higher', 'Higher is better'], ['lower', 'Lower is better'], ['actual', 'Actual — no minimum']]
 
