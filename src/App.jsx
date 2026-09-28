@@ -1,5 +1,5 @@
  import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { loadOrgTz } from './utils/tz'
 import { loadPermissions, can } from './utils/permissions'
@@ -143,6 +143,19 @@ function AuthenticatedApp() {
   const [needsPassword, setNeedsPassword] = useState(
     window.location.hash.includes('type=invite') || window.location.hash.includes('type=recovery')
   )
+  const location = useLocation()
+
+  // The office app and the field app share one origin, so a home-screen install would
+  // otherwise always open the office start_url ("/") — which is why the installed field
+  // icon kept landing in the desktop view with no way back. While a field (/tech) view is
+  // on screen, advertise the field manifest so "Add to Home Screen" installs an icon that
+  // opens — and stays in — the field app. Office paths keep the office manifest.
+  useEffect(() => {
+    const link = document.querySelector('link[rel="manifest"]')
+    if (!link) return
+    const inField = location.pathname === '/tech' || location.pathname.startsWith('/tech/')
+    link.setAttribute('href', inField ? '/field.webmanifest' : '/manifest.json')
+  }, [location.pathname])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
