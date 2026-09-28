@@ -120,6 +120,9 @@ export default function HrEmployees({ profile }) {
           <h2>Employees</h2>
           <span className="badge">{employees.length} shown</span>
         </div>
+        <a href="/employee" target="_blank" rel="noopener noreferrer" className="logout-button" title="Opens the employee-facing portal in a new tab (sign in as an employee)" style={{ width: 'auto', margin: 0, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+          ↗ Employee portal
+        </a>
         <button className="auth-button" style={{ width: 'auto', margin: 0, background: '#1F7A43' }} onClick={() => { setShowImport((v) => !v); setImportMsg('') }}>
           {showImport ? 'Close' : '+ From login accounts'}
         </button>
