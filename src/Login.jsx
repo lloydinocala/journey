@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from './utils/supabase'
+import PasswordInput from './PasswordInput'
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -51,9 +52,8 @@ export default function Login() {
           </div>
           <div className="field">
             <label htmlFor="password">Password</label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"

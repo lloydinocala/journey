@@ -74,6 +74,7 @@ import JoinPlan from './JoinPlan'
 import ServiceHub from './ServiceHub'
 import ServiceApproval from './ServiceApproval'
 import CustomerPortal from './modules/customer-hvac'
+import EmployeePortal from './modules/employee-portal'
 import SystemEstimate from './SystemEstimate'
 import NewSystemEstimate from './NewSystemEstimate'
 import SystemEstimates from './SystemEstimates'
@@ -395,9 +396,14 @@ function AuthenticatedApp() {
 // non-portal path) serves the customer portal, never the staff app — so the two
 // live on separate origins and phones treat them as separate installed apps.
 const PORTAL_HOSTS = ['portal.journey-hvac.app', 'air-careconnect.app']
+// Dedicated employee-portal domains. Empty for now; add e.g. 'my.journey-hvac.app'
+// once the subdomain is set up in Vercel/DNS and it will serve the portal on its own.
+const EMPLOYEE_PORTAL_HOSTS = []
 
 export default function App() {
-  const isPortalHost = typeof window !== 'undefined' && PORTAL_HOSTS.includes(window.location.hostname)
+  const host = typeof window !== 'undefined' ? window.location.hostname : ''
+  const isPortalHost = PORTAL_HOSTS.includes(host)
+  const isEmployeeHost = EMPLOYEE_PORTAL_HOSTS.includes(host)
   return (
     <BrowserRouter>
       <Routes>
@@ -407,7 +413,8 @@ export default function App() {
         <Route path="/r/:token" element={<ServiceHub />} />
         <Route path="/a/:token" element={<ServiceApproval />} />
         <Route path="/portal/*" element={<CustomerPortal />} />
-        <Route path="*" element={isPortalHost ? <Navigate to="/portal" replace /> : <AuthenticatedApp />} />
+        <Route path="/employee/*" element={<EmployeePortal />} />
+        <Route path="*" element={isPortalHost ? <Navigate to="/portal" replace /> : isEmployeeHost ? <Navigate to="/employee" replace /> : <AuthenticatedApp />} />
       </Routes>
     </BrowserRouter>
   )

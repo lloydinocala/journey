@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from './utils/supabase'
+import PasswordInput from './PasswordInput'
 
 export default function SetPassword({ onDone }) {
   const [password, setPassword] = useState('')
@@ -44,11 +45,11 @@ export default function SetPassword({ onDone }) {
         <form onSubmit={handleSubmit}>
           <div className="field">
             <label htmlFor="password">New password</label>
-            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <PasswordInput id="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
           <div className="field">
             <label htmlFor="confirm">Confirm password</label>
-            <input id="confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+            <PasswordInput id="confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
           </div>
           <button className="auth-button" type="submit" disabled={saving}>
             {saving ? 'Saving…' : 'Set password'}
