@@ -339,7 +339,8 @@ export const HELP_ARTICLES = [
         "items": [
           "Click “Manage metrics”. Add a metric with a Category (Customer experience, Productivity, Professionalism, Workmanship, or your own via “Other”), a name, a unit, and a Goal direction — higher is better, lower is better, or just track the actual value.",
           "Set the Minimum accepted rating where one applies; results under it get flagged.",
-          "In a hurry, click “Load starter metrics” to drop in a standard set of 11 you can edit, instead of starting blank. Edit or Archive any metric later."
+          "In a hurry, click “Load starter metrics” to drop in a standard set of 11 you can edit, instead of starting blank. Edit or Archive any metric later.",
+          "Or pick from the metric catalog: under Manage metrics, tick the ones you want and click Add. A green “Journey can source” tag means Journey already holds the data (jobs, invoices, estimates, time clock, certifications); a grey “You enter” tag means you supply the number. Automatic value-fill for the sourced metrics is rolling out, so until a metric is wired you still enter its value by hand."
         ]
       },
       {
