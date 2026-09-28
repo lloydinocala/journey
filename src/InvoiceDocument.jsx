@@ -32,7 +32,7 @@ function boldEquipmentLines(text) {
 }
 
 export default function InvoiceDocument({ data, footer }) {
-  const { invoice, org, job, property, customer, lineItems, technicians } = data
+  const { invoice, org, job, property, customer, lineItems, technicians, photos } = data
   const diagText = ((job?.diagnosis_note || '').trim()) || (((lineItems || []).find((li) => li.category === 'DIAGNOSIS')?.description || '').replace(/^Diagnosis:\s*/i, '').trim())
   const bodyItems = (lineItems || []).filter((li) => li.category !== 'DIAGNOSIS')
   const primary = org?.brand_primary_color || '#2F5DE3'
@@ -201,6 +201,26 @@ export default function InvoiceDocument({ data, footer }) {
           <span>{isEstimate ? 'Estimated Total' : 'Total Due'}</span><span>${invoice.amount_due?.toFixed(2)}</span>
         </div>
       </div>
+
+      {Array.isArray(photos) && photos.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: '#7A8290', borderBottom: '1px solid #E2E6ED', paddingBottom: 6, marginBottom: 12 }}>
+            {isEstimate ? 'Photos — Current Condition' : 'Photos — Completed Work'}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
+            {photos.map((p) => (
+              <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
+                <img
+                  src={p.url}
+                  alt={isEstimate ? 'Current condition' : 'Completed work'}
+                  loading="lazy"
+                  style={{ width: '100%', height: 150, objectFit: 'cover', borderRadius: 8, border: '1px solid #E2E6ED', display: 'block' }}
+                />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {footer}
     </div>

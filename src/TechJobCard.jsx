@@ -323,13 +323,21 @@ export default function TechJobCard({ profile }) {
     setJob(data); setNotes(data?.internal_notes || ''); setDiagnosisNote(data?.diagnosis_note || ''); setLoading(false)
   }
   async function loadPhotos() {
-    const { data } = await supabase.from('attachments').select('id, file_path, file_name, taken_at, phase').eq('job_id', jobId).eq('category', 'photo').order('taken_at', { ascending: false })
+    const { data } = await supabase.from('attachments').select('id, file_path, file_name, taken_at, phase, share_on_doc').eq('job_id', jobId).eq('category', 'photo').order('taken_at', { ascending: false })
     const rows = data || []; setPhotos(rows)
     const entries = await Promise.all(rows.map(async (a) => {
       const { data: s } = await supabase.storage.from('job-photos').createSignedUrl(a.file_path, 3600)
       return [a.id, s?.signedUrl || null]
     }))
     setPhotoUrls(Object.fromEntries(entries))
+  }
+  // Include/exclude a photo on the customer estimate (pre) or invoice (post). Photos are
+  // shared by default; this lets the tech drop an extra shot that isn't for the customer.
+  async function togglePhotoShare(p) {
+    const next = p.share_on_doc === false
+    setPhotos((rows) => rows.map((r) => (r.id === p.id ? { ...r, share_on_doc: next } : r)))
+    const { error } = await supabase.from('attachments').update({ share_on_doc: next }).eq('id', p.id)
+    if (error) setPhotos((rows) => rows.map((r) => (r.id === p.id ? { ...r, share_on_doc: !next } : r)))
   }
   async function loadInvoice() {
     const { data } = await supabase.from('invoices').select('id, invoice_number, job_total, amount_due, paid_at, sent_at, org_id').eq('job_id', jobId).eq('kind', 'invoice').maybeSingle()
@@ -1351,7 +1359,13 @@ export default function TechJobCard({ profile }) {
               <p className="jc-muted-note" style={{ marginBottom: 8 }}>Starting-condition photos before you begin — or log why one can&apos;t be taken.</p>
               <div className="jc-photo-grid">
                 {prePhotos.map((p) => (
-                  <a key={p.id} href={photoUrls[p.id] || '#'} target="_blank" rel="noreferrer" className="jc-photo">{photoUrls[p.id] ? <img src={photoUrls[p.id]} alt={p.file_name} /> : <IconCamera />}</a>
+                  <div key={p.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                    <a href={photoUrls[p.id] || '#'} target="_blank" rel="noreferrer" className="jc-photo" style={{ opacity: p.share_on_doc === false ? 0.4 : 1 }}>{photoUrls[p.id] ? <img src={photoUrls[p.id]} alt={p.file_name} /> : <IconCamera />}</a>
+                    <label style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: p.share_on_doc === false ? '#8A93A6' : 'var(--jc-blue, #2F5DE3)' }}>
+                      <input type="checkbox" checked={p.share_on_doc !== false} onChange={() => togglePhotoShare(p)} />
+                      On estimate
+                    </label>
+                  </div>
                 ))}
                 <div className="jc-photo-add" onClick={() => capturePhoto('pre', 'camera')}>+</div>
               </div>
@@ -1506,7 +1520,13 @@ export default function TechJobCard({ profile }) {
               <p className="jc-muted-note" style={{ marginBottom: 8 }}>Photos that verify the work was completed. Required before the invoice can be built or payment taken — we don&apos;t bill for work we haven&apos;t verified.</p>
               <div className="jc-photo-grid">
                 {postPhotos.map((p) => (
-                  <a key={p.id} href={photoUrls[p.id] || '#'} target="_blank" rel="noreferrer" className="jc-photo">{photoUrls[p.id] ? <img src={photoUrls[p.id]} alt={p.file_name} /> : <IconCamera />}</a>
+                  <div key={p.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                    <a href={photoUrls[p.id] || '#'} target="_blank" rel="noreferrer" className="jc-photo" style={{ opacity: p.share_on_doc === false ? 0.4 : 1 }}>{photoUrls[p.id] ? <img src={photoUrls[p.id]} alt={p.file_name} /> : <IconCamera />}</a>
+                    <label style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: p.share_on_doc === false ? '#8A93A6' : 'var(--jc-blue, #2F5DE3)' }}>
+                      <input type="checkbox" checked={p.share_on_doc !== false} onChange={() => togglePhotoShare(p)} />
+                      On invoice
+                    </label>
+                  </div>
                 ))}
                 <div className="jc-photo-add" onClick={() => capturePhoto('post', 'camera')}>+</div>
               </div>
