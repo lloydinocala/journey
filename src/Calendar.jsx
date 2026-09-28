@@ -301,10 +301,14 @@ export default function Calendar({ profile }) {
     // sending the bare "YYYY-MM-DDTHH:MM:00" string straight to Supabase) makes
     // sure it's stored as a true UTC instant, not silently mislabeled as UTC.
     const newStartTime = zonedToUtcIso(newDateStr, newTimeStr)
-    await supabase
-      .from('jobs')
-      .update({ job_date: newDateStr, start_time: newStartTime, date_pending: false })
-      .eq('id', jobId)
+    // Placing a job on the calendar schedules it: also promote an unscheduled job
+    // (e.g. a staged next segment pulled from the tray) to 'scheduled' so its status
+    // matches its date. Guarded so a job already further along (on-my-way, in-progress,
+    // completed) is only moved, never downgraded.
+    const { data: cur } = await supabase.from('jobs').select('status').eq('id', jobId).single()
+    const patch = { job_date: newDateStr, start_time: newStartTime, date_pending: false }
+    if (!cur?.status || cur.status === 'unscheduled') patch.status = 'scheduled'
+    await supabase.from('jobs').update(patch).eq('id', jobId)
     loadJobs(); loadTray()
   }
 
@@ -318,7 +322,10 @@ export default function Calendar({ profile }) {
       setBlockMsg("This install can't be scheduled yet — its payment isn't confirmed. Confirm the method (Cash / Check / Card / approved financing) in Payments to Confirm first.")
       loadTray(); return
     }
-    await supabase.from('jobs').update({ job_date: newDateStr, date_pending: false }).eq('id', jobId)
+    const { data: cur } = await supabase.from('jobs').select('status').eq('id', jobId).single()
+    const patch = { job_date: newDateStr, date_pending: false }
+    if (!cur?.status || cur.status === 'unscheduled') patch.status = 'scheduled'
+    await supabase.from('jobs').update(patch).eq('id', jobId)
     loadJobs(); loadTray()
   }
 

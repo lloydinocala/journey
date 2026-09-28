@@ -191,6 +191,17 @@ export default function TechNewJob({ profile, mode = 'job' }) {
     return { propertyId: newProperty.id, customerId: newCustomer.id }
   }
 
+  // Turn a save failure into something the tech can act on. A thrown/fetch error means
+  // the write never reached the server (almost always a dropped connection); a returned
+  // error carries the server's reason. Either way the form state is left untouched.
+  function saveErrorText(err) {
+    const m = (err && (err.message || err.error_description)) || ''
+    if (!m || /fetch|network|failed to|timeout|connection|offline/i.test(m)) {
+      return "Couldn't save — check your connection and try again. Nothing you entered has been lost."
+    }
+    return m + ' — nothing you entered has been lost, please try again.'
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
@@ -200,60 +211,66 @@ export default function TechNewJob({ profile, mode = 'job' }) {
     }
 
     setSaving(true)
+    try {
+      const resolved = await resolvePropertyAndCustomer()
+      if (!resolved) {
+        setSaving(false)
+        return
+      }
 
-    const resolved = await resolvePropertyAndCustomer()
-    if (!resolved) {
+      // System-sale estimate: property-based, no job, no service call.
+      if (mode === 'system-estimate') {
+        const { count } = await supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('org_id', profile.org_id).eq('kind', 'estimate')
+        const num = 'EST-' + String((count || 0) + 1).padStart(4, '0')
+        const { data: created, error: estErr } = await supabase.from('invoices').insert({
+          org_id: profile.org_id,
+          invoice_number: num,
+          kind: 'estimate',
+          estimate_type: 'system',
+          job_id: null,
+          property_id: resolved.propertyId,
+          bills_to_customer_id: resolved.customerId,
+          invoice_date: new Date().toISOString().slice(0, 10),
+          discount_type: 'dollar',
+        }).select('id').single()
+        if (estErr) { setError(saveErrorText(estErr)); setSaving(false); return }
+        setSaving(false)
+        navigate(`/tech/system-estimate-p/${created.id}`)
+        return
+      }
+
+      const startTimestamp = startTime ? zonedToUtcIso(jobDate, startTime) : null
+      const techIds = [technicianId, technician2Id, technician3Id, technician4Id].filter(Boolean)
+
+      // Create the job + assignments in one server-side call. Job numbering and
+      // assignment happen inside create_tech_job (SECURITY DEFINER), so it stays
+      // correct even when the caller can only see their own jobs under RLS.
+      const { data: newJobId, error: insertError } = await supabase.rpc('create_tech_job', {
+        p_property_id: resolved.propertyId,
+        p_customer_id: resolved.customerId,
+        p_job_date: jobDate,
+        p_start_time: startTimestamp,
+        p_duration_hours: durationHours ? parseFloat(durationHours) : null,
+        p_job_type: jobType,
+        p_service_complaint: serviceComplaint.trim() || null,
+        p_trip_charge_price_id: tripChargeId || null,
+        p_tech_ids: techIds,
+      })
+
+      if (insertError) {
+        setError(saveErrorText(insertError))
+        setSaving(false)
+        return
+      }
+
       setSaving(false)
-      return
-    }
-
-    // System-sale estimate: property-based, no job, no service call.
-    if (mode === 'system-estimate') {
-      const { count } = await supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('org_id', profile.org_id).eq('kind', 'estimate')
-      const num = 'EST-' + String((count || 0) + 1).padStart(4, '0')
-      const { data: created, error: estErr } = await supabase.from('invoices').insert({
-        org_id: profile.org_id,
-        invoice_number: num,
-        kind: 'estimate',
-        estimate_type: 'system',
-        job_id: null,
-        property_id: resolved.propertyId,
-        bills_to_customer_id: resolved.customerId,
-        invoice_date: new Date().toISOString().slice(0, 10),
-        discount_type: 'dollar',
-      }).select('id').single()
-      if (estErr) { setError(estErr.message); setSaving(false); return }
+      navigate(modeConfig.destination(newJobId))
+    } catch (err) {
+      // A dropped connection (or any unexpected throw) lands here: the write did not
+      // reach the server, so nothing was created. The form's fields are all still set.
+      setError(saveErrorText(err))
       setSaving(false)
-      navigate(`/tech/system-estimate-p/${created.id}`)
-      return
     }
-
-    const startTimestamp = startTime ? zonedToUtcIso(jobDate, startTime) : null
-    const techIds = [technicianId, technician2Id, technician3Id, technician4Id].filter(Boolean)
-
-    // Create the job + assignments in one server-side call. Job numbering and
-    // assignment happen inside create_tech_job (SECURITY DEFINER), so it stays
-    // correct even when the caller can only see their own jobs under RLS.
-    const { data: newJobId, error: insertError } = await supabase.rpc('create_tech_job', {
-      p_property_id: resolved.propertyId,
-      p_customer_id: resolved.customerId,
-      p_job_date: jobDate,
-      p_start_time: startTimestamp,
-      p_duration_hours: durationHours ? parseFloat(durationHours) : null,
-      p_job_type: jobType,
-      p_service_complaint: serviceComplaint.trim() || null,
-      p_trip_charge_price_id: tripChargeId || null,
-      p_tech_ids: techIds,
-    })
-
-    if (insertError) {
-      setError(insertError.message)
-      setSaving(false)
-      return
-    }
-
-    setSaving(false)
-    navigate(modeConfig.destination(newJobId))
   }
 
   return (
@@ -439,7 +456,11 @@ export default function TechNewJob({ profile, mode = 'job' }) {
               </div>
             </div>
 
-            {error && <p style={{ color: '#C0392B', fontSize: 13, marginBottom: 12 }}>{error}</p>}
+            {error && (
+              <div role="alert" style={{ color: '#8A1C10', background: '#FDECEA', border: '1px solid #F5C6C0', borderRadius: 8, padding: '10px 12px', fontSize: 13.5, fontWeight: 600, marginBottom: 12 }}>
+                {error}
+              </div>
+            )}
 
             <button className="action-btn primary" style={{ width: '100%', padding: '13px 0', fontSize: 14 }} type="submit" disabled={saving}>
               {saving ? 'Creating…' : modeConfig.submitLabel}
