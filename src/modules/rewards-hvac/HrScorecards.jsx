@@ -8,7 +8,7 @@ import { listEmployees, getSettings } from './hrData'
 import {
   listMetrics, addMetric, updateMetric, seedDefaultMetrics, listEntries, upsertEntry,
   listReviews, upsertReview,
-  CATEGORY_ORDER, UNITS, DIRECTIONS, fmtValue, fmtMinimum, isFail, currentQuarter,
+  CATEGORY_ORDER, UNITS, DIRECTIONS, fmtValue, fmtMinimum, isFail, currentQuarter, METRIC_CATALOG,
 } from './scorecardData'
 import { useOrgSelector, OrgBar, EmptyRoster } from './shared'
 import AiAssist from '../../AiAssist'
@@ -90,6 +90,9 @@ export default function HrScorecards({ profile }) {
   const [showSetup, setShowSetup] = useState(false)
   const [mForm, setMForm] = useState(blankMetric)
   const [editingMetricId, setEditingMetricId] = useState(null)
+  const [pickCat, setPickCat] = useState([])          // metric-catalog checklist selection
+  const [addingCat, setAddingCat] = useState(false)
+  const [catMsg, setCatMsg] = useState('')
 
   async function loadBase() {
     if (!org.selectedOrg) return
@@ -159,6 +162,25 @@ export default function HrScorecards({ profile }) {
     setMForm({ category: m.category, name: m.name, description: m.description || '', unit: m.unit, minimum: m.minimum == null ? '' : m.minimum, direction: m.direction })
   }
   function cancelEditMetric() { setEditingMetricId(null); setMForm(blankMetric) }
+
+  // Add one or more metrics from the catalog checklist (skips any already present).
+  async function addFromCatalog() {
+    const existing = new Set(metrics.map((m) => (m.name || '').trim().toLowerCase()))
+    const chosen = pickCat.map((i) => METRIC_CATALOG[i]).filter((c) => c && !existing.has(c.name.toLowerCase()))
+    if (chosen.length === 0) return
+    setAddingCat(true); setCatMsg('')
+    let added = 0
+    for (const c of chosen) {
+      const { error } = await addMetric(org.selectedOrg, {
+        category: c.category, name: c.name, description: c.description || null,
+        unit: c.unit, minimum: c.minimum, direction: c.direction, sort: metrics.length + added, active: true,
+      })
+      if (!error) added++
+    }
+    setAddingCat(false); setPickCat([])
+    setCatMsg(`Added ${added} metric${added === 1 ? '' : 's'}.`)
+    loadBase()
+  }
   async function loadStarter() { await seedDefaultMetrics(org.selectedOrg); loadBase() }
 
   const empName = (id) => (employees.find((e) => e.id === id) || {}).full_name || ''
@@ -222,6 +244,40 @@ export default function HrScorecards({ profile }) {
               {metrics.length === 0 && <tr><td colSpan="5" style={{ color: 'var(--mist)' }}>No metrics yet. Load the starter set or add your own.</td></tr>}
             </tbody>
           </table>
+
+          <div style={{ marginTop: 20, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Add from the metric catalog</div>
+            <div style={{ fontSize: 12.5, color: 'var(--mist)', marginBottom: 12 }}>
+              Tick what you want to track. A <strong style={{ color: '#166534' }}>green</strong> tag means Journey already holds the data to source it for you; a grey tag means you enter the number. (Automatic value-fill for sourced metrics is rolling out — until a metric is wired, enter its value by hand.) Metrics already on your scorecard are greyed out.
+            </div>
+            {CATEGORY_ORDER.map((cat) => {
+              const items = METRIC_CATALOG.map((c, i) => ({ c, i })).filter(({ c }) => c.category === cat)
+              if (!items.length) return null
+              const existing = new Set(metrics.map((m) => (m.name || '').trim().toLowerCase()))
+              return (
+                <div key={cat} style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--mist)', fontWeight: 700, margin: '8px 0 4px' }}>{cat}</div>
+                  {items.map(({ c, i }) => {
+                    const added = existing.has(c.name.toLowerCase())
+                    return (
+                      <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, opacity: added ? 0.5 : 1, padding: '3px 0', cursor: added ? 'default' : 'pointer', flexWrap: 'wrap' }}>
+                        <input type="checkbox" disabled={added} checked={added || pickCat.includes(i)}
+                          onChange={(e) => setPickCat((p) => e.target.checked ? [...p, i] : p.filter((x) => x !== i))} />
+                        <span style={{ fontWeight: 600, minWidth: 210 }}>{c.name}</span>
+                        <span style={{ fontSize: 11.5, fontWeight: 700, padding: '1px 8px', borderRadius: 999, background: c.sourced ? '#E7F5EC' : '#EEF1F5', color: c.sourced ? '#166534' : '#5B6472' }}>{c.sourced ? 'Journey can source' : 'You enter'}</span>
+                        <span style={{ fontSize: 12, color: 'var(--mist)' }}>{c.description}</span>
+                        {added && <span style={{ fontSize: 11.5, color: '#166534', marginLeft: 'auto' }}>on scorecard</span>}
+                      </label>
+                    )
+                  })}
+                </div>
+              )
+            })}
+            <button className="auth-button" style={{ width: 'auto', marginTop: 8 }} disabled={addingCat || pickCat.length === 0} onClick={addFromCatalog}>
+              {addingCat ? 'Adding…' : `Add selected (${pickCat.length})`}
+            </button>
+            {catMsg && <span style={{ marginLeft: 12, color: '#166534', fontSize: 13 }}>{catMsg}</span>}
+          </div>
         </div>
       )}
 

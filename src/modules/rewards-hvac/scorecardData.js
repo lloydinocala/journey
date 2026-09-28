@@ -20,6 +20,29 @@ export const DEFAULT_SCORECARD_METRICS = [
   { category: 'Workmanship', name: 'Diagnostic/documentation completeness', description: 'Tickets meeting all documentation requirements ÷ tickets audited', unit: 'percent', minimum: 100, direction: 'higher' },
 ]
 
+// Metric catalog — the menu a subscriber ticks from to build their scorecard.
+// `sourced: true` means Journey already holds the underlying data (jobs, invoices,
+// estimates, agreements, time clock, certifications) so the value can be computed
+// for you; `sourced: false` means you supply the number (a survey, a review score).
+// Adding a metric here creates it on the scorecard; automatic value-fill for the
+// sourced ones is rolled out metric by metric, so until each is wired the value is
+// still entered by hand — the UI says which is which.
+export const METRIC_CATALOG = [
+  { category: 'Customer experience', name: 'Customer satisfaction', unit: 'percent', direction: 'higher', minimum: 90, description: 'Post-visit survey score', source: 'You enter (post-visit survey)', sourced: false },
+  { category: 'Customer experience', name: 'Google review score', unit: 'stars', direction: 'higher', minimum: 4.5, description: 'Rolling review average for this tech', source: 'You enter (Google / reviews)', sourced: false },
+  { category: 'Customer experience', name: 'Substantiated complaint rate', unit: 'percent', direction: 'lower', minimum: 0, description: 'Valid complaints ÷ completed jobs', source: 'You enter (flagged complaints)', sourced: false },
+  { category: 'Productivity', name: 'Revenue per completed job', unit: 'currency', direction: 'actual', minimum: null, description: 'Invoiced revenue ÷ completed jobs', source: 'Journey: invoices + jobs', sourced: true },
+  { category: 'Productivity', name: 'Average ticket', unit: 'currency', direction: 'actual', minimum: null, description: 'Average invoice total', source: 'Journey: invoices', sourced: true },
+  { category: 'Productivity', name: 'Jobs completed per day', unit: 'number', direction: 'higher', minimum: null, description: 'Completed jobs ÷ field days worked', source: 'Journey: jobs + time clock', sourced: true },
+  { category: 'Productivity', name: 'Estimate close rate', unit: 'percent', direction: 'higher', minimum: 30, description: 'Estimates sold ÷ estimates presented', source: 'Journey: estimates', sourced: true },
+  { category: 'Productivity', name: 'Maintenance-agreement conversion', unit: 'percent', direction: 'higher', minimum: null, description: 'Agreements sold ÷ eligible jobs', source: 'Journey: maintenance agreements', sourced: true },
+  { category: 'Professionalism', name: 'Attendance & clock-in reliability', unit: 'percent', direction: 'higher', minimum: 95, description: 'On-time clock-ins ÷ scheduled shifts', source: 'Journey: time clock', sourced: true },
+  { category: 'Professionalism', name: 'Certifications current', unit: 'percent', direction: 'higher', minimum: 100, description: 'Required certifications not expired', source: 'Journey: HR certifications', sourced: true },
+  { category: 'Professionalism', name: 'Training & improvement', unit: 'percent', direction: 'actual', minimum: null, description: 'Required training and skill progress', source: 'You enter', sourced: false },
+  { category: 'Workmanship', name: 'Technician-attributable callback rate', unit: 'percent', direction: 'lower', minimum: 0, description: 'Attributable callbacks ÷ completed jobs', source: 'You enter (flagged callbacks)', sourced: false },
+  { category: 'Workmanship', name: 'Documentation completeness', unit: 'percent', direction: 'higher', minimum: 100, description: 'Jobs with checklist and photos complete', source: 'Journey: job checklists', sourced: true },
+]
+
 export const CATEGORY_ORDER = ['Customer experience', 'Productivity', 'Professionalism', 'Workmanship']
 export const UNITS = [['stars', 'Stars'], ['percent', 'Percent'], ['currency', 'Dollars'], ['number', 'Number']]
 export const DIRECTIONS = [['higher', 'Higher is better'], ['lower', 'Lower is better'], ['actual', 'Actual — no minimum']]
