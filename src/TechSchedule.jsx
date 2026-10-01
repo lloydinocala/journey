@@ -181,7 +181,7 @@ export default function TechSchedule({ profile }) {
           </div>
           <div className="mobile-header-actions">
             {isFieldAdmin(profile) && (
-              <button className="mobile-header-action-btn" onClick={() => navigate('/')}>Desktop</button>
+              <button className="mobile-header-action-btn" onClick={() => navigate('/home')}>Desktop</button>
             )}
             <button className="mobile-header-action-btn" onClick={() => signOutMobile(profile)}>Sign Out</button>
           </div>

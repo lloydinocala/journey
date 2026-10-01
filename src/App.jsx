@@ -1,5 +1,6 @@
  import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { deviceKind } from './utils/deviceId'
 import { supabase } from './utils/supabase'
 import { loadOrgTz } from './utils/tz'
 import { loadPermissions, can } from './utils/permissions'
@@ -284,7 +285,13 @@ function AuthenticatedApp() {
       <Route element={<Layout profile={profile} />}>
         {/* <Route path="/rewards-hvac" element={<PayrollDashboard />} /> */}  {/* TODO: re-enable with the import above when Payroll module is finished */}
            <Route path="/" element={
-     profile.role === 'tech' ? <Navigate to="/tech" replace />
+     // On a phone, the field app IS the experience — so any phone landing on the
+     // root goes to /tech regardless of how it opened (old home-screen icon whose
+     // start_url is still "/", a typed URL, or the catch-all). This makes the phone
+     // reliably show the field app without depending on a reinstall, and it's
+     // independent of any desktop session. The platform super-admin (no org, no field
+     // app) is excluded; techs already route to /tech.
+     (profile.role === 'tech' || (deviceKind() === 'mobile' && profile.role !== 'super_admin')) ? <Navigate to="/tech" replace />
        : (profile.default_landing && LANDING_PATHS.has(profile.default_landing)) ? <Navigate to={profile.default_landing} replace />
        : profile.role === 'super_admin' ? <OperationsDashboard profile={profile} />
        : can(profile, 'view_home_dashboard') ? <OrgHome profile={profile} />
