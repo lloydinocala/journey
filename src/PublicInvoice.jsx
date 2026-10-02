@@ -21,6 +21,8 @@ export default function PublicInvoice() {
   const [finOpts, setFinOpts] = useState([])           // applicable financing options
   const [finLoading, setFinLoading] = useState(false)
   const [explain, setExplain] = useState({ open: false, loading: false, text: '', err: '' })
+  const [callBusy, setCallBusy] = useState(false)       // Call Me First saving
+  const [callRequested, setCallRequested] = useState(false)
 
   async function explainCharges() {
     setExplain({ open: true, loading: true, text: '', err: '' })
@@ -35,6 +37,17 @@ export default function PublicInvoice() {
     setDeciding(false)
     if (error) setDecideError(error.message)
     else setDecidedStatus(result || (d === 'approved' ? 'Approved' : 'Declined'))
+  }
+
+  // Call Me First: record the request (stamps call_requested_at server-side so the office
+  // gets its emergency callback alert) and leave the estimate unapproved so it still shows
+  // in follow-ups. We show the reassurance message even if the stamp hiccups — the unapproved
+  // follow-up is the safety net.
+  async function handleCallMe() {
+    setCallBusy(true)
+    try { await supabase.rpc('record_customer_estimate_decision', { p_estimate_id: invoiceId, p_decision: 'call_requested' }) } catch (_) { /* follow-up safety net still catches it */ }
+    setCallBusy(false)
+    setCallRequested(true)
   }
 
   async function handlePayNow() {
@@ -136,7 +149,7 @@ export default function PublicInvoice() {
   const finCardBtn = { display: 'block', width: '100%', textAlign: 'left', background: '#fff', border: '1px solid #CBD5E1', borderRadius: 10, padding: '12px 14px', marginBottom: 10, cursor: 'pointer' }
   const financingMenu = (
     <div style={{ maxWidth: 380, margin: '0 auto', textAlign: 'left' }}>
-      <p style={{ color: '#152238', fontSize: 15, fontWeight: 600, marginBottom: 12, textAlign: 'center' }}>Choose a financing option</p>
+      <p style={{ color: '#152238', fontSize: 15, fontWeight: 600, marginBottom: 12, textAlign: 'center' }}>Good Choice — Choose a Financing Option</p>
       {finLoading ? (
         <p style={{ color: '#8A93A6', textAlign: 'center' }}>Loading…</p>
       ) : finOpts.length === 0 ? (
@@ -158,32 +171,25 @@ export default function PublicInvoice() {
       <p style={{ fontSize: 11, color: '#8A93A6', textAlign: 'center', marginTop: 8 }}>Estimated terms are illustrative — your exact rate and terms are set by the lender.</p>
     </div>
   )
+  const callbackPhone = data.org?.callback_phone || data.org?.business_phone || ''
+  const estCallMsg = callbackPhone
+    ? `Your satisfaction is important. We will call you shortly from phone number ${callbackPhone}.`
+    : 'Your satisfaction is important. We will call you shortly.'
   const estimateFooter = (
     <div style={{ textAlign: 'center', marginTop: 28 }}>
       {estStatus === 'Approved' ? (
-        <div>
-          <div style={{ color: '#1F7A43', fontWeight: 700, fontSize: 16, marginBottom: 16 }}>✓ Approved — thank you! Now, how would you like to handle payment?</div>
-          {methodDone ? (
-            <div style={{ maxWidth: 440, margin: '0 auto', color: '#1F7A43', fontWeight: 600, fontSize: 15, lineHeight: 1.45 }}>
-              {estDoneMsg[methodDone]}
-              <button onClick={() => { setMethodDone(''); setMethodError('') }} style={{ display: 'block', margin: '12px auto 0', background: 'none', border: 'none', color: '#64748B', fontSize: 13, textDecoration: 'underline', cursor: 'pointer' }}>Choose a different way</button>
-            </div>
-          ) : finOpen ? financingMenu : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
-              <button onClick={() => recordMethod('card')} disabled={!!methodBusy} style={{ ...eLane, background: eBrand, color: 'white', border: 'none' }}>{methodBusy === 'card' ? 'Saving…' : 'Pay by card'}</button>
-              <button onClick={openFinancing} disabled={!!methodBusy} style={{ ...eLane, background: '#fff', color: eBrand, border: `1px solid ${eBrand}` }}>Apply for financing</button>
-            </div>
-          )}
-          {methodError && <p style={{ color: '#C0392B', fontSize: 13, marginTop: 10 }}>{methodError}</p>}
-        </div>
+        <div style={{ color: '#1F7A43', fontWeight: 700, fontSize: 16, maxWidth: 460, margin: '0 auto', lineHeight: 1.45 }}>We will now proceed to complete the repairs you have approved.</div>
       ) : estStatus === 'Declined' ? (
         <div style={{ color: '#64748B', fontWeight: 600, fontSize: 15 }}>You declined this estimate. Contact us any time if you&rsquo;d like to revisit it.</div>
-      ) : (
+      ) : callRequested ? (
+        <div style={{ color: '#1F7A43', fontWeight: 700, fontSize: 16, maxWidth: 460, margin: '0 auto', lineHeight: 1.45 }}>{estCallMsg}</div>
+      ) : finOpen ? financingMenu : (
         <div>
-          <p style={{ color: '#152238', fontSize: 15, marginBottom: 14 }}>Approve this estimate to authorize the repair, or decline.</p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={() => handleDecision('approved')} disabled={deciding} style={{ background: '#1F7A43', color: 'white', border: 'none', borderRadius: 8, padding: '14px 36px', fontSize: 15, fontWeight: 700, cursor: deciding ? 'default' : 'pointer', opacity: deciding ? 0.7 : 1 }}>{deciding ? 'Saving…' : 'Approve'}</button>
-            <button onClick={() => handleDecision('declined')} disabled={deciding} style={{ background: 'white', color: '#C0392B', border: '1px solid #C0392B', borderRadius: 8, padding: '14px 36px', fontSize: 15, fontWeight: 700, cursor: deciding ? 'default' : 'pointer', opacity: deciding ? 0.7 : 1 }}>Decline</button>
+          <p style={{ color: '#152238', fontSize: 15, marginBottom: 14 }}>How would you like to proceed?</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+            <button onClick={() => handleDecision('approved')} disabled={deciding || callBusy} style={{ ...eLane, background: '#1F7A43', color: 'white', border: 'none', opacity: deciding ? 0.7 : 1 }}>{deciding ? 'Saving…' : 'Approve This Estimate'}</button>
+            <button onClick={handleCallMe} disabled={deciding || callBusy} style={{ ...eLane, background: '#fff', color: eBrand, border: `1px solid ${eBrand}` }}>{callBusy ? 'Saving…' : 'Call Me First'}</button>
+            <button onClick={openFinancing} disabled={deciding || callBusy || !!methodBusy} style={{ ...eLane, background: '#fff', color: eBrand, border: `1px solid ${eBrand}` }}>Apply for Financing</button>
           </div>
           {decideError && <p style={{ color: '#C0392B', fontSize: 13, marginTop: 10 }}>{decideError}</p>}
         </div>

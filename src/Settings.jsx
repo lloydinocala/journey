@@ -75,6 +75,7 @@ export default function Settings({ profile }) {
   const [bizState, setBizState] = useState('')
   const [bizZip, setBizZip] = useState('')
   const [bizPhone, setBizPhone] = useState('')
+  const [callbackPhone, setCallbackPhone] = useState('')
   const [bizEmail, setBizEmail] = useState('')
   const [bizWebsite, setBizWebsite] = useState('')
   const [googleReviewUrl, setGoogleReviewUrl] = useState('')
@@ -112,7 +113,7 @@ export default function Settings({ profile }) {
     if (!orgId) return
     const { data } = await supabase
       .from('organizations')
-    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, discount_self_approve, track_permits, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, business_email, business_website, google_review_url, license_number, payment_terms_days, logo_url, app_icon_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
+    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, discount_self_approve, track_permits, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, callback_phone, business_email, business_website, google_review_url, license_number, payment_terms_days, logo_url, app_icon_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
       .eq('id', orgId)
       .single()
     if (data) {
@@ -128,6 +129,7 @@ export default function Settings({ profile }) {
       setBizState(data.business_state || '')
       setBizZip(data.business_zip || '')
       setBizPhone(data.business_phone || '')
+      setCallbackPhone(data.callback_phone || '')
       setBizEmail(data.business_email || '')
       setBizWebsite(data.business_website || '')
       setGoogleReviewUrl(data.google_review_url || '')
@@ -228,6 +230,7 @@ export default function Settings({ profile }) {
         business_state: bizState.trim() || null,
         business_zip: bizZip.trim() || null,
         business_phone: bizPhone.trim() || null,
+        callback_phone: callbackPhone.trim() || null,
         business_email: bizEmail.trim() || null,
         business_website: bizWebsite.trim() || null,
         google_review_url: googleReviewUrl.trim() || null,
@@ -483,6 +486,10 @@ export default function Settings({ profile }) {
         <div className="field">
           <label htmlFor="bizPhone">Phone</label>
           <input id="bizPhone" type="tel" value={bizPhone} onChange={(e) => setBizPhone(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="callbackPhone">Estimate callback number <span style={{ fontWeight: 400, color: '#8A93A6' }}>— optional; shown to customers who tap &ldquo;Call Me First&rdquo; (defaults to Phone above)</span></label>
+          <input id="callbackPhone" type="tel" value={callbackPhone} onChange={(e) => setCallbackPhone(e.target.value)} placeholder={bizPhone || ''} />
         </div>
         <div className="field">
           <label htmlFor="bizEmail">Email</label>
