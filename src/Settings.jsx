@@ -100,7 +100,7 @@ export default function Settings({ profile }) {
     setLoading(true)
     const { data } = await supabase
       .from('job_types')
-      .select('id, name, sort_order, is_active, checklist_id')
+      .select('id, name, sort_order, is_active, checklist_id, middle_gate, show_service_estimate, estimate_format, default_pricebook, project_mode, invoice_behavior, customer_facing')
       .eq('org_id', orgId)
       .order('sort_order')
     setJobTypes(data || [])
@@ -329,6 +329,21 @@ export default function Settings({ profile }) {
     await supabase.from('job_types').update({ checklist_id: checklistId || null }).eq('id', id)
     setJobTypes((ts) => ts.map((t) => (t.id === id ? { ...t, checklist_id: checklistId || null } : t)))
   }
+  async function patchType(id, patch) {
+    setJobTypes((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)))
+    await supabase.from('job_types').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id)
+  }
+  const MIDDLE_OPTS = [['diagnosis', 'Diagnosis'], ['checklist', 'Checklist'], ['none', 'None']]
+  const FORMAT_OPTS = [['service_repair', 'Service/Repair'], ['commercial', 'Commercial (PO/net-30)'], ['systems', 'Systems'], ['new_construction', 'New Construction'], ['ductwork', 'Ductwork'], ['duct_cleaning_iaq', 'Duct Cleaning/IAQ'], ['time_materials', 'Time & Materials'], ['retail', 'Retail'], ['warranty', 'Warranty'], ['none', 'None']]
+  const PRICEBOOK_OPTS = [['residential_flat_rate', 'Residential Flat Rate'], ['commercial_flat_rate', 'Commercial Flat Rate'], ['residential_systems', 'Residential Systems'], ['time_materials', 'Time & Materials'], ['filter', 'Filter Pricebook'], ['none', '— None —']]
+  const PROJECT_OPTS = [['no', 'No'], ['optional', 'Optional'], ['yes', 'Yes'], ['segment', 'Segment']]
+  const INVOICE_OPTS = [['standard', 'Standard'], ['on_approval', 'On approval'], ['from_estimate', 'From estimate'], ['from_systems_estimate', 'From Systems estimate'], ['via_project', 'Via project'], ['product_sale', 'Product sale'], ['payroll', 'Payroll only'], ['warranty_zero', 'Warranty ($0)'], ['none', 'None']]
+  const CUSTFACING_OPTS = [['true', 'Yes'], ['false', 'No']]
+  const cfgSel = (t, field, opts) => (
+    <select value={String(t[field] ?? '')} onChange={(e) => patchType(t.id, { [field]: field === 'customer_facing' ? e.target.value === 'true' : e.target.value })} style={{ maxWidth: '100%', fontSize: 12 }}>
+      {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+    </select>
+  )
 
   function startEdit(t) {
     setEditingId(t.id)
@@ -605,8 +620,9 @@ export default function Settings({ profile }) {
       </form>
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Job types</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
-        These show up in the Type dropdown when creating a job. Turn one off instead of
-        deleting it if past jobs still reference it.
+        These show up in the Type dropdown when creating a job, and drive each type's estimate format,
+        default pricebook, and billing behavior (the routing matrix). Add a Commercial type and set its
+        pricebook to Commercial Flat Rate. Turn one off instead of deleting it if past jobs still reference it.
       </p>
 
       <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 28 }}>
@@ -631,57 +647,57 @@ export default function Settings({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div className="grid-table" style={{ gridTemplateColumns: '1.4fr 1.7fr 0.8fr 1.3fr' }}>
+        <div style={{ overflowX: 'auto' }}>
+        <div className="grid-table" style={{ gridTemplateColumns: '1.3fr 1fr 1.3fr 1.4fr 0.9fr 1.3fr 0.7fr 1.3fr 0.8fr 1.1fr', minWidth: 1320 }}>
           <div className="grid-cell grid-head">Name</div>
+          <div className="grid-cell grid-head">Diagnosis</div>
+          <div className="grid-cell grid-head">Estimate Format</div>
+          <div className="grid-cell grid-head">Pricebook</div>
+          <div className="grid-cell grid-head">Project</div>
+          <div className="grid-cell grid-head">Invoice</div>
+          <div className="grid-cell grid-head">Cust?</div>
           <div className="grid-cell grid-head">Checklist</div>
           <div className="grid-cell grid-head">Status</div>
           <div className="grid-cell grid-head"></div>
 
-          {jobTypes.map((t) =>
-            editingId === t.id ? (
-              <>
-                <div className="grid-cell">
-                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
-                </div>
-                <div className="grid-cell">
-                  <select value={t.checklist_id || ''} onChange={(e) => setTypeChecklist(t.id, e.target.value)} style={{ maxWidth: '100%' }}>
-                    <option value="">— No checklist —</option>
-                    {checklists.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div className="grid-cell">
-                  <span className={`status-pill ${t.is_active ? 'status-active' : 'status-canceled'}`}>
-                    {t.is_active ? 'Active' : 'Off'}
-                  </span>
-                </div>
-                <div className="grid-cell grid-actions">
-                  <button className="auth-button" style={{ width: 'auto', padding: '6px 14px', margin: 0 }} onClick={() => saveEdit(t.id)}>Save</button>
-                  <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="grid-cell">{t.name}</div>
-                <div className="grid-cell">
-                  <select value={t.checklist_id || ''} onChange={(e) => setTypeChecklist(t.id, e.target.value)} style={{ maxWidth: '100%' }}>
-                    <option value="">— No checklist —</option>
-                    {checklists.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div className="grid-cell">
-                  <span className={`status-pill ${t.is_active ? 'status-active' : 'status-canceled'}`}>
-                    {t.is_active ? 'Active' : 'Off'}
-                  </span>
-                </div>
-                <div className="grid-cell grid-actions">
-                  <button className="logout-button" onClick={() => startEdit(t)}>Rename</button>
-                  <button className="logout-button" onClick={() => toggleActive(t.id, t.is_active)}>
-                    {t.is_active ? 'Turn off' : 'Turn on'}
-                  </button>
-                </div>
-              </>
-            )
-          )}
+          {jobTypes.map((t) => (
+            <div key={t.id} style={{ display: 'contents' }}>
+              <div className="grid-cell">
+                {editingId === t.id
+                  ? <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                  : t.name}
+              </div>
+              <div className="grid-cell">{cfgSel(t, 'middle_gate', MIDDLE_OPTS)}</div>
+              <div className="grid-cell">{cfgSel(t, 'estimate_format', FORMAT_OPTS)}</div>
+              <div className="grid-cell">{cfgSel(t, 'default_pricebook', PRICEBOOK_OPTS)}</div>
+              <div className="grid-cell">{cfgSel(t, 'project_mode', PROJECT_OPTS)}</div>
+              <div className="grid-cell">{cfgSel(t, 'invoice_behavior', INVOICE_OPTS)}</div>
+              <div className="grid-cell">{cfgSel(t, 'customer_facing', CUSTFACING_OPTS)}</div>
+              <div className="grid-cell">
+                <select value={t.checklist_id || ''} onChange={(e) => setTypeChecklist(t.id, e.target.value)} style={{ maxWidth: '100%', fontSize: 12 }}>
+                  <option value="">— None —</option>
+                  {checklists.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="grid-cell">
+                <span className={`status-pill ${t.is_active ? 'status-active' : 'status-canceled'}`}>{t.is_active ? 'Active' : 'Off'}</span>
+              </div>
+              <div className="grid-cell grid-actions">
+                {editingId === t.id ? (
+                  <>
+                    <button className="auth-button" style={{ width: 'auto', padding: '6px 12px', margin: 0 }} onClick={() => saveEdit(t.id)}>Save</button>
+                    <button className="logout-button" onClick={() => setEditingId(null)}>Cancel</button>
+                  </>
+                ) : (
+                  <>
+                    <button className="logout-button" onClick={() => startEdit(t)}>Rename</button>
+                    <button className="logout-button" onClick={() => toggleActive(t.id, t.is_active)}>{t.is_active ? 'Off' : 'On'}</button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
         </div>
       )}
     </div>
