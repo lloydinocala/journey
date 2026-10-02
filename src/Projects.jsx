@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import CustomerSearchSelect from './CustomerSearchSelect'
+import QuickAddModal from './QuickAddModal'
 
 // Projects = the progress-billing overlay. A project groups the stage jobs
 // (New Construction Rough-In / Trim / Start-Up, plus Punchlist) at one property
@@ -37,6 +38,7 @@ export default function Projects({ profile }) {
   // attach picker (detail view)
   const [attachable, setAttachable] = useState([])
   const [attachId, setAttachId] = useState('')
+  const [showAdd, setShowAdd] = useState(false)
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -166,6 +168,7 @@ export default function Projects({ profile }) {
           <h2 className="page-title" style={{ margin: 0 }}>{selected.name}</h2>
           <span className="badge">{selected.project_number}</span>
           <span className={`status-pill ${selected.status === 'active' ? 'status-active' : 'status-canceled'}`}>{selected.status}</span>
+          <button className="auth-button" style={{ width: 'auto', padding: '8px 16px', marginLeft: 'auto' }} onClick={() => setShowAdd(true)}>+ Add</button>
         </div>
         <div style={{ color: 'var(--mist)', fontSize: 13, marginBottom: 16 }}>
           {selected.customers?.display_name || '—'}
@@ -214,6 +217,17 @@ export default function Projects({ profile }) {
           Stages are regular jobs. Create a Rough-In / Trim / Start-Up / Punchlist job the normal way, then attach it here;
           each stage is billed by invoicing that job (a draw against the contract).
         </p>
+        {showAdd && (
+          <QuickAddModal
+            mode="job"
+            orgId={selectedOrg}
+            profile={profile}
+            projectId={selected.id}
+            prefillCustomerId={selected.customer_id || ''}
+            onClose={() => setShowAdd(false)}
+            onCreated={async () => { setShowAdd(false); await load(selectedOrg); loadAttachable(selected) }}
+          />
+        )}
       </div>
     )
   }

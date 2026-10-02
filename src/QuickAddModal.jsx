@@ -9,7 +9,7 @@ import NewTaskModal from './NewTaskModal'
 import TimePicker15 from './TimePicker15'
 import { zonedToUtcIso } from './utils/tz'
 
-export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated, prefillCustomerId = '' }) {
+export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated, prefillCustomerId = '', projectId = null }) {
   const navigate = useNavigate()
   const [customerProperties, setCustomerProperties] = useState([])
   const [users, setUsers] = useState([])
@@ -218,6 +218,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
       .from('jobs')
       .insert({
         org_id: orgId,
+        project_id: projectId || null,
         job_number: selectedContinueJob.job_number,
         segment: maxSegment + 1,
         property_id: selectedContinueJob.property_id,
@@ -391,6 +392,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
         .from('jobs')
         .insert({
           org_id: orgId,
+          project_id: projectId || null,
           job_number: jobNumber,
           segment: 1,
           property_id: propertyId,
