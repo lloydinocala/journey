@@ -14,6 +14,8 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
   const [customerProperties, setCustomerProperties] = useState([])
   const [users, setUsers] = useState([])
   const [jobTypes, setJobTypes] = useState([])
+  const [jobProjects, setJobProjects] = useState([])
+  const [pickedProjectId, setPickedProjectId] = useState('')
   const [allJobs, setAllJobs] = useState([])
 
   const [customerMode, setCustomerMode] = useState('existing')
@@ -91,7 +93,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
       supabase.from('users').select('id, full_name').eq('org_id', orgId).order('full_name').then(({ data }) => setUsers(data || []))
       supabase
         .from('job_types')
-        .select('id, name')
+        .select('id, name, project_mode')
         .eq('org_id', orgId)
         .eq('is_active', true)
         .order('sort_order')
@@ -99,6 +101,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
           setJobTypes(data || [])
           if (data && data.length > 0) setJobType(data[0].name)
         })
+      supabase.from('projects').select('id, name, project_number, property_id').eq('org_id', orgId).eq('status', 'active').order('created_at', { ascending: false }).then(({ data }) => setJobProjects(data || []))
     }
     if (mode === 'continueJob') {
       supabase.from('users').select('id, full_name').eq('org_id', orgId).order('full_name').then(({ data }) => setUsers(data || []))
@@ -392,7 +395,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
         .from('jobs')
         .insert({
           org_id: orgId,
-          project_id: projectId || null,
+          project_id: projectId || pickedProjectId || null,
           job_number: jobNumber,
           segment: 1,
           property_id: propertyId,
@@ -901,6 +904,15 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                   ))}
                 </select>
               </div>
+              {!projectId && (jobTypes.find((t) => t.name === jobType)?.project_mode || 'no') !== 'no' && (
+                <div className="field">
+                  <label htmlFor="jobProject">Project {(jobTypes.find((t) => t.name === jobType)?.project_mode) === 'segment' ? '(attach to its project)' : '(progress billing)'}</label>
+                  <select id="jobProject" value={pickedProjectId} onChange={(e) => setPickedProjectId(e.target.value)}>
+                    <option value="">— none —</option>
+                    {jobProjects.filter((p) => !propertyId || !p.property_id || p.property_id === propertyId).map((p) => <option key={p.id} value={p.id}>{p.project_number} · {p.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="field">
                 <label htmlFor="complaint">Issue</label>
                 <input id="complaint" type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling, or notes for a System Estimate visit" />
