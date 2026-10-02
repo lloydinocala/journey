@@ -37,6 +37,51 @@ function distM(aLat, aLng, bLat, bLng) {
   return 2 * R * Math.asin(Math.sqrt(s))
 }
 
+// --- Route optimization (no external key) ---------------------------------
+// Distances are straight-line (haversine) scaled by a road-circuity factor to
+// approximate real driving miles; ETA uses a flat average speed. Both are tunable
+// and can be swapped for a road-accurate provider (OpenRouteService / Mapbox /
+// Google) later without changing the ordering logic below.
+const ROAD_FACTOR = 1.3      // straight-line miles -> ~road miles
+const AVG_MPH = 30           // average door-to-door speed assumption
+const legMiles = (a, b) => (distM(a.lat, a.lng, b.lat, b.lng) / 1609.34) * ROAD_FACTOR
+const legMin = (a, b) => (legMiles(a, b) / AVG_MPH) * 60
+function pathCost(order, start) {
+  let total = 0, prev = start || order[0]
+  const seq = start ? order : order.slice(1)
+  for (const p of seq) { total += legMiles(prev, p); prev = p }
+  return total
+}
+// Nearest-neighbor seed, then 2-opt improvement. `start` is the tech's current
+// location when known (so the first leg counts from where they actually are).
+function optimizeOrder(stops, start) {
+  if (stops.length <= 2) return stops.slice()
+  const remaining = stops.slice()
+  const order = []
+  let cur = start || remaining.shift()
+  if (start) { /* keep start separate */ }
+  while (remaining.length) {
+    let bi = 0, bd = Infinity
+    remaining.forEach((p, i) => { const d = legMiles(cur, p); if (d < bd) { bd = d; bi = i } })
+    cur = remaining.splice(bi, 1)[0]
+    order.push(cur)
+  }
+  // 2-opt
+  let improved = true
+  while (improved) {
+    improved = false
+    for (let i = 0; i < order.length - 1; i++) {
+      for (let k = i + 1; k < order.length; k++) {
+        const cand = order.slice(0, i).concat(order.slice(i, k + 1).reverse(), order.slice(k + 1))
+        if (pathCost(cand, start) + 1e-9 < pathCost(order, start)) {
+          order.splice(0, order.length, ...cand); improved = true
+        }
+      }
+    }
+  }
+  return order
+}
+
 export default function DispatchMap({ profile }) {
   const nav = useNavigate()
   const isSuper = profile.role === 'super_admin'
@@ -131,7 +176,7 @@ export default function DispatchMap({ profile }) {
     if (!selectedOrg) return
     setLoading(true); setNote('')
     const { data } = await supabase.from('jobs')
-      .select('id, job_number, start_time, status, date_pending, job_type, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(id, street_address, unit, city, state, zip, latitude, longitude, customers!properties_customer_id_fkey(display_name))')
+      .select('id, job_number, start_time, status, date_pending, job_type, property_id, job_technicians(sort_order, user_id, users(id, full_name, calendar_color)), properties(id, street_address, unit, city, state, zip, latitude, longitude, customers!properties_customer_id_fkey(display_name))')
       .eq('org_id', selectedOrg).eq('job_date', date).is('deleted_at', null).neq('status', 'cancelled')
     const rows = (data || []).map((j) => {
       const t = (j.job_technicians || []).slice().sort((a, b) => a.sort_order - b.sort_order)
@@ -144,8 +189,11 @@ export default function DispatchMap({ profile }) {
         lat: j.properties?.latitude, lng: j.properties?.longitude,
         tech_name: t.length ? t.map((x) => x.users?.full_name).join(', ') : 'Unassigned',
         assigned: t.length > 0,
+        lead_user_id: t[0]?.user_id ?? t[0]?.users?.id ?? null,
+        job_number: j.job_number,
         color: t[0]?.users?.calendar_color || null,
         time: j.start_time ? new Date(j.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '',
+        start_raw: j.start_time || null,
       }
     })
     for (const j of rows) {
@@ -214,6 +262,51 @@ export default function DispatchMap({ profile }) {
 
   // How many techs have reported in the last 5 minutes (shown as the "live" count).
   const liveCount = techs.filter((t) => (Date.now() - new Date(t.updated_at).getTime()) < 5 * 60000).length
+
+  // ---- Route optimization ----
+  const [optTech, setOptTech] = useState('off')   // 'off' | 'all' | <userId>
+  const [optRoutes, setOptRoutes] = useState({})   // userId -> { order, totalMi, totalMin, savedMi, start, color, name }
+
+  // A tech's current location, if it's fresh enough to trust as a starting point.
+  function freshLoc(userId) {
+    const t = techs.find((x) => x.user_id === userId)
+    if (!t || t.latitude == null) return null
+    if ((Date.now() - new Date(t.updated_at).getTime()) > 30 * 60000) return null
+    return { lat: t.latitude, lng: t.longitude }
+  }
+
+  useEffect(() => {
+    if (optTech === 'off') { setOptRoutes({}); return }
+    const located = jobs.filter((j) => !j.date_pending && j.assigned && j.lead_user_id && j.lat != null && j.lng != null)
+    const ids = optTech === 'all'
+      ? [...new Set(located.map((j) => j.lead_user_id))]
+      : [optTech]
+    const out = {}
+    for (const id of ids) {
+      const stops = located.filter((j) => j.lead_user_id === id)
+      if (stops.length < 1) continue
+      const u = users.find((x) => x.id === id)
+      const start = freshLoc(id)
+      const order = optimizeOrder(stops, start)
+      // optimized totals
+      let mi = 0, min = 0, prev = start || order[0]
+      const seq = start ? order : order.slice(1)
+      for (const p of seq) { mi += legMiles(prev, p); min += legMin(prev, p); prev = p }
+      // current scheduled order (by start time) for a savings comparison
+      const cur = stops.slice().sort((a, b) => (a.start_raw || '').localeCompare(b.start_raw || ''))
+      let cmi = 0, cprev = start || cur[0]; const cseq = start ? cur : cur.slice(1)
+      for (const p of cseq) { cmi += legMiles(cprev, p); cprev = p }
+      out[id] = { order, totalMi: mi, totalMin: min, savedMi: Math.max(0, cmi - mi),
+        start, color: u?.calendar_color || '#2F5DE3', name: u?.full_name || 'Tech' }
+    }
+    setOptRoutes(out)
+  }, [optTech, jobs, techs, users]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Techs that have assigned, located jobs today — the choices for the Routes picker.
+  const routeTechs = [...new Map(
+    jobs.filter((j) => j.assigned && j.lead_user_id && j.lat != null)
+      .map((j) => [j.lead_user_id, (users.find((u) => u.id === j.lead_user_id)?.full_name) || j.tech_name])
+  ).entries()].map(([id, name]) => ({ id, name }))
 
   const userName = (id) => users.find((u) => u.id === id)?.full_name || 'tech'
   const terrForZip = (zip) => zip ? territories.find((t) => (t.zips || []).includes(zip)) : null
@@ -328,8 +421,31 @@ export default function DispatchMap({ profile }) {
       window.L.marker([m.dlat ?? m.lat, m.dlng ?? m.lng], { icon }).addTo(layer).bindPopup(m.popup)
       pts.push([m.lat, m.lng])
     }
+    // Optimized route paths (numbered stop sequence + connecting line per tech).
+    for (const id in optRoutes) {
+      const rt = optRoutes[id]
+      const latlngs = []
+      if (rt.start) latlngs.push([rt.start.lat, rt.start.lng])
+      rt.order.forEach((p) => latlngs.push([p.lat, p.lng]))
+      if (latlngs.length >= 2) {
+        window.L.polyline(latlngs, { color: rt.color, weight: 3.5, opacity: 0.8, dashArray: '2,7', lineCap: 'round' }).addTo(layer)
+      }
+      if (rt.start) {
+        const sIcon = window.L.divIcon({ className: '', iconSize: [16, 16], iconAnchor: [8, 8],
+          html: `<div style="background:${rt.color};width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px ${rt.color}"></div>` })
+        window.L.marker([rt.start.lat, rt.start.lng], { icon: sIcon, zIndexOffset: 900 }).addTo(layer).bindTooltip(`${rt.name} — start`, { direction: 'top' })
+      }
+      rt.order.forEach((p, idx) => {
+        const badge = window.L.divIcon({ className: '', iconSize: [20, 20], iconAnchor: [10, 10],
+          html: `<div style="background:#fff;color:${rt.color};border:2px solid ${rt.color};width:20px;height:20px;border-radius:50%;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.4)">${idx + 1}</div>` })
+        window.L.marker([p.lat, p.lng], { icon: badge, zIndexOffset: 1000 }).addTo(layer)
+          .bindPopup(`<strong>Stop ${idx + 1}</strong> &middot; ${rt.name}<br>${p.customer_name || ''}<br>${p.time ? p.time + ' &middot; ' : ''}${p.job_type || ''}`)
+      })
+      latlngs.forEach((ll) => pts.push(ll))
+    }
+
     if (pts.length) { try { map.fitBounds(pts, { padding: [40, 40], maxZoom: 14 }) } catch { /* single/empty */ } }
-  }, [jobs, techs, pending, showUnscheduled, mapReady, territories, colorBy, showZones, terrGeo])
+  }, [jobs, techs, pending, showUnscheduled, mapReady, territories, colorBy, showZones, terrGeo, optRoutes])
 
   // ---- territory manager ----
   const nextColor = () => TERR_PALETTE.find((c) => !territories.some((t) => (t.color || '').toLowerCase() === c.toLowerCase())) || TERR_PALETTE[territories.length % TERR_PALETTE.length]
@@ -463,8 +579,30 @@ export default function DispatchMap({ profile }) {
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: liveCount ? '#16A34A' : '#C4CAD2' }} />
           {liveCount ? `${liveCount} live now` : 'live tracking on'}
         </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--mist)' }}>🧭 Optimize route:
+          <select value={optTech} onChange={(e) => setOptTech(e.target.value)} style={{ fontSize: 13, padding: '4px 6px' }}>
+            <option value="off">Off</option>
+            {routeTechs.length > 1 && <option value="all">All techs</option>}
+            {routeTechs.map((rt) => <option key={rt.id} value={rt.id}>{rt.name}</option>)}
+          </select>
+        </span>
         {note && <span style={{ fontSize: 13, color: '#b0342f' }}>{note}</span>}
       </div>
+      {optTech !== 'off' && Object.keys(optRoutes).length > 0 && (
+        <div className="section-card" style={{ padding: '10px 14px', marginBottom: 12, border: '1px solid var(--border)', background: '#F2F8F8' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, alignItems: 'center' }}>
+            <span style={{ fontWeight: 800, fontSize: 13, color: '#176E7A' }}>Optimized route{Object.keys(optRoutes).length > 1 ? 's' : ''}</span>
+            {Object.entries(optRoutes).map(([id, rt]) => (
+              <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: rt.color, flex: '0 0 auto' }} />
+                <b>{rt.name}</b>
+                <span style={{ color: 'var(--mist)' }}>{rt.order.length} stop{rt.order.length === 1 ? '' : 's'} &middot; ~{rt.totalMi.toFixed(1)} mi &middot; ~{Math.round(rt.totalMin)} min drive{rt.savedMi > 0.3 ? ` · saves ~${rt.savedMi.toFixed(1)} mi` : ''}</span>
+              </span>
+            ))}
+          </div>
+          <div style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 6 }}>Numbered pins show the suggested visit order from each tech's current location when known. Distances are straight-line estimates; road-accurate miles and ETAs turn on once a maps-provider key is connected.</div>
+        </div>
+      )}
       <div ref={containerRef} style={{ height: 'calc(100vh - 250px)', minHeight: 420, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: '#e8edf1' }} />
       <div style={{ display: 'flex', gap: 18, marginTop: 10, flexWrap: 'wrap', fontSize: 12.5, color: 'var(--mist)' }}>
         <span><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#DC2626', border: '2px solid #fff', verticalAlign: 'middle', marginRight: 5 }} />Unassigned / needs attention</span>
