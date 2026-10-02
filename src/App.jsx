@@ -45,6 +45,7 @@ import CallConsole from './CallConsole'
 import DispatchMap from './DispatchMap'
 import Pricebook from './Pricebook'
 import SystemsPricebook from './SystemsPricebook'
+import TimeMaterials from './TimeMaterials'
 import SpecialFeatures from './SpecialFeatures'
 import SystemEstimateSetup from './SystemEstimateSetup'
 import PMChecklists from './PMChecklists'
@@ -345,8 +346,10 @@ function AuthenticatedApp() {
         <Route path="/call" element={<CallConsole profile={profile} />} />
         <Route path="/service-requests" element={<ServiceRequests profile={profile} />} />
         <Route path="/dispatch-map" element={<DispatchMap profile={profile} />} />
-        <Route path="/pricebook" element={<Pricebook profile={profile} />} />
+        <Route path="/pricebook" element={<Pricebook profile={profile} segment="residential" />} />
+        <Route path="/pricebook-commercial" element={<Pricebook profile={profile} segment="commercial" />} />
         <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />
+        <Route path="/time-and-materials" element={<TimeMaterials profile={profile} />} />
         <Route path="/special-features" element={<SpecialFeatures profile={profile} />} />
         <Route path="/system-estimate-setup" element={<SystemEstimateSetup profile={profile} />} />
         <Route path="/pm-checklists" element={<PMChecklists profile={profile} />} />

@@ -10,7 +10,7 @@ const ACCESS_OPTS = ['Standard Access', 'Difficult Access']
 const HOURS_OPTS = ['Standard Hours', 'Extended Hours']
 const PART_SOURCES = ['', 'OEM', 'Aftermarket']
 
-export default function Pricebook({ profile }) {
+export default function Pricebook({ profile, segment = 'residential' }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [services, setServices] = useState([])
@@ -63,6 +63,7 @@ export default function Pricebook({ profile }) {
   const [editTaskHours, setEditTaskHours] = useState('')
 
   const isSuperAdmin = profile.role === 'super_admin'
+  const bookTitle = segment === 'commercial' ? 'Commercial Flat Rate' : 'Residential Flat Rate'
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -107,6 +108,7 @@ export default function Pricebook({ profile }) {
         .from('services')
         .select('id, category, name, is_tax_exempt, is_active, checklist_id')
         .eq('org_id', orgId)
+        .eq('segment', segment)
       if (statusFilter === 'active') q = q.eq('is_active', true)
       else if (statusFilter === 'archived') q = q.eq('is_active', false)
       return q.order('category').order('name')
@@ -119,7 +121,7 @@ export default function Pricebook({ profile }) {
     loadServices(selectedOrg)
     setSelectedServiceId(null)
     setVariants([])
-  }, [selectedOrg, statusFilter])
+  }, [selectedOrg, statusFilter, segment])
 
   const categories = [...new Set(services.map((s) => s.category))].sort()
   const filteredServices = services.filter((s) => {
@@ -134,6 +136,7 @@ export default function Pricebook({ profile }) {
     setSavingService(true)
     const { error } = await supabase.from('services').insert({
       org_id: selectedOrg,
+      segment,
       category: newServiceCategory.trim(),
       name: newServiceName.trim(),
       is_tax_exempt: newServiceExempt,
@@ -296,7 +299,7 @@ export default function Pricebook({ profile }) {
 
           // Find-or-create every service referenced, same as the standalone importer.
           const existingServices = await fetchAllRows(() =>
-            supabase.from('services').select('id, category, name').eq('org_id', selectedOrg)
+            supabase.from('services').select('id, category, name').eq('org_id', selectedOrg).eq('segment', segment)
           )
           const serviceMap = new Map(existingServices.map((s) => [`${normalizeForMatch(s.category)}|${normalizeForMatch(s.name)}`, s.id]))
 
@@ -310,7 +313,7 @@ export default function Pricebook({ profile }) {
             }
           }
           if (neededKeys.size > 0) {
-            const newServicesList = [...neededKeys.values()].map((s) => ({ org_id: selectedOrg, ...s }))
+            const newServicesList = [...neededKeys.values()].map((s) => ({ org_id: selectedOrg, segment, ...s }))
             for (let i = 0; i < newServicesList.length; i += 300) {
               const batch = newServicesList.slice(i, i + 300)
               const { data: created, error: createErr } = await supabase.from('services').insert(batch).select('id, category, name')
@@ -542,7 +545,7 @@ async function loadVariants(serviceId) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <h2 className="page-title" style={{ margin: 0 }}>Pricebook</h2>
+        <h2 className="page-title" style={{ margin: 0 }}>{bookTitle}</h2>
         <span className="badge">{services.length.toLocaleString()} total</span>
       </div>
 

@@ -31,7 +31,7 @@ const PAGE_TITLES = {
   '/fleet': 'Fleet', '/refrigerant': '608 Compliance', '/supplies': 'Supplies', '/tools': 'Tools',
   '/rewards': 'Human Resources', '/marketing': 'Marketing', '/permits': 'Permits',
   '/building-authorities': 'Building Authorities', '/warranty-registrations': 'Warranty Registrations',
-  '/import': 'Data Station', '/pricebook': 'Pricebook', '/systems-pricebook': 'Systems Pricebook',
+  '/import': 'Data Station', '/pricebook': 'Residential Flat Rate', '/pricebook-commercial': 'Commercial Flat Rate', '/systems-pricebook': 'Residential Systems', '/time-and-materials': 'Time & Materials',
   '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
   '/payroll': 'Payroll Capture', '/session-log': 'Sign-In Log',
   '/organizations': 'Organizations', '/announcements': 'Announcements', '/my': 'My Pay & Benefits',
@@ -140,8 +140,10 @@ const PERMIT_PAGES = [
 ]
 const IMPORT_PAGES = [
   { label: 'Import Hub', path: '/import' },
-  { label: 'Pricebook', path: '/pricebook' },
-  { label: 'Systems Pricebook', path: '/systems-pricebook' },
+  { label: 'Residential Flat Rate', path: '/pricebook' },
+  { label: 'Commercial Flat Rate', path: '/pricebook-commercial' },
+  { label: 'Residential Systems', path: '/systems-pricebook' },
+  { label: 'Time & Materials', path: '/time-and-materials' },
   { label: 'Special Features', path: '/special-features' },
   { label: 'Discount Catalog', path: '/discount-catalog' },
   { label: 'PM Checklists', path: '/pm-checklists' },

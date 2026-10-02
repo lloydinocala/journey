@@ -400,7 +400,7 @@ export default function SystemsPricebook({ profile }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <h2 className="page-title" style={{ margin: 0 }}>Systems Pricebook</h2>
+        <h2 className="page-title" style={{ margin: 0 }}>Residential Systems</h2>
         <span className="badge">{counts.active.toLocaleString()} active · {(counts.total - counts.active).toLocaleString()} inactive · {counts.total.toLocaleString()} total</span>
       </div>
 
