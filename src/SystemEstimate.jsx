@@ -4,6 +4,13 @@ import PermitPanel from './PermitPanel'
 import { supabase } from './utils/supabase'
 import RoutingSummary from './RoutingSummary'
 import TierBuilder from './TierBuilder'
+import AiAssist from './AiAssist'
+
+// Homeowner-facing proposal summary for an equipment-replacement estimate. Reads only
+// the line items already on the estimate (equipment, what the install includes, warranty)
+// and turns the spec-heavy descriptions into a few warm, plain-language sentences the
+// office can paste into the proposal or a follow-up. Editable draft — never auto-sent.
+const SYS_PROPOSAL_SYS = 'You write a short, warm, customer-facing proposal summary for a residential HVAC system replacement, using only the line items provided (the equipment, what the installation includes, and the warranty). Write 3 to 5 plain-language sentences a homeowner understands: what system is being installed and why it is a solid choice, what the installation covers, and the warranty / peace-of-mind. Translate model numbers and specs into plain benefits; do not list raw model or AHRI numbers. Do not invent items, specs, or prices, and do not state any dollar total. Ready to paste into the proposal.'
 
 // Render a section description line-by-line, bolding only the equipment name — the line that
 // sits directly under an INDOOR UNIT / OUTDOOR UNIT / FURNACE label (not AHRI or model #).
@@ -442,6 +449,14 @@ export default function SystemEstimate({ profile }) {
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.display_name}</p>
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.street_address}</p>
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.primary_phone} · {job.properties?.customers?.email_1}</p>
+              {lineItems.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <AiAssist title="Draft proposal summary" label="✨ AI: draft proposal"
+                    system={SYS_PROPOSAL_SYS}
+                    prompt="Write a short, warm customer-facing proposal summary for this system-replacement estimate, based on its line items."
+                    context={{ estimate: estimate.invoice_number, customer: job.properties?.customers?.display_name, line_items: lineItems.filter((li) => !isPendingCustom(li)).map((li) => ({ section: li.category, description: li.description })) }} />
+                </div>
+              )}
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ marginBottom: 8 }}>
