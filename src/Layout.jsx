@@ -35,6 +35,7 @@ const PAGE_TITLES = {
   '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
   '/payroll': 'Payroll Capture', '/session-log': 'Sign-In Log',
   '/organizations': 'Organizations', '/announcements': 'Announcements', '/my': 'My Pay & Benefits',
+  '/features': 'Feature Directory',
 }
 function pageTitle(pathname) {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]
@@ -178,7 +179,7 @@ const INSIGHTS_PAGES = [
 ]
 
 // Build the section tree for a given profile (entitlement + role gated).
-function buildSections(profile) {
+export function buildSections(profile) {
   const isSuper = profile?.role === 'super_admin'
   const notTech = profile?.role !== 'tech'
   const showElements = notTech
@@ -442,8 +443,11 @@ export default function Layout({ profile }) {
         </div>
       )}
       <AnnouncementBanner profile={profile} />
-      <header className="app-topbar">
+      <header className="app-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div className="app-topbar-brand"><span className="tb-the">The</span> <span className="tb-journey">Journey</span> <span className="tb-tag">starts here.</span></div>
+        <Link to="/features" title="Find any feature in the app" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.14)', color: '#fff', textDecoration: 'none', fontWeight: 700, fontSize: 13, padding: '7px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.28)', whiteSpace: 'nowrap' }}>
+          <span aria-hidden="true">🧭</span> Find a Feature
+        </Link>
       </header>
       <div className="shell-body">
         {navCollapsed ? (
