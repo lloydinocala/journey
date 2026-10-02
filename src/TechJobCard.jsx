@@ -224,14 +224,16 @@ export default function TechJobCard({ profile }) {
   const [diagnosisNote, setDiagnosisNote] = useState('')
   const [linkedChecklist, setLinkedChecklist] = useState(null)
   const [checklistRunStatus, setChecklistRunStatus] = useState(null)
+  const [jtCfgDb, setJtCfgDb] = useState(null)
   useEffect(() => {
-    if (!job?.job_type || !job?.org_id) { setLinkedChecklist(null); setChecklistRunStatus(null); return }
+    if (!job?.job_type || !job?.org_id) { setLinkedChecklist(null); setChecklistRunStatus(null); setJtCfgDb(null); return }
     let live = true
     ;(async () => {
-      const { data: jt } = await supabase.from('job_types').select('checklist_id, checklists(id, name)').eq('org_id', job.org_id).eq('name', job.job_type).maybeSingle()
+      const { data: jt } = await supabase.from('job_types').select('checklist_id, middle_gate, show_service_estimate, checklists(id, name)').eq('org_id', job.org_id).eq('name', job.job_type).maybeSingle()
       if (!live) return
       const cl = jt?.checklists || null
       setLinkedChecklist(cl)
+      setJtCfgDb(jt ? { middle: jt.middle_gate, showServiceEstimate: jt.show_service_estimate } : null)
       if (cl) {
         const { data: r } = await supabase.from('checklist_runs').select('status').eq('job_id', job.id).maybeSingle()
         if (live) setChecklistRunStatus(r?.status || null)
@@ -470,7 +472,9 @@ export default function TechJobCard({ profile }) {
   if (!maintDone) invoiceBlockers.push('offer maintenance agreement options — send them, or mark the customer not interested (in Maintenance Agreements)')
   const canBuildInvoice = invoiceBlockers.length === 0
   // ---- per-job-type matrix: which spine tasks show + what the middle gate is ----
-  const jtCfg = jobTypeConfig(job?.job_type)
+  // Routing config comes from the job type's DB row (Settings → Job types);
+  // fall back to the legacy name rules if the type has no DB config yet.
+  const jtCfg = (jtCfgDb && jtCfgDb.middle) ? jtCfgDb : jobTypeConfig(job?.job_type)
   const showLinkedChecklist = !!linkedChecklist
   const showDiagnosis = jtCfg.middle === 'diagnosis' && !showLinkedChecklist   // repair-style
   const showChecklist = jtCfg.middle === 'checklist' && !showLinkedChecklist   // maintenance (legacy)
