@@ -187,6 +187,34 @@ export default function DispatchMap({ profile }) {
 
   useEffect(() => { load() }, [selectedOrg, date])
 
+  // Live tech locations — subscribe to tech_locations changes so pins move in near-real-time
+  // without a manual refresh. Enriches each row with the tech's name/color from `users`.
+  useEffect(() => {
+    if (!selectedOrg) return
+    const ch = supabase.channel('tl-' + selectedOrg)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tech_locations', filter: `org_id=eq.${selectedOrg}` },
+        (payload) => {
+          const row = payload.new
+          if (!row || row.latitude == null) return
+          setTechs((cur) => {
+            const u = users.find((x) => x.id === row.user_id)
+            const rec = { user_id: row.user_id, latitude: row.latitude, longitude: row.longitude, updated_at: row.updated_at,
+              users: { full_name: u?.full_name, calendar_color: u?.calendar_color } }
+            const i = cur.findIndex((t) => t.user_id === row.user_id)
+            if (i === -1) return [...cur, rec]
+            const next = cur.slice()
+            next[i] = { ...next[i], latitude: rec.latitude, longitude: rec.longitude, updated_at: rec.updated_at,
+              users: rec.users.full_name ? rec.users : next[i].users }
+            return next
+          })
+        })
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [selectedOrg, users])
+
+  // How many techs have reported in the last 5 minutes (shown as the "live" count).
+  const liveCount = techs.filter((t) => (Date.now() - new Date(t.updated_at).getTime()) < 5 * 60000).length
+
   const userName = (id) => users.find((u) => u.id === id)?.full_name || 'tech'
   const terrForZip = (zip) => zip ? territories.find((t) => (t.zips || []).includes(zip)) : null
   // Suggested tech for an unassigned job: the job's territory tech; if the
@@ -268,10 +296,13 @@ export default function DispatchMap({ profile }) {
       const color = t.users?.calendar_color || '#1f7a43'
       const initial = (t.users?.full_name || '?').slice(0, 1).toUpperCase()
       const ago = Math.round((Date.now() - new Date(t.updated_at).getTime()) / 60000)
+      // Freshness ring: green when live (<5 min), amber when recent (<30 min), grey when stale.
+      const ring = ago < 5 ? '#16A34A' : ago < 30 ? '#E0A526' : '#C4CAD2'
+      const freshLabel = ago < 5 ? 'Live now' : ago < 30 ? `${ago} min ago` : `${ago} min ago (stale)`
       items.push({
-        lat: t.latitude, lng: t.longitude, iconSize: [28, 28], iconAnchor: [14, 26],
-        html: `<div style="background:${color};width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:#fff;font-size:13px;font-weight:800">${initial}</span></div>`,
-        popup: `<strong>${t.users?.full_name || 'Technician'}</strong><br>Updated ${ago} min ago`,
+        lat: t.latitude, lng: t.longitude, iconSize: [30, 30], iconAnchor: [15, 28],
+        html: `<div style="background:${color};width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid #fff;box-shadow:0 0 0 3px ${ring},0 1px 5px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:#fff;font-size:13px;font-weight:800">${initial}</span></div>`,
+        popup: `<strong>${t.users?.full_name || 'Technician'}</strong><br><span style="color:${ring};font-weight:700">●</span> ${freshLabel}`,
       })
     }
 
@@ -428,6 +459,10 @@ export default function DispatchMap({ profile }) {
           Unscheduled bookings{pending.length ? ` (${pending.length})` : ''}
         </label>
         <span style={{ fontSize: 13, color: 'var(--mist)' }}>{jobs.length} jobs &middot; {techs.length} techs on map</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 600, color: liveCount ? '#16A34A' : 'var(--mist)' }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: liveCount ? '#16A34A' : '#C4CAD2' }} />
+          {liveCount ? `${liveCount} live now` : 'live tracking on'}
+        </span>
         {note && <span style={{ fontSize: 13, color: '#b0342f' }}>{note}</span>}
       </div>
       <div ref={containerRef} style={{ height: 'calc(100vh - 250px)', minHeight: 420, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: '#e8edf1' }} />

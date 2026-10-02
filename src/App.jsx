@@ -48,6 +48,7 @@ import SystemsPricebook from './SystemsPricebook'
 import TimeMaterials from './TimeMaterials'
 import Projects from './Projects'
 import FeatureDirectory from './FeatureDirectory'
+import Training from './Training'
 import SpecialFeatures from './SpecialFeatures'
 import SystemEstimateSetup from './SystemEstimateSetup'
 import PMChecklists from './PMChecklists'
@@ -355,6 +356,7 @@ function AuthenticatedApp() {
         <Route path="/filter-pricebook" element={<FilterPricebookImport profile={profile} />} />
         <Route path="/projects" element={<Projects profile={profile} />} />
         <Route path="/features" element={<FeatureDirectory profile={profile} />} />
+        <Route path="/training" element={<Training profile={profile} />} />
         <Route path="/special-features" element={<SpecialFeatures profile={profile} />} />
         <Route path="/system-estimate-setup" element={<SystemEstimateSetup profile={profile} />} />
         <Route path="/pm-checklists" element={<PMChecklists profile={profile} />} />

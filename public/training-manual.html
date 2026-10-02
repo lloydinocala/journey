@@ -1,0 +1,1169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Journey Operator Training Manual</title>
+<style>
+  :root{
+    --navy:#002060; --navy-soft:#11316f; --red:#FF0000;
+    --ink:#1b2430; --mist:#5b6675; --faint:#8a94a3;
+    --line:#e4e8ef; --panel:#f6f8fc; --panel-2:#eef2f9;
+    --amber-fg:#9C6A12; --amber-bg:#FAF2E0; --amber-line:#EAD3A0;
+    --green-fg:#2E7D52; --green-bg:#EAF3EC; --green-line:#CADFCF;
+    --radius:14px; --maxw:860px;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+  body{margin:0;background:#fff;color:var(--ink);font-family:var(--font);font-size:16.5px;line-height:1.6;}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px 90px;}
+
+  /* Masthead / part banners */
+  .mast{background:var(--navy);color:#fff;padding:34px 24px 30px;}
+  .mast-inner{max-width:var(--maxw);margin:0 auto;}
+  .mast .kicker{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:#9fb2d8;font-weight:700;margin:0 0 8px;}
+  .mast h1{font-size:30px;line-height:1.15;margin:0;font-weight:800;letter-spacing:-.01em;}
+  .mast .sub{color:#c6d2ea;margin:9px 0 0;font-size:15.5px;max-width:60ch;}
+  .mast .rule{height:4px;width:68px;background:var(--red);border-radius:2px;margin:18px 0 0;}
+
+  /* Cover */
+  .cover{min-height:92vh;display:flex;flex-direction:column;justify-content:center;background:var(--navy);color:#fff;padding:60px 24px;}
+  .cover-inner{max-width:var(--maxw);margin:0 auto;width:100%;}
+  .cover .brand{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:#9fb2d8;font-weight:700;}
+  .cover h1{font-size:46px;line-height:1.08;margin:14px 0 0;font-weight:800;letter-spacing:-.015em;}
+  .cover h1 .em{color:#7ea2e6;}
+  .cover .tag{font-size:18px;color:#c6d2ea;margin:18px 0 0;max-width:62ch;}
+  .cover .rule{height:5px;width:90px;background:var(--red);border-radius:3px;margin:26px 0 0;}
+  .cover .meta{margin:34px 0 0;font-size:14px;color:#9fb2d8;}
+
+  /* How-to + TOC */
+  .part-tag{display:inline-block;margin:34px 0 0;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--red);}
+  h2.section{font-size:26px;font-weight:800;color:var(--navy);margin:6px 0 2px;letter-spacing:-.01em;scroll-margin-top:16px;}
+  .locator{font-size:14px;color:var(--mist);margin:0 0 4px;}
+  .lead{font-size:17px;margin:16px 0 6px;}
+  h3{font-size:19px;font-weight:800;color:var(--navy);margin:34px 0 4px;scroll-margin-top:16px;}
+  h3 .num{color:var(--red);font-weight:800;margin-right:8px;}
+  h4{font-size:15.5px;font-weight:800;color:var(--navy);margin:22px 0 2px;}
+  p{margin:10px 0;} .muted{color:var(--mist);} strong{color:var(--ink);}
+
+  .toc{border:1px solid var(--line);border-radius:var(--radius);padding:8px 6px;margin:18px 0;background:var(--panel);}
+  .toc ol{margin:0;padding:0;list-style:none;counter-reset:part;}
+  .toc>ol>li{padding:0;}
+  .toc .part-row{display:flex;align-items:baseline;gap:10px;padding:9px 14px;border-radius:9px;}
+  .toc .part-row:hover{background:#fff;}
+  .toc .pn{color:var(--red);font-weight:800;font-size:13px;min-width:54px;letter-spacing:.06em;text-transform:uppercase;}
+  .toc a{color:var(--navy);text-decoration:none;font-weight:700;}
+  .toc a:hover{text-decoration:underline;}
+  .toc .pages{margin:0 0 6px 78px;padding:0;list-style:none;font-size:14px;}
+  .toc .pages li{padding:2px 0;}
+  .toc .pages a{color:var(--mist);font-weight:500;}
+
+  /* Steps */
+  .steps{list-style:none;counter-reset:step;margin:14px 0 6px;padding:0;}
+  .steps>li{position:relative;padding:2px 0 16px 46px;}
+  .steps>li:before{counter-increment:step;content:counter(step);position:absolute;left:0;top:0;width:30px;height:30px;border-radius:999px;background:var(--navy);color:#fff;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;}
+  .steps>li:not(:last-child):after{content:"";position:absolute;left:14px;top:30px;bottom:2px;width:2px;background:var(--line);}
+  .steps .st-title{font-weight:700;}
+  .steps p{margin:4px 0 0;}
+  ul.plain{margin:10px 0;padding-left:20px;} ul.plain li{margin:5px 0;}
+
+  /* Callouts */
+  .callout{border-radius:12px;padding:14px 16px 14px 18px;margin:18px 0;border:1px solid var(--line);background:var(--panel);}
+  .callout .lbl{font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;margin:0 0 4px;}
+  .callout p{margin:4px 0 0;font-size:15px;}
+  .c-know{border-left:4px solid var(--navy);} .c-know .lbl{color:var(--navy);}
+  .c-honest{border-left:4px solid var(--red);background:#fff5f5;} .c-honest .lbl{color:var(--red);}
+  .c-tip{border-left:4px solid var(--amber-fg);background:var(--amber-bg);} .c-tip .lbl{color:var(--amber-fg);}
+  .c-add{border-left:4px solid var(--green-fg);background:var(--green-bg);} .c-add .lbl{color:var(--green-fg);}
+
+  /* Quick-nav table */
+  .qnav{width:100%;border-collapse:collapse;margin:12px 0 6px;font-size:14.5px;}
+  .qnav caption{text-align:left;font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:var(--navy);margin-bottom:8px;}
+  .qnav th,.qnav td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+  .qnav thead th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);border-bottom:2px solid var(--line);}
+  .qnav td:first-child{font-weight:700;color:var(--navy);white-space:nowrap;}
+
+  /* Anatomy facsimile */
+  .anat{border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin:16px 0;background:var(--panel);}
+  .anat .anat-cap{font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:var(--faint);margin:0 0 12px;}
+  .banner{display:flex;align-items:center;gap:11px;padding:11px 14px;border-radius:12px;background:var(--amber-bg);border:1px solid var(--amber-line);color:var(--amber-fg);font-weight:600;font-size:14.5px;}
+  .banner .dot{width:26px;height:26px;border-radius:999px;background:#fff;border:1px solid var(--amber-line);display:flex;align-items:center;justify-content:center;font-weight:800;}
+  .fcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:12px;}
+  .fcard{background:#fff;border:1px solid var(--line);border-left:3px solid var(--amber-fg);border-radius:12px;padding:13px 14px;}
+  .fcard .top{display:flex;align-items:center;justify-content:space-between;}
+  .fcard .nm{font-weight:800;font-size:15px;color:var(--ink);}
+  .fcard .pill{min-width:28px;height:28px;padding:0 9px;border-radius:999px;background:var(--amber-bg);color:var(--amber-fg);border:1px solid var(--amber-line);font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;}
+  .fcard .ln{font-size:13.5px;color:var(--mist);margin:7px 0 9px;line-height:1.4;}
+  .fcard .open{font-size:13px;font-weight:800;color:var(--navy);}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+  .chip{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--ink);}
+  .chip .gdot{width:7px;height:7px;border-radius:999px;background:var(--green-fg);}
+  .anat .legend{margin:14px 0 0;padding:0;list-style:none;font-size:13.5px;}
+  .anat .legend li{padding:5px 0 5px 24px;position:relative;color:var(--mist);}
+  .anat .legend li b{color:var(--navy);}
+  .anat .legend li:before{content:"";position:absolute;left:4px;top:11px;width:9px;height:9px;border-radius:2px;background:var(--red);}
+
+  .part-banner{background:var(--navy);color:#fff;border-radius:var(--radius);padding:22px 22px;margin:44px 0 6px;}
+  .part-banner .pk{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#9fb2d8;font-weight:800;}
+  .part-banner h2{color:#fff;font-size:27px;margin:6px 0 0;font-weight:800;letter-spacing:-.01em;}
+  .part-banner p{color:#c6d2ea;margin:8px 0 0;font-size:15px;}
+
+  .foot{margin-top:46px;padding-top:16px;border-top:2px solid var(--line);font-size:13px;color:var(--faint);}
+
+  @media print{
+    body{font-size:11.5pt;}
+    .wrap{max-width:none;padding:0;}
+    .mast,.cover,.part-banner{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .callout,.anat,.banner,.fcard,.fcard .pill,.chip,.c-honest,.c-add,.toc{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    h2.section,h3{break-after:avoid;} .steps>li{break-inside:avoid;} .callout,.anat,.qnav{break-inside:avoid;}
+    .cover{min-height:94vh;page-break-after:always;} .part-banner{break-before:page;}
+    .no-print{display:none!important;} a{color:var(--navy);text-decoration:none;}
+  }
+  @media(max-width:560px){ .cover h1{font-size:34px;} .mast h1{font-size:25px;} h2.section{font-size:22px;} body{font-size:16px;} .toc .pages{margin-left:30px;} }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="cover">
+  <div class="cover-inner">
+    <div class="brand">Journey · Field Service Platform</div>
+    <h1>Operator<br><span class="em">Training Manual</span></h1>
+    <p class="tag">Everything your team needs to run the business in Journey — screen by screen, feature by feature, in the order the menu puts them. Built for onboarding, written to keep.</p>
+    <div class="rule"></div>
+    <div class="meta">Office App &amp; Field App · Keep this link handy — it is always the current version.</div>
+  </div>
+</section>
+
+<div class="wrap">
+
+  <!-- ============ HOW TO USE ============ -->
+  <span class="part-tag">Start here</span>
+  <h2 class="section" id="how-to-use">How to use this manual</h2>
+  <p class="lead">This manual follows the app's own menu. Each part is a primary section of Journey; inside it, every screen is covered in the order you meet it, and every feature on a screen gets its own short set of steps — so you can read it cover to cover during training, then come back to any one screen later.</p>
+  <p>Throughout, you'll see the same few building blocks:</p>
+  <div class="callout c-know"><p class="lbl">What you're looking at</p><p>A labeled picture of the real screen, so you can match the manual to what's in front of you.</p></div>
+  <div class="callout c-add"><p class="lbl">+ Add</p><p>Marks the quick-create button on a screen — how to make a new job, customer, estimate, and so on without leaving the page. Journey's <strong>+ Add</strong> is explained once in full under the Train Station, then flagged wherever it appears.</p></div>
+  <div class="callout c-tip"><p class="lbl">Tip</p><p>A shortcut, a default worth knowing, or a way to set a new office up for success.</p></div>
+  <div class="callout c-honest"><p class="lbl">Why it works this way</p><p>The thinking behind a feature — usually where Journey is built to keep you and the customer honest.</p></div>
+  <p class="muted">Numbered lists are <strong>steps to perform in order</strong>. Lettered headings (A, B, C…) are the separate features on a single screen.</p>
+
+  <!-- ============ TOC ============ -->
+  <span class="part-tag">Contents</span>
+  <h2 class="section" id="contents">What's inside</h2>
+  <div class="toc">
+    <ol>
+      <li><div class="part-row"><span class="pn">Part 1</span><a href="#part1">Getting Around</a></div>
+        <ul class="pages"><li><a href="#home">HOME — the Command Dashboard</a></li><li><a href="#feature-directory">Find a Feature</a></li><li><a href="#the-menu">The menu &amp; moving between apps</a></li></ul></li>
+      <li><div class="part-row"><span class="pn">Part 2</span><a href="#part2">The Train Station</a></div>
+        <ul class="pages">
+          <li><a href="#train-station">The Train Station hub</a></li>
+          <li><a href="#quick-add">The <strong>+ Add</strong> quick-create (used everywhere)</a></li>
+          <li><a href="#jobs-customers">Jobs &amp; Customers — Jobs, Management, Tasks, Customers, Properties, Estimates, Invoices, Projects, Payments</a></li>
+          <li><a href="#dispatch">Dispatch — board, Calls, Service Requests, Calendar, Map, Filter Orders, On-Call</a></li>
+          <li><a href="#maintenance">Maintenance — agreements, due, tiers, filter subscriptions</a></li>
+          <li><a href="#permitting">Permitting — permits, authorities, warranties</a></li>
+          <li><a href="#compliance">608 Refrigerant Compliance</a></li>
+          <li><a href="#data-station">Data Station — pricebooks, checklists, setup, import</a></li>
+        </ul></li>
+      <li><div class="part-row"><span class="pn">Part 3</span><a href="#part3">Inventory Central</a></div>
+        <ul class="pages"><li>Stock &amp; Purchasing · Insights &amp; Planning · Fleet · Supplies · Tools</li></ul></li>
+      <li><div class="part-row"><span class="pn">Part 4</span><a href="#part4">WorkForce</a></div>
+        <ul class="pages"><li>Team · Roles &amp; Tags · Time Clock · Payroll Capture · Sign-In Log · HR · Payroll · Certified Payroll</li></ul></li>
+      <li><div class="part-row"><span class="pn">Part 5</span><a href="#part5">Command Center (Marketing)</a></div>
+        <ul class="pages"><li>Dashboard · Approval Queue · Channels &amp; Assets · Reviews</li></ul></li>
+      <li><div class="part-row"><span class="pn">Part 6</span><a href="#part6">Financials</a></div></li>
+      <li><div class="part-row"><span class="pn">Part 7</span><a href="#part7">Admin</a></div>
+        <ul class="pages"><li>Settings · Financing · Lenders · Organizations · Announcements</li></ul></li>
+      <li><div class="part-row"><span class="pn">Part 8</span><a href="#part8">The Field App (mobile)</a></div></li>
+    </ol>
+  </div>
+
+  <!-- ============ PART 1 ============ -->
+  <div class="part-banner" id="part1"><div class="pk">Part 1</div><h2>Getting Around</h2><p>The three things that orient you no matter where you are: your daily dashboard, the feature finder, and the menu.</p></div>
+
+  <span class="part-tag">Part 1 · Screen 1</span>
+  <h2 class="section" id="home">HOME — the Command Dashboard</h2>
+  <p class="locator">Where it is: the top item of the menu, pinned on every screen. It's also where the office app opens.</p>
+  <p class="lead">HOME answers one question fast: how is the business doing right now? It's a read-only command board — every tile is a live number that links straight to the screen where you act on it. A manager can run the whole morning review from here without changing a single record.</p>
+
+  <h3><span class="num">A.</span>Set what you're looking at</h3>
+  <ol class="steps">
+    <li><span class="st-title">Check the Viewing-Organization pill (top-left).</span><p>It shows which company you're looking at. Platform owners can click it to switch to any client org — the whole board reloads for that company and your choice is remembered.</p></li>
+    <li><span class="st-title">Set the Period (top-right).</span><p>This month (default), Last 30 days, This quarter, or Year to date. Every date-based tile re-queries the instant you change it.</p></li>
+    <li><span class="st-title">Know the four point-in-time tiles.</span><p>Recurring revenue and Outstanding estimates (both "as of now"), Payroll % of sales (always last 6 months), and Unusual fuel / mileage flags (current) do <em>not</em> follow the period — they're always live. Everything else obeys the Period.</p></li>
+  </ol>
+
+  <h3><span class="num">B.</span>Read the vital signs</h3>
+  <p>The tiles are the business's vital signs, each drawn as the right visual for its data — a single number, a gauge against a goal, a ranked bar chart, or a flags list.</p>
+  <ul class="plain">
+    <li><strong>Money:</strong> Sales (invoiced revenue), Recurring revenue (agreement run-rate/month), Outstanding estimates (unsold pipeline).</li>
+    <li><strong>Work:</strong> Jobs / tech / day (completed jobs per tech per working day); Gross margin (a gauge with a 60% floor line); On-time arrival (a gauge with a 90% floor — within 15 min of schedule).</li>
+    <li><strong>Mix &amp; payroll:</strong> Revenue by tech and Revenue by job type (ranked bars); Payroll % of sales (a column chart against a 20% ceiling); Estimates presented vs. sold (conversion).</li>
+    <li><strong>Inventory &amp; fleet:</strong> Inventory variance $ by truck holder; Unusual fuel / mileage flags.</li>
+  </ul>
+
+  <h3><span class="num">C.</span>Act on a number</h3>
+  <ol class="steps">
+    <li><span class="st-title">Click a tile to drill in.</span><p>Sales and Gross margin open Invoices; Outstanding and Presented-vs-sold open Estimates; Jobs/tech/day and On-time open Jobs Management; Recurring opens Maintenance Agreements; Payroll opens Payroll. A small ↗ marks a tile that drills.</p></li>
+    <li><span class="st-title">Click a single bar to pre-filter.</span><p>On Revenue by tech or by job type, clicking one bar opens Jobs filtered to exactly that technician or job type.</p></li>
+    <li><span class="st-title">Ask the AI what a number means.</span><p>Click the ✦ <strong>Investigate</strong> icon on any tile for a plain-English read of that number for this org and period — what it's saying, likely drivers, and what to do next.</p></li>
+  </ol>
+
+  <h3><span class="num">D.</span>Make the board your own (managers/owners)</h3>
+  <p class="muted">These controls appear only for a super-admin or anyone with the "customize dashboard" permission; everyone else sees the board read-only.</p>
+  <ol class="steps">
+    <li><span class="st-title">+ Add KPI.</span><p>Pick a base measure (Revenue, Gross profit, Estimate value, Jobs completed) and a breakdown (total, by tech, by job type, by customer, by month, by status). The builder picks the right chart and adds the tile to the end of the board.</p></li>
+    <li><span class="st-title">Arrange.</span><p>Drag any tile by its handle to reorder; use the − S/M/L + control to resize (single-value tiles cap at M, charts go to L). Changes save automatically — click Done arranging when finished.</p></li>
+    <li><span class="st-title">Remove or reset.</span><p>Remove a tile with its ×. "Reset to default" restores the standard 12-tile board (it only appears once an org has customized). The factory default can never be lost.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">Scope</p><p>Layouts are saved per organization, so each client company keeps its own board, and it refetches fresh data whenever you change org, period, or a tile.</p></div>
+
+  <span class="part-tag">Part 1 · Screen 2</span>
+  <h2 class="section" id="feature-directory">Find a Feature</h2>
+  <p class="locator">Where it is: the <strong>🧭 Find a Feature</strong> button at the top-right of every office screen.</p>
+  <p class="lead">Journey is a big app, and no one memorizes where everything lives. The Feature Directory is a searchable A–Z index of every feature, each with how to reach it from Home and a direct link. It's the fastest way to jump somewhere — or to find something when you're still learning the layout.</p>
+  <h3><span class="num">A.</span>Jump to anything</h3>
+  <ol class="steps">
+    <li><span class="st-title">Click 🧭 Find a Feature.</span><p>It's top-right on every screen, so it's always one click away.</p></li>
+    <li><span class="st-title">Type what you're after.</span><p>Search filters by feature name, its navigation heading, or the page — e.g. "invoice", "payroll", "fleet".</p></li>
+    <li><span class="st-title">Read the row and open it.</span><p>Each row shows the Feature, its Navigation heading and page (how to reach it from Home), and an <strong>open →</strong> link that takes you straight there.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">Scope</p><p>The directory lists only features your role and your company's modules include — so what you see is what you can actually open. It's built from the live menu, so it's always current.</p></div>
+
+  <span class="part-tag">Part 1 · The menu</span>
+  <h2 class="section" id="the-menu">The menu &amp; moving between apps</h2>
+  <p class="lead">The left menu is a single column. HOME stays pinned at the top on every screen — tap it to jump back to the top level.</p>
+  <ol class="steps">
+    <li><span class="st-title">Open a section.</span><p>Tap a section — Train Station, Inventory Central, WorkForce, Command Center, Financials, or Admin — and its menu opens in place, with a "BACK TO:" line just under HOME to step back one level at a time.</p></li>
+    <li><span class="st-title">Switch to the Field App.</span><p>Owners and admins see a "Field App" button near the bottom of the menu that opens the phone/field app on this device. From inside the field app, Mobile App Settings → "Switch to Office App" brings you back.</p></li>
+    <li><span class="st-title">Work office + field at once.</span><p>You can be signed in on one computer and one phone at the same time — your desktop stays in the office while your phone is in the field app.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">Good to know</p><p>The menu only shows sections and pages your role and your company's modules include. If something in this manual isn't in your menu, your company either hasn't enabled that module or your role doesn't include it — ask your administrator.</p></div>
+
+  <!-- ============ PART 2 ============ -->
+  <div class="part-banner" id="part2"><div class="pk">Part 2</div><h2>The Train Station</h2><p>The office's start-of-day hub and everything that hangs beneath it — the work of running jobs, customers, dispatch, maintenance, permits, compliance, and the data that drives them.</p></div>
+
+  <span class="part-tag">Part 2 · The hub</span>
+  <h2 class="section" id="train-station">The Train Station</h2>
+  <p class="locator">Where it is: the screen that opens when you sign in to the office app. Tap <strong>HOME</strong> at the top of the menu to return here from anywhere.</p>
+  <p class="lead">The Train Station is your morning starting line. Instead of checking Dispatch, then Jobs, then Maintenance, then Permitting one by one, this one screen gathers every open item across the office into a single board — and each item is a door straight to the screen where you clear it.</p>
+
+  <h3><span class="num">A.</span>Run your morning from this screen</h3>
+  <ol class="steps">
+    <li><span class="st-title">Read the banner first.</span><p>The colored bar at the top is your headline for the day: how many things need a hand and across how many areas — or that you're all caught up. Start here.</p></li>
+    <li><span class="st-title">Scan the "Needs a hand" cards.</span><p>Each card is one area with work waiting and a count. Glance down the counts to see where the pressure is.</p></li>
+    <li><span class="st-title">Open the busiest card and clear it.</span><p>Click a card to jump to the exact screen that handles that work, clear what you can, then come back to HOME.</p></li>
+    <li><span class="st-title">Watch it move to "Handled."</span><p>As you clear work the count drops; at zero the card leaves "Needs a hand" and settles into "Handled" below.</p></li>
+    <li><span class="st-title">Finish when the banner turns green.</span><p>"You're all caught up" means nothing is waiting on you. That's the whole job of this screen.</p></li>
+  </ol>
+
+  <div class="anat">
+    <p class="anat-cap">What you are looking at</p>
+    <div class="banner"><span class="dot">!</span><span>There are 7 things across 3 areas that could use a hand.</span></div>
+    <div class="fcards">
+      <div class="fcard"><div class="top"><span class="nm">Dispatch</span><span class="pill">4</span></div><div class="ln">4 jobs still need a technician assigned.</div><div class="open">Open Dispatch →</div></div>
+      <div class="fcard"><div class="top"><span class="nm">Jobs &amp; Customers</span><span class="pill">2</span></div><div class="ln">2 completed jobs are waiting to be invoiced.</div><div class="open">Open Jobs →</div></div>
+    </div>
+    <div class="chips"><span class="chip"><span class="gdot"></span>Maintenance</span><span class="chip"><span class="gdot"></span>Permitting</span><span class="chip"><span class="gdot"></span>Refrigerant (608)</span></div>
+    <ul class="legend">
+      <li><b>The banner</b> — the day's headline and its color (amber = work waiting, green = caught up).</li>
+      <li><b>A card</b> — one watched area, its live count, a one-line description, and an "Open —" link.</li>
+      <li><b>The count pill</b> — a live number that falls as you clear work; the card leaves when it reaches zero.</li>
+      <li><b>Handled chips</b> — areas at zero, resting; they jump back up the instant something appears.</li>
+    </ul>
+  </div>
+
+  <h3><span class="num">B.</span>The status banner — your daily headline</h3>
+  <ol class="steps">
+    <li><span class="st-title">Check the color.</span><p><strong>Amber</strong> = work waiting ("There are N things across M areas…"); <strong>green</strong> = "You're all caught up." A quiet gray line means it's still checking.</p></li>
+    <li><span class="st-title">Read the Today's briefing beside it.</span><p>The <strong>Quincy</strong> briefing on the right turns the counts into a plain-English read of your day — use it as your two-second manager's summary.</p></li>
+  </ol>
+
+  <h3><span class="num">C.</span>The "Needs a hand" cards — one door per area</h3>
+  <ol class="steps">
+    <li><span class="st-title">Read the count and the one-liner.</span><p>The pill shows how many items wait; the line tells you what they are.</p></li>
+    <li><span class="st-title">Click anywhere on the card.</span><p>The whole card is the link — it opens the screen that clears that exact work. No menu-hunting.</p></li>
+    <li><span class="st-title">Clear the work, then return to HOME.</span><p>When you come back, the count reflects what you did.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">How the counts stay honest</p><p>The counts are live and shared with the screens behind them — clearing an item in Dispatch or Jobs lowers the Train Station count by the same amount, so the two never disagree.</p></div>
+
+  <h3><span class="num">D.</span>The "Handled" chips</h3>
+  <ol class="steps">
+    <li><span class="st-title">Trust them as "done for now."</span><p>A green chip means that area is at zero — no need to open it.</p></li>
+    <li><span class="st-title">Click one to look anyway.</span><p>A chip still opens its area.</p></li>
+    <li><span class="st-title">Watch for one jumping back up.</span><p>The moment work appears, its chip becomes a "Needs a hand" card at the top — you never miss something new.</p></li>
+  </ol>
+
+  <h3><span class="num">E.</span>Edit — tailor the board to your company</h3>
+  <ol class="steps">
+    <li><span class="st-title">Click Edit (top-right).</span><p>An <strong>Alerts / Off</strong> switch appears on each area; the button becomes <strong>Done</strong>.</p></li>
+    <li><span class="st-title">Set each area.</span><p><strong>Alerts</strong> — watch it and show its work here. <strong>Off</strong> — another team owns it; it drops off the board (still reachable from the menu).</p></li>
+    <li><span class="st-title">Click Done.</span><p>Choices save automatically and apply to this company for everyone.</p></li>
+  </ol>
+  <div class="callout c-tip"><p class="lbl">Tip</p><p>For a brand-new office, turn <em>Off</em> the areas they aren't running yet so the Station only shows work they own. Flip to Alerts the day they take it on.</p></div>
+
+  <h3><span class="num">F.</span>Where the cards take you</h3>
+  <table class="qnav">
+    <caption>Card → destination</caption>
+    <thead><tr><th>Card</th><th>Opens</th><th>What you do there</th></tr></thead>
+    <tbody>
+      <tr><td>Dispatch</td><td>Dispatch board</td><td>Assign unassigned jobs and set the day's route.</td></tr>
+      <tr><td>Jobs &amp; Customers</td><td>Jobs Management</td><td>Invoice completed work, move jobs forward, handle records.</td></tr>
+      <tr><td>Maintenance</td><td>Maintenance station</td><td>Work agreements and visits coming due.</td></tr>
+      <tr><td>Permitting</td><td>Permits</td><td>Pull, track, and close out permits.</td></tr>
+      <tr><td>Refrigerant (608)</td><td>Compliance</td><td>Keep refrigerant logging and EPA 608 records current.</td></tr>
+    </tbody>
+  </table>
+
+  <h3><span class="num">G.</span>Good to know</h3>
+  <div class="callout c-know"><p class="lbl">Scope</p><p>Everything here is for the company you're viewing (platform owners use the org picker). Inventory and Marketing have their own home hubs, so they don't appear here.</p></div>
+  <div class="callout c-honest"><p class="lbl">Why it works this way</p><p>The Station only ever shows real, current work — nothing invented to look busy, nothing hidden to look clean. An empty board genuinely means the office is caught up. You can trust the green.</p></div>
+
+  <!-- ============ + ADD REFERENCE ============ -->
+  <span class="part-tag">Part 2 · Used everywhere</span>
+  <h2 class="section" id="quick-add">The <span style="color:var(--green-fg)">+ Add</span> quick-create</h2>
+  <p class="locator">Where it is: a <strong>+ Add</strong> button at the top of many screens — Jobs, Jobs Management, Customers, Properties, the Calendar, the Dispatch Call Console, Estimates, Invoices, and each Project page. Wherever you see it, it works the same way, so it's explained once here.</p>
+  <p class="lead">+ Add is how you create a record without stopping what you're doing. It opens a single modal that walks you through the whole thing — and, crucially, it lets you create the customer and property <em>inside the same form</em> if they don't exist yet, so a brand-new caller becomes a booked job in one pass.</p>
+
+  <h3><span class="num">A.</span>Add a Job</h3>
+  <ol class="steps">
+    <li><span class="st-title">Choose the customer.</span><p>Search and pick an existing customer, or switch to <strong>New customer</strong> and enter their name/company, phones, emails, and notes right here. (If a customer is flagged banned, the form warns you; only an admin can override.)</p></li>
+    <li><span class="st-title">Choose the property.</span><p>Pick one of that customer's properties, or add a new property (address, unit, city, county, ZIP, gate code, tenants) without leaving the form.</p></li>
+    <li><span class="st-title">Set the visit.</span><p>Date, start time, and duration. Leave the date off to create an unscheduled job that lands in Dispatch.</p></li>
+    <li><span class="st-title">Pick the Job Type.</span><p>This is the important choice — the job type decides how the job behaves: what fills its Diagnosis step, the estimate format, the pricebook it uses, whether it runs as a Project, and its checklist. (See <a href="#data-station">Data Station → Checklists &amp; job types</a>.)</p></li>
+    <li><span class="st-title">Add the complaint, trip charge, and technicians.</span><p>Enter the service complaint, set the trip charge (location / access / hours, which drives pricebook lookups), and assign up to four technicians.</p></li>
+    <li><span class="st-title">Set any guard rails.</span><p>Mark "diagnose only" with a dollar limit to cap what can be billed without a new approval, flag "read notes before the visit," and add private (internal) notes the customer never sees.</p></li>
+    <li><span class="st-title">Attach to a Project if prompted.</span><p>If the job type runs as a Project (progress billing), a Project picker appears — choose the project this job belongs to. Started from a Project page, it's linked for you automatically.</p></li>
+    <li><span class="st-title">Save.</span><p>The job is created and, if scheduled, appears on the Calendar and Dispatch; if not, it waits in Dispatch's Needs-a-tech tray.</p></li>
+  </ol>
+
+  <h3><span class="num">B.</span>Add a return visit (Continue a Job)</h3>
+  <ol class="steps">
+    <li><span class="st-title">Search the existing job.</span><p>Find it by job number or customer.</p></li>
+    <li><span class="st-title">Add the new segment.</span><p>Give the return visit its own date, time, job type, technicians, and trip charge. It becomes the next segment on the same job number, so the history stays together.</p></li>
+  </ol>
+
+  <h3><span class="num">C.</span>Add a Customer or a Property on their own</h3>
+  <ol class="steps">
+    <li><span class="st-title">Customer.</span><p>Name or company, up to two phones and two emails, acquire date, and notes.</p></li>
+    <li><span class="st-title">Property.</span><p>Address and unit, city/county/state/ZIP, gate code, up to two tenants with their relationship, the bill-to customer, and notes.</p></li>
+  </ol>
+  <div class="callout c-add"><p class="lbl">+ Add — the point</p><p>Because the customer and property can be created inside the job form, you never have to leave a call to go set up records first. One form turns a phone call into a scheduled job.</p></div>
+  <div class="callout c-honest"><p class="lbl">Why it works this way</p><p>The job type — not free typing — decides diagnosis, pricing, and workflow, so two people adding the same kind of job get the same guard rails every time. That's how Journey keeps a growing team consistent.</p></div>
+
+  <!-- ===== STATION: JOBS & CUSTOMERS ===== -->
+  <span class="part-tag">Part 2 · Station</span>
+  <h2 class="section" id="jobs-customers">Jobs &amp; Customers</h2>
+  <p class="locator">Where it is: Train Station → <strong>Jobs &amp; Customers</strong>. Its dashboard opens the station; the pages below sit under it.</p>
+  <p class="lead">This is the station where work becomes money and where every customer and property record lives. Start at its dashboard to see what's waiting, then use the individual pages to do the work.</p>
+
+  <h3><span class="num">1.</span>The Jobs &amp; Customers dashboard</h3>
+  <p class="muted">The work-to-money board. It tracks jobs from completed → billed → sent → paid, and shows owners the dollars behind those tasks. Like the Train Station, the <strong>tiles themselves are the feature</strong>: each is a live count of a pipeline step that still needs a hand, and clicking it opens the exact list.</p>
+  <h4>Work the tiles</h4>
+  <ol class="steps">
+    <li><span class="st-title">Read each task tile.</span><p>Completed — needs invoicing; Incomplete jobs; Invoices to send; Unpaid invoices; Estimates to send; Estimates / System estimates to convert; Estimates out (awaiting decision).</p></li>
+    <li><span class="st-title">Click a tile to open its list.</span><p>Each tile opens exactly the filtered list behind it, so you act where the work is.</p></li>
+    <li><span class="st-title">Switch Office ↔ Owner view.</span><p>The "Viewing as" toggle (top-right) flips between office tasks and owner dollars — Owner adds A/R outstanding, Collected (30 days), and Won (30 days). Same data, framed for who's reading.</p></li>
+  </ol>
+  <div class="callout c-add"><p class="lbl">+ Add</p><p>This dashboard carries the <strong>+ Add</strong> quick-create (see the reference above) — start a new job, customer, estimate, or invoice without leaving the board.</p></div>
+
+  <h3><span class="num">2.</span>Jobs — the master list of all work</h3>
+  <p class="muted">Every service call, install, and maintenance visit. Day-to-day scheduling is easier on the Calendar; <em>Jobs</em> is for finding and editing the record itself.</p>
+  <h4>Find a job</h4>
+  <ol class="steps">
+    <li><span class="st-title">Filter by status.</span><p>Multi-select status, with a one-click shortcut to hide completed &amp; canceled.</p></li>
+    <li><span class="st-title">Search or arrive pre-filtered.</span><p>Search matches job number, address, customer, issue, or technician. Clicking a bar on a HOME chart lands you here already filtered to that tech or job type.</p></li>
+    <li><span class="st-title">Set your columns.</span><p>Show/hide fields with Columns (remembered in your browser). Job #, Segment, Date, and Customer stay pinned as you scroll sideways; click a header to sort.</p></li>
+  </ol>
+  <h4>Edit and act on a job</h4>
+  <ol class="steps">
+    <li><span class="st-title">Click Edit to change it inline.</span><p>Property, date, start time, duration, job type, complaint, status, notes, and the On-My-Way / Arrival / Completed timestamps; set the trip charge and mark Diagnose-only or an authorization limit; add/remove technicians (first listed is lead ★).</p></li>
+    <li><span class="st-title">Open its paperwork.</span><p>Invoice / Estimate / System Estimate buttons open or start that document. The Invoice Status column reads No invoice / Not sent / Not paid / Paid and links straight to it. A ⏳ on the date means a placeholder from an approved estimate — it still needs real scheduling.</p></li>
+    <li><span class="st-title">Delete, restore, export (admins).</span><p>Delete asks for a reason and soft-deletes (linked estimates and unsent drafts go with it, nothing is erased); View Deleted Jobs restores. Export CSV downloads the filtered list.</p></li>
+  </ol>
+  <div class="callout c-add"><p class="lbl">+ Add</p><p><strong>+ Add</strong> here creates a new job (or customer/property inside it) — the full flow in the reference above.</p></div>
+  <div class="callout c-know"><p class="lbl">Job types drive the rest</p><p>A Retrofit (new-system install) auto-creates a Warranty Registration with a 30-day clock; a Preventive Maintenance job generates the PM checklist(s) for that property's systems. The job type is doing a lot of quiet work — pick it correctly.</p></div>
+
+  <h3><span class="num">3.</span>Jobs Management — the parts &amp; follow-up desk</h3>
+  <p class="muted">When a job needs a part before it can be finished, it lands here (the Incomplete Jobs list). Work each row left to right. Red = nothing done yet; yellow = a return visit already exists. A row clears itself once the return visit is marked Complete.</p>
+  <ol class="steps">
+    <li><span class="st-title">Open the follow-up estimate.</span><p>"Open Estimate" shows it in a side panel while you fill in the parts fields. Brand / Model # / Serial # auto-fill from the property's equipment — edit if needed.</p></li>
+    <li><span class="st-title">Classify and record approval.</span><p>Choose Warranty / Cash / Punchlist; Claim Status then offers only the valid choices. Record Verbal Approval (amount + Pending / Approved / Declined / Punchlist). A Declined estimate exposes "Flip to Complete" to close the job out.</p></li>
+    <li><span class="st-title">Order the part (+ Add Part).</span><p>The Vendor list is filtered to suppliers that carry the equipment's brand (★ = your preferred vendor). PO # auto-assigns from the shared purchase-order sequence — leave it blank for the next number. Set part, quantity, the segment it's for, and Expected Delivery.</p></li>
+    <li><span class="st-title">Stage the return visit (+ New Segment).</span><p>Creates the next segment with no date/tech and drops it into the Calendar's "Needs Dispatch" tray. When the part arrives, Mark Verified flags the segment "Parts in — ready to schedule" on its Dispatch card.</p></li>
+  </ol>
+  <div class="callout c-add"><p class="lbl">+ New</p><p>The <strong>+ New</strong> button here scopes to New Job, New Segment, New Invoice, New Task, and New To-Do Item.</p></div>
+
+  <h3><span class="num">4.</span>Tasks — field errands</h3>
+  <p class="muted">Standalone errands for a field user (most often a parts pickup) — each becomes a time-tracked Job Card on their phone. Not the office sticky-note list (that's the To-Do list behind Dispatch's "To-Dos" tile).</p>
+  <ol class="steps">
+    <li><span class="st-title">Click + New Task and assign it.</span><p>Choose who it's for.</p></li>
+    <li><span class="st-title">Set the destination and time.</span><p>Give it a destination, address, and time. A task can't be double-booked over that person's jobs, and it records their time and location as they run it — so an errand is scheduled, routed, and paid much like a job.</p></li>
+  </ol>
+
+  <h3><span class="num">5.</span>Customers — your directory and the customer file</h3>
+  <ol class="steps">
+    <li><span class="st-title">Find and tailor the list.</span><p>Search by name, company, phone, or email; Show archived; Columns (remembered); Export CSV (includes status and Do-Not-Service flag).</p></li>
+    <li><span class="st-title">Edit a customer inline.</span><p>Display name (First+Last / Company quick-fill), company, names, two phones, two emails, acquired date, notes. Archive/Reactivate retires or restores.</p></li>
+    <li><span class="st-title">Fire a customer when you must (admins).</span><p>"Fire Customer" with a reason sets a Do-Not-Service flag that blocks new scheduling everywhere until an admin uses Lift Ban.</p></li>
+    <li><span class="st-title">Open the customer file.</span><p>Click a name for the whole relationship on one screen: properties (with equipment and warranty), maintenance agreement, Contacts &amp; Invoice Routing (who's billed / who approves — key for commercial), job history, invoices &amp; estimates, permits, service reports, warranties, photos. An <strong>✨ AI: summarize this customer</strong> helper drafts a plain-English account summary you can review and use.</p></li>
+  </ol>
+  <div class="callout c-add"><p class="lbl">+ Add</p><p><strong>+ Add</strong> creates a new customer here (or a full job built around them).</p></div>
+
+  <h3><span class="num">6.</span>Properties — locations, equipment &amp; filters</h3>
+  <ol class="steps">
+    <li><span class="st-title">Find and flag.</span><p>Search by address, customer, city, state, zip, or county. Toggle Show archived, <em>Needs filters</em>, or <em>Needs mfg date</em>; row badges flag each. Columns (remembered) and Export CSV as elsewhere.</p></li>
+    <li><span class="st-title">Edit the property.</span><p>Set the customer and, when billing differs, a separate Bill To customer. Update address, gate code, up to two tenants, and notes. Archive/Reactivate as needed.</p></li>
+    <li><span class="st-title">Manage equipment.</span><p>Click Equipment → add a system (outdoor/indoor/furnace brand, model, serial + install date or mfg year/month). Journey computes parts, labor, and refrigerant warranty status, reading many serials automatically. Confirm any "No mfg date" systems so warranty answers are accurate. When a system is replaced, Retire the old one (kept 90 days for size-for-size compliance, then auto-clears; Recall restores it).</p></li>
+    <li><span class="st-title">Record filters.</span><p>Click Filters → record each size (W × H × thickness), MERV, location, and quantity. This is the same list techs fill in and the customer portal reads — record it once and every future filter order is two clicks.</p></li>
+  </ol>
+  <div class="callout c-add"><p class="lbl">+ Add</p><p><strong>+ Add</strong> creates a new property (and can attach tenants and a bill-to) without leaving the page.</p></div>
+
+  <h3><span class="num">7.</span>Job Estimates — repair &amp; service quotes</h3>
+  <p class="muted">Quotes for service/repair work tied to a job, tracked from sent to sold. (New-system quotes are on System Estimates.)</p>
+  <ol class="steps">
+    <li><span class="st-title">Find and read.</span><p>Search by estimate #, job #, or customer; filter by Approval Status (with a Hide completed &amp; declined shortcut); Show archived. Columns show line items, the money breakdown, Projected Profit and %, the estimating tech, and status.</p></li>
+    <li><span class="st-title">Work an estimate.</span><p>Set the Estimating Technician and Approval Status in the row. Send / Resend emails it (tooltip shows last-sent); View opens the customer copy; Edit opens it to change.</p></li>
+    <li><span class="st-title">Draft the scope with AI.</span><p>Inside the estimate (Edit), <strong>✨ AI: draft scope</strong> turns the line items into a short, plain-language scope-of-work summary for the customer — review, edit, and paste. It never sends on its own and never states a total.</p></li>
+    <li><span class="st-title">Convert an approved estimate.</span><p>When status is Approved, a <strong>→ Service Call</strong> button appears: choose a new segment of the existing job or a brand-new job. Journey creates the unscheduled repair call (no trip charge — the estimate already priced it), linked back, ready to schedule from Jobs.</p></li>
+  </ol>
+
+  <h3><span class="num">8.</span>System Estimates — new-equipment proposals</h3>
+  <p class="muted">New-system quotes made against a property before any job exists — your install sales pipeline.</p>
+  <ol class="steps">
+    <li><span class="st-title">Create a proposal (+ New System Estimate).</span><p>It quotes a system against a property (no job needed yet).</p></li>
+    <li><span class="st-title">Build and manage it.</span><p>Set the estimating tech and status inline; Send / Resend, View, Edit as on Job Estimates. In the editor, add the system from your Residential Systems book (equipment, what the install includes, warranty) plus special features and misc items.</p></li>
+    <li><span class="st-title">Draft the proposal with AI.</span><p>In the editor, <strong>✨ AI: draft proposal</strong> turns the equipment / installation / warranty lines into a warm, homeowner-friendly summary (model numbers become plain benefits) — review, edit, paste. Nothing is sent automatically; no total is stated.</p></li>
+    <li><span class="st-title">Convert to a job.</span><p>Convert to Job is grayed until Approved, red when ready, blue once built. Converting creates an unscheduled Install/Retrofit job in the Calendar's Needs Dispatch tray and copies the line items onto its invoice.</p></li>
+  </ol>
+
+  <h3><span class="num">9.</span>Invoices — bill and get paid</h3>
+  <ol class="steps">
+    <li><span class="st-title">Find and read.</span><p>Filter All / Unpaid / Paid; search by invoice #, job #, or customer; Show archived. A completed job whose invoice is still unpaid is flagged yellow. Columns, Export CSV, and a click-to-edit Diagnosis (which updates the job everywhere).</p></li>
+    <li><span class="st-title">Send and collect.</span><p>Send / Resend emails the invoice with a pay link; View opens the customer copy; Edit changes it. For a sent, overdue invoice, <strong>AI reminder</strong> drafts a courteous payment reminder to review and send.</p></li>
+    <li><span class="st-title">Draft the work summary with AI.</span><p>Inside the invoice (Edit), <strong>✨ AI: draft work summary</strong> turns the line items into a plain-language recap of the work performed — review, edit, paste into the invoice or a thank-you note. Never auto-sends; never states a total.</p></li>
+    <li><span class="st-title">Record payment.</span><p>Mark Paid → Record Payment: enter the actual amount, method, check number, and note. It posts to the payment ledger and settles the balance. Receive Payment (top) records a payment not tied to one row. Unmark Paid reverses with an offsetting ledger entry, keeping the audit trail.</p></li>
+    <li><span class="st-title">Archive or void.</span><p>Archive hides but keeps it. Void (admins, reason required) removes it so it stops counting and its job can be deleted — it can't be undone and does not refund the customer.</p></li>
+  </ol>
+  <div class="callout c-add"><p class="lbl">+ Add</p><p><strong>+ Add</strong> is available here to start a new invoice (or job).</p></div>
+
+  <h3><span class="num">10.</span>Projects — progress billing for big contracts</h3>
+  <p class="muted">Projects group the jobs of one large, multi-visit contract under a single contract total and bill it in stages (draws) instead of one invoice at the end.</p>
+  <ol class="steps">
+    <li><span class="st-title">Set up the project.</span><p>Open (or create) a project and set its name, Contract Total, Retainage %, and billing mode. Jobs of a project type attach automatically; you can also attach/detach jobs. The rollup tiles show Contract, Estimated, Billed, Paid, Remaining, and Retainage held.</p></li>
+    <li><span class="st-title">Build the draw schedule.</span><p>Add each draw with a label and a percent of the contract or a dollar amount (a deposit, a start draw, a completion draw…).</p></li>
+    <li><span class="st-title">Bill a draw.</span><p>Press Bill on a draw to generate a normal INV-#### invoice for that amount net of retainage, with a line item describing the draw. It collects and pays like any other invoice.</p></li>
+    <li><span class="st-title">Release retainage.</span><p>When the job is accepted, Release retainage bills the held amount as its own draw invoice.</p></li>
+  </ol>
+  <div class="callout c-add"><p class="lbl">+ Add (on each project page)</p><p>Each individual project page has its own <strong>+ Add</strong> at the top-right to create a job already linked to that project — a convenience so you don't create the job elsewhere and attach it after.</p></div>
+
+  <h3><span class="num">11.</span>Payments to Confirm — the install-scheduling gate</h3>
+  <p class="muted">Big-ticket installs shouldn't be scheduled until the money is settled. This page lists invoices waiting on a confirmed payment method or financing decision, so nothing gets put on the calendar prematurely.</p>
+  <ol class="steps">
+    <li><span class="st-title">Read the state badge.</span><p>Each row shows where it stands: <em>Awaiting method</em>, <em>Financing — applied / approved / denied / funded</em>, or a confirmed method.</p></li>
+    <li><span class="st-title">Confirm the method.</span><p>When the customer's payment method is settled, Confirm it — that clears the job to be scheduled.</p></li>
+    <li><span class="st-title">Approve or deny financing.</span><p>For a financing row, mark it Approved (install can be scheduled) or Denied.</p></li>
+    <li><span class="st-title">Mark paid when the money is in.</span><p>Mark Paid records the payment against the invoice and settles the balance.</p></li>
+  </ol>
+  <div class="callout c-honest"><p class="lbl">Why it works this way</p><p>Holding installs until payment is confirmed protects the business from scheduling crews and ordering equipment against money that never arrives — one of Journey's built-in guard rails.</p></div>
+
+  <!-- ===== STATION: DISPATCH ===== -->
+  <span class="part-tag">Part 2 · Station</span>
+  <h2 class="section" id="dispatch">Dispatch Station</h2>
+  <p class="locator">Where it is: Train Station → <strong>Dispatch Station</strong>.</p>
+  <p class="lead">Dispatch is your front-of-house: everything coming <em>in</em> (new requests, calls to return) and everything going <em>out</em> (jobs to schedule, techs to assign, filters to fulfill). You run the phones, the requests, and the board from here.</p>
+
+  <h3><span class="num">1.</span>The Dispatch dashboard</h3>
+  <p class="muted">Like the Train Station, the <strong>tiles are the feature</strong> — eight live counts of front-of-house work, each opening the exact worklist. It reads the same shared signals as the Train Station roll-up, so clearing something here clears it there too. The goal is to clear the board to zero.</p>
+  <ol class="steps">
+    <li><span class="st-title">Read the banner + Dispatch briefing.</span><p>Amber = work waiting (with a count); green = clear. The Quincy "Dispatch briefing" beside it gives quick context.</p></li>
+    <li><span class="st-title">Work the eight tiles, red first.</span><p>New service requests → Service Requests; Jobs to schedule → Calendar; Needs dispatch (no tech) → Dispatch Map; Parts in — schedule return → Calendar; Filter orders to fulfill → Filter Orders; To-Dos → the To-Do list; <strong>Calls to return (red)</strong> → Call Log; Call follow-ups → Call Log. A missed call-back is a lost customer — handle red first.</p></li>
+    <li><span class="st-title">Clear and watch it drop.</span><p>Click a tile, clear its items, and the count falls on the next load; a tile at zero moves to the green "Handled" row (still clickable).</p></li>
+  </ol>
+
+  <h3><span class="num">2.</span>Call Console — open it when the phone rings</h3>
+  <p class="muted">Type the caller's number and Journey instantly identifies who's calling and pulls up everything you need — then you log the call so nothing is dropped.</p>
+  <ol class="steps">
+    <li><span class="st-title">Pull up the caller.</span><p>Type the number in the big field (focused on open). At 4+ digits it searches customers; at 7+ it also matches vendors, employees, and saved contacts. Pick from the short list if more than one matches (precedence: Customer → Vendor → Employee → Known contact).</p></li>
+    <li><span class="st-title">Read the caller card.</span><p>For a customer: name, company, contacts, a red BANNED banner if flagged, maintenance-plan pill, balance (red if owing), systems count, every address, and recent/open jobs. "Open full record" jumps to their file.</p></li>
+    <li><span class="st-title">Help them without leaving the page.</span><p>Order filters for their property, start a job pre-filled to them (the <strong>+ Add</strong> quick-create), or jot a New Note that posts to the Operations Dashboard.</p></li>
+    <li><span class="st-title">Handle a no-match.</span><p>+ New customer, + Add a contact (so they're recognized next time), or just log the call without creating a record.</p></li>
+    <li><span class="st-title">Log every call.</span><p>Pick a purpose (Book service, Reschedule, Billing question…), Route to… (Dispatch, Jobs Mgmt, or a person), and tick Needs call back (urgent) or Follow-up — these light the red/amber call tiles on the Dispatch board. Click Log call.</p></li>
+  </ol>
+  <div class="callout c-honest"><p class="lbl">Why it works this way</p><p>An unlogged call is invisible to the rest of the office. Logging is the point — it's what turns a phone call into a tracked follow-up nobody forgets. A banned banner is a warning, not a lock; use judgment.</p></div>
+
+  <h3><span class="num">3.</span>Call Log — the self-cleaning follow-up board</h3>
+  <p class="muted">The running record of logged calls. It's a working list, not an archive: flagged calls stay; everything else clears itself overnight so the board stays focused.</p>
+  <ol class="steps">
+    <li><span class="st-title">Work "Today."</span><p>The active board shows every call since midnight. "Earlier calls" is a searchable archive below it.</p></li>
+    <li><span class="st-title">Flag what needs action.</span><p>Tick Call back (urgent) or F/U? (follow-up) — flagged calls are kept and raise the matching Dispatch tile. Phone numbers are tap-to-call.</p></li>
+    <li><span class="st-title">Clear when handled.</span><p>Untick the box; unflagged calls clear automatically overnight (or "Clear all unflagged entries" now — it never touches Today). Nothing is truly erased.</p></li>
+    <li><span class="st-title">Export a record.</span><p>Export CSV (optionally by caller and date range, "Include cleared calls" on) pulls a complete history far deeper than the live view.</p></li>
+  </ol>
+
+  <h3><span class="num">4.</span>Known Others — saved non-customer callers</h3>
+  <ol class="steps">
+    <li><span class="st-title">Keep a directory of the rest.</span><p>Salesmen, friends/family, personal, and other recurring callers who aren't customers or vendors live here, so the Call Console recognizes them by number next time instead of showing "Unknown."</p></li>
+    <li><span class="st-title">Add or edit a contact.</span><p>Save a name, phone, and type. You can also add one on the fly from the Call Console ("+ Add a contact") during a call.</p></li>
+  </ol>
+
+  <h3><span class="num">5.</span>Service Requests — jobs customers start themselves</h3>
+  <p class="muted">The inbox for requests made by scanning the QR service sticker on a customer's equipment. A built-in approval step protects the account holder when the request comes from someone else (like a tenant).</p>
+  <ol class="steps">
+    <li><span class="st-title">Work the two queues.</span><p><em>Ready to dispatch</em> (from the account holder or already owner-approved) and <em>Awaiting homeowner approval</em> (from someone else — nothing is scheduled or billed until the owner approves). Cards are color-coded by urgency.</p></li>
+    <li><span class="st-title">Approve → create job.</span><p>Creates the job in the dispatch tray, billed to the property's account holder; then schedule it like any job. Decline dismisses one that isn't actionable.</p></li>
+    <li><span class="st-title">Handle owner approval.</span><p>Journey emails the account holder an approval link automatically. If they approve by phone instead, use "Owner approved (I called)" to move the request to Ready.</p></li>
+    <li><span class="st-title">Print a QR sticker.</span><p>Search a property, generate its QR code, "Open full-size to print," and put it on the equipment — anyone at that address who scans it opens a request page already tied to the property.</p></li>
+  </ol>
+
+  <h3><span class="num">6.</span>Calendar — the visual schedule</h3>
+  <p class="muted">Every job on its day and time, plus the jobs still waiting for a slot. Drag to book; drag to move.</p>
+  <ol class="steps">
+    <li><span class="st-title">Pick a view.</span><p>Week (planning) / Day (working a day) / Month, with ‹ / Today / › to move. The Calendar ↔ Map toggle opens the Dispatch Map for the date you're viewing.</p></li>
+    <li><span class="st-title">Work the Needs Dispatch tray.</span><p>The left tray lists every job still needing a slot (self-booked, approved estimates, office-created), ASAP jobs grouped under URGENT, the rest by requested day — regardless of the dates on the grid.</p></li>
+    <li><span class="st-title">Schedule and reschedule by dragging.</span><p>Drag a tray card onto the grid to book it (stamps the start time, removes it from the tray); drag a job already on the grid to move it. Times store in your org's time zone, so what you drop is what techs see.</p></li>
+    <li><span class="st-title">Open a job popup.</span><p>Click any job for its detail popup (customer linked, details, job-specific parts); "Open in Jobs Table" jumps to the full record. Per-tech colors and a banned-customer flag help you read the board.</p></li>
+  </ol>
+  <div class="callout c-add"><p class="lbl">+ Add</p><p>The Calendar carries <strong>+ Add</strong> to create a job directly; new jobs land in the tray if unscheduled.</p></div>
+
+  <h3><span class="num">7.</span>Dispatch Map — assign by geography</h3>
+  <ol class="steps">
+    <li><span class="st-title">See the day on a map.</span><p>The Map plots the day's jobs by location so you can route sensibly and spot clusters — it's the geographic companion to the Calendar for the same jobs.</p></li>
+    <li><span class="st-title">Assign the unassigned.</span><p>The Dispatch board's "Needs dispatch" tile brings you here — assign a technician to each scheduled job that still has none, using location to keep each tech's route tight.</p></li>
+  </ol>
+
+  <h3><span class="num">8.</span>Filter Orders — every air-filter sale</h3>
+  <p class="muted">All filter orders — portal, phone, website, or office — each a FLT-#### invoice linked to the customer.</p>
+  <ol class="steps">
+    <li><span class="st-title">Find orders.</span><p>Tabs: Open (with a count), Delivered, All, Removed. The list auto-refreshes.</p></li>
+    <li><span class="st-title">Place an order (+ New order).</span><p>Search the customer, choose the property, then "Use these" / "Reorder last" to prefill the filters on file (or verify each line — size, MERV, quantity; priced from the Filter Pricebook). Create order makes an unpaid FLT-#### invoice and emails a pay link. Payment isn't required to place or deliver.</p></li>
+    <li><span class="st-title">Fulfill and track.</span><p>Set the Delivery dropdown Ordered → Shipped (add carrier/tracking) → Delivered / Picked up. Terminal statuses move it to Delivered; the Payment pill shows Paid/Unpaid/Cancelled.</p></li>
+    <li><span class="st-title">Edit, cancel, delete.</span><p>Edit adjusts quantities/lines (total recalculates); Cancel drops it off the open list (Un-cancel restores); Delete moves it to Removed (Restore brings it back).</p></li>
+  </ol>
+
+  <h3><span class="num">9.</span>Text Archive — the communication paper trail</h3>
+  <p class="muted">A read-only record of every text conversation technicians have with customers from a job — one thread per conversation. Access is limited to Reception and Dispatch (the view-text-archive permission); admins can delete.</p>
+  <ol class="steps">
+    <li><span class="st-title">Find a conversation.</span><p>Search by customer, technician, or job number, and/or filter by date. The left list shows each thread (customer, ★ if flagged, message count, job #, active/archived, tech, last-message preview).</p></li>
+    <li><span class="st-title">Read and preserve it.</span><p>Click a thread to read the full back-and-forth (tech in blue, customer in gray, timestamped). Print Thread makes a clean copy for a file or claim; Flag important (★) pins it and locks it against deletion.</p></li>
+  </ol>
+
+  <h3><span class="num">10.</span>On-Call Schedule — after-hours coverage</h3>
+  <p class="muted">A month calendar of coverage periods, each pairing an on-call supervisor (calls first) with an optional backup tech. Built back-to-back, it guarantees no coverage gap.</p>
+  <ol class="steps">
+    <li><span class="st-title">Add coverage.</span><p>Pick the On-Call Supervisor and (optional) On-Call Tech, set the start, then use a quick-length button (1 day / 1 week / 1 month) or set the end by hand, and Add period. A new period starts where the last ended, so weeks lay out nose-to-nose; a gap or overlap raises a warning banner showing exactly where.</p></li>
+    <li><span class="st-title">Edit and navigate.</span><p>Click a colored bar to load it into the form (Save changes / Delete period); + New starts a fresh one; arrows / Today move months.</p></li>
+    <li><span class="st-title">Print it for the truck.</span><p>Letter or Legal, "Fit all rows on one page," Print Calendar — a clean landscape printout with the colors intact.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">Auto-elevated permissions</p><p>While on call, a technician can be automatically granted the extra permissions needed to handle emergencies — and only for their on-call window (configured in Roles &amp; Permissions). The Operations Dashboard shows an amber banner when on-call is scheduled less than two weeks out, so coverage never quietly lapses.</p></div>
+
+  <!-- ===== STATION: MAINTENANCE ===== -->
+  <span class="part-tag">Part 2 · Station</span>
+  <h2 class="section" id="maintenance">Maintenance Station</h2>
+  <p class="locator">Where it is: Train Station → <strong>Maintenance Station</strong>. (Access needs the maintenance-dashboard permission.)</p>
+  <p class="lead">This station runs your recurring-revenue program — selling plans, keeping them, and getting the visits you're paid for actually booked. It's the maintenance counterpart to Dispatch and Jobs &amp; Customers.</p>
+
+  <h3><span class="num">1.</span>The Maintenance Station board</h3>
+  <p class="muted">Tiles again are the feature: lapsed plans, offers awaiting a decision, recent jobs with no plan, filters due to ship, visits to book.</p>
+  <ol class="steps">
+    <li><span class="st-title">Read the tiles and clear them.</span><p>Follow up on offers → the maintenance list; Offer a plan after service → the list to review/offer; Filters to ship → Filter Subscriptions; Visits to book → Maintenance Due. Tiles at zero rest under "Handled."</p></li>
+    <li><span class="st-title">Win back a lapsed plan — right here.</span><p>The "Win back lapsed plans" tile opens a tool in place (it doesn't navigate away): pick a lapsed customer, choose a comeback offer (one month free, 10% off the first year, a free first visit, or just reach out), edit the pre-filled message, and Send win-back offer. It emails their options with a one-tap re-join link and logs the offer; they stay lapsed until they actually re-sign.</p></li>
+    <li><span class="st-title">Switch to Owner view for the numbers.</span><p>"Viewing as → Owner / Admin" shows Retention, Recurring revenue (monthly + annualized), and Untapped base — the same work, framed as metrics.</p></li>
+  </ol>
+
+  <h3><span class="num">2.</span>Maintenance Dashboard — the program scoreboard</h3>
+  <ol class="steps">
+    <li><span class="st-title">Read the revenue.</span><p>Monthly recurring revenue and Annualized contract value up top; quick-links to Agreements, Maintenance Due, and Plan Tiers.</p></li>
+    <li><span class="st-title">Work the property list by status.</span><p>Five buckets filter it: Active, Offered — not yet accepted, Lapsed, Never offered, Opted out. The "Recently completed — still no plan" panel is your daily "did we sell it?" sweep. Search, or Group by customer to collapse multiple properties.</p></li>
+  </ol>
+
+  <h3><span class="num">3.</span>Maintenance Agreements — sell &amp; manage plans</h3>
+  <ol class="steps">
+    <li><span class="st-title">Make sure a tier exists.</span><p>At least one active tier is required (see Maintenance Tiers) or the Create button is disabled.</p></li>
+    <li><span class="st-title">Create &amp; send checkout.</span><p>Pick property, tier, and billing (Monthly/Annual), set a start date (a live price preview shows). "Create &amp; Get Checkout Link" makes a pending agreement + a payment link — send it; when the customer pays, the plan activates and bills on its own.</p></li>
+    <li><span class="st-title">Manage over its life.</span><p>Per row: Edit (status, next/last-visit dates, notes always editable; tier/billing/price only before billing starts), Archive/Unarchive, History, Get Link (pending), Cancel (stops Stripe billing). Filter, search, columns, Export CSV as elsewhere.</p></li>
+  </ol>
+  <div class="callout c-honest"><p class="lbl">Why it works this way</p><p>Tier, billing, and price lock once a subscription is billing, so what you see can never drift from what the customer is actually charged.</p></div>
+
+  <h3><span class="num">4.</span>Maintenance Due — the visit board</h3>
+  <p class="muted">Signed plans generate visits automatically; this is where you turn them into scheduled jobs. Grouped Overdue (red), Due Soon (amber), Booked (blue), Upcoming (grey).</p>
+  <ol class="steps">
+    <li><span class="st-title">Work top-down.</span><p>Clear Overdue first, then Due Soon.</p></li>
+    <li><span class="st-title">Reach out with AI (optional).</span><p>"AI outreach" drafts a short, friendly message offering to schedule — editable; you copy and send it, nothing goes out on its own.</p></li>
+    <li><span class="st-title">Book it.</span><p>Click Schedule, pick a date, assign a technician (or leave Unassigned), Book. The visit moves to Booked with its job number and start date.</p></li>
+  </ol>
+
+  <h3><span class="num">5.</span>Maintenance Tiers — define the plans you sell</h3>
+  <ol class="steps">
+    <li><span class="st-title">Build each tier.</span><p>Name, visits per year, member discount %, monthly and annual price, a "what's included" description, and whether it includes a comfort check. Reorder with ↑ / ↓ so they present in the right order on Agreements.</p></li>
+    <li><span class="st-title">Edit safely.</span><p>Editing a tier changes the <em>template</em> only — existing signed agreements keep the price they snapshotted at signup. Archive/Reactivate retires or restores a tier without touching current plans.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">Tiers do double duty</p><p>Tiers also drive PM-checklist assignments — which checklist a visit uses, by system type and tier.</p></div>
+
+  <h3><span class="num">6.</span>Filter Subscriptions — auto-ship fulfillment</h3>
+  <p class="muted">Customers set these up in the portal ("My AC Filters"); this page is where the office fulfills them. Cards are color-coded red (due), amber (paused), green (active).</p>
+  <ol class="steps">
+    <li><span class="st-title">Set the subscription discount once.</span><p>Enter the org-wide percentage and Save — it's applied to every generated order.</p></li>
+    <li><span class="st-title">Generate due orders.</span><p>On each "Due now" card, click Generate order: Journey prices it from the Filter Pricebook, applies the discount, creates and emails the invoice, and rolls the next ship date forward (a banner confirms the invoice number and amount).</p></li>
+    <li><span class="st-title">Pause, resume, cancel.</span><p>Pause/Resume for seasonal holds; Cancel to end a subscription.</p></li>
+  </ol>
+
+  <!-- ===== STATION: PERMITTING ===== -->
+  <span class="part-tag">Part 2 · Station</span>
+  <h2 class="section" id="permitting">Permitting Station</h2>
+  <p class="locator">Where it is: Train Station → <strong>Permitting Station</strong>.</p>
+  <p class="lead">Permitting tracks every new-system install through the whole permit lifecycle — from an approved system estimate, to applying for and receiving the permit, to passing final inspection. Each install becomes a permit "package" you work step by step.</p>
+
+  <h3><span class="num">1.</span>The Permits board</h3>
+  <ol class="steps">
+    <li><span class="st-title">Start or resume a package.</span><p>"Approved — start the permit" lists approved system estimates not yet begun — Next Step → creates the package (System 1 seeded from the estimate's equipment). "In progress" → Resume. "Awaiting inspection" → Schedule inspection (a failed inspection is tagged red to reschedule). The table also shows each install's invoice and whether it's paid.</p></li>
+  </ol>
+  <h4>The 9-step permit workflow (per package)</h4>
+  <ol class="steps">
+    <li><span class="st-title">Order equipment / verify availability.</span><p>Record the vendor, models, cost, and AHRI; optionally place the PO.</p></li>
+    <li><span class="st-title">Job.</span><p>Link/confirm the install job and date.</p></li>
+    <li><span class="st-title">AHRI verification.</span><p>Enter the AHRI number and upload the certificate (AHRI Directory link provided).</p></li>
+    <li><span class="st-title">Property card.</span><p>Pull parcel and legal description from the county appraiser.</p></li>
+    <li><span class="st-title">Apply for permit.</span><p>Open the authority's form or download the blank, and upload the completed application.</p></li>
+    <li><span class="st-title">Notice of Commencement.</span><p>Required when the job total meets your NOC threshold or the authority requires it; upload each system's notarized NOC (tracked per system) and send to the recorder.</p></li>
+    <li><span class="st-title">Receive &amp; record permit.</span><p>Enter the permit number and date and upload the permit.</p></li>
+    <li><span class="st-title">Print &amp; send.</span><p>Email the package to the authority and copy the permit/AHRI/NOC to the permanent customer &amp; property record.</p></li>
+    <li><span class="st-title">Inspections.</span><p>Once the install is complete, schedule the inspection, then mark each Pass or Fail; passing all of a package's permits closes it out.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">Good to know</p><p>Later steps stay locked until the earlier ones are done, and the workflow only moves forward. A finished package drops to "Completed" and shows on the customer's profile under Permits. The authorities, counties, and NOC threshold that drive these steps come from Building Authorities.</p></div>
+
+  <h3><span class="num">2.</span>Building Authorities — the reference data permits run on</h3>
+  <ol class="steps">
+    <li><span class="st-title">Set permit settings &amp; counties.</span><p>Set the NOC threshold (the dollar amount at/above which a Notice of Commencement is required — Florida default $15,000); add each county with its property-appraiser URL and recorder vendor.</p></li>
+    <li><span class="st-title">Add each authority (+ Add authority).</span><p>Contact info, county, online-application link and/or uploaded blank PDF, inspection scheduling URL/phone, and whether it Requires Notice of Commencement. Each card offers quick links (Website, Online form, NOC form, Blank PDF), Edit, and Archive/Restore.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">Why keep this current</p><p>These records auto-populate the permit steps — application links and forms (Step 5), the NOC rule and recorder (Step 6), inspection scheduling (Step 9), and the email the finished package is sent to (Step 8).</p></div>
+
+  <h3><span class="num">3.</span>Warranty Registrations — beat the 30-day clock</h3>
+  <p class="muted">New systems must be registered with the manufacturer within 30 days of install to secure the extended warranty. Every Retrofit install creates a record here automatically — nothing to remember to add.</p>
+  <ol class="steps">
+    <li><span class="st-title">Focus the list.</span><p>Unregistered (default) / All / Registered. Each card shows the customer and job with a countdown pill: grey "N days left," amber at 7 or fewer, red overdue, green once registered.</p></li>
+    <li><span class="st-title">Fill the equipment details.</span><p>Install date, brand, outdoor/indoor/furnace models and serials — or click "Pull from Equipment on File" to auto-fill from the property's equipment record.</p></li>
+    <li><span class="st-title">Register and record the date.</span><p>Register on the manufacturer's website (outside Journey), then enter that date in "Registered on" and Save. The pill flips green and the record leaves the Unregistered list.</p></li>
+  </ol>
+
+  <!-- ===== STATION: 608 COMPLIANCE ===== -->
+  <span class="part-tag">Part 2 · Station</span>
+  <h2 class="section" id="compliance">608 Refrigeration Compliance</h2>
+  <p class="locator">Where it is: Train Station → <strong>608 Refrigeration Compliance</strong>.</p>
+  <p class="lead">This station keeps you square with EPA Section 608 and the AIM Act — every pound of refrigerant accounted for, every covered system watched for leaks, and every cylinder tracked cradle-to-grave.</p>
+  <div class="callout c-know"><p class="lbl">The two rule layers</p><p><strong>Section 608</strong> applies to ALL refrigerant work — certified techs only, no venting, recover before opening a system, keep records. The <strong>AIM Act</strong> leak-repair rules (leak-rate thresholds + the 30-day repair clock) apply only to COVERED systems: 15 lb or more of refrigerant and not a residential/light-commercial AC or heat pump. A system's sector decides which it is.</p></div>
+
+  <h3><span class="num">1.</span>Refrigerant Dashboard</h3>
+  <ol class="steps">
+    <li><span class="st-title">Read the compliance headline.</span><p>KPI tiles: Over leak threshold (→ Systems), Added and Recovered in the last 90 days (→ Usage Log), Cylinders on hand with total pounds (→ Cylinders). The Quincy briefing leads with any repair deadlines, then cylinders to ship, then the added-vs-recovered balance.</p></li>
+    <li><span class="st-title">Act on anything over threshold.</span><p>A red panel lists each covered system past its leak limit with a "Record a repair →" link to the Usage Log.</p></li>
+  </ol>
+
+  <h3><span class="num">2.</span>Refrigerant Systems — profile each system</h3>
+  <ol class="steps">
+    <li><span class="st-title">Set the profile.</span><p>Edit a system → Refrigerant, Full charge (lb), and Sector (Residential/light-commercial, Comfort cooling, Commercial refrigeration, Industrial process). Systems come from each property's equipment — you profile them here, you don't add/retire them.</p></li>
+    <li><span class="st-title">Know when a system is covered.</span><p>COVERED (leak rules apply) when full charge ≥ 15 lb AND sector is not residential/light-commercial; everything else is Exempt (a simple log, no 30-day clock). The status column shows Covered / Exempt / "Over T% · repair" plus the estimated annual leak rate.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">The thresholds</p><p>Once covered, the repair limit depends on sector: 10% comfort cooling, 20% commercial refrigeration, 30% industrial process. Set the sector right and the dashboard, log, and 30-day clock all follow.</p></div>
+
+  <h3><span class="num">3.</span>Refrigerant Usage Log — the record it all builds on</h3>
+  <ol class="steps">
+    <li><span class="st-title">Record an event (+ Record event).</span><p>Date and System (auto-fills its property and refrigerant), Technician and cert type, pounds Added and/or Recovered, and optionally the Cylinder.</p></li>
+    <li><span class="st-title">Give it a reason.</span><p>Top-off / leak add, repair (post-fix charge), new install charge, recovery, retirement/disposal recovery, or other; add notes (leak location, repair made). To close a leak flagged on the dashboard, log a "Repair (post-fix charge)" event.</p></li>
+    <li><span class="st-title">Mind the cert warning.</span><p>The tech's EPA cert is checked against HR — a warning shows if none is on file or it's expired. It's a reminder, not a hard stop; Section 608 requires a certified tech, so heed it.</p></li>
+    <li><span class="st-title">Pick the right cylinder.</span><p>Choosing a cylinder moves refrigerant in/out of it automatically — the log doesn't verify the cylinder's type matches, so pick carefully. Export CSV for your records (keep at least three years).</p></li>
+  </ol>
+
+  <h3><span class="num">4.</span>Refrigerant Cylinders — cradle to grave</h3>
+  <ol class="steps">
+    <li><span class="st-title">Add a cylinder (+ Add cylinder).</span><p>Kind (Virgin purchased / Recovered), refrigerant, size, on-hand pounds, vendor, acquired date, notes (cylinder ID/serial). On-hand pounds then move on their own from the Usage Log.</p></li>
+    <li><span class="st-title">Send out a full recovery cylinder.</span><p>"Send out" → Certified reclaimer or Certified disposal, recipient facility, and a document reference (manifest/ticket/invoice #), then Record shipment — it captures pounds shipped, zeroes the cylinder, and closes the chain.</p></li>
+    <li><span class="st-title">Audit the closed ones.</span><p>"Show cylinders sent to reclaim / disposal" pulls the closed-cylinder history. Recovered cylinders sitting on hand show on the dashboard as "awaiting reclaim" so nothing lingers.</p></li>
+  </ol>
+
+  <!-- ===== STATION: DATA STATION ===== -->
+  <span class="part-tag">Part 2 · Station</span>
+  <h2 class="section" id="data-station">Data Station</h2>
+  <p class="locator">Where it is: Train Station → <strong>Data Station</strong>.</p>
+  <p class="lead">The Data Station is the setup bench — the pricebooks, catalogs, and checklist templates the rest of the app runs on, plus the Import Hub for loading an existing business in bulk. Get these right once and estimates, invoices, and field work build themselves correctly.</p>
+
+  <h3><span class="num">1.</span>Import Hub — load an existing business</h3>
+  <ol class="steps">
+    <li><span class="st-title">Pick the data you have.</span><p>Tiles import Customers, Properties, Jobs, Services Pricebook, Systems Pricebook, Filter Price Book, Parts Catalog, Vendor Price File, and Tools. Each importer handles column-matching and shows a preview so nothing lands blind.</p></li>
+    <li><span class="st-title">Import in dependency order.</span><p>Customers and Properties before Jobs, so each job can find its customer and property.</p></li>
+  </ol>
+
+  <h3><span class="num">2.</span>Residential Flat Rate &amp; Commercial Flat Rate — your service pricebook</h3>
+  <p class="muted">Your flat-rate service/repair catalog, in two parallel books that work identically — one for residential, one for commercial. Each service holds priced variants so the right number drops onto an estimate or invoice automatically.</p>
+  <ol class="steps">
+    <li><span class="st-title">Add a service.</span><p>Pick/create a Category, name it, set Taxable (defaults from your org setting).</p></li>
+    <li><span class="st-title">Add its price variants.</span><p>Click Prices → add one variant per real condition: Location (Ground/Attic/Roof), Access (Standard/Difficult), Hours (Standard/Extended), Part source (N/A/OEM/Aftermarket), a customer-facing display, price, cost, and task hours. Re-adding the same combination updates it rather than duplicating.</p></li>
+    <li><span class="st-title">Attach a checklist visit (optional).</span><p>The "Checklist for this trip charge" dropdown makes the service a checklist visit — the tech runs that checklist in place of a diagnosis, and its name is what the customer sees on the report.</p></li>
+    <li><span class="st-title">Bulk edit.</span><p>Download Template → Import CSV to load in bulk; to mass-edit, Export CSV (keep the PriceID column), change numbers, re-import (rows with a PriceID update; without, create new).</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">Residential vs Commercial</p><p>Same tool, two books reached from their own menu items — each holds its own segment's services, so commercial pricing never bleeds into residential. A job picks up prices from the book that matches its segment.</p></div>
+
+  <h3><span class="num">3.</span>Residential Systems — the equipment catalog</h3>
+  <p class="muted">Your catalog of installable full systems (outdoor + indoor + furnace) with specs, warranties, cost, and installation price — this is what populates the System Estimate builder.</p>
+  <ol class="steps">
+    <li><span class="st-title">Work the catalog.</span><p>Filter by System Type, Brand, and status; use Columns for the many spec fields (remembered); click a header to sort. Edit a row inline to change any spec, cost, or the installation price. Deactivate/Reactivate hides/shows a system in the picker (never deletes).</p></li>
+    <li><span class="st-title">Bulk edit.</span><p>Download Template → Import CSV to load; Export CSV to mass-edit (keep the hidden ID column so changes update; blank ID adds new). Re-imports without an ID auto-match on AHRI reference so prices update instead of duplicating.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">How it feeds estimates</p><p>Active systems feed the System Estimate picker; System Estimate Setup supplies the install/warranty boilerplate, and Special Features supplies the add-ons.</p></div>
+
+  <h3><span class="num">4.</span>Time &amp; Materials — parts reference for non-flat-rate work</h3>
+  <ol class="steps">
+    <li><span class="st-title">Look up a part.</span><p>A lean view of your parts catalog: Part, Category, Preferred Vendor, Units, Last Cost. Search by name/model/SKU; Load more pages through a large catalog.</p></li>
+    <li><span class="st-title">Set a preferred vendor or archive.</span><p>Edit a row to set its preferred vendor or archive a part you no longer carry. Last Cost comes from the most recent priced receipt in the Parts Catalog, so loading vendor pricing keeps it honest even for parts you don't stock.</p></li>
+  </ol>
+
+  <h3><span class="num">5.</span>Filter Pricebook — retail filter prices</h3>
+  <ol class="steps">
+    <li><span class="st-title">Price each filter.</span><p>By size, type, and MERV, with a customer-facing description and retail price. Status and search filters focus the list.</p></li>
+    <li><span class="st-title">Keep it current.</span><p>Export/Import for bulk edits; archive filters you no longer stock. It feeds Filter Orders, filter subscriptions, and the customer portal — so a change here is live for customers immediately.</p></li>
+  </ol>
+
+  <h3><span class="num">6.</span>Special Features — estimate add-ons</h3>
+  <ol class="steps">
+    <li><span class="st-title">Build each add-on.</span><p>Air purifiers, surge protectors, UV lights, etc. — add one with a name, description, price, your cost, and warranty text. It becomes selectable on system estimates (and can be added more than once).</p></li>
+    <li><span class="st-title">Maintain the catalog.</span><p>Edit inline; Archive/Restore retires without losing history; Delete removes a true mistake. (Hand-managed — no CSV here.)</p></li>
+  </ol>
+
+  <h3><span class="num">7.</span>Discount Catalog — governed, reusable discounts</h3>
+  <ol class="steps">
+    <li><span class="st-title">Define a discount.</span><p>Name, type (Percent or Flat dollar), value (percent capped at 100).</p></li>
+    <li><span class="st-title">Control how it's applied.</span><p>Toggle On/Off to allow the team to use it; Edit inline; discounts deactivate rather than delete (history preserved).</p></li>
+  </ol>
+  <div class="callout c-honest"><p class="lbl">The approval rules (baked in)</p><p>Percentage discounts (Veteran, Senior, PMA level) are pre-approved and apply on their own; flat-dollar amounts require a field supervisor at the point of use. Only the single highest applicable discount is used on an invoice — they never stack.</p></div>
+
+  <h3><span class="num">8.</span>PM Checklists — preventive-maintenance templates</h3>
+  <p class="muted">The inspections and measurements a tech performs on a maintenance visit. A master/fork model: Journey ships read-only masters; an admin saves an editable copy; techs run whichever template is assigned (they never edit). Separate from the Checklists page.</p>
+  <ol class="steps">
+    <li><span class="st-title">Fork a master.</span><p>In Templates, browse "Journey Masters" and "Your Custom Forms"; on a master, "Save as my version" to fork an editable copy.</p></li>
+    <li><span class="st-title">Build your fork.</span><p>Add checks (text, section, and type — Inspect, Measure, Perform, or Safety-test; measures capture a reading with units); Rename/Delete as needed.</p></li>
+    <li><span class="st-title">Assign templates.</span><p>In Assignments, for each system type and plan tier, pick which template auto-attaches to a PM job (tiers come from your Maintenance Tiers plus "Basic (no agreement)"). Leave one "not set" to choose manually on the job.</p></li>
+  </ol>
+
+  <h3><span class="num">9.</span>System Estimate Setup — install &amp; warranty boilerplate</h3>
+  <ol class="steps">
+    <li><span class="st-title">Write "installation includes" per system type.</span><p>A Default block (the fallback) plus a block per system type (Apt CrossOver, Apt Split, CrossOver, Gas, Packaged, Split, Mini-Split…). On a System Estimate the block for the chosen type is inserted automatically; a type with no block uses the default. "Start from default" copies it in to tweak.</p></li>
+    <li><span class="st-title">Write the warranty wording.</span><p>Shown verbatim to the customer. It supports {manufacturer_years} and {contractor_years}, filled automatically from the specific system chosen on each estimate. Save — these flow onto every System Estimate.</p></li>
+  </ol>
+
+  <h3><span class="num">10.</span>Checklists — service/diagnostic forms with routing flags</h3>
+  <p class="muted">The step-by-step forms a tech runs on a service job. Their power is <strong>routing flags</strong>: each finding can add a repair-estimate line, a customer-report line, a System Health input, a new-system estimate, or a red-tag. Separate from PM Checklists.</p>
+  <ol class="steps">
+    <li><span class="st-title">Create the checklist.</span><p>New, or Import from Excel/CSV; set its Equipment type and Active state.</p></li>
+    <li><span class="st-title">Add sections and items.</span><p>Each item has an Inspection Task (what to check) and a Maintenance Task (what to do), and a type — Checkbox or Measure (a reading with units and a nameplate spec).</p></li>
+    <li><span class="st-title">Set the routing flags per item.</span><p>Estimate (adds to a repair estimate), Report (customer report — on by default), Health (System Health score), Sys Est (creates a new-system estimate), Red Tag (safety). Edits auto-save.</p></li>
+    <li><span class="st-title">Put it in front of techs.</span><p>Attach the finished checklist to a trip charge in the Pricebook so the tech runs it in place of a diagnosis.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">This is the engine behind a visit</p><p>A field tech's checkmarks don't just get recorded — the flags you set here decide what each finding <em>does</em>: what lands on the estimate, what the customer sees, what feeds System Health, and what gets red-tagged. Build these thoughtfully.</p></div>
+
+  <!-- ============ PART 3 ============ -->
+  <div class="part-banner" id="part3"><div class="pk">Part 3</div><h2>Inventory Central</h2><p>The parts operation — what you stock, where it sits, what you buy, what jobs consume, and the planning numbers that keep trucks full without tying up cash. Plus Fleet, Supplies, and Tools.</p></div>
+
+  <span class="part-tag">Part 3 · Station</span>
+  <h2 class="section" id="stock-purchasing">Stock &amp; Purchasing</h2>
+  <p class="locator">Where it is: Inventory Central → <strong>Stock &amp; Purchasing</strong>. (Turn the module on in Inventory Settings once items, trucks, and mappings are ready.)</p>
+  <p class="lead">This is the heart of inventory: your catalog, where stock lives, receiving, counts, reordering, and purchasing — all writing to one stock ledger so quantities and cost are never guessed.</p>
+
+  <h3><span class="num">1.</span>Inventory Dashboard</h3>
+  <ol class="steps">
+    <li><span class="st-title">Work "What needs a hand."</span><p>Live tasks from across the module — low stock to reorder, open POs to receive, emailed invoices to review, vendor part-matches to verify, dock-flagged receiving issues. Each tile counts and links to where you handle it, and clears when done. A Quincy briefing up top reads the module's health.</p></li>
+    <li><span class="st-title">Read the owner/ops figures.</span><p>Owners see Inventory value and 90-day Variance; ops roles see variance exceptions. Stat tiles count trucks, warehouses, catalog parts, and services with a kit mapped.</p></li>
+  </ol>
+
+  <h3><span class="num">2.</span>Locations — warehouses &amp; trucks</h3>
+  <ol class="steps">
+    <li><span class="st-title">Add locations.</span><p>A Warehouse/Shop (name + address), or a Truck by picking a vehicle from Fleet (its name and assigned tech come from Fleet, so they never drift). On-hand is tracked per location.</p></li>
+    <li><span class="st-title">Understand truck status.</span><p>Set automatically from Fleet: Assigned (has a driver), Available (active, no driver right now), Archived (benched, restorable), Retired (out of fleet, history kept forever).</p></li>
+    <li><span class="st-title">Archive / Retire / Delete.</span><p>Blocked while a location holds stock — transfer it out first, so inventory is never hidden. Use Retire (not Delete) for a real vehicle; Delete is only for empty mistaken records.</p></li>
+  </ol>
+
+  <h3><span class="num">3.</span>Item Catalog</h3>
+  <ol class="steps">
+    <li><span class="st-title">Add or import parts.</span><p>"+ New" one, or Import your whole catalog from a spreadsheet (Export for a template/backup). Key fields: Description &amp; Category, Type (Stock vs Special order), Preferred Vendor, cost, vendor part #, barcode, and units.</p></li>
+    <li><span class="st-title">Set Type correctly.</span><p>Rule of thumb: aftermarket = Stock (even at zero on-hand — it feeds replenishment/forecasting), OEM/one-off = Special order (skips both). Flip it any time.</p></li>
+    <li><span class="st-title">Archive, don't delete.</span><p>Archive a part you no longer use so history stays; Delete is disabled for any part with stock or a service mapping.</p></li>
+  </ol>
+
+  <h3><span class="num">4.</span>Stock &amp; Receiving</h3>
+  <ol class="steps">
+    <li><span class="st-title">See on-hand by location.</span><p>Pick a location to see its on-hand for every part. The Status column reads In stock (green), Low (amber), Out (red), Check (red — negative, fix with a count), or Not stocked/Special order (grey).</p></li>
+    <li><span class="st-title">Receive and transfer.</span><p>Receive adds stock at a unit cost (updates last cost); Transfer moves stock location-to-location (you can't move more than the From location holds). Receiving against a PO is done from Purchase Orders instead, so costs stay in sync.</p></li>
+    <li><span class="st-title">Set levels.</span><p>Set a Reorder point and Max (par) per part per location — these drive Replenishment. Every change writes to the ledger; nothing is overwritten.</p></li>
+  </ol>
+
+  <h3><span class="num">5.</span>Cycle Counts — keep the numbers honest</h3>
+  <ol class="steps">
+    <li><span class="st-title">Start a blind count.</span><p>Pick a location and scope (all stocked, one category, or start empty). The expected quantity is hidden while you enter what you actually see, so the count isn't biased. Counts save as you go.</p></li>
+    <li><span class="st-title">Reveal and post.</span><p>"Reveal variances" shows the book quantity and the difference per line; Post writes corrections to the ledger and brings on-hand to exactly what you counted (respecting anything pulled mid-count). Posted counts are permanent — fix a mistake with another count.</p></li>
+  </ol>
+
+  <h3><span class="num">6.</span>Replenishment</h3>
+  <ol class="steps">
+    <li><span class="st-title">Refill trucks in one click.</span><p>Pick the warehouse to refill from; each truck shortfall gets a Transfer button that moves the suggested quantity. Warehouse shortfalls are flagged to purchase instead.</p></li>
+    <li><span class="st-title">Let AI prioritize.</span><p><strong>✨ AI: prioritize restocking</strong> gives a short Quincy plan of which trucks and items to restock first, and anything unusual.</p></li>
+  </ol>
+
+  <h3><span class="num">7.</span>Purchase Orders</h3>
+  <ol class="steps">
+    <li><span class="st-title">Read the one list.</span><p>Every PO: number, Designation (Replenishment, or a Job #·Segment from Jobs Management), vendor, date, status, received count, value. Job-part rows are owned by Jobs Management (Open in Jobs to verify delivery).</p></li>
+    <li><span class="st-title">Create a PO.</span><p>Pick the vendor (required) and deliver-to location, add parts (search the catalog, or type a new part and create it on the spot; + New Vendor if needed). "Pull low items" auto-fills everything below reorder point at that location.</p></li>
+    <li><span class="st-title">Email and receive.</span><p>Email to vendor sends it to their email on file (marked Emailed). When goods arrive, open the PO and receive against it — on-hand and costs update, and the PO advances to Partial or Received.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">Numbering</p><p>POs auto-number (PO-1001, PO-1002…); moving from another system, set the next number so your sequence continues. Job POs from Jobs Management draw the same sequence, so numbers never collide.</p></div>
+
+  <h3><span class="num">8.</span>Special Orders</h3>
+  <ol class="steps">
+    <li><span class="st-title">Track a per-job part.</span><p>Create one, link the customer (or type a name), describe the part, add estimated cost, PO reference, needed-by date, and a vendor (required — + New Vendor for a one-time supplier).</p></li>
+    <li><span class="st-title">Move it along.</span><p>Requested → Ordered → Received → Ready → Closed (each timestamped). Overdue past needed-by is flagged. Marking "received" never touches on-hand — the part goes straight to the job.</p></li>
+  </ol>
+
+  <h3><span class="num">9.</span>Vendor Invoices (A/P)</h3>
+  <ol class="steps">
+    <li><span class="st-title">Work the Quincy inbox.</span><p>Invoices emailed to your intake address arrive already read and extracted. Press Review to open one pre-filled (vendor, PO, and catalog lines matched), confirm, and save into A/P — or Dismiss if it isn't a bill. You can also capture one yourself (photo/PDF) and Quincy reads it the same way.</p></li>
+    <li><span class="st-title">Check the 3-way match.</span><p>It compares ordered vs received vs billed on each line and flags price/quantity variances. Stage for payment when good, or put On hold if something's off; from a matched bill you can receive the goods into stock.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">It learns</p><p>Every confirmed line teaches the Vendor Cross-Reference, so the next bill from that vendor auto-matches the same part by its SKU.</p></div>
+
+  <h3><span class="num">10.</span>Vendors</h3>
+  <ol class="steps">
+    <li><span class="st-title">Keep each supplier's record.</span><p>Name, order email (so POs can be emailed), and the brands they carry — with a ★ preferred vendor per brand that Jobs Management and Replenishment use when ordering.</p></li>
+  </ol>
+
+  <h3><span class="num">11.</span>Vendor Cross-Reference</h3>
+  <ol class="steps">
+    <li><span class="st-title">Suggest matches from history.</span><p>Pick a vendor and let Quincy propose which of their past parts map to your catalog items (it sorts single vs dual capacitors, exact sizes, accessories). Review the pre-selected picks, override or clear any, and save — nothing is stored until you confirm.</p></li>
+    <li><span class="st-title">Verify what Quincy learned.</span><p>Confirmed invoices add matches automatically; those land in the "Matches to verify" queue (also counted on the dashboard). Verify, Fix, or Remove each. Matches you approve directly here are already verified.</p></li>
+  </ol>
+
+  <h3><span class="num">12.</span>Record Parts Used</h3>
+  <p class="muted">The single most valuable inventory habit — it depletes stock and powers Parts Usage, Job Costing, and Demand Forecast.</p>
+  <ol class="steps">
+    <li><span class="st-title">Pick an invoice and confirm what moved.</span><p>Filter by recorded/not-recorded. The parts are seeded from the kits of the services billed — confirm the ones that really left the truck and record them. It depletes that tech's truck and marks the invoice recorded. (The same panel runs in the field on the mobile work order.)</p></li>
+  </ol>
+
+  <h3><span class="num">13.</span>Inventory Health (Anomalies)</h3>
+  <ol class="steps">
+    <li><span class="st-title">Scan the flags.</span><p>A live scan for problems worth acting on: negative stock, stockouts, cost outliers, usage spikes, shrinkage, dead stock, missing cost. Grouped by type and ranked by severity, each with what it means and what to do.</p></li>
+    <li><span class="st-title">Fix and refresh.</span><p>It changes nothing itself — fix the underlying issue, then Refresh to confirm the flag cleared.</p></li>
+  </ol>
+
+  <h3><span class="num">14.</span>Inventory Settings</h3>
+  <ol class="steps">
+    <li><span class="st-title">Enable the module.</span><p>When on, invoiced pricebook parts deduct from the assigned technician's truck. Leave it off until items, trucks, and service mappings are ready.</p></li>
+    <li><span class="st-title">Set restock defaults.</span><p>Weekly truck restock day(s), plus lead-time and safety-stock defaults that drive Replenishment and Forecast.</p></li>
+  </ol>
+
+  <span class="part-tag">Part 3 · Station</span>
+  <h2 class="section" id="insights-planning">Insights &amp; Planning</h2>
+  <p class="locator">Where it is: Inventory Central → <strong>Insights &amp; Planning</strong>.</p>
+  <p class="lead">The reporting and forecasting side — these read the stock ledger and get sharper the more consistently Record Parts Used is done.</p>
+
+  <h3><span class="num">1.</span>Service → Part Mapping (kits)</h3>
+  <ol class="steps">
+    <li><span class="st-title">Build each service's kit.</span><p>Pick a service, add the catalog parts it consumes with a quantity each. "Auto-create kits" bulk-seeds a single-part kit for every unmapped parts service (labor/diagnostic skipped) — then refine by hand.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">Why it matters</p><p>A good kit is what makes "Record Parts Used" one click — the parts are already suggested from the services on the invoice.</p></div>
+
+  <h3><span class="num">2.</span>Parts Usage</h3>
+  <ol class="steps"><li><span class="st-title">Run the report.</span><p>Set a From/To range and Run report — results group by truck/technician with each part's quantity and cost, and a grand total of parts cost consumed.</p></li></ol>
+
+  <h3><span class="num">3.</span>Job Costing</h3>
+  <ol class="steps"><li><span class="st-title">See material cost vs billed.</span><p>Pick a date range. Each row: invoice, customer, job, amount billed, material cost, what's left after materials, and material % of billed (green &lt;35%, amber to 55%, red above). Labor isn't included; only jobs with parts recorded appear.</p></li></ol>
+
+  <h3><span class="num">4.</span>Inventory Variance</h3>
+  <ol class="steps"><li><span class="st-title">See where reality missed the plan — in dollars.</span><p>Filter All / Count / Purchase and a time window. Count variance = what a posted count changed vs expected; purchase variance = where a vendor invoice billed a different price/quantity than its PO. Largest dollar impact first; a negative count number is shrink.</p></li></ol>
+
+  <h3><span class="num">5.</span>Inventory Valuation</h3>
+  <ol class="steps"><li><span class="st-title">See what stock is worth now.</span><p>Total value plus a breakdown By location or By category, and a detail table (on-hand, unit cost, value, highest first). Each part is valued at average cost (then last, then standard); parts with no cost are flagged "not valued" and excluded.</p></li></ol>
+
+  <h3><span class="num">6.</span>Demand Forecast</h3>
+  <ol class="steps">
+    <li><span class="st-title">Project run-out and order-to-cover.</span><p>Choose the history window and the days of cover you want to hold. Each part shows monthly usage, on-hand, days of cover, projected run-out, a trend arrow, and how many to order to hit your target (most urgent on top).</p></li>
+    <li><span class="st-title">Ask AI to read it.</span><p><strong>✨ AI: explain this forecast</strong> gives a short Quincy read on what the numbers mean and what to act on.</p></li>
+  </ol>
+
+  <!-- ===== STATION: FLEET ===== -->
+  <span class="part-tag">Part 3 · Station</span>
+  <h2 class="section" id="fleet">Fleet Dashboard</h2>
+  <p class="locator">Where it is: Inventory Central → <strong>Fleet Dashboard</strong>.</p>
+  <p class="lead">Fleet keeps every vehicle healthy, legal, and honestly used. Everything hinges on one habit: entering the odometer on every fuel fill — that's what powers MPG, mileage-based maintenance, inspection due dates, and the honest-use check.</p>
+
+  <h3><span class="num">1.</span>Fleet Dashboard</h3>
+  <ol class="steps">
+    <li><span class="st-title">Read the flags.</span><p>Two counters up top — red (act now) and amber (worth a look) — across the fleet, a Compliance panel (insurance/document expirations, inspections due), and a card per vehicle (odometer, last MPG, cost/gallon, last fill, flags). The flags come from the other Fleet screens, so keeping those current keeps the dashboard honest.</p></li>
+  </ol>
+  <h3><span class="num">2.</span>Vehicles</h3>
+  <ol class="steps">
+    <li><span class="st-title">Add each vehicle.</span><p>Year, make, model, VIN, plate, color; tank capacity and expected MPG range (these power the fuel flags); purchase/in-service/ownership; home base and fuel-card number (the card number routes imported fills to this truck).</p></li>
+    <li><span class="st-title">Assign a driver.</span><p>Use Reassign (not the locked field) — it keeps a dated history of who was responsible when. The current driver links the truck to its stocking location in Inventory.</p></li>
+  </ol>
+  <h3><span class="num">3.</span>Fuel Log</h3>
+  <ol class="steps">
+    <li><span class="st-title">Log every fill.</span><p>Date, odometer, gallons, total cost, station, fuel card. It computes cost/gallon, MPG, and cost/mile, and flags over-tank fills, low/high MPG, or price spikes.</p></li>
+    <li><span class="st-title">Or import a batch.</span><p>A CSV, or a PDF fuel-card statement (Circle K, RaceTrac…) that Quincy reads into fill rows. Map each card number to its vehicle once and imported fills land on the right truck. <strong>Enter the odometer every time</strong> — without it MPG and mileage flags can't compute.</p></li>
+  </ol>
+  <h3><span class="num">4.</span>Maintenance</h3>
+  <ol class="steps">
+    <li><span class="st-title">Create PM tasks.</span><p>An interval by miles, days, or engine hours (oil change every 5,000 mi; wash every 14 days). Set the last-done baseline so the countdown is accurate; complete a task to log a service record and reset the schedule.</p></li>
+    <li><span class="st-title">Know when they flag.</span><p>Mileage tasks turn amber within 500 miles, time tasks within 7 days, red when overdue — all on the dashboard. Mileage comes from the fuel-log odometer.</p></li>
+  </ol>
+  <h3><span class="num">5.</span>Repairs &amp; Cost</h3>
+  <ol class="steps">
+    <li><span class="st-title">Log issues and repairs.</span><p>Record an issue with severity (open issues flag on the dashboard); record a repair with labor, parts, vendor, and downtime. Resolving a repair closes its issue. Rolls up total repair cost and downtime per vehicle. (Failed inspection items open issues here automatically.)</p></li>
+  </ol>
+  <h3><span class="num">6.</span>Routes &amp; GPS — the honest-use check</h3>
+  <ol class="steps">
+    <li><span class="st-title">Compare driven vs explained miles.</span><p>Miles driven (fuel-log odometer) vs miles the tech's driven-to jobs explain (chained home → jobs → home, counting only jobs they pressed "On My Way" for). A red flag when driving is well above what the jobs account for. Needs odometer readings, a home base, and driven-to jobs; GPS breadcrumbs show as supporting context.</p></li>
+  </ol>
+  <h3><span class="num">7.</span>Inspections</h3>
+  <ol class="steps">
+    <li><span class="st-title">Run the walk-around.</span><p>Pick a vehicle, mark each item pass/fail/N/A with notes; submitting opens a repair issue for every failed item so defects aren't lost.</p></li>
+    <li><span class="st-title">Customize &amp; schedule.</span><p>"Manage checklist" copies the standard list to add/remove items. "Schedule" sets a cadence by time or miles, whichever comes first; each vehicle shows OK / Due soon / Overdue and due ones flag on the dashboard.</p></li>
+  </ol>
+  <h3><span class="num">8.</span>Insurance &amp; Documents</h3>
+  <ol class="steps">
+    <li><span class="st-title">Keep vehicles legal.</span><p>Record insurance (carrier, policy #, NAIC, effective/expiration, coverage, agent) covering the whole fleet or specific vehicles, and upload the card as proof (View/Print from the desktop). Track registration, title, DOT/MC, emissions, permits with numbers, expirations, and scans. Expirations flag amber in-window, red once lapsed.</p></li>
+  </ol>
+  <div class="callout c-honest"><p class="lbl">Why it works this way</p><p>Proof of insurance prints from the desktop only, to keep it under office control — it's never exposed on the mobile app.</p></div>
+
+  <!-- ===== STATION: SUPPLIES ===== -->
+  <span class="part-tag">Part 3 · Station</span>
+  <h2 class="section" id="supplies">Non-Inventory Supplies</h2>
+  <p class="locator">Where it is: Inventory Central → <strong>Non-Inventory Supplies</strong>.</p>
+  <p class="lead">The expendables you buy regularly but don't count as stock — copy paper, tech tape, zip ties, gallon chemicals, fuses. Deliberately separate from parts Inventory: nothing here affects stock, valuation, or replenishment.</p>
+  <h3><span class="num">1.</span>Supplies Catalog</h3>
+  <ol class="steps">
+    <li><span class="st-title">Add each supply.</span><p>Name, category, unit, typical vendor, last price — no on-hand quantities (it's a shopping catalog, not stock). Tiles show supplies tracked, reorder-list count, open POs, and 30/90-day spend.</p></li>
+    <li><span class="st-title">Flag low with "+ Reorder".</span><p>Pushes it to the reorder list (optional quantity and note).</p></li>
+  </ol>
+  <h3><span class="num">2.</span>Reorder List</h3>
+  <ol class="steps">
+    <li><span class="st-title">Shop by vendor.</span><p>Flagged items appear grouped by their typical vendor — your supply-house run. Hit "Bought" (enter what you paid to log spend and refresh last price, or just check it off); cleared items drop off. For PO vendors, pull the whole list into a PO instead.</p></li>
+  </ol>
+  <h3><span class="num">3.</span>Orders &amp; POs</h3>
+  <ol class="steps">
+    <li><span class="st-title">Raise a PO.</span><p>Pick a vendor and expected date, add line items (from the catalog or free text). "Pull from reorder list" seeds the whole PO (those items drop off reorder). PO numbers share the running sequence with parts and tool POs.</p></li>
+    <li><span class="st-title">Receive.</span><p>Enter what came in (defaults to full remaining); partial receipts stay open, a full receipt closes it. Receiving is what logs the spend and refreshes last price.</p></li>
+  </ol>
+  <h3><span class="num">4.</span>Purchases</h3>
+  <ol class="steps">
+    <li><span class="st-title">Watch the spend.</span><p>Fills automatically from reorder check-offs and PO receipts; "+ Log a purchase" for a receipt bought on the fly. Set a date range for the total; PO-received lines are tagged with the PO number for traceability.</p></li>
+  </ol>
+
+  <!-- ===== STATION: TOOLS ===== -->
+  <span class="part-tag">Part 3 · Station</span>
+  <h2 class="section" id="tools">Tools Dashboard</h2>
+  <p class="locator">Where it is: Inventory Central → <strong>Tools Dashboard</strong> (when the module is enabled).</p>
+  <p class="lead">Durable tools and office equipment (including computers) — where each is, what's flagged for maintenance, and what's in the shop. Tools flow like inventory: received by the shop, assigned to a truck or tech, inspected, and returned for verified repair before redeployment.</p>
+  <h3><span class="num">1.</span>Tools Dashboard</h3>
+  <ol class="steps"><li><span class="st-title">Read the tiles.</span><p>In the shop, out on trucks/techs, flagged for maintenance, and in maintenance. Enable the module from the banner if it's off.</p></li></ol>
+  <h3><span class="num">2.</span>Tool Catalog</h3>
+  <ol class="steps">
+    <li><span class="st-title">Add a tool.</span><p>Name/description and brand, plus model and serial for powered tools (tick "Hand tool" for simple ones). Identical names auto-number ("Reclaimer 2"). Purchase date/cost are optional bookkeeping data.</p></li>
+    <li><span class="st-title">Run its lifecycle.</span><p>Assign (Shop / Truck / Technician), Inspect (log condition; flagging a problem marks it "Needs maintenance"), To Shop (pull in for repair with a return date), History. A flagged tool can't be reassigned until its repair is verified.</p></li>
+  </ol>
+  <h3><span class="num">3.</span>Orders &amp; Receipts</h3>
+  <ol class="steps">
+    <li><span class="st-title">Acquire three ways.</span><p>PO order (number from the shared sequence; tools created on receipt), Card/cash purchase (snap the receipt — Quincy reads vendor, date, total, items), or Rental (with a return-by date). Receiving a PO creates the tools in the shop and records cost.</p></li>
+  </ol>
+  <h3><span class="num">4.</span>Reconcile</h3>
+  <ol class="steps"><li><span class="st-title">Match card/cash buys to the statement.</span><p>Import or enter statement charges; the page suggests matches by amount, date, merchant, and card last-four. Confirm or match by hand; unmatched charges stay flagged (and are called out in the Quincy briefing).</p></li></ol>
+  <h3><span class="num">5.</span>Tools Maintenance</h3>
+  <ol class="steps"><li><span class="st-title">Repair and verify.</span><p>Tools sent "To Shop" land here with an anticipated return date. Record the repair, then mark it verified — only a verified tool can be redeployed. Overdue tools show as "Follow-up needed" on the dashboard and in the Quincy briefing.</p></li></ol>
+
+  <!-- ============ PART 4 ============ -->
+  <div class="part-banner" id="part4"><div class="pk">Part 4</div><h2>WorkForce</h2><p>Your people — who they are, what they're allowed to do, the hours they work, and (with the HR and Payroll add-ons) the full employee lifecycle and pay run.</p></div>
+
+  <span class="part-tag">Part 4 · Screen</span>
+  <h2 class="section" id="team">Team</h2>
+  <ol class="steps"><li><span class="st-title">Manage your users.</span><p>Team lists everyone who signs in to Journey; add or manage a user here. What each person can <em>do</em> is set by the tags you give them on Roles &amp; Tags.</p></li></ol>
+
+  <span class="part-tag">Part 4 · Screen</span>
+  <h2 class="section" id="roles">Roles &amp; Tags — permissions</h2>
+  <ol class="steps">
+    <li><span class="st-title">Build a tag per real role.</span><p>New tag → name it, pick a department (Admin, Field, Shop, Front Office, Back Office — just a grouping label, it never limits permissions), check the permissions it should have, Save. Make Office Mgr, Field Mgr, Warehouse Mgr, etc., each with only what that role needs.</p></li>
+    <li><span class="st-title">Stack tags on a person.</span><p>A person's access is the sum of every tag they hold — give someone "Field Mgr" + "Bookkeeping" and they get both combined. Build a manager as one focused tag, or a base tag plus add-ons.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">Good to know</p><p>Saving a tag replaces its permissions with exactly what's checked at that moment — glance over the boxes first. On-call techs can also be granted extra permissions automatically, only for their on-call window (see On-Call Schedule).</p></div>
+
+  <span class="part-tag">Part 4 · Screen</span>
+  <h2 class="section" id="time-clock">Time Clock &amp; Payroll Capture</h2>
+  <ol class="steps">
+    <li><span class="st-title">Staff clock in and out (Time Clock).</span><p>Hours are recorded as they work. (Sign-In Log is separate — that's app access, not work hours.)</p></li>
+    <li><span class="st-title">Gather hours (Payroll Capture).</span><p>Payroll Capture pulls the recorded hours together so you can run payroll from them.</p></li>
+  </ol>
+  <div class="callout c-honest"><p class="lbl">Device security — one computer + one phone</p><p>Clocking in and opening the app bind to the device you're on. Each person can be signed in on at most one computer and one phone at a time — never two of the same kind — so a login can't be shared to clock someone else in. Opening a second of the same kind locks the first with a "Locked for security" screen. The device-security panel logs new devices and switches (rapid back-and-forth flagged red); an org admin resets an employee's device here when they replace a phone.</p></div>
+
+  <span class="part-tag">Part 4 · Screen</span>
+  <h2 class="section" id="sign-in-log">Sign-In Log</h2>
+  <ol class="steps"><li><span class="st-title">Review app access (admin-only).</span><p>A security audit trail of who signed in and out of Journey and when. This is about signing into the software, not clocking in for work — for hours, use Time Clock.</p></li></ol>
+
+  <span class="part-tag">Part 4 · Station (add-on)</span>
+  <h2 class="section" id="hr">Human Resources</h2>
+  <p class="locator">Where it is: WorkForce → <strong>Human Resources</strong>. A paid add-on — turn it on in HR Settings. (HR implies Payroll access.)</p>
+  <p class="lead">The people module — headcount, a compliance watchdog for expiring certifications and licenses, and the full employee lifecycle from hire to separation.</p>
+  <h3><span class="num">1.</span>HR Dashboard</h3>
+  <ol class="steps"><li><span class="st-title">Read headcount &amp; compliance.</span><p>Headcount, tracked certifications, and open compliance flags at a glance, with a Quincy briefing. It flags expiring/expired certs and licenses most urgent first — the same records that back the EPA-cert check on the Refrigerant Usage Log.</p></li></ol>
+  <h3><span class="num">2.</span>Employees (the roster)</h3>
+  <ol class="steps">
+    <li><span class="st-title">Build the roster first.</span><p>Every HR page (Scorecards, Skills, Certifications, Time Off) draws from this roster, so build it first or those pages look empty. Employees are separate from logins on purpose — someone can be an employee with no login, or a login you don't track.</p></li>
+    <li><span class="st-title">Add people fast.</span><p>"+ From login accounts" checks everyone who already signs in and adds them all at once (linked to their login); "+ New Employee" adds someone by hand for staff who don't sign in.</p></li>
+    <li><span class="st-title">Fill in the details (Edit).</span><p>Pay type and rate, hire date, role, and — under Secure info (encrypted) — Direct Deposit routing/account and SSN. Secure fields are encrypted; only office roles can reveal them and employees never see them. Deactivating keeps history.</p></li>
+  </ol>
+  <h3><span class="num">3.</span>Certifications &amp; Skills</h3>
+  <ol class="steps">
+    <li><span class="st-title">Track who holds what.</span><p>Certifications &amp; Licenses (EPA 608, NATE, driver's licenses) and the Skills Matrix (who can do what).</p></li>
+    <li><span class="st-title">Let AI plan the gaps.</span><p>Skills Matrix offers <strong>✦ Find gaps → training plan</strong> and Certifications offers <strong>✦ Draft renewal plan</strong> — editable drafts you review and use.</p></li>
+  </ol>
+  <h3><span class="num">4.</span>Scorecards — fair, numbers-based reviews</h3>
+  <ol class="steps">
+    <li><span class="st-title">Set up your metrics.</span><p>"Manage metrics" → add each with a Category (Customer experience, Productivity, Responsible revenue, Professionalism, Workmanship, or Other), a name, unit, and goal direction; set a Minimum accepted rating where one applies. "Load starter metrics" drops in a standard 11 to edit. A green "Journey can source" tag means Journey holds the data; grey "You enter" means you supply it.</p></li>
+    <li><span class="st-title">Record a quarter.</span><p>Pick Employee, Quarter, Year → enter each metric's value → Save. Cells under the minimum are highlighted; last quarter shows beside this one; nothing is overwritten.</p></li>
+    <li><span class="st-title">Draft the review with AI.</span><p>Scorecards produce an <strong>evidence-grounded review draft</strong> from the recorded numbers — you review and edit it, so the write-up is fair and defensible.</p></li>
+  </ol>
+  <h3><span class="num">5.</span>The rest of HR</h3>
+  <ol class="steps"><li><span class="st-title">Run the lifecycle.</span><p>Job Descriptions, Hiring, and Onboarding (define roles, track applicants, run new-hire checklists); Discipline and Separations (documented write-ups and offboarding); Documents (stored HR files); Time Off (PTO requests and balances).</p></li></ol>
+
+  <span class="part-tag">Part 4 · Station (add-on)</span>
+  <h2 class="section" id="payroll">Payroll</h2>
+  <p class="locator">Where it is: WorkForce → <strong>Payroll</strong>. Stands alone for smaller shops, or comes included with HR.</p>
+  <ol class="steps">
+    <li><span class="st-title">Run pay from captured hours.</span><p>Payroll Dashboard (recent runs — checks, gross, net — and the tax to set aside, by week) → Prepare Payroll (build a run from captured hours, review each employee, generate checks) → Paychecks (the register produced) → Tax Center &amp; Year-End (taxes owed and the W-2 / 1099 wrap-up).</p></li>
+    <li><span class="st-title">Set what drives the math.</span><p>Benefits &amp; Deductions (pre/post-tax items), Workers' Comp (class codes and rates), Classification Check and State Rules (employee-vs-contractor checks and state withholding).</p></li>
+    <li><span class="st-title">Draft a payroll reconciliation note with AI.</span><p>Payroll Reconcile offers an AI helper to explain discrepancies in plain language — review before you rely on it.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">Good to know</p><p>Hours come from Time Clock via Payroll Capture. The set-aside figure is what to reserve for taxes on each run — not a filing; taxes are still remitted through your tax service or accountant.</p></div>
+
+  <span class="part-tag">Part 4 · Station (add-on)</span>
+  <h2 class="section" id="certified-payroll">Certified Payroll (Prevailing Wage)</h2>
+  <ol class="steps">
+    <li><span class="st-title">Set up the public-works project.</span><p>Projects — set up each prevailing-wage (Davis-Bacon) project and attach its wage determination. Prevailing Wage — the classifications and wage/fringe rates hours are priced against.</p></li>
+    <li><span class="st-title">Enter the week and produce the WH-347.</span><p>Certified Payroll — pick a project and week-ending Friday, enter each worker's daily hours by classification, and the app prices straight and overtime from the determination, producing the WH-347 with its Statement of Compliance, ready to file. Workers come from the HR Employees record.</p></li>
+  </ol>
+
+  <!-- ============ PART 5 ============ -->
+  <div class="part-banner" id="part5"><div class="pk">Part 5</div><h2>Command Center (Marketing)</h2><p>Demand generation and reputation — channels and campaigns, a queue of AI-drafted content that waits for your yes, leads, and customer reviews. A paid add-on.</p></div>
+
+  <span class="part-tag">Part 5 · Screen</span>
+  <h2 class="section" id="command-center-page">Command Center</h2>
+  <ol class="steps"><li><span class="st-title">Read the marketing KPIs.</span><p>Channels, active campaigns, drafts awaiting your yes, leads, and review requests. The Command Center leads with anything sitting in the approval queue, so the next thing needing you is always on top.</p></li></ol>
+  <h3><span class="num">1.</span>Approval Queue</h3>
+  <ol class="steps"><li><span class="st-title">Approve before anything goes out.</span><p>AI-drafted posts and messages wait here for your approval — <strong>nothing publishes on its own</strong>. Review each draft, edit it, and approve or reject.</p></li></ol>
+  <h3><span class="num">2.</span>Channels &amp; Assets</h3>
+  <ol class="steps"><li><span class="st-title">Set up where you market.</span><p>The built-in and custom channels you market through, plus the brand assets used in content.</p></li></ol>
+  <h3><span class="num">3.</span>Reviews</h3>
+  <ol class="steps"><li><span class="st-title">Grow your reputation.</span><p>Review requests and your reputation. A request goes out when a job is marked complete, pointing to your per-organization Google review link (set in Settings) — reviews are the top contractor-marketing lever.</p></li></ol>
+  <div class="callout c-honest"><p class="lbl">Why it works this way</p><p>Every piece of marketing content is AI-drafted but human-approved — drafts always wait for a person, so your brand never says anything you didn't sign off on.</p></div>
+
+  <!-- ============ PART 6 ============ -->
+  <div class="part-banner" id="part6"><div class="pk">Part 6</div><h2>Financials</h2><p>The money dashboard — what you're owed, what you've collected, and the recurring revenue underneath it. Read-only reporting that drills into the pages where you act.</p></div>
+
+  <span class="part-tag">Part 6 · Screen</span>
+  <h2 class="section" id="financials">Financials</h2>
+  <p class="locator">Where it is: the <strong>Financials</strong> section of the menu. (Needs the view-financials-dashboard permission; platform owners get an org picker.)</p>
+  <p class="lead">Financials answers "where does the money stand?" at a glance, then sends you to the screen that acts on it. Nothing is edited here — it's the scoreboard, and a Quincy briefing reads it in plain English.</p>
+  <ol class="steps">
+    <li><span class="st-title">Read Accounts Receivable &amp; aging.</span><p>Total A/R outstanding, broken into aging buckets — Current (0–30d, green), 31–60 (amber), 61–90 (orange), 90+ (red) — with the overdue total called out. Click to open the unpaid list and chase it.</p></li>
+    <li><span class="st-title">Read collected vs billed.</span><p>Collected (last 30 days and trailing six months, from the payment ledger) against what was billed, so you see cash actually coming in — not just invoiced.</p></li>
+    <li><span class="st-title">Read recurring revenue.</span><p>The run-rate from active maintenance agreements, the dependable base under the month's work.</p></li>
+    <li><span class="st-title">Add your own KPIs.</span><p>The same custom-KPI builder as HOME lets managers add finance tiles that matter to them; drill any tile into Invoices, Estimates, or Payroll to act.</p></li>
+  </ol>
+
+  <!-- ============ PART 7 ============ -->
+  <div class="part-banner" id="part7"><div class="pk">Part 7</div><h2>Admin</h2><p>The settings and back-office controls — your organization's preferences and job-type routing, consumer financing, and (for platform owners) the client organizations and app-wide announcements.</p></div>
+
+  <span class="part-tag">Part 7 · Screen</span>
+  <h2 class="section" id="settings">Settings</h2>
+  <p class="locator">Where it is: Admin → <strong>Settings</strong>.</p>
+  <ol class="steps">
+    <li><span class="st-title">Set the organization basics.</span><p>Business hours and holidays (which drive the Calendar's slots and booking), branding shown to customers on estimates and invoices, payment terms, sales-tax rate, your Google review link, and Stripe Connect for card payments.</p></li>
+    <li><span class="st-title">Configure job-type routing.</span><p>Each job type carries its own rules — what fills the Diagnosis step, the estimate format (service/repair vs full system), which pricebook it uses, whether it runs as a progress-billing Project, how it invoices, and whether it's customer-facing. Choosing the type when a job is created is what routes the job; link a Checklist here and any checklist you create shows automatically in the dropdown.</p></li>
+  </ol>
+  <div class="callout c-honest"><p class="lbl">Why it works this way</p><p>Because the job type decides diagnosis, pricing, and workflow, you configure behavior once here instead of relying on each person to do a job "the right way." Add a new checklist and it's usable the moment you make it.</p></div>
+
+  <span class="part-tag">Part 7 · Screen</span>
+  <h2 class="section" id="financing">Financing Central &amp; Options</h2>
+  <ol class="steps">
+    <li><span class="st-title">Offer financing (Financing Options).</span><p>Set up the consumer-financing offers you present to customers — these are the plans a customer can choose on their public invoice. (The master catalog of lenders is the super-admin Lender Directory.)</p></li>
+    <li><span class="st-title">Track each financed deal (Financing Central).</span><p>Add a deal (customer, lender option, amount) and move it through its lifecycle — Loan docs sent → Invoice provided → Completion signed → Equipment installed → Record sent to financier — with a status of Applied / Approved / Denied / Funded. This is what keeps a financed install from stalling between the lender and the crew.</p></li>
+  </ol>
+
+  <span class="part-tag">Part 7 · Screen (platform owner)</span>
+  <h2 class="section" id="admin-super">Organizations &amp; Announcements</h2>
+  <ol class="steps">
+    <li><span class="st-title">Manage client organizations.</span><p>The super-admin roster of every company on the platform — create an org, set which modules it has (Inventory, HR, Payroll, Marketing, Tools…), and manage its access. This is "Journey the product" managing its subscribers.</p></li>
+    <li><span class="st-title">Post an announcement.</span><p>Create an announcement and it appears as a banner across the app for the team until you remove it.</p></li>
+    <li><span class="st-title">Lender Directory.</span><p>The master catalog of lenders that each org's Financing Options are built from.</p></li>
+  </ol>
+  <div class="callout c-know"><p class="lbl">A note on "My Pay &amp; Benefits"</p><p>Every employee also has a personal self-service page — My Pay &amp; Benefits — showing their own pay stubs, benefits, tax/direct-deposit profile, and time off. It shows only their own information and needs no admin access.</p></div>
+
+  <!-- ============ PART 8 ============ -->
+  <div class="part-banner" id="part8"><div class="pk">Part 8</div><h2>The Field App (mobile)</h2><p>What the technician carries. Everything a tech needs to run a visit from their phone — arrive, work, quote, invoice, collect, and stay on the clock — with AI help built into each step.</p></div>
+
+  <span class="part-tag">Part 8 · Getting around</span>
+  <h2 class="section" id="field-getting-around">Your phone, start to finish</h2>
+  <p class="locator">Where it is: open the field app from the office menu's "Field App" button, or sign in on a phone. Mobile App Settings → "Switch to Office App" goes back.</p>
+  <ol class="steps">
+    <li><span class="st-title">Start at your job list.</span><p>It opens when you sign in — your day's jobs. Tap any job to open its Job Card; tap the back arrow (‹) at the top left to step back.</p></li>
+    <li><span class="st-title">Know the one-device rule.</span><p>You can be signed in on one phone and one computer at a time. Opening the app on a second phone locks the first — so your login can't be used to clock someone else in.</p></li>
+  </ol>
+
+  <h3><span class="num">A.</span>Run a service call (the Job Card)</h3>
+  <ol class="steps">
+    <li><span class="st-title">On My Way.</span><p>Tap it when you head out, so the office and customer know you're coming (and so your drive counts toward the honest-mileage check).</p></li>
+    <li><span class="st-title">Start / Pause / Stop My Time.</span><p>Start when you begin work, Pause for a break, Stop when you finish — your time on the job is tracked for you.</p></li>
+    <li><span class="st-title">Use the Customer card.</span><p>Tap the address for directions, the phone to call, and Open Messages to text the customer (every text is saved to the office Text Archive).</p></li>
+    <li><span class="st-title">Work the visit.</span><p>Start Here walks you through it; Service History shows past work at the property; Private Notes are internal — the customer never sees them.</p></li>
+  </ol>
+
+  <h3><span class="num">B.</span>Capture the equipment — with AI</h3>
+  <ol class="steps">
+    <li><span class="st-title">Scan the nameplate.</span><p>Point the camera at the equipment's data plate and Journey reads the brand, model, and serial for you (AI vision) — far faster and more accurate than typing a serial by hand. Review what it read, then save it to the property's equipment.</p></li>
+    <li><span class="st-title">Dictate instead of typing.</span><p>Where you see the microphone, speak your notes and the app transcribes them — handy with gloves on or hands full.</p></li>
+  </ol>
+
+  <h3><span class="num">C.</span>Quote, invoice, and collect in the field</h3>
+  <ol class="steps">
+    <li><span class="st-title">Build an estimate.</span><p>Start a service estimate or a system (equipment) estimate right from the job; add line items and any approved discounts.</p></li>
+    <li><span class="st-title">Draft the customer-facing summary with AI.</span><p>On a service estimate tap <strong>✨ AI: draft scope</strong>; on a system estimate tap <strong>✨ AI: draft proposal</strong> — it writes a short, plain-language summary from your line items. Read and edit it before you show the customer. Nothing is sent on its own.</p></li>
+    <li><span class="st-title">Invoice and collect.</span><p>When the work's done, create the invoice, then use Collect Payment on the job to take payment on the spot.</p></li>
+  </ol>
+
+  <h3><span class="num">D.</span>Run a maintenance checklist — with AI</h3>
+  <ol class="steps">
+    <li><span class="st-title">Complete each item.</span><p>Open the PM checklist and mark each item as you go (OK / Problem / N/A, with notes and readings). It saves as you work.</p></li>
+    <li><span class="st-title">Draft the visit summary with AI.</span><p>When the checklist is complete, tap <strong>✨ AI: draft visit summary</strong> — it turns your results into a short, honest recap for the customer that says plainly when everything's fine and only flags what truly needs attention. Review and edit before you share, then email the report.</p></li>
+  </ol>
+
+  <h3><span class="num">E.</span>Ask Quincy</h3>
+  <ol class="steps">
+    <li><span class="st-title">Tap Ask Quincy on any job screen.</span><p>Quincy opens over your work without losing your place — ask your question and your spot is kept.</p></li>
+    <li><span class="st-title">It knows the job you're on.</span><p>Opened from inside a job, Quincy answers about "this job" or "this customer" with that job in mind. It only has the basics — for specific details it points you to the right screen rather than guessing.</p></li>
+    <li><span class="st-title">Or open the full chat.</span><p>From the home screen, "Chat with Quincy" (the Quincy tab) opens the full screen — same conversation either way.</p></li>
+  </ol>
+
+  <h3><span class="num">F.</span>Supervisor tools (field supervisors &amp; admins)</h3>
+  <ol class="steps">
+    <li><span class="st-title">Create work on the fly — the field + Add.</span><p>+ New Job, + Service Estimate, + Follow-up Estimate, and + System Estimate let a supervisor start work right from the phone.</p></li>
+    <li><span class="st-title">Cycle Count.</span><p>Count stock on a truck or in the warehouse from your phone — start a count, pick the location, enter what you physically see (the expected number stays hidden so the count is honest), then Reveal variances and Post. Posting is permanent — to fix a mistake, run another count.</p></li>
+    <li><span class="st-title">The Tower &amp; Everyone's Schedule.</span><p>The Tower is a live overview of the team; Everyone's Schedule shows the whole team's day, not just yours.</p></li>
+    <li><span class="st-title">Field Manual.</span><p>The in-app quick guide to the mobile app — the field counterpart to this training manual.</p></li>
+  </ol>
+  <div class="callout c-tip"><p class="lbl">Good habits in the field</p><p>Anything shown in <strong>red</strong> means a problem or a negative number — stop and check it before moving on. Most screens save as you go, so you rarely need a Save button. If a screen looks stuck, tap the back arrow and open it again.</p></div>
+
+  <div class="callout c-honest" style="margin-top:28px;"><p class="lbl">One last thing</p><p>Every AI helper in Journey — on an estimate, an invoice, a maintenance report, or in Quincy — writes a <em>draft</em> a person reviews and a <em>person</em> decides to send. The tools are built to make honest work faster, never to put words in your mouth or a sale in front of a customer who doesn't need it. That's the whole idea.</p></div>
+
+  <div class="foot">
+    Journey Operator Training Manual · For training and reference. The in-app copy is view-only; a printable PDF is available to your administrator. This manual is maintained with the app, so the link always reflects the current version.
+  </div>
+
+</div>
+</body>
+</html>

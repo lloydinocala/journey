@@ -35,7 +35,7 @@ const PAGE_TITLES = {
   '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
   '/payroll': 'Payroll Capture', '/session-log': 'Sign-In Log',
   '/organizations': 'Organizations', '/announcements': 'Announcements', '/my': 'My Pay & Benefits',
-  '/features': 'Feature Directory',
+  '/features': 'Feature Directory', '/training': 'Training Manual',
 }
 function pageTitle(pathname) {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]
@@ -256,6 +256,7 @@ export function buildSections(profile) {
   if (showMarketing) sections.push(commandCenter)
   sections.push(financials)
   sections.push(admin)
+  sections.push({ key: 'training', label: 'Training Manual', icon: 'help', path: '/training' })
   return sections
 }
 
