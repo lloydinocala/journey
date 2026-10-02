@@ -23,7 +23,7 @@ const PAGE_TITLES = {
   '/text-archive': 'Text Archive', '/on-call': 'On-Call Schedule',
   '/jobs-dash': 'Jobs Dashboard', '/jobs-management': 'Jobs Management', '/jobs': 'Jobs',
   '/tasks': 'Tasks', '/to-do': 'To-Do', '/customers': 'Customers', '/properties': 'Properties',
-  '/system-estimates': 'System Estimates', '/estimates': 'Job Estimates', '/invoices': 'Invoices',
+  '/system-estimates': 'System Estimates', '/estimates': 'Job Estimates', '/invoices': 'Invoices', '/projects': 'Projects',
   '/maintenance-station': 'Maintenance Station', '/maintenance-dashboard': 'Maintenance Dashboard',
   '/maintenance-agreements': 'Maintenance Agreements', '/maintenance-due': 'Maintenance Due',
   '/maintenance-tiers': 'Maintenance Tiers', '/filter-subscriptions': 'Filter Subscriptions',
@@ -111,6 +111,7 @@ const WORK_PAGES = [
   { label: 'Job Estimates', path: '/estimates' },
   { label: 'System Estimates', path: '/system-estimates' },
   { label: 'Invoices', path: '/invoices' },
+  { label: 'Projects', path: '/projects' },
   { label: 'Payments to Confirm', path: '/payments-to-confirm' },
 ]
 const DISPATCH_PAGES = [
