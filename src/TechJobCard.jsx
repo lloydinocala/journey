@@ -1387,6 +1387,53 @@ export default function TechJobCard({ profile }) {
           )}
         </div>
 
+        {/* Air Filters — the home's filter sizes / MERV / locations. Feeds the customer filter-ordering option. */}
+        <div className="jc-task">
+          <TaskHead k="filters" title="Air Filters" icon={<IconList />} done={filtersDone}
+            actions={<button className="jc-th-action" onClick={() => { setOpen('filters', true); startFilterAdd() }}>+Add</button>} />
+          {isOpen('filters') && (
+            <div className="jc-task-body">
+              <p className="jc-muted-note" style={{ marginBottom: 8 }}>Record each filter this home uses — size, MERV, and where it lives. Captured once for the home and reused on every visit.</p>
+              {filters.map((f) => (
+                <div key={f.id} className="jc-system filled">
+                  <div className="jc-system-top">
+                    <span className="jc-system-label">{[f.width, f.height, f.thickness].filter((n) => n != null).join(' × ') || 'Size not set'}{f.quantity > 1 ? ` · Qty ${f.quantity}` : ''}</span>
+                    <span className="jc-system-badge filled">{f.location || 'No location'}</span>
+                  </div>
+                  <div className="jc-system-detail">{f.merv != null ? `MERV ${f.merv}` : 'MERV not set'}</div>
+                  <div className="jc-system-actions"><button className="jc-btn-sm" onClick={() => startFilterEdit(f)}>Edit</button><button className="jc-btn-sm" style={{ color: 'var(--jc-red)' }} onClick={() => deleteFilter(f.id)}>Remove</button></div>
+                </div>
+              ))}
+              {filters.length === 0 && !showFilterForm && <p className="jc-plan-none">No filters recorded for this home yet.</p>}
+              {filters.length > 0 && <button className="jc-btn wide" style={{ marginTop: 10 }} onClick={() => setFilterModal(true)}>Order filters for the customer →</button>}
+              {showFilterForm && (
+                <div style={{ marginTop: 12 }}>
+                  <div className="jc-field-row">
+                    <div className="jc-field"><label>Width (in)</label><input type="number" inputMode="decimal" value={filterForm.width} onChange={(e) => setFilterForm({ ...filterForm, width: e.target.value })} placeholder="16" /></div>
+                    <div className="jc-field"><label>Height (in)</label><input type="number" inputMode="decimal" value={filterForm.height} onChange={(e) => setFilterForm({ ...filterForm, height: e.target.value })} placeholder="25" /></div>
+                    <div className="jc-field"><label>Thickness (in)</label><input type="number" inputMode="decimal" value={filterForm.thickness} onChange={(e) => setFilterForm({ ...filterForm, thickness: e.target.value })} placeholder="1" /></div>
+                  </div>
+                  <div className="jc-field-row">
+                    <div className="jc-field"><label>MERV</label><input type="number" inputMode="numeric" value={filterForm.merv} onChange={(e) => setFilterForm({ ...filterForm, merv: e.target.value })} placeholder="8" /></div>
+                    <div className="jc-field"><label>Quantity</label><input type="number" inputMode="numeric" min="1" value={filterForm.quantity} onChange={(e) => setFilterForm({ ...filterForm, quantity: e.target.value })} /></div>
+                  </div>
+                  <div className="jc-field"><label>Location</label>
+                    <select value={filterForm.location} onChange={(e) => setFilterForm({ ...filterForm, location: e.target.value })}>
+                      <option value="">Select…</option>
+                      {FILTER_LOCATIONS.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="jc-btn wide" disabled={savingFilter} onClick={saveFilter}>{savingFilter ? 'Saving…' : filterEditingId ? 'Save Changes' : 'Add Filter'}</button>
+                    <button className="jc-btn ghost" onClick={() => { setShowFilterForm(false); setFilterEditingId(null); setFilterForm(blankFilter) }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+              {!showFilterForm && <button className="jc-btn wide" style={{ marginTop: 10 }} onClick={startFilterAdd}>+ Add a filter</button>}
+            </div>
+          )}
+        </div>
+
         </div>)}
         </div>
         <div className={`jc-group ${estimateGroupDone ? 'blue' : 'red'}`}>
@@ -1452,53 +1499,6 @@ export default function TechJobCard({ profile }) {
             </div>
           )}
         </div>
-        {/* Air Filters — the home's filter sizes / MERV / locations. Feeds the customer filter-ordering option. */}
-        <div className="jc-task">
-          <TaskHead k="filters" title="Air Filters" icon={<IconList />} done={filtersDone}
-            actions={<button className="jc-th-action" onClick={() => { setOpen('filters', true); startFilterAdd() }}>+Add</button>} />
-          {isOpen('filters') && (
-            <div className="jc-task-body">
-              <p className="jc-muted-note" style={{ marginBottom: 8 }}>Record each filter this home uses — size, MERV, and where it lives. Captured once for the home and reused on every visit.</p>
-              {filters.map((f) => (
-                <div key={f.id} className="jc-system filled">
-                  <div className="jc-system-top">
-                    <span className="jc-system-label">{[f.width, f.height, f.thickness].filter((n) => n != null).join(' × ') || 'Size not set'}{f.quantity > 1 ? ` · Qty ${f.quantity}` : ''}</span>
-                    <span className="jc-system-badge filled">{f.location || 'No location'}</span>
-                  </div>
-                  <div className="jc-system-detail">{f.merv != null ? `MERV ${f.merv}` : 'MERV not set'}</div>
-                  <div className="jc-system-actions"><button className="jc-btn-sm" onClick={() => startFilterEdit(f)}>Edit</button><button className="jc-btn-sm" style={{ color: 'var(--jc-red)' }} onClick={() => deleteFilter(f.id)}>Remove</button></div>
-                </div>
-              ))}
-              {filters.length === 0 && !showFilterForm && <p className="jc-plan-none">No filters recorded for this home yet.</p>}
-              {filters.length > 0 && <button className="jc-btn wide" style={{ marginTop: 10 }} onClick={() => setFilterModal(true)}>Order filters for the customer →</button>}
-              {showFilterForm && (
-                <div style={{ marginTop: 12 }}>
-                  <div className="jc-field-row">
-                    <div className="jc-field"><label>Width (in)</label><input type="number" inputMode="decimal" value={filterForm.width} onChange={(e) => setFilterForm({ ...filterForm, width: e.target.value })} placeholder="16" /></div>
-                    <div className="jc-field"><label>Height (in)</label><input type="number" inputMode="decimal" value={filterForm.height} onChange={(e) => setFilterForm({ ...filterForm, height: e.target.value })} placeholder="25" /></div>
-                    <div className="jc-field"><label>Thickness (in)</label><input type="number" inputMode="decimal" value={filterForm.thickness} onChange={(e) => setFilterForm({ ...filterForm, thickness: e.target.value })} placeholder="1" /></div>
-                  </div>
-                  <div className="jc-field-row">
-                    <div className="jc-field"><label>MERV</label><input type="number" inputMode="numeric" value={filterForm.merv} onChange={(e) => setFilterForm({ ...filterForm, merv: e.target.value })} placeholder="8" /></div>
-                    <div className="jc-field"><label>Quantity</label><input type="number" inputMode="numeric" min="1" value={filterForm.quantity} onChange={(e) => setFilterForm({ ...filterForm, quantity: e.target.value })} /></div>
-                  </div>
-                  <div className="jc-field"><label>Location</label>
-                    <select value={filterForm.location} onChange={(e) => setFilterForm({ ...filterForm, location: e.target.value })}>
-                      <option value="">Select…</option>
-                      {FILTER_LOCATIONS.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="jc-btn wide" disabled={savingFilter} onClick={saveFilter}>{savingFilter ? 'Saving…' : filterEditingId ? 'Save Changes' : 'Add Filter'}</button>
-                    <button className="jc-btn ghost" onClick={() => { setShowFilterForm(false); setFilterEditingId(null); setFilterForm(blankFilter) }}>Cancel</button>
-                  </div>
-                </div>
-              )}
-              {!showFilterForm && <button className="jc-btn wide" style={{ marginTop: 10 }} onClick={startFilterAdd}>+ Add a filter</button>}
-            </div>
-          )}
-        </div>
-
         {/* IAQ and Checklists mount here in later builds (free-order tasks). */}
 
         {/* ========== WORK & BILLING — after the estimate is approved ========== */}
