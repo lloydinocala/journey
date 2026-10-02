@@ -6,6 +6,7 @@ import { getDeviceId } from './utils/deviceId'
 import AnnouncementBanner from './AnnouncementBanner'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
+import CallbackAlert from './CallbackAlert'
 import HelpDrawer from './HelpDrawer'
 import { ELEMENTS_FLEET_NAV, TOOLS_NAV } from './modules/elements-hvac'
 import { REFRIGERANT_NAV } from './modules/refrigerant-hvac'
@@ -404,6 +405,7 @@ export default function Layout({ profile }) {
   return (
     <div className="app-shell-v2">
       <ClockInPrompt profile={profile} />
+      <CallbackAlert profile={profile} />
       {logoutShiftId && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.75)', zIndex: 4500,
