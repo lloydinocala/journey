@@ -22,11 +22,15 @@ export const HELP_ARTICLES = [
       "import csv",
       "catalog"
     ],
-    "purpose": "The Pricebook is your service and repair price catalog. Each service holds one or more priced variants — a price for each real-world combination of location, access, hours, and part source — so the right number drops onto an estimate or invoice automatically.",
+    "purpose": "The Pricebook is your flat-rate service and repair price catalog. Each service holds one or more priced variants — a price for each real-world combination of location, access, hours, and part source — so the right number drops onto an estimate or invoice automatically. It comes in two parallel books, Residential Flat Rate and Commercial Flat Rate, that work exactly the same way.",
     "sections": [
       {
         "h": "What it is for",
         "body": "This is where every service and its pricing lives. A service (e.g. \"Capacitor replacement\") carries variants because the same job costs differently in an attic vs. at ground level, or with OEM vs. aftermarket parts. Set it up once and estimates and invoices build themselves at the right price."
+      },
+      {
+        "h": "Residential vs Commercial Flat Rate",
+        "body": "There are two flat-rate books — Residential Flat Rate and Commercial Flat Rate — reached from their own menu items. They are the same tool and work identically; each simply holds its own segment's services and prices, so commercial pricing never bleeds into residential. A job picks up prices from the book that matches its segment. For work that isn't flat-rate priced, use Time & Materials instead."
       },
       {
         "h": "Building services and prices",
@@ -332,10 +336,85 @@ export const HELP_ARTICLES = [
         "body": "Import in dependency order — Customers and Properties before Jobs — so each job can find its customer and property. Also on the Data Station rail: the Pricebook, Systems Pricebook, Special Features, Discount Catalog, PM Checklists, System Estimate Setup, and Checklists setup pages. Platform owners get an organization picker on the individual importers."
       }
     ]
+  },
+  {
+    "id": "time-and-materials",
+    "title": "Time & Materials",
+    "area": "Data Station",
+    "keywords": [
+      "time and materials",
+      "t&m",
+      "time & materials",
+      "parts",
+      "labor",
+      "preferred vendor",
+      "last cost",
+      "units",
+      "non-flat-rate",
+      "catalog"
+    ],
+    "purpose": "Time & Materials is the parts reference for work that is not covered by a flat-rate price — a lean view of your parts catalog showing each part's category, preferred vendor, units, and last cost. It is shared by both residential and commercial work.",
+    "sections": [
+      {
+        "h": "What it is for",
+        "body": "When a job is priced by time and materials rather than a flat rate, this is where you look up the part. It is deliberately simple — just the facts a person needs to price a line: what the part is, its category, who you prefer to buy it from, the unit it is counted in, and what it last cost. The full catalog (stock, offerings, receiving) lives in the Parts Catalog; this is the quick pricing-side view onto it."
+      },
+      {
+        "h": "Reading the list",
+        "items": [
+          "Each row shows the Part, its Category, the Preferred Vendor, Units, and Last Cost. Use the search box to find a part by name, model, or SKU; the list loads in pages, so press Load more to see further results on a large catalog.",
+          "Edit a row to set or change its Preferred Vendor, or to Archive a part you no longer carry. Archiving hides it here without deleting its history.",
+          "Last Cost comes from the most recent priced receipt in the Parts Catalog — so loading your vendor pricing keeps these numbers honest even for parts you do not stock."
+        ]
+      },
+      {
+        "h": "Good to know",
+        "body": "Time & Materials reads from the same parts pool as the Parts Catalog, so a part added or received there shows here automatically. Setting a preferred vendor here is the same preferred-vendor field used across the catalog."
+      }
+    ]
+  },
+  {
+    "id": "filter-pricebook",
+    "title": "Filter Pricebook",
+    "area": "Data Station",
+    "keywords": [
+      "filter pricebook",
+      "filters",
+      "air filter",
+      "merv",
+      "size",
+      "retail price",
+      "portal",
+      "subscription",
+      "export csv",
+      "import"
+    ],
+    "purpose": "The Filter Pricebook is your retail price list for air filters by size, type, and MERV. It feeds Filter Orders, filter subscriptions, and the prices customers see in the portal, so one list keeps every filter sale priced the same way.",
+    "sections": [
+      {
+        "h": "What it is for",
+        "body": "Every filter you sell — by nominal size, type, and MERV rating — lives here with its retail price. When a filter order is placed (in the office, by a tech, or by a customer in the portal) the price comes straight from this book, and subscription billing uses it too. Keep it current and every channel stays in agreement."
+      },
+      {
+        "h": "Managing filters",
+        "items": [
+          "Add or edit a filter — set its size, type/MERV, customer-facing description, and retail price. Use the status and search filters at the top to find rows quickly or to focus on active vs. archived items.",
+          "Export CSV to pull the whole book for review or bulk edits, and import to load or update prices in bulk. Archive a filter you no longer stock to hide it without losing its history.",
+          "Bulk-loading a new price file is also available from the Data Station's Import hub (Import Filter Price Book)."
+        ]
+      },
+      {
+        "h": "Good to know",
+        "body": "Because the portal and subscriptions read these prices directly, a change here is live for customers immediately — review before you save. Platform owners get an organization picker."
+      }
+    ]
   }
 ]
 
 export const ROUTE_HELP = {
+  "/pricebook-commercial": "pricebook",
+  "/time-and-materials": "time-and-materials",
+  "/filter-pricebook": "filter-pricebook",
   "/system-estimate-setup": "system-estimate-setup",
   "/pm-checklists": "pm-checklists",
   "/pricebook": "pricebook",

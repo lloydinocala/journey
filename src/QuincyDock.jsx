@@ -55,7 +55,7 @@ export default function QuincyDock({ profile, context = null }) {
     const next = [...messages, { role: 'user', content: text }]
     setMessages(next); setInput(''); setSending(true)
     saveMessage('user', text)
-    const { data, error: fnErr } = await supabase.functions.invoke('apollo-chat', { body: { messages: next } })
+    const { data, error: fnErr } = await supabase.functions.invoke('apollo-chat', { body: { messages: next, context: context || undefined } })
     setSending(false)
     if (fnErr || data?.error) { setError(data?.error || fnErr?.message || 'Quincy is having trouble responding right now.'); return }
     setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }])

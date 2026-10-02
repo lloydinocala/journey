@@ -4,6 +4,12 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { IconChevronLeft, IconFile } from './MobileIcons'
 import { can } from './utils/permissions'
+import AiAssist from './AiAssist'
+
+// Customer-facing scope-of-work summary for a field service estimate — reads only the
+// estimate's line items (and the diagnosis, when present) and drafts a couple of plain
+// sentences the tech can read to the customer or paste in. Editable, never auto-sent.
+const EST_SCOPE_SYS = 'Write a short, customer-facing scope-of-work summary for an HVAC repair estimate, based only on the line items (and diagnosis, if given) provided. 2 to 4 plain-language sentences a homeowner understands, describing what the work covers and why. Do not invent items or prices, and do not state any dollar total. Ready to paste into the estimate.'
 
 function unitLine(label, brand, model, serial) {
   if (!brand && !model && !serial) return null
@@ -561,6 +567,15 @@ export default function TechEstimate({ profile }) {
                 <option value="Pending Financing">Pending Financing</option>
               </select>
             </div>
+            {serviceLineItems.length > 0 && (
+              <div className="mobile-field">
+                <label>Scope of work</label>
+                <AiAssist inline title="Draft scope of work" label="✨ AI: draft scope"
+                  system={EST_SCOPE_SYS}
+                  prompt="Write a short customer-facing scope-of-work summary for this estimate, based on its line items."
+                  context={{ estimate: estimate.invoice_number, customer: job.properties?.customers?.display_name, diagnosis: job.diagnosis_note || undefined, line_items: serviceLineItems.map((li) => ({ description: li.description, qty: li.quantity, unit_price: li.unit_price })) }} />
+              </div>
+            )}
             {!job.trip_charge && <p style={{ color: '#C0392B', fontSize: 12.5, margin: 0 }}>No trip charge set on this job — set it on the Jobs page for pricebook lookups.</p>}
           </div>
         </div>

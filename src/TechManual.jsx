@@ -35,6 +35,7 @@ const SECTIONS = [
     h: 'Estimates & invoices',
     items: [
       'Build a job estimate or a system (equipment) estimate right from the job. Add your line items and any approved discounts, then present it to the customer.',
+      'On an estimate, tap "✨ AI: draft scope" (or "draft proposal" on a system estimate) to turn your line items into a short, plain-language summary for the customer. It writes a draft you can edit — read it over and fix anything before you share it. It never sends on its own.',
       'When the work is done, create an invoice for it.',
       'Use Collect Payment on the job to take payment in the field.',
     ],
@@ -44,6 +45,7 @@ const SECTIONS = [
     items: [
       'On a maintenance visit, open the PM checklist and complete each item as you go.',
       'It saves as you work — there is nothing extra to press to keep your progress.',
+      'When the checklist is complete, tap "✨ AI: draft visit summary" to turn your results into a short, honest recap for the customer — it says plainly when everything is fine and only flags what truly needs attention. Review and edit it before you share it.',
     ],
   },
   {
@@ -51,6 +53,7 @@ const SECTIONS = [
     items: [
       'Tap Ask Quincy on a job or any of its screens to open Quincy without leaving your work — ask your question and your place is kept.',
       'From the home screen, Chat with Quincy opens the full Quincy screen. It is the same conversation either way.',
+      'When you open Quincy from inside a job, it knows which job you are on — so you can ask about "this job" or "this customer" and it answers with that in mind. It only has the basics of the job; for specific details it will point you to the right screen rather than guess.',
     ],
   },
   {

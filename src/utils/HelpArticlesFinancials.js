@@ -44,6 +44,7 @@ export const HELP_ARTICLES = [
         "items": [
           "Send / Resend emails the invoice with a pay link; View opens the customer’s copy; Edit opens the invoice to change it.",
           "For a sent, overdue invoice, AI reminder drafts a short, courteous payment reminder for you to review and send.",
+          "Inside the invoice (Edit), an \"✨ AI: draft work summary\" helper turns the line items into a short, plain-language recap of the work performed for the customer. Review and edit it, then paste it into the invoice or a thank-you note — it never sends on its own and never states a total.",
           "Mark Paid opens Record Payment — enter the actual amount, method (cash/check/card/other), check number, and any note. It posts to the payment ledger and settles the balance. Receive Payment (top of the page) records a payment not tied to a single row.",
           "Recorded something wrong? Unmark Paid reverses it with an offsetting ledger entry, keeping the audit trail intact."
         ]
@@ -142,11 +143,57 @@ export const HELP_ARTICLES = [
         "body": "Output is the WH-347 with its Statement of Compliance, ready to file for the week. Workers and their base info come from the Employees record in HR."
       }
     ]
+  },
+  {
+    "id": "projects-progress-billing",
+    "title": "Projects (Progress Billing)",
+    "area": "Financials",
+    "keywords": [
+      "project",
+      "projects",
+      "progress billing",
+      "draw",
+      "draws",
+      "draw schedule",
+      "retainage",
+      "contract",
+      "billing mode",
+      "milestone",
+      "large job",
+      "phased"
+    ],
+    "purpose": "Projects group the jobs of one big, multi-visit contract under a single contract total and bill it in stages — draws — instead of one invoice at the end. Each draw becomes its own invoice, with retainage held back and released when you are ready.",
+    "sections": [
+      {
+        "h": "What it is for",
+        "body": "A system changeout or a phased install is not one trip and one bill — it is a contract you collect against as the work progresses. A Project holds the whole contract: its total price, the jobs that belong to it, and a schedule of draws (a deposit, a start-of-work draw, a completion draw, and so on). You bill a draw when its milestone is reached, and the project tracks what has been contracted, billed, paid, and still remaining."
+      },
+      {
+        "h": "Setting up a project",
+        "items": [
+          "Open Projects and open (or create) a project, then set its name, Contract Total, Retainage %, and billing mode. Jobs of a project type attach to it automatically; from a project you can also attach or detach jobs, and use + Add to create a new job already linked to this project.",
+          "The rollup tiles across the top always show Contract, Estimated, Billed, Paid, Remaining, and Retainage held, so you can see the financial state of the whole contract at a glance."
+        ]
+      },
+      {
+        "h": "Billing a draw",
+        "items": [
+          "Build the draw schedule — add each draw with a label and either a percent of the contract or a dollar amount (a 10% deposit, 40% on start, and so on).",
+          "Press Bill on a draw to generate its invoice. Journey creates a normal INV-#### invoice for the draw amount net of retainage, with a line item describing the draw, so it collects and pays like any other invoice.",
+          "Retainage is held back on each draw automatically; when the job is accepted, Release retainage bills the held amount as its own draw invoice."
+        ]
+      },
+      {
+        "h": "Good to know",
+        "body": "Draw invoices are ordinary invoices — they appear on the Invoices page, age on the Operations Dashboard, and accept payment the same way. Closing a project keeps it for the record. Everything is scoped to the selected organization."
+      }
+    ]
   }
 ]
 
 export const ROUTE_HELP = {
   "/invoices": "invoices",
+  "/projects": "projects-progress-billing",
   "/rewards/payroll/prepare": "payroll",
   "/rewards/payroll/paychecks": "payroll",
   "/rewards/payroll/tax-center": "payroll",

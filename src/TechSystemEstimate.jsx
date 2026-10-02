@@ -4,6 +4,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { IconChevronLeft, IconCalculator } from './MobileIcons'
 import RoutingSummary from './RoutingSummary'
+import AiAssist from './AiAssist'
+
+// Homeowner-facing proposal summary for a field system-replacement estimate — reads only
+// the estimate's line items (equipment, install includes, warranty) and drafts a few warm,
+// plain-language sentences the tech can read to the customer or paste in. Editable, never auto-sent.
+const SYS_PROPOSAL_SYS = 'You write a short, warm, customer-facing proposal summary for a residential HVAC system replacement, using only the line items provided (the equipment, what the installation includes, and the warranty). Write 3 to 5 plain-language sentences a homeowner understands: what system is being installed and why it is a solid choice, what the installation covers, and the warranty / peace-of-mind. Translate model numbers and specs into plain benefits; do not list raw model or AHRI numbers. Do not invent items, specs, or prices, and do not state any dollar total. Ready to paste into the proposal.'
 
 export default function TechSystemEstimate({ profile }) {
   const { jobId, estimateId } = useParams()
@@ -302,6 +308,15 @@ export default function TechSystemEstimate({ profile }) {
                 <option value="Pending Financing">Pending Financing</option>
               </select>
             </div>
+            {lineItems.length > 0 && (
+              <div className="mobile-field">
+                <label>Proposal summary</label>
+                <AiAssist inline title="Draft proposal summary" label="✨ AI: draft proposal"
+                  system={SYS_PROPOSAL_SYS}
+                  prompt="Write a short, warm customer-facing proposal summary for this system-replacement estimate, based on its line items."
+                  context={{ estimate: estimate.invoice_number, customer: job.properties?.customers?.display_name, line_items: billable.map((li) => ({ section: li.category, description: li.description })) }} />
+              </div>
+            )}
           </div>
         </div>
 

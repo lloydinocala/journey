@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import AiAssist from './AiAssist'
+
+// Customer-facing PM visit summary — reads only the checklist results and drafts a few
+// warm, honest sentences for the customer. Deliberately non-pushy: if everything is fine it
+// says so plainly, in keeping with "let the tool say your system is fine, buy nothing".
+// Editable, never auto-sent.
+const PM_SUMMARY_SYS = "You write a short, warm, customer-facing summary of a completed HVAC preventive-maintenance visit, using only the checklist results provided. 3 to 5 plain-language sentences a homeowner understands: reassure about what is working, clearly and calmly note anything that needs attention (especially red-tag / safety items), and keep an honest, non-pushy tone — if everything is fine, say so plainly and recommend nothing. Do not invent findings and do not suggest purchases that are not in the results. Ready to paste into the report or a message to the customer."
 
 // Full-page checklist runner for a PM job. One job = one system = one checklist.
 // Snapshots the checklist into an immutable run, then the tech works each item.
@@ -162,6 +169,17 @@ export default function TechChecklistRun({ profile }) {
           ))}
         </div>
       ))}
+
+      {done && results.some((r) => r.status) && (
+        <div style={{ marginTop: 22, border: '1px solid var(--border)', borderRadius: 10, padding: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--mist)', marginBottom: 6 }}>Visit summary</div>
+          <p style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 0, marginBottom: 10 }}>Draft a plain-language recap of this visit for the customer. Review and edit before you share it.</p>
+          <AiAssist inline title="Draft visit summary" label="✨ AI: draft visit summary"
+            system={PM_SUMMARY_SYS}
+            prompt="Write a short, honest customer-facing summary of this maintenance visit, based on the checklist results."
+            context={{ checklist: run?.checklist_name, customer: job?.properties?.customers?.display_name, results: results.filter((r) => r.status).map((r) => ({ section: r.section_name, item: r.inspection_task, status: r.status, reading: r.value_recorded ? `${r.value_recorded}${r.record_units ? ' ' + r.record_units : ''}` : undefined, spec: r.spec_label || undefined, note: r.notes || undefined, red_tag: r.red_tag || undefined })) }} />
+        </div>
+      )}
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--surface,#fff)', borderTop: '1px solid var(--border)', padding: 12, display: 'flex', gap: 10, justifyContent: 'center' }}>
         {done ? (

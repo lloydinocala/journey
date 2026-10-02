@@ -4,6 +4,12 @@ import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
 import SignaturePad from './SignaturePad'
 import RoutingSummary from './RoutingSummary'
+import AiAssist from './AiAssist'
+
+// Customer-facing "work performed" summary for a finished invoice — reads only the invoice
+// line items (and the diagnosis, when present) and drafts a couple of plain sentences for
+// the customer recapping what was done. Editable, never auto-sent.
+const WORK_SUMMARY_SYS = 'Write a short, customer-facing summary of the work performed, based only on the invoice line items (and diagnosis, if given) provided. 2 to 4 plain-language sentences a homeowner understands, describing what was done and why. Use past tense (the work is complete). Do not invent items or prices, and do not state any dollar total. Ready to paste into the invoice or a thank-you note.'
 
 const NOT_PRESENT_REASONS = [
   'Phone verbal authorization',
@@ -550,6 +556,14 @@ async function loadLineItems(invoiceId) {
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.display_name}</p>
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.street_address}</p>
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.primary_phone} · {job.properties?.customers?.email_1}</p>
+              {lineItems.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <AiAssist title="Draft work summary" label="✨ AI: draft work summary"
+                    system={WORK_SUMMARY_SYS}
+                    prompt="Write a short customer-facing summary of the work performed on this invoice, based on its line items."
+                    context={{ invoice: invoice.invoice_number, customer: job.properties?.customers?.display_name, diagnosis: job.diagnosis_note || undefined, line_items: lineItems.map((li) => ({ description: li.description, qty: li.quantity, unit_price: li.unit_price })) }} />
+                </div>
+              )}
             </div>
             <div style={{ textAlign: 'right' }}>
               {job.trip_charge ? (

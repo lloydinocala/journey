@@ -213,7 +213,8 @@ export const HELP_ARTICLES = [
         "items": [
           "Set the Estimating Technician and update Approval Status (Pending, Approved, Declined, Pending Financing, Completed) right in the row.",
           "Send / Resend emails the estimate to the customer (the button’s tooltip shows when it was last sent and to whom); View opens the customer-facing copy; Edit opens the estimate to change it.",
-          "+ Incomplete flags the linked job as needing another visit and attaches this estimate to it."
+          "Inside the estimate (Edit), an \"✨ AI: draft scope\" helper turns the line items into a short, plain-language scope-of-work summary a homeowner understands. You review and edit the draft, then paste it in — it never sends anything on its own and never states a total.",
+        "+ Incomplete flags the linked job as needing another visit and attaches this estimate to it."
         ]
       },
       {
@@ -258,7 +259,8 @@ export const HELP_ARTICLES = [
         "items": [
           "Click + New System Estimate to start one — it quotes a system against a property (no job needed yet).",
           "Each row links the customer to their file and the property to Properties. Set the Estimating Technician and Approval Status inline.",
-          "Send / Resend emails the proposal; View shows the customer’s copy; Edit reopens the estimate. Search, filter by status, show archived, pick columns, and Export CSV as on the other tables."
+          "Send / Resend emails the proposal; View shows the customer’s copy; Edit reopens the estimate. Search, filter by status, show archived, pick columns, and Export CSV as on the other tables.",
+        "Opening a system estimate (Edit) shows an \"✨ AI: draft proposal\" helper that turns the equipment, installation, and warranty lines into a warm, plain-language proposal summary for the homeowner — translating model numbers into benefits. Review, edit, and paste; nothing is sent automatically and no total is stated."
         ]
       },
       {

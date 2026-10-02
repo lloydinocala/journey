@@ -177,7 +177,12 @@ export const HELP_ARTICLES = [
       "logo",
       "payment terms",
       "organization",
-      "preferences"
+      "preferences",
+      "job types",
+      "routing",
+      "job type config",
+      "diagnosis",
+      "checklist"
     ],
     "purpose": "Your organization’s settings — the things you configure once that flow through the whole app.",
     "sections": [
@@ -187,6 +192,14 @@ export const HELP_ARTICLES = [
           "Business hours and holidays — which drive the slots available on the Calendar and in booking.",
           "Branding shown to customers on estimates and invoices.",
           "Payment terms and other organization-wide preferences."
+        ]
+      },
+      {
+        "h": "Job types & routing",
+        "items": [
+          "Each job type carries its own routing rules, so the type you choose when a job is created is what decides how that job behaves — there is no hard-coded logic behind it.",
+          "Per type you set: what fills the Diagnosis step, the estimate format (service/repair vs. a full system proposal), which pricebook it draws from, whether it runs as a progress-billing Project, how it invoices, and whether it is customer-facing.",
+          "A job type can be linked to a Checklist; any checklist you create is available to assign here and shows automatically in the dropdown, so new checklists are usable the moment you make them."
         ]
       }
     ]

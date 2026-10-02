@@ -131,11 +131,48 @@ export const HELP_ARTICLES = [
         "body": "The Train Station rolls up the \"start\" areas (Dispatch, Jobs & Customers, Maintenance, Permitting, refrigerant compliance). Inventory and Marketing have their own hubs and do not appear here. Everything is scoped to your organization."
       }
     ]
+  },
+  {
+    "id": "feature-directory",
+    "title": "Feature Directory (Find a Feature)",
+    "area": "Overview",
+    "keywords": [
+      "feature directory",
+      "find a feature",
+      "find feature",
+      "search features",
+      "where is",
+      "navigation",
+      "index",
+      "a-z",
+      "compass",
+      "quick access"
+    ],
+    "purpose": "The Feature Directory is a searchable A–Z index of every feature in the app, each with how to reach it from Home and a direct link. It is the fastest way to jump somewhere — or to find a feature when you are not sure where it lives.",
+    "sections": [
+      {
+        "h": "What it is for",
+        "body": "Journey is a big app, and no one memorizes where everything sits. The Feature Directory answers \"where is that?\" in one place: type what you are after and it lists the matching features with the menu path to each and a link that opens it. It is built from the live menu, so it always reflects exactly what your account can see."
+      },
+      {
+        "h": "Using it",
+        "items": [
+          "Open it from the \"🧭 Find a Feature\" button at the top-right of any office page.",
+          "Type in the search box to filter by feature name, the navigation heading, or the page — e.g. \"invoice\", \"payroll\", \"fleet\".",
+          "Each row shows the Feature, its Navigation heading and page (how to reach it from Home), and an open → link that takes you straight there."
+        ]
+      },
+      {
+        "h": "Good to know",
+        "body": "The directory only lists features your role and your organization's modules include, so what you see is what you can actually open. It is reporting on navigation — it changes nothing."
+      }
+    ]
   }
 ]
 
 export const ROUTE_HELP = {
   "/home": "home-dashboard",
   "/": "home-dashboard",
-  "/train-station": "train-station"
+  "/train-station": "train-station",
+  "/features": "feature-directory"
 }
