@@ -57,6 +57,8 @@ export default function FilterPricebookImport({ profile }) {
   const [skipped, setSkipped] = useState([])
   const [clearFirst, setClearFirst] = useState(false)
   const [error, setError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('active')  // active | hidden | all
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     if (isSuperAdmin) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
@@ -119,6 +121,20 @@ export default function FilterPricebookImport({ profile }) {
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = 'filter-pricebook-template.csv'
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  function exportCsv() {
+    const toRow = (r) => ({
+      Height: r.height ?? '', Width: r.width ?? '', Thickness: r.thickness ?? '', Type: r.type ?? '', MERV: r.merv ?? '',
+      '1-3 ea': r.price_1 ?? '', '4-5 ea': r.price_4 ?? '', '6-11 ea': r.price_6 ?? '', 'Case of 12': r.price_case ?? '',
+      Vendor: r.vendor ?? '', Notes: r.notes ?? '', 'Product URL': r.product_url ?? '',
+    })
+    const blob = new Blob([Papa.unparse(rows.map(toRow))], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'filter-pricebook.csv'
     a.click()
     URL.revokeObjectURL(a.href)
   }
@@ -202,9 +218,23 @@ export default function FilterPricebookImport({ profile }) {
     />
   )
 
+  const q = search.trim().toLowerCase()
+  const visibleRows = rows.filter((r) => {
+    if (statusFilter === 'active' && !r.is_active) return false
+    if (statusFilter === 'hidden' && r.is_active) return false
+    if (q) {
+      const hay = `${r.height ?? ''}x${r.width ?? ''}x${r.thickness ?? ''} ${r.type ?? ''} ${r.merv ?? ''} ${r.vendor ?? ''} ${r.notes ?? ''}`.toLowerCase()
+      if (!hay.includes(q)) return false
+    }
+    return true
+  })
+
   return (
     <div style={{ maxWidth: 1150, margin: '0 auto' }}>
-      <div className="page-header-bar"><h2>Filter Price Book</h2></div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+        <h2 className="page-title" style={{ margin: 0 }}>Filter Pricebook</h2>
+        <span className="badge">{rows.length.toLocaleString()} prices</span>
+      </div>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 760 }}>
         Your retail filter prices by size, type, and MERV, with quantity breaks by total ordered — 1–3, 4–5,
         6–11, and 12+ (case). The 1–3 / 4–5 / 6–11 columns are the price PER FILTER at that quantity; “Case of 12”
@@ -221,6 +251,7 @@ export default function FilterPricebookImport({ profile }) {
       {/* Bulk import: download a template, then pick a CSV from your computer */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
         <button className="logout-button" onClick={downloadTemplate}>Download template</button>
+        <button className="logout-button" onClick={exportCsv} disabled={!rows.length}>Export CSV</button>
         <label className="auth-button" style={{ width: 'auto', padding: '9px 18px', cursor: 'pointer', display: 'inline-block', opacity: selectedOrg ? 1 : 0.5 }}>
           {importing ? 'Importing…' : 'Choose CSV & Import'}
           <input type="file" accept=".csv,text/csv" onChange={handleFile} disabled={importing || !selectedOrg} style={{ display: 'none' }} />
@@ -262,6 +293,17 @@ export default function FilterPricebookImport({ profile }) {
         <button className="auth-button" type="submit" style={{ width: 'auto', padding: '8px 18px' }} disabled={saving}>{saving ? 'Adding…' : 'Add row'}</button>
       </form>
 
+      {rows.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input type="text" placeholder="Search size, type, vendor…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ padding: '8px 10px', minWidth: 220 }} />
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="active">Active</option>
+            <option value="hidden">Hidden</option>
+            <option value="all">All</option>
+          </select>
+          <span style={{ fontSize: 12, color: 'var(--mist)' }}>{visibleRows.length.toLocaleString()} shown</span>
+        </div>
+      )}
       {/* The grid */}
       {loading ? <p style={{ color: 'var(--mist)' }}>Loading…</p> : rows.length === 0 ? (
         <p style={{ color: 'var(--mist)' }}>No filter prices yet. Import a CSV above or add a row.</p>
@@ -276,7 +318,7 @@ export default function FilterPricebookImport({ profile }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => {
+              {visibleRows.map((r) => {
                 const editing = editingId === r.id
                 return (
                   <tr key={r.id} style={{ opacity: r.is_active ? 1 : 0.5 }}>

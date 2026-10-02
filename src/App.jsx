@@ -350,6 +350,7 @@ function AuthenticatedApp() {
         <Route path="/pricebook-commercial" element={<Pricebook profile={profile} segment="commercial" />} />
         <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />
         <Route path="/time-and-materials" element={<TimeMaterials profile={profile} />} />
+        <Route path="/filter-pricebook" element={<FilterPricebookImport profile={profile} />} />
         <Route path="/special-features" element={<SpecialFeatures profile={profile} />} />
         <Route path="/system-estimate-setup" element={<SystemEstimateSetup profile={profile} />} />
         <Route path="/pm-checklists" element={<PMChecklists profile={profile} />} />
