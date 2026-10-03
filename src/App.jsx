@@ -75,6 +75,7 @@ import Estimates from './Estimates'
 import Announcements from './Announcements'
 import PublicInvoice from './PublicInvoice'
 import PublicChecklistReport from './PublicChecklistReport'
+import PublicTrack from './PublicTrack'
 import JoinPlan from './JoinPlan'
 import ServiceHub from './ServiceHub'
 import ServiceApproval from './ServiceApproval'
@@ -439,6 +440,7 @@ export default function App() {
       <Routes>
         <Route path="/view-invoice/:invoiceId" element={<PublicInvoice />} />
         <Route path="/view-report/:runId" element={<PublicChecklistReport />} />
+        <Route path="/track/:token" element={<PublicTrack />} />
         <Route path="/join-plan/:propertyId" element={<JoinPlan />} />
         <Route path="/r/:token" element={<ServiceHub />} />
         <Route path="/a/:token" element={<ServiceApproval />} />
