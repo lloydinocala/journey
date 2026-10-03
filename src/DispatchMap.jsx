@@ -281,25 +281,45 @@ export default function DispatchMap({ profile }) {
     const ids = optTech === 'all'
       ? [...new Set(located.map((j) => j.lead_user_id))]
       : [optTech]
-    const out = {}
-    for (const id of ids) {
-      const stops = located.filter((j) => j.lead_user_id === id)
-      if (stops.length < 1) continue
-      const u = users.find((x) => x.id === id)
-      const start = freshLoc(id)
-      const order = optimizeOrder(stops, start)
-      // optimized totals
-      let mi = 0, min = 0, prev = start || order[0]
-      const seq = start ? order : order.slice(1)
-      for (const p of seq) { mi += legMiles(prev, p); min += legMin(prev, p); prev = p }
-      // current scheduled order (by start time) for a savings comparison
-      const cur = stops.slice().sort((a, b) => (a.start_raw || '').localeCompare(b.start_raw || ''))
-      let cmi = 0, cprev = start || cur[0]; const cseq = start ? cur : cur.slice(1)
-      for (const p of cseq) { cmi += legMiles(cprev, p); cprev = p }
-      out[id] = { order, totalMi: mi, totalMin: min, savedMi: Math.max(0, cmi - mi),
-        start, color: u?.calendar_color || '#2F5DE3', name: u?.full_name || 'Tech' }
-    }
-    setOptRoutes(out)
+    let cancelled = false
+    ;(async () => {
+      const out = {}
+      for (const id of ids) {
+        const stops = located.filter((j) => j.lead_user_id === id)
+        if (stops.length < 1) continue
+        const u = users.find((x) => x.id === id)
+        const start = freshLoc(id)
+        // Built-in straight-line order + totals (instant, always available, and the fallback).
+        const order = optimizeOrder(stops, start)
+        let mi = 0, min = 0, prev = start || order[0]
+        const seq = start ? order : order.slice(1)
+        for (const p of seq) { mi += legMiles(prev, p); min += legMin(prev, p); prev = p }
+        const cur = stops.slice().sort((a, b) => (a.start_raw || '').localeCompare(b.start_raw || ''))
+        let cmi = 0, cprev = start || cur[0]; const cseq = start ? cur : cur.slice(1)
+        for (const p of cseq) { cmi += legMiles(cprev, p); cprev = p }
+        let rec = { order, totalMi: mi, totalMin: min, savedMi: Math.max(0, cmi - mi),
+          start, color: u?.calendar_color || '#2F5DE3', name: u?.full_name || 'Tech', road: false, geometry: null }
+        // Upgrade to road-accurate miles/ETAs + a real road path when the provider is connected.
+        if (stops.length >= 2) {
+          try {
+            const { data } = await supabase.functions.invoke('route-optimize', {
+              body: { stops: stops.map((s) => ({ id: s.id, lat: s.lat, lng: s.lng })), start: start || null },
+            })
+            if (data?.ok && Array.isArray(data.orderIds) && data.orderIds.length === stops.length) {
+              const byId = Object.fromEntries(stops.map((s) => [s.id, s]))
+              const roadOrder = data.orderIds.map((x) => byId[x]).filter(Boolean)
+              if (roadOrder.length === stops.length) {
+                rec = { ...rec, order: roadOrder, totalMi: data.totalMeters / 1609.34, totalMin: data.totalSeconds / 60,
+                  geometry: data.geometry || null, road: true }
+              }
+            }
+          } catch { /* keep the straight-line fallback */ }
+        }
+        out[id] = rec
+      }
+      if (!cancelled) setOptRoutes(out)
+    })()
+    return () => { cancelled = true }
   }, [optTech, jobs, techs, users]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Techs that have assigned, located jobs today — the choices for the Routes picker.
@@ -427,7 +447,11 @@ export default function DispatchMap({ profile }) {
       const latlngs = []
       if (rt.start) latlngs.push([rt.start.lat, rt.start.lng])
       rt.order.forEach((p) => latlngs.push([p.lat, p.lng]))
-      if (latlngs.length >= 2) {
+      if (rt.geometry && rt.geometry.coordinates) {
+        // Road-accurate path from the provider (follows real streets).
+        window.L.geoJSON(rt.geometry, { style: { color: rt.color, weight: 4, opacity: 0.85, lineCap: 'round' } }).addTo(layer)
+      } else if (latlngs.length >= 2) {
+        // Straight-line fallback (dashed) until road routing is connected.
         window.L.polyline(latlngs, { color: rt.color, weight: 3.5, opacity: 0.8, dashArray: '2,7', lineCap: 'round' }).addTo(layer)
       }
       if (rt.start) {
@@ -600,7 +624,7 @@ export default function DispatchMap({ profile }) {
               </span>
             ))}
           </div>
-          <div style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 6 }}>Numbered pins show the suggested visit order from each tech's current location when known. Distances are straight-line estimates; road-accurate miles and ETAs turn on once a maps-provider key is connected.</div>
+          <div style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 6 }}>Numbered pins show the suggested visit order from each tech's current location when known. {Object.values(optRoutes).some((r) => r.road) ? 'Distances and ETAs are road-accurate (live driving data).' : 'Distances are straight-line estimates; road-accurate miles and ETAs turn on once the maps-provider key is connected.'}</div>
         </div>
       )}
       <div ref={containerRef} style={{ height: 'calc(100vh - 250px)', minHeight: 420, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: '#e8edf1' }} />
