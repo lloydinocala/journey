@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { printServiceFlyer } from './utils/serviceFlyer'
 
 const CAT_LABEL = { repair: 'Repair', tuneup: 'Tune-up', question: 'Question' }
 const URG_COLOR = { emergency: '#DC2626', soon: '#9a6a12', flexible: '#1b7a3d' }
@@ -133,8 +134,32 @@ export default function ServiceRequests({ profile }) {
     const { data, error } = await supabase.rpc('ensure_service_token', { p_property_id: p.id })
     if (error) { alert(error.message); return }
     const url = `${window.location.origin}/r/${data}`
-    setQr({ url, address: [p.street_address, p.unit, p.city].filter(Boolean).join(' ') })
+    const { data: st } = await supabase.rpc('service_qr_status', { p_property_id: p.id })
+    setQr({
+      url,
+      propertyId: p.id,
+      address: [p.street_address, p.unit, p.city].filter(Boolean).join(' '),
+      printed_at: st?.printed_at || null,
+      orgName: st?.org_name || '',
+      orgLogoUrl: st?.org_logo_url || '',
+      orgPhone: st?.org_phone || '',
+    })
     setQresults([]); setQsearch('')
+  }
+
+  // Print the branded 5.5x8.5 flyer and record that this property now has a QR handed out.
+  async function printFlyer() {
+    if (!qr) return
+    const { data, error } = await supabase.rpc('mark_service_qr_printed', { p_property_id: qr.propertyId })
+    if (error) { alert(error.message); return }
+    printServiceFlyer({
+      qrUrl: qr.url,
+      orgName: data?.org_name || qr.orgName,
+      orgLogoUrl: data?.org_logo_url || qr.orgLogoUrl,
+      orgPhone: data?.org_phone || qr.orgPhone,
+      address: qr.address,
+    })
+    setQr((q) => (q ? { ...q, printed_at: data?.printed_at || new Date().toISOString() } : q))
   }
 
   const awaiting = reqs.filter((r) => r.status === 'awaiting_owner').sort(byTriage)
@@ -263,7 +288,7 @@ export default function ServiceRequests({ profile }) {
         )}
 
       <h3 style={{ fontSize: 16, marginTop: 28 }}>Print a service QR sticker</h3>
-      <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>Find a property, generate its QR, and print it for the air handler. Scanning it opens this request page for that address.</p>
+      <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>Find a property, then print the branded 8.125×5 label (your logo, business name, and the landlord-approval notice) to leave at the home. Scanning the code opens the service-request page for that address. Printing the flyer marks the property as having a QR code.</p>
       <input style={{ maxWidth: 380, width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, background: '#fff', color: '#0f172a' }}
         value={qsearch} onChange={(e) => searchProps(e.target.value)} placeholder="Search by street address or customer name…" />
       {qresults.length > 0 && (
@@ -281,8 +306,14 @@ export default function ServiceRequests({ profile }) {
           <div style={{ fontWeight: 700, marginBottom: 8 }}>{qr.address}</div>
           <img alt="Service QR" src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=10&data=${encodeURIComponent(qr.url)}`} style={{ width: 240, height: 240 }} />
           <div style={{ fontSize: 12, color: 'var(--mist)', wordBreak: 'break-all', marginTop: 6 }}>{qr.url}</div>
+          {qr.printed_at && (
+            <div style={{ fontSize: 12, color: '#15803D', fontWeight: 700, marginTop: 6 }}>
+              ✓ Flyer printed — property marked as having a QR code
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }}>
-            <button className="auth-button" style={{ width: 'auto' }} onClick={() => printQr(qr.url)}>Print QR code</button>
+            <button className="auth-button" style={{ width: 'auto' }} onClick={printFlyer}>Print flyer (8.125×5)</button>
+            <button className="logout-button" onClick={() => printQr(qr.url)}>Print code only</button>
             <button className="logout-button" onClick={() => window.open(`https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=0&data=${encodeURIComponent(qr.url)}`, '_blank')}>Open full-size</button>
           </div>
         </div>

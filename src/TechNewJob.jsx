@@ -6,6 +6,7 @@ import TripChargePicker from './TripChargePicker'
 import CustomerSearchSelect from './CustomerSearchSelect'
 import { IconChevronLeft } from './MobileIcons'
 import { zonedToUtcIso } from './utils/tz'
+import { printServiceFlyer } from './utils/serviceFlyer'
 
 function todayISO() {
   const d = new Date()
@@ -35,6 +36,8 @@ export default function TechNewJob({ profile, mode = 'job' }) {
   const [existingCustomerBanned, setExistingCustomerBanned] = useState(false)
   const [customerProperties, setCustomerProperties] = useState([])
   const [propertyId, setPropertyId] = useState('')
+  const [qrStatus, setQrStatus] = useState(null) // { token, printed_at, org_name, org_logo_url, org_phone, address }
+  const [qrBusy, setQrBusy] = useState(false)
   const [existingTenantIds, setExistingTenantIds] = useState([null, null])
   const [tenant1Name, setTenant1Name] = useState('')
   const [tenant1Phone, setTenant1Phone] = useState('')
@@ -116,6 +119,32 @@ export default function TechNewJob({ profile, mode = 'job' }) {
       setTenant2Phone('')
     }
   }, [propertyId])
+
+  // Does this property already have a QR flyer handed out? Drives the "print one" link below.
+  useEffect(() => {
+    if (!propertyId) { setQrStatus(null); return }
+    let cancelled = false
+    supabase.rpc('service_qr_status', { p_property_id: propertyId }).then(({ data }) => {
+      if (!cancelled) setQrStatus(data || null)
+    })
+    return () => { cancelled = true }
+  }, [propertyId])
+
+  async function printPropertyQrFlyer() {
+    if (!propertyId || qrBusy) return
+    setQrBusy(true)
+    const { data, error } = await supabase.rpc('mark_service_qr_printed', { p_property_id: propertyId })
+    setQrBusy(false)
+    if (error) { alert(error.message); return }
+    printServiceFlyer({
+      qrUrl: `${window.location.origin}/r/${data.token}`,
+      orgName: data.org_name,
+      orgLogoUrl: data.org_logo_url,
+      orgPhone: data.org_phone,
+      address: data.address,
+    })
+    setQrStatus((s) => ({ ...(s || {}), ...data }))
+  }
 
   async function upsertTenant(propId, tenantId, name, phone) {
     if (tenantId) {
@@ -347,6 +376,26 @@ export default function TechNewJob({ profile, mode = 'job' }) {
                           <div className="mobile-field-row">
                             <div className="mobile-field"><label>Tenant 2</label><input type="text" value={tenant2Name} onChange={(e) => setTenant2Name(e.target.value)} /></div>
                             <div className="mobile-field"><label>Phone</label><input type="tel" value={tenant2Phone} onChange={(e) => setTenant2Phone(e.target.value)} /></div>
+                          </div>
+
+                          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line, #E2E6ED)' }}>
+                            {qrStatus?.printed_at ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: 12.5, color: '#15803D', fontWeight: 700 }}>✓ This property has a QR code</span>
+                                <button type="button" disabled={qrBusy} onClick={printPropertyQrFlyer}
+                                  style={{ fontSize: 12.5, padding: '5px 12px', borderRadius: 8, border: '1px solid var(--border, #D5DAE1)', background: '#fff', color: '#0f172a', cursor: 'pointer' }}>
+                                  {qrBusy ? 'Preparing…' : 'Reprint flyer'}
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <p style={{ fontSize: 11.5, color: 'var(--mist)', margin: '0 0 6px' }}>No QR code handed out for this property yet.</p>
+                                <button type="button" disabled={qrBusy} onClick={printPropertyQrFlyer}
+                                  style={{ fontSize: 13, fontWeight: 700, padding: '9px 14px', borderRadius: 8, border: 'none', background: '#176E7A', color: '#fff', cursor: 'pointer', width: '100%' }}>
+                                  {qrBusy ? 'Preparing…' : 'Print QR flyer to hand to the tech'}
+                                </button>
+                              </>
+                            )}
                           </div>
                         </>
                       )}
