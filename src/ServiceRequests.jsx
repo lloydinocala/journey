@@ -95,12 +95,27 @@ export default function ServiceRequests({ profile }) {
     load()
   }
 
+  // Search by property street address OR by customer (account holder) name.
   async function searchProps(v) {
     setQsearch(v)
-    if (v.trim().length < 3) { setQresults([]); return }
-    const { data } = await supabase.from('properties').select('id, street_address, unit, city')
-      .eq('org_id', selectedOrg).ilike('street_address', `%${v.trim()}%`).limit(8)
-    setQresults(data || [])
+    const q = v.trim()
+    if (q.length < 3) { setQresults([]); return }
+    const sel = 'id, street_address, unit, city, customers!properties_customer_id_fkey(display_name)'
+    const [byAddr, byCust] = await Promise.all([
+      supabase.from('properties').select(sel).eq('org_id', selectedOrg).ilike('street_address', `%${q}%`).limit(10),
+      supabase.from('properties').select('id, street_address, unit, city, customers!inner(display_name)').eq('org_id', selectedOrg).ilike('customers.display_name', `%${q}%`).limit(10),
+    ])
+    const byId = {}
+    for (const row of [...(byAddr.data || []), ...(byCust.data || [])]) byId[row.id] = row
+    setQresults(Object.values(byId).slice(0, 10))
+  }
+  function printQr(url) {
+    // Print ONLY the QR code — white background, no margin/quiet zone around the code.
+    const src = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=0&data=${encodeURIComponent(url)}`
+    const w = window.open('', '_blank', 'width=700,height=800')
+    if (!w) { alert('Please allow pop-ups to print the QR code.'); return }
+    w.document.write(`<!doctype html><html><head><title>Service QR</title><style>@page{margin:0}html,body{margin:0;padding:0;background:#fff}img{display:block}</style></head><body><img src="${src}" onload="setTimeout(function(){window.focus();window.print()},150)"></body></html>`)
+    w.document.close()
   }
   async function makeQr(p) {
     const { data, error } = await supabase.rpc('ensure_service_token', { p_property_id: p.id })
@@ -238,12 +253,13 @@ export default function ServiceRequests({ profile }) {
       <h3 style={{ fontSize: 16, marginTop: 28 }}>Print a service QR sticker</h3>
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>Find a property, generate its QR, and print it for the air handler. Scanning it opens this request page for that address.</p>
       <input style={{ maxWidth: 380, width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, background: '#fff', color: '#0f172a' }}
-        value={qsearch} onChange={(e) => searchProps(e.target.value)} placeholder="Search property by street address…" />
+        value={qsearch} onChange={(e) => searchProps(e.target.value)} placeholder="Search by street address or customer name…" />
       {qresults.length > 0 && (
         <div className="section-card" style={{ padding: 8, maxWidth: 480, marginTop: 6 }}>
           {qresults.map((p) => (
             <button key={p.id} className="logout-button" style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: 4 }} onClick={() => makeQr(p)}>
               {[p.street_address, p.unit, p.city].filter(Boolean).join(' ')}
+              {p.customers?.display_name ? <span style={{ color: 'var(--mist)' }}> · {p.customers.display_name}</span> : ''}
             </button>
           ))}
         </div>
@@ -253,7 +269,10 @@ export default function ServiceRequests({ profile }) {
           <div style={{ fontWeight: 700, marginBottom: 8 }}>{qr.address}</div>
           <img alt="Service QR" src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=10&data=${encodeURIComponent(qr.url)}`} style={{ width: 240, height: 240 }} />
           <div style={{ fontSize: 12, color: 'var(--mist)', wordBreak: 'break-all', marginTop: 6 }}>{qr.url}</div>
-          <button className="logout-button" style={{ marginTop: 10 }} onClick={() => window.open(`https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=20&data=${encodeURIComponent(qr.url)}`, '_blank')}>Open full-size to print</button>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+            <button className="auth-button" style={{ width: 'auto' }} onClick={() => printQr(qr.url)}>Print QR code</button>
+            <button className="logout-button" onClick={() => window.open(`https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=0&data=${encodeURIComponent(qr.url)}`, '_blank')}>Open full-size</button>
+          </div>
         </div>
       )}
       </>

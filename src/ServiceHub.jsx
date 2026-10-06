@@ -3,16 +3,15 @@ import { useParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import './modules/customer-hvac/portal.css'
 
+// QR response offers only "Report a problem" — the scanner goes straight to that form.
 const CATS = [
   { k: 'repair', label: 'Report a problem', sub: 'Something isn’t working right' },
-  { k: 'tuneup', label: 'Book a tune-up', sub: 'Routine maintenance / check-up' },
-  { k: 'question', label: 'Ask a question', sub: 'Anything else' },
 ]
 
 export default function ServiceHub() {
   const { token } = useParams()
   const [info, setInfo] = useState(undefined) // undefined=loading, null=invalid
-  const [category, setCategory] = useState(null)
+  const [category, setCategory] = useState('repair') // only the Report-a-problem flow
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [urgency, setUrgency] = useState('soon')
@@ -81,7 +80,6 @@ export default function ServiceHub() {
 
         {category && (
           <>
-            <button className="cp-back" onClick={() => { setCategory(null); setErr('') }}>‹ Back</button>
             <div className="cp-label">Your name</div>
             <input className="cp-sel" value={name} onChange={(e) => setName(e.target.value)} placeholder="First & last name" />
             <div className="cp-label">Best callback number</div>

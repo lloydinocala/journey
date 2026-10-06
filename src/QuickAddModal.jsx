@@ -481,7 +481,7 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
     return (
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
-          <h3>Continue an Existing Job</h3>
+          <h3>Add Segment</h3>
           {!selectedContinueJob ? (
             <>
               <input
@@ -660,6 +660,24 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
           {(mode === 'customer' || ((mode === 'property' || mode === 'job') && customerMode === 'new')) && (
             <>
               <div className="field">
+                <label htmlFor="newCustCompany">Company</label>
+                <input id="newCustCompany" type="text" value={newCompany} onChange={(e) => setNewCompany(e.target.value)} placeholder="optional" />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newFirstName">First Name</label>
+                  <input id="newFirstName" type="text" value={newFirstName} onChange={(e) => setNewFirstName(e.target.value)} placeholder="optional" />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label htmlFor="newLastName">Last Name</label>
+                  <input id="newLastName" type="text" value={newLastName} onChange={(e) => setNewLastName(e.target.value)} placeholder="optional" />
+                </div>
+              </div>
+              <div className="field">
+                <label htmlFor="newSpouseName">Spouse Name</label>
+                <input id="newSpouseName" type="text" value={newSpouseName} onChange={(e) => setNewSpouseName(e.target.value)} placeholder="optional" />
+              </div>
+              <div className="field">
                 <label htmlFor="newCustName">Display Name</label>
                 <input id="newCustName" type="text" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} placeholder="e.g. William Gaal" required />
                 <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
@@ -682,24 +700,6 @@ export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated
                     Use Company
                   </button>
                 </div>
-              </div>
-              <div className="field">
-                <label htmlFor="newCustCompany">Company</label>
-                <input id="newCustCompany" type="text" value={newCompany} onChange={(e) => setNewCompany(e.target.value)} placeholder="optional" />
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="newFirstName">First Name</label>
-                  <input id="newFirstName" type="text" value={newFirstName} onChange={(e) => setNewFirstName(e.target.value)} placeholder="optional" />
-                </div>
-                <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="newLastName">Last Name</label>
-                  <input id="newLastName" type="text" value={newLastName} onChange={(e) => setNewLastName(e.target.value)} placeholder="optional" />
-                </div>
-              </div>
-              <div className="field">
-                <label htmlFor="newSpouseName">Spouse Name</label>
-                <input id="newSpouseName" type="text" value={newSpouseName} onChange={(e) => setNewSpouseName(e.target.value)} placeholder="optional" />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <div className="field" style={{ flex: 1 }}>

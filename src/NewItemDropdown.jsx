@@ -10,7 +10,7 @@ const ITEMS = {
   task:           { label: 'New Task', mode: 'task' },
   todo:           { label: 'New To-Do Item', route: '/to-do' },
   segment:        { label: 'New Segment', mode: 'continueJob' },      // the continue-an-existing-job (add a segment) flow
-  continueJob:    { label: 'Continue an Existing Job', mode: 'continueJob' },
+  continueJob:    { label: 'Add Segment', mode: 'continueJob' },
   customer:       { label: 'New Customer', mode: 'customer' },
   property:       { label: 'New Property', mode: 'property' },
   estimate:       { label: 'New Estimate', mode: 'pickEstimateJob' },

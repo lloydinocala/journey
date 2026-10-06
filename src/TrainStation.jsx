@@ -88,7 +88,7 @@ export default function TrainStation({ profile }) {
             </div>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(258px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14 }}>
             {needs.map((t) => {
               const a = ACCENT[t.tone] || ACCENT.amber; const n = counts[t.key] || 0
               return (

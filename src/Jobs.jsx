@@ -25,6 +25,7 @@ const COLUMNS = [
   { key: 'segment', label: 'Segment', required: true },
   { key: 'job_date', label: 'Date', required: true },
   { key: 'customer', label: 'Customer', required: true },
+  { key: 'flags', label: 'Flags' },
   { key: 'street_address', label: 'Street Address', required: true },
   { key: 'unit', label: 'Unit' },
   { key: 'city', label: 'City' },
@@ -97,9 +98,9 @@ export default function Jobs({ profile }) {
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('jobs_visible_columns_v2')
     let cols = saved ? JSON.parse(saved) : DEFAULT_VISIBLE
-    // Ensure the newly-added Technician 3/4 columns appear for existing users
-    // whose saved preferences predate them.
-    for (const k of ['technician_3', 'technician_4']) if (!cols.includes(k)) cols = [...cols, k]
+    // Ensure the newly-added Technician 3/4 and Flags columns appear for existing
+    // users whose saved preferences predate them.
+    for (const k of ['technician_3', 'technician_4', 'flags']) if (!cols.includes(k)) cols = [...cols, k]
     return cols
   })
 
@@ -626,7 +627,7 @@ export default function Jobs({ profile }) {
   const COLUMN_WIDTHS = {
     job_number: 100, segment: 80, job_date: 95, trip_charge: 170, start_time: 100,
     job_type: 110, service_complaint: 160, street_address: 180, unit: 70, city: 120,
-    state: 60, zip: 80, gate_code: 90, tenant_1: 120, tenant_1_phone: 110,
+    state: 60, zip: 80, flags: 150, gate_code: 90, tenant_1: 120, tenant_1_phone: 110,
     tenant_2: 120, tenant_2_phone: 110, technician_1: 130, technician_2: 130, technician_3: 130, technician_4: 130,
     on_my_way_at: 150, arrival_at: 150, completed_at: 150, status: 100, job_notes: 200,
     customer: 160, invoice_sent: 120,
@@ -706,8 +707,28 @@ export default function Jobs({ profile }) {
     if (scrollTableRef.current) scrollTableRef.current.scrollLeft = e.target.scrollLeft
   }
 
+  // Job flags: "Estimate Only" (auth_diagnose_only — tech diagnoses and the office
+  // builds an estimate, no repair authorized) and the customer's authorized dollar limit.
+  function flagText(j) {
+    const parts = []
+    if (j.auth_diagnose_only) parts.push('Estimate Only')
+    if (j.auth_limit_amount != null && Number(j.auth_limit_amount) > 0) parts.push('Auth $' + Number(j.auth_limit_amount).toLocaleString())
+    return parts.join('; ')
+  }
+  function flagBadges(j) {
+    const badges = []
+    if (j.auth_diagnose_only) badges.push(
+      <span key="eo" style={{ background: '#FCE8E6', color: '#B0342F', fontWeight: 700, fontSize: 11, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>Estimate Only</span>
+    )
+    if (j.auth_limit_amount != null && Number(j.auth_limit_amount) > 0) badges.push(
+      <span key="al" style={{ background: '#FEF3C7', color: '#92400E', fontWeight: 700, fontSize: 11, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>Auth ${Number(j.auth_limit_amount).toLocaleString()}</span>
+    )
+    return badges.length ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{badges}</div> : <span style={{ color: 'var(--mist)' }}>—</span>
+  }
+
   function cellValue(j, key) {
     if (key === 'job_number') return j.job_number
+    if (key === 'flags') return flagText(j)
     if (key === 'segment') return j.segment
     if (key === 'job_date') return j.job_date
     if (key === 'trip_charge') return tripChargeSummary(j)
@@ -951,6 +972,7 @@ export default function Jobs({ profile }) {
                   </div>
                   {visibleColumnDefs.map((col) => {
                     if (col.key === 'job_number') return <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>{jobNumberDisplay(j)}</div>
+                    if (col.key === 'flags') return <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>{flagBadges(j)}</div>
                     if (col.key === 'job_date') return (
                       <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                         <input type="date" value={editJobDate} onChange={(e) => setEditJobDate(e.target.value)} />
@@ -1065,6 +1087,8 @@ export default function Jobs({ profile }) {
                     <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
                       {col.key === 'status' ? (
                         <span className={`status-pill status-${j.status}`}>{j.status}</span>
+                      ) : col.key === 'flags' ? (
+                        flagBadges(j)
                       ) : col.key === 'job_date' && j.date_pending ? (
                         <span
                           title="Pending — auto-set placeholder date from an approved estimate. Needs real scheduling."

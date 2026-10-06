@@ -49,6 +49,9 @@ export default function CallConsole({ profile }) {
   const [ncEmail, setNcEmail] = useState('')
   const [ncSaving, setNcSaving] = useState(false)
   const [filterModal, setFilterModal] = useState(false)
+  // AI Receptionist: opted_in = the subscriber has the add-on; active = currently answering calls.
+  const [aiRecept, setAiRecept] = useState({ opted_in: false, active: false })
+  const [aiBusy, setAiBusy] = useState(false)
 
   useEffect(() => {
     if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
@@ -56,10 +59,21 @@ export default function CallConsole({ profile }) {
 
   useEffect(() => {
     if (!selectedOrg) return
+    supabase.from('organizations').select('ai_receptionist_opted_in, ai_receptionist_active').eq('id', selectedOrg).single()
+      .then(({ data }) => setAiRecept({ opted_in: !!data?.ai_receptionist_opted_in, active: !!data?.ai_receptionist_active }))
     supabase.from('vendors').select('id, name, phone').eq('org_id', selectedOrg).then(({ data }) => setVendors(data || []))
     supabase.from('users').select('id, full_name, phone, role').eq('org_id', selectedOrg).eq('is_active', true).then(({ data }) => setUsers(data || []))
     supabase.from('known_contacts').select('id, name, company, phone, phone_alt, category, default_assignee').eq('org_id', selectedOrg).eq('is_active', true).then(({ data }) => setKnownContacts(data || []))
   }, [selectedOrg])
+
+  async function toggleReceptionist() {
+    if (!aiRecept.opted_in || aiBusy || !selectedOrg) return
+    setAiBusy(true)
+    const next = !aiRecept.active
+    const { error } = await supabase.from('organizations').update({ ai_receptionist_active: next }).eq('id', selectedOrg)
+    setAiBusy(false)
+    if (!error) setAiRecept((s) => ({ ...s, active: next }))
+  }
 
   const digits = phone.replace(/\D/g, '')
 
@@ -182,7 +196,24 @@ export default function CallConsole({ profile }) {
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <div className="page-header-bar"><h2>Call Console</h2></div>
+      <div className="page-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <h2 style={{ margin: 0 }}>Call Console</h2>
+        <button
+          onClick={toggleReceptionist}
+          disabled={!aiRecept.opted_in || aiBusy || !selectedOrg}
+          title={aiRecept.opted_in ? 'Turn the AI Receptionist on or off for incoming calls' : 'Available on the AI Receptionist add-on'}
+          style={{
+            border: '1px solid ' + (aiRecept.active ? '#2E7D32' : 'var(--border)'),
+            background: aiRecept.active ? '#2E7D32' : '#fff',
+            color: aiRecept.active ? '#fff' : (aiRecept.opted_in ? '#176E7A' : 'var(--mist)'),
+            borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 700,
+            cursor: aiRecept.opted_in ? 'pointer' : 'not-allowed', opacity: aiRecept.opted_in ? 1 : 0.6,
+          }}>
+          {aiRecept.opted_in
+            ? (aiBusy ? 'Saving…' : (aiRecept.active ? '🟢 AI Receptionist: On — tap to turn off' : '⚪ AI Receptionist: Off — tap to turn on'))
+            : 'AI Receptionist (add-on not enabled)'}
+        </button>
+      </div>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 640 }}>
         When a call comes in, type or paste the number to pull up the caller instantly — their history, equipment, plan, and balance — then open their record to book or answer questions.
       </p>

@@ -54,7 +54,7 @@ export default function CallLog({ profile }) {
   async function load() {
     setLoading(true)
     const { data } = await supabase.from('call_logs')
-      .select('id, called_at, caller_name, phone, purpose, taken_by_name, customer_id, vendor_id, known_contact_id, caller_type, route_to, follow_up, needs_callback, known_contacts:known_contact_id ( category )')
+      .select('id, called_at, caller_name, phone, purpose, taken_by_name, customer_id, vendor_id, known_contact_id, caller_type, route_to, follow_up, needs_callback, completed_at, known_contacts:known_contact_id ( category )')
       .eq('org_id', selectedOrg).is('deleted_at', null).order('called_at', { ascending: false }).limit(1000)
     setRows(data || []); setLoading(false); setClear({ mode: 'idle', count: 0, msg: '' })
   }
@@ -63,6 +63,24 @@ export default function CallLog({ profile }) {
     const next = !row[field]
     setRows((rs) => rs.map((r) => r.id === row.id ? { ...r, [field]: next } : r))
     await supabase.from('call_logs').update({ [field]: next }).eq('id', row.id)
+  }
+
+  // Mark a call complete (handled). Completing it also clears its call-back / follow-up
+  // flags, since the reason to keep it around is resolved. Toggle again to reopen.
+  async function markComplete(row) {
+    const done = !row.completed_at
+    const patch = done
+      ? { completed_at: new Date().toISOString(), needs_callback: false, follow_up: false }
+      : { completed_at: null }
+    setRows((rs) => rs.map((r) => r.id === row.id ? { ...r, ...patch } : r))
+    await supabase.from('call_logs').update(patch).eq('id', row.id)
+  }
+
+  // Remove a single call now (soft delete — recoverable via the CSV export's "include cleared").
+  async function deleteRow(row) {
+    if (!window.confirm('Delete this call from the log? It is removed from the board (soft-deleted, not permanently erased).')) return
+    setRows((rs) => rs.filter((r) => r.id !== row.id))
+    await supabase.from('call_logs').update({ deleted_at: new Date().toISOString() }).eq('id', row.id)
   }
 
   const startToday = new Date(); startToday.setHours(0, 0, 0, 0)
@@ -153,12 +171,13 @@ export default function CallLog({ profile }) {
           <th>Time</th><th>Caller</th><th>Caller type</th><th>Phone</th>
           <th>Purpose / calling whom</th><th>Taken by</th>
           <th style={{ width: 56, textAlign: 'center' }}>F/U?</th><th>Route to</th>
+          <th style={{ width: 150, textAlign: 'center' }}>Actions</th>
         </tr></thead>
         <tbody>
           {list.map((r) => {
             const label = typeLabel(r)
             return (
-              <tr key={r.id} style={(r.needs_callback || r.follow_up) ? { background: '#FCF6E9' } : undefined}>
+              <tr key={r.id} style={r.completed_at ? { background: '#EDF5EE' } : (r.needs_callback || r.follow_up) ? { background: '#FCF6E9' } : undefined}>
                 <td style={{ textAlign: 'center' }}><input type="checkbox" checked={!!r.needs_callback} onChange={() => toggleFlag(r, 'needs_callback')} title="Flag for call-back" style={{ width: 17, height: 17, cursor: 'pointer' }} /></td>
                 <td style={{ whiteSpace: 'nowrap' }}>{new Date(r.called_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} {new Date(r.called_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</td>
                 <td>{callerCell(r)}</td>
@@ -168,6 +187,16 @@ export default function CallLog({ profile }) {
                 <td style={{ whiteSpace: 'nowrap' }}>{firstLast(r.taken_by_name) || '—'}</td>
                 <td style={{ textAlign: 'center' }}><input type="checkbox" checked={!!r.follow_up} onChange={() => toggleFlag(r, 'follow_up')} title="Flag for follow-up" style={{ width: 17, height: 17, cursor: 'pointer' }} /></td>
                 <td style={{ whiteSpace: 'nowrap' }}>{r.route_to || '—'}</td>
+                <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                  <button onClick={() => markComplete(r)} title={r.completed_at ? 'Reopen (mark not complete)' : 'Mark this call complete'}
+                    style={{ border: '1px solid ' + (r.completed_at ? '#2E7D32' : 'var(--border)'), background: r.completed_at ? '#2E7D32' : '#fff', color: r.completed_at ? '#fff' : '#2E7D32', borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700, cursor: 'pointer', marginRight: 6 }}>
+                    {r.completed_at ? '✓ Done' : 'Complete'}
+                  </button>
+                  <button onClick={() => deleteRow(r)} title="Delete this call"
+                    style={{ border: '1px solid #B5462F', background: '#fff', color: '#B5462F', borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                    Delete
+                  </button>
+                </td>
               </tr>
             )
           })}

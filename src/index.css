@@ -348,6 +348,8 @@ html { overflow-x: hidden; }
 }
 .tbl-scroll .data-table {
   margin-bottom: 0;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 .tbl-scroll .data-table thead th {
   position: sticky;
@@ -2449,7 +2451,10 @@ html { overflow-x: hidden; }
    left cells with .jm-fz plus .jm-c1/.jm-c2/.jm-c3.
    ============================================================ */
 .jm-scroll { overflow: auto; max-height: calc(100vh - 220px); border: 1px solid var(--line-strong); border-radius: 8px; }
-.jm-scroll .data-table { margin-bottom: 0; }
+/* Chrome ignores position:sticky on a <th> when the table is border-collapse:collapse,
+   so the sticky heading row scrolls away. Use separate borders (spacing 0 keeps the look)
+   inside the scroll wrappers so the heading actually stays pinned. */
+.jm-scroll .data-table { margin-bottom: 0; border-collapse: separate; border-spacing: 0; }
 .jm-scroll .data-table thead th { position: sticky; top: 0; z-index: 3; }
 /* frozen left cells */
 .data-table th.jm-fz, .data-table td.jm-fz { position: sticky; z-index: 2; }

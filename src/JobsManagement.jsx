@@ -455,7 +455,7 @@ export default function JobsManagement({ profile }) {
                             )}
                           </div>
                         </td>
-                        <td {...frz('jm-c2')}>{rec.job.job_number}</td>
+                        <td {...frz('jm-c2')}><Link to={'/invoice/' + rec.job.id} style={{ color: '#2E7FC4', textDecoration: 'underline', fontWeight: 600 }}>{rec.job.job_number}</Link></td>
                         <td {...frz('jm-c3')}>{rec.job.segment}</td>
                         <td>{rec.job.properties?.customers?.display_name || '—'}</td>
                         <td>{rec.job.properties?.customers?.primary_phone || '—'}</td>
