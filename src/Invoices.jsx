@@ -124,7 +124,7 @@ export default function Invoices({ profile }) {
     if (jobIds.length) {
       const { data: jobs } = await supabase
         .from('jobs')
-        .select('id, job_number, segment, status, diagnosis_note, properties ( customers!properties_customer_id_fkey ( display_name, primary_phone ) ), job_technicians ( sort_order, users ( full_name ) )')
+        .select('id, job_number, segment, status, diagnosis_note, properties ( customers!properties_customer_id_fkey ( id, display_name, primary_phone ) ), job_technicians ( sort_order, users ( full_name ) )')
         .in('id', jobIds)
       jobById = Object.fromEntries((jobs || []).map((j) => [j.id, j]))
     }

@@ -4,6 +4,7 @@
 // collections plan — friendly early, firmer as it ages, honest throughout.
 // Read-only; it never sends anything (the per-invoice reminder does that).
 import { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import AiAssist from './AiAssist'
 
 const money = (n) => (n == null || isNaN(n) ? '$0' : `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`)
@@ -21,7 +22,15 @@ export default function CollectionsSequencer({ invoices }) {
         const balance = Number(i.balance || 0)
         const dt = i.invoice_date ? new Date(i.invoice_date + 'T12:00:00') : null
         const days = dt ? Math.max(0, Math.round((now - dt.getTime()) / 86400000)) : 0
-        return { id: i.id, number: i.invoice_number, customer: i.customer, balance, days, bucket: bucketOf(days), score: balance * (1 + days / 30) }
+        return {
+          id: i.id,
+          number: i.invoice_number,
+          jobId: i.job_id,
+          jobNumber: i.jobs?.job_number || '',
+          customer: i.jobs?.properties?.customers?.display_name || 'Unknown',
+          customerId: i.jobs?.properties?.customers?.id || null,
+          balance, days, bucket: bucketOf(days), score: balance * (1 + days / 30),
+        }
       })
       .filter((r) => r.balance > 0.005)
       .sort((a, b) => b.score - a.score)
@@ -60,7 +69,7 @@ export default function CollectionsSequencer({ invoices }) {
       <table className="data-table" style={{ fontSize: 12.5, borderCollapse: 'separate', borderSpacing: 0 }}>
         <thead>
           <tr>
-            {[['#', 'left'], ['Customer', 'left'], ['Invoice', 'left'], ['Balance', 'right'], ['Age', 'right'], ['Bucket', 'left']].map(([h, align]) => (
+            {[['#', 'left'], ['Customer', 'left'], ['Job #', 'left'], ['Invoice', 'left'], ['Balance', 'right'], ['Age', 'right'], ['Bucket', 'left']].map(([h, align]) => (
               <th key={h} style={{ position: 'sticky', top: 0, zIndex: 1, background: '#1B3A6B', textAlign: align }}>{h}</th>
             ))}
           </tr>
@@ -71,8 +80,19 @@ export default function CollectionsSequencer({ invoices }) {
             return (
               <tr key={r.id}>
                 <td style={{ color: 'var(--mist)' }}>{i + 1}</td>
-                <td style={{ fontWeight: 600, color: '#152238' }}>{r.customer || '—'}</td>
-                <td style={{ color: 'var(--mist)' }}>{r.number || '—'}</td>
+                <td style={{ fontWeight: 600 }}>
+                  {r.customerId
+                    ? <Link to={'/customers/' + r.customerId} style={{ color: '#2E7FC4', textDecoration: 'underline', fontWeight: 600 }}>{r.customer}</Link>
+                    : <span style={{ color: '#152238' }}>{r.customer || '—'}</span>}
+                </td>
+                <td>
+                  {r.jobId
+                    ? <Link to={'/invoice/' + r.jobId} style={{ color: '#2E7FC4', textDecoration: 'underline' }}>{r.jobNumber || '—'}</Link>
+                    : <span style={{ color: 'var(--mist)' }}>{r.jobNumber || '—'}</span>}
+                </td>
+                <td>
+                  <Link to={'/view-invoice/' + r.id} target="_blank" style={{ color: '#2E7FC4', textDecoration: 'underline' }}>{r.number || '—'}</Link>
+                </td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{money(r.balance)}</td>
                 <td style={{ textAlign: 'right' }}>{r.days}d</td>
                 <td><span className="badge" style={{ background: bc.bg, color: bc.c }}>{r.bucket}</span></td>
