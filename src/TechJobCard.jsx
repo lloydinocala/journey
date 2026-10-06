@@ -463,13 +463,20 @@ export default function TechJobCard({ profile }) {
   const maintDone = planExists || planSent || planDeclined
   const serviceEstDone = !!job?.service_estimate_not_needed || serviceEstItems > 0
 
-  // The invoice can't be built until three process steps are complete: verification photos
+  // Install jobs: the system was already sold and quoted, so the tech doesn't build a
+  // services estimate on the visit — hide the whole "Create Services Estimate" group
+  // (and drop its gates) when the job type is Install.
+  const isInstallJob = (job?.job_type || '').trim().toLowerCase().includes('install')
+  const showEstimateGroup = !isInstallJob
+
+  // The invoice can't be built until the process steps are complete: verification photos
   // (proof of work), the home's air filters captured, and maintenance-agreement options offered
   // (a plan already on record also satisfies it). Each cascades — no invoice, no send, no payment.
+  // On Install jobs the maintenance offer isn't gated, since the estimate group is hidden.
   const invoiceBlockers = []
   if (!verifyDone) invoiceBlockers.push('upload verification photos (Verify, below)')
-  if (!filtersDone) invoiceBlockers.push("record the home's air filters (in Create Services Estimate)")
-  if (!maintDone) invoiceBlockers.push('offer maintenance agreement options — send them, or mark the customer not interested (in Maintenance Agreements)')
+  if (!filtersDone) invoiceBlockers.push("record the home's air filters (Air Filters, under Start Here)")
+  if (showEstimateGroup && !maintDone) invoiceBlockers.push('offer maintenance agreement options — send them, or mark the customer not interested (in Maintenance Agreements)')
   const canBuildInvoice = invoiceBlockers.length === 0
   // ---- per-job-type matrix: which spine tasks show + what the middle gate is ----
   // Routing config comes from the job type's DB row (Settings → Job types);
@@ -478,7 +485,7 @@ export default function TechJobCard({ profile }) {
   const showLinkedChecklist = !!linkedChecklist
   const showDiagnosis = jtCfg.middle === 'diagnosis' && !showLinkedChecklist   // repair-style
   const showChecklist = jtCfg.middle === 'checklist' && !showLinkedChecklist   // maintenance (legacy)
-  const showServiceEstimate = jtCfg.showServiceEstimate
+  const showServiceEstimate = showEstimateGroup && jtCfg.showServiceEstimate
   // Maintenance uses the customer's plan-tier checklist, or Basic when no plan is on record.
   const maintChecklistName = plan?.maintenance_agreement_tiers?.name || 'Basic'
   // The middle gate that must be blue before the Service Estimate unlocks. Checklist
@@ -506,7 +513,7 @@ export default function TechJobCard({ profile }) {
   const exceedsLimit = repairLimit != null && invoiceTotal > repairLimit
 
   // Required tasks that drive the status pill. Warning banners do NOT count.
-  const requiredDone = equipDone && preWorkPhotosDone && middleGateDone && (showServiceEstimate ? serviceEstDone : true) && invoiceDone && viewSendDone && verifyDone && maintDone
+  const requiredDone = equipDone && preWorkPhotosDone && middleGateDone && (showServiceEstimate ? serviceEstDone : true) && invoiceDone && viewSendDone && verifyDone && (showEstimateGroup ? maintDone : true)
   const allClear = requiredDone && !exceedsLimit
   const status = job?.status
 
@@ -1440,7 +1447,7 @@ export default function TechJobCard({ profile }) {
 
         </div>)}
         </div>
-        <div className={`jc-group ${estimateGroupDone ? 'blue' : 'red'}`}>
+        {showEstimateGroup && (<div className={`jc-group ${estimateGroupDone ? 'blue' : 'red'}`}>
         <GroupHead g="estimate" label="Create Services Estimate" done={estimateGroupDone} locked={!startGroupDone} />
         {openGroup === 'estimate' && (<div className="jc-group-body">
 
@@ -1508,7 +1515,7 @@ export default function TechJobCard({ profile }) {
         {/* ========== WORK & BILLING — after the estimate is approved ========== */}
 
         </div>)}
-        </div>
+        </div>)}
         <div className={`jc-group ${paymentGroupDone ? 'blue' : 'red'}`}>
         <GroupHead g="payment" label="Collect Payment" done={paymentGroupDone} />
         {openGroup === 'payment' && (<div className="jc-group-body">

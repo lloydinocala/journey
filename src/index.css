@@ -2421,6 +2421,9 @@ html { overflow-x: hidden; }
    top so column headers stay visible on vertical scroll and stay aligned with
    their columns on horizontal scroll. */
 .frozen-scroll { overflow: auto; max-height: calc(100vh - 250px); }
+/* Chrome ignores position:sticky on a <th> while the table is border-collapse:collapse,
+   so switch to separate borders inside the scroll wrapper for the heading to pin. */
+.frozen-scroll .data-table { border-collapse: separate; border-spacing: 0; }
 .frozen-scroll .data-table thead th { position: sticky; top: 0; z-index: 3; }
 .frozen-scroll .grid-table .grid-head { position: sticky; top: 0; z-index: 3; }
 

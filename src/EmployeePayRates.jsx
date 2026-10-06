@@ -52,7 +52,8 @@ export default function EmployeePayRates({ orgId }) {
       ) : users.length === 0 ? (
         <p style={{ color: 'var(--mist)' }}>No active team members to set rates for.</p>
       ) : (
-        <table className="data-table" style={{ maxWidth: 640 }}>
+        <div className="frozen-scroll" style={{ maxWidth: 640 }}>
+        <table className="data-table" style={{ width: '100%', marginBottom: 0 }}>
           <thead>
             <tr>
               <th>Employee</th>
@@ -82,6 +83,7 @@ export default function EmployeePayRates({ orgId }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   )

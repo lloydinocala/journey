@@ -357,6 +357,13 @@ export default function Settings({ profile }) {
     loadJobTypes(selectedOrg)
   }
 
+  // Display order: active types first (A→Z), then OFF types at the bottom (A→Z).
+  const sortedJobTypes = [...jobTypes].sort((a, b) => {
+    const aOn = a.is_active !== false, bOn = b.is_active !== false
+    if (aOn !== bOn) return aOn ? -1 : 1
+    return (a.name || '').localeCompare(b.name || '')
+  })
+
   return (
     <div>
       <h2 className="page-title">Settings</h2>
@@ -567,9 +574,8 @@ export default function Settings({ profile }) {
 
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Sales tax</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
-        In Florida, flat-rate labor typically isn't taxed again (tax was already paid on parts at
-        wholesale) — only retail items like filters are. Other states may work the other way; set
-        what fits here.
+        What's taxable — labor, parts, or retail items like filters — varies by state. Set the
+        rate and defaults that match the rules you operate under.
       </p>
       <form className="inline-form" onSubmit={saveTaxSettings} style={{ marginBottom: 28 }}>
         <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 0 }}>
@@ -647,7 +653,7 @@ export default function Settings({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div className="frozen-scroll">
         <div className="grid-table" style={{ gridTemplateColumns: '1.3fr 1fr 1.3fr 1.4fr 0.9fr 1.3fr 0.7fr 1.3fr 0.8fr 1.1fr', minWidth: 1320 }}>
           <div className="grid-cell grid-head">Name</div>
           <div className="grid-cell grid-head">Diagnosis</div>
@@ -660,7 +666,7 @@ export default function Settings({ profile }) {
           <div className="grid-cell grid-head">Status</div>
           <div className="grid-cell grid-head"></div>
 
-          {jobTypes.map((t) => (
+          {sortedJobTypes.map((t) => (
             <div key={t.id} style={{ display: 'contents' }}>
               <div className="grid-cell">
                 {editingId === t.id
