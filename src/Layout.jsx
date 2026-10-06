@@ -139,6 +139,7 @@ const PERMIT_PAGES = [
   { label: 'Permits', path: '/permits' },
   { label: 'Building Authorities', path: '/building-authorities' },
   { label: 'Warranty Registrations', path: '/warranty-registrations' },
+  { label: 'Warranty Registration Links', path: '/warranty-registration-links' },
 ]
 const IMPORT_PAGES = [
   { label: 'Import Hub', path: '/import' },
@@ -161,7 +162,6 @@ const STOCK_PAGES = [
   { label: 'Cycle Counts', path: '/elements/cycle-counts' },
   { label: 'Replenishment', path: '/elements/replenishment' },
   { label: 'Purchase Orders', path: '/elements/purchasing' },
-  { label: 'Special Orders', path: '/elements/special-orders' },
   { label: 'Vendor Invoices (A/P)', path: '/elements/ap' },
   { label: 'Vendors', path: '/vendors' },
   { label: 'Vendor Cross-Reference', path: '/elements/vendor-crossref' },

@@ -955,9 +955,12 @@ export async function listCycleCounts(orgId) {
   })
 }
 
-// Start a count for a location. Seeds one line per item that has a stock level
-// at that location (expected = current on-hand). scope 'category' narrows to a
-// single catalog category; 'manual' seeds nothing (add items by hand).
+// Start a count for a location. Seeds one line per item the location is EXPECTED
+// to be holding — its book on-hand (what was issued/transferred in, minus what was
+// used on invoices/jobs) is non-zero. Items the system shows as 0 are left off so
+// the count matches the small set actually on a truck; anything found that isn't
+// listed is added with the "add item" button. scope 'category' narrows to a single
+// catalog category; 'manual' seeds nothing (add items by hand).
 export async function createCycleCount(orgId, { location_id, blind = true, scope = 'all', category = null, note = null, createdBy = null }) {
   if (!location_id) return { error: { message: 'Pick a location to count.' } }
   const { data: session, error } = await supabase.from('elements_cycle_counts')
@@ -968,7 +971,7 @@ export async function createCycleCount(orgId, { location_id, blind = true, scope
     const { data: levels } = await supabase.from('elements_stock_levels')
       .select('item_id, on_hand, item:elements_items(category, is_active)')
       .eq('org_id', orgId).eq('location_id', location_id)
-    let rows = (levels || []).filter((l) => l.item && l.item.is_active !== false)
+    let rows = (levels || []).filter((l) => l.item && l.item.is_active !== false && Number(l.on_hand || 0) !== 0)
     if (scope === 'category' && category) rows = rows.filter((l) => (l.item?.category || '') === category)
     const lines = rows.map((l) => ({ org_id: orgId, count_id: session.id, item_id: l.item_id, expected_qty: Number(l.on_hand || 0) }))
     if (lines.length) await supabase.from('elements_cycle_count_lines').insert(lines)

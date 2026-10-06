@@ -63,13 +63,17 @@ export default function ServiceRequests({ profile }) {
     return () => { clearInterval(id); window.removeEventListener('focus', onFocus) }
   }, [selectedOrg])
 
-  // History: approved (converted → job) and declined requests, most recent first.
+  // History: approved (converted → job) requests are kept indefinitely; declined requests
+  // only show for 30 days (and are deleted after 30 days by a nightly cleanup). Newest first.
   async function loadHistory() {
     if (!selectedOrg) return
     setHistLoading(true)
+    const cutoff = new Date(Date.now() - 30 * 86400000).toISOString()
     const { data } = await supabase.from('service_requests')
       .select('*, properties(street_address, unit, city, customers!properties_customer_id_fkey(display_name))')
-      .eq('org_id', selectedOrg).in('status', ['converted', 'declined']).order('created_at', { ascending: false }).limit(300)
+      .eq('org_id', selectedOrg)
+      .or(`status.eq.converted,and(status.eq.declined,created_at.gte.${cutoff})`)
+      .order('created_at', { ascending: false }).limit(500)
     setHistory(data || []); setHistLoading(false)
   }
   useEffect(() => { if (view === 'history') loadHistory() }, [view, selectedOrg])
@@ -96,18 +100,26 @@ export default function ServiceRequests({ profile }) {
   }
 
   // Search by property street address OR by customer (account holder) name.
+  // Done as two plain queries (address match, and customer-name → their properties)
+  // rather than an embedded-table filter, which is unreliable across relationships.
   async function searchProps(v) {
     setQsearch(v)
     const q = v.trim()
     if (q.length < 3) { setQresults([]); return }
     const sel = 'id, street_address, unit, city, customers!properties_customer_id_fkey(display_name)'
-    const [byAddr, byCust] = await Promise.all([
+    const [byAddr, custRes] = await Promise.all([
       supabase.from('properties').select(sel).eq('org_id', selectedOrg).ilike('street_address', `%${q}%`).limit(10),
-      supabase.from('properties').select('id, street_address, unit, city, customers!inner(display_name)').eq('org_id', selectedOrg).ilike('customers.display_name', `%${q}%`).limit(10),
+      supabase.from('customers').select('id').eq('org_id', selectedOrg).ilike('display_name', `%${q}%`).limit(25),
     ])
+    let byName = []
+    const custIds = (custRes.data || []).map((c) => c.id)
+    if (custIds.length) {
+      const r = await supabase.from('properties').select(sel).eq('org_id', selectedOrg).in('customer_id', custIds).limit(25)
+      byName = r.data || []
+    }
     const byId = {}
-    for (const row of [...(byAddr.data || []), ...(byCust.data || [])]) byId[row.id] = row
-    setQresults(Object.values(byId).slice(0, 10))
+    for (const row of [...(byAddr.data || []), ...byName]) byId[row.id] = row
+    setQresults(Object.values(byId).slice(0, 15))
   }
   function printQr(url) {
     // Print ONLY the QR code — white background, no margin/quiet zone around the code.
@@ -227,7 +239,7 @@ export default function ServiceRequests({ profile }) {
           : history.length === 0 ? <div className="section-card" style={{ padding: 18 }}><p style={{ margin: 0, color: 'var(--mist)' }}>No approved or declined requests yet.</p></div>
           : (
             <>
-              <p style={{ fontSize: 12.5, color: 'var(--mist)', margin: '0 0 10px' }}>Approved and declined requests, most recent first (last 300).</p>
+              <p style={{ fontSize: 12.5, color: 'var(--mist)', margin: '0 0 10px' }}>Approved requests are kept indefinitely; declined requests drop off after 30 days. Newest first.</p>
               <div style={{ display: 'grid', gap: 10 }}>{history.map((r) => historyCard(r))}</div>
             </>
           )

@@ -8,7 +8,6 @@ import ElementsCycleCounts from './ElementsCycleCounts'
 import ElementsReplenishment from './ElementsReplenishment'
 import ElementsAnomalies from './ElementsAnomalies'
 import ElementsPurchaseOrders from './ElementsPurchaseOrders'
-import ElementsSpecialOrders from './ElementsSpecialOrders'
 import ElementsVendorInvoices from './ElementsVendorInvoices'
 import ElementsVendorCrossref from './ElementsVendorCrossref'
 import ElementsServiceMap from './ElementsServiceMap'
@@ -43,7 +42,6 @@ export const ELEMENTS_ROUTES = [
   { path: '/elements/replenishment', Component: ElementsReplenishment },
   { path: '/elements/health', Component: ElementsAnomalies },
   { path: '/elements/purchasing', Component: ElementsPurchaseOrders },
-  { path: '/elements/special-orders', Component: ElementsSpecialOrders },
   { path: '/elements/ap', Component: ElementsVendorInvoices },
   { path: '/elements/vendor-crossref', Component: ElementsVendorCrossref },
   { path: '/elements/service-map', Component: ElementsServiceMap },
@@ -69,7 +67,6 @@ export const ELEMENTS_NAV = {
     { label: 'Cycle Counts', path: '/elements/cycle-counts' },
     { label: 'Replenishment', path: '/elements/replenishment' },
     { label: 'Purchase Orders', path: '/elements/purchasing' },
-    { label: 'Special Orders', path: '/elements/special-orders' },
     { label: 'Vendor Invoices (A/P)', path: '/elements/ap' },
     { label: 'Vendors', path: '/vendors' },
     { label: 'Vendor Cross-Reference', path: '/elements/vendor-crossref' },

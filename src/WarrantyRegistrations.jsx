@@ -13,6 +13,7 @@ export default function WarrantyRegistrations({ profile }) {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('unregistered') // unregistered | all | registered
   const [savingId, setSavingId] = useState(null)
+  const [links, setLinks] = useState({}) // lowercased brand -> registration url
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -41,9 +42,13 @@ export default function WarrantyRegistrations({ profile }) {
     const pById = Object.fromEntries((pRes.data || []).map((p) => [p.id, p]))
     const jById = Object.fromEntries((jRes.data || []).map((j) => [j.id, j]))
     setRows(list.map((r) => ({ ...r, _customer: cById[r.customer_id], _property: pById[r.property_id], _job: jById[r.job_id], _dirty: false })))
+    const { data: linkRows } = await supabase.from('warranty_registration_links').select('brand, url').eq('org_id', orgId)
+    setLinks(Object.fromEntries((linkRows || []).map((l) => [(l.brand || '').trim().toLowerCase(), l.url])))
     setLoading(false)
   }
   useEffect(() => { if (selectedOrg || !isSuperAdmin) load(selectedOrg) }, [selectedOrg])
+
+  const brandLink = (brand) => (brand ? links[brand.trim().toLowerCase()] : null)
 
   const setField = (id, field, val) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [field]: val, _dirty: true } : r)))
 
@@ -144,6 +149,15 @@ export default function WarrantyRegistrations({ profile }) {
               <input type="date" style={{ ...input, borderColor: r.registered_at ? '#15803D' : '#D5DAE1' }} value={r.registered_at || ''} onChange={(e) => setField(r.id, 'registered_at', e.target.value)} />
             </div>
             <button className="logout-button" style={{ padding: '7px 14px' }} onClick={() => pullFromEquipment(r)}>Pull from Equipment on File</button>
+            {brandLink(r.brand) ? (
+              <a href={brandLink(r.brand)} target="_blank" rel="noopener noreferrer" className="auth-button" style={{ width: 'auto', padding: '7px 16px', textDecoration: 'none', background: '#176E7A' }}>
+                Register {r.brand} online ↗
+              </a>
+            ) : (
+              <Link to="/warranty-registration-links" className="logout-button" style={{ padding: '7px 14px', textDecoration: 'none' }} title={r.brand ? `No link on file for ${r.brand}` : 'Set the brand first'}>
+                {r.brand ? `+ Add ${r.brand} link` : 'Set up brand links'}
+              </Link>
+            )}
             <button className="auth-button" style={{ width: 'auto', padding: '7px 18px' }} disabled={!r._dirty || savingId === r.id} onClick={() => save(r)}>
               {savingId === r.id ? 'Saving…' : r._dirty ? 'Save' : 'Saved'}
             </button>

@@ -169,7 +169,7 @@ export default function CallLog({ profile }) {
         <thead><tr>
           <th style={{ width: 70, textAlign: 'center' }}>Call back</th>
           <th>Time</th><th>Caller</th><th>Caller type</th><th>Phone</th>
-          <th>Purpose / calling whom</th><th>Taken by</th>
+          <th style={{ width: 420, minWidth: 420 }}>Purpose / calling whom</th><th>Taken by</th>
           <th style={{ width: 56, textAlign: 'center' }}>F/U?</th><th>Route to</th>
           <th style={{ width: 150, textAlign: 'center' }}>Actions</th>
         </tr></thead>

@@ -92,6 +92,7 @@ import FinancialsDash from './FinancialsDashboard'
 import { CommandDashboard } from './modules/dashboard-hvac'
 import OrgHome from './OrgHome'
 import WarrantyRegistrations from './WarrantyRegistrations'
+import WarrantyRegistrationLinks from './WarrantyRegistrationLinks'
 import SessionLog from './SessionLog'
 import CustomerImport from './CustomerImport'
 import ImportDashboard from './ImportDashboard'
@@ -381,6 +382,7 @@ function AuthenticatedApp() {
         <Route path="/admin" element={<AdminDash profile={profile} />} />
         <Route path="/operations" element={<OperationsDashboard profile={profile} />} />
         <Route path="/warranty-registrations" element={<WarrantyRegistrations profile={profile} />} />
+        <Route path="/warranty-registration-links" element={<WarrantyRegistrationLinks profile={profile} />} />
         <Route path="/new-followup-estimate" element={<NewFollowupEstimate profile={profile} />} />
         <Route path="/invoices" element={<Invoices profile={profile} />} />
         <Route path="/payments-to-confirm" element={<PaymentsToConfirm profile={profile} />} />
