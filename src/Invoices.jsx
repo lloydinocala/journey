@@ -520,7 +520,7 @@ export default function Invoices({ profile }) {
       {activeTab === 'collections' && (
         loading
           ? <p style={{ color: 'var(--mist)' }}>Loading…</p>
-          : <div style={{ maxHeight: 'calc(100vh - 230px)', overflowY: 'auto' }}><CollectionsSequencer invoices={invoices} /></div>
+          : <CollectionsSequencer invoices={invoices} />
       )}
 
       {activeTab === 'invoices' && (<>
