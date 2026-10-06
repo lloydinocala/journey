@@ -52,11 +52,12 @@ export default function CollectionsSequencer({ invoices }) {
           context={{ open_invoices: rows.slice(0, 30).map((r) => ({ customer: r.customer, invoice: r.number, balance: Math.round(r.balance), days_outstanding: r.days })) }} />
       </div>
 
-      <table className="data-table" style={{ fontSize: 12.5 }}>
+      {/* border-collapse must be 'separate' or Chrome won't honor position:sticky on the <th> (the header scrolls away). */}
+      <table className="data-table" style={{ fontSize: 12.5, borderCollapse: 'separate', borderSpacing: 0 }}>
         <thead>
           <tr>
             {[['#', 'left'], ['Customer', 'left'], ['Invoice', 'left'], ['Balance', 'right'], ['Age', 'right'], ['Bucket', 'left']].map(([h, align]) => (
-              <th key={h} style={{ position: 'sticky', top: 0, zIndex: 1, background: '#FBFCFE', textAlign: align }}>{h}</th>
+              <th key={h} style={{ position: 'sticky', top: 0, zIndex: 1, background: '#FBFCFE', textAlign: align, boxShadow: 'inset 0 -1px 0 #E2E8F0' }}>{h}</th>
             ))}
           </tr>
         </thead>
