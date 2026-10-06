@@ -288,7 +288,7 @@ export default function ServiceRequests({ profile }) {
         )}
 
       <h3 style={{ fontSize: 16, marginTop: 28 }}>Print a service QR sticker</h3>
-      <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>Find a property, then print the branded 8.125×5 label (your logo, business name, and the landlord-approval notice) to leave at the home. Scanning the code opens the service-request page for that address. Printing the flyer marks the property as having a QR code.</p>
+      <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>Find a property, then print the branded label (your logo, business name, and the landlord-approval notice) to leave at the home. Prints two 8.125×5 labels per Letter sheet. Scanning the code opens the service-request page for that address. Printing marks the property as having a QR code.</p>
       <input style={{ maxWidth: 380, width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, background: '#fff', color: '#0f172a' }}
         value={qsearch} onChange={(e) => searchProps(e.target.value)} placeholder="Search by street address or customer name…" />
       {qresults.length > 0 && (
@@ -312,7 +312,7 @@ export default function ServiceRequests({ profile }) {
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }}>
-            <button className="auth-button" style={{ width: 'auto' }} onClick={printFlyer}>Print flyer (8.125×5)</button>
+            <button className="auth-button" style={{ width: 'auto' }} onClick={printFlyer}>Print labels (2 per sheet)</button>
             <button className="logout-button" onClick={() => printQr(qr.url)}>Print code only</button>
             <button className="logout-button" onClick={() => window.open(`https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=0&data=${encodeURIComponent(qr.url)}`, '_blank')}>Open full-size</button>
           </div>
