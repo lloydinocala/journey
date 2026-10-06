@@ -7,6 +7,7 @@ import QuickAddModal from './QuickAddModal'
 import CalendarGrid from './CalendarGrid'
 import CalendarMonth from './CalendarMonth'
 import JobDetailModal from './JobDetailModal'
+import CalendarTodoTile from './CalendarTodoTile'
 import { loadOrgTz, zonedToUtcIso } from './utils/tz'
 import {
   startOfWeek,
@@ -400,13 +401,16 @@ export default function Calendar({ profile }) {
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
         <div style={{ display: isMobile ? 'block' : 'flex', gap: 16, alignItems: 'flex-start' }}>
-          <DispatchTray
-            jobs={trayJobs}
-            onJobClick={setSelectedJob}
-            collapsed={trayCollapsed}
-            onToggle={() => setTrayCollapsed((c) => !c)}
-            isMobile={isMobile}
-          />
+          <div style={{ flex: isMobile ? 'none' : '0 0 202px', width: isMobile ? '100%' : 202, marginBottom: isMobile ? 16 : 0 }}>
+            <DispatchTray
+              jobs={trayJobs}
+              onJobClick={setSelectedJob}
+              collapsed={trayCollapsed}
+              onToggle={() => setTrayCollapsed((c) => !c)}
+              isMobile={isMobile}
+            />
+            <CalendarTodoTile orgId={selectedOrg} profile={profile} isMobile={isMobile} />
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             {effectiveView === 'month' ? (
               <CalendarMonth
