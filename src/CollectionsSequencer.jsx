@@ -53,7 +53,13 @@ export default function CollectionsSequencer({ invoices }) {
       </div>
 
       <table className="data-table" style={{ fontSize: 12.5 }}>
-        <thead><tr><th>#</th><th>Customer</th><th>Invoice</th><th style={{ textAlign: 'right' }}>Balance</th><th style={{ textAlign: 'right' }}>Age</th><th>Bucket</th></tr></thead>
+        <thead>
+          <tr>
+            {[['#', 'left'], ['Customer', 'left'], ['Invoice', 'left'], ['Balance', 'right'], ['Age', 'right'], ['Bucket', 'left']].map(([h, align]) => (
+              <th key={h} style={{ position: 'sticky', top: 0, zIndex: 1, background: '#FBFCFE', textAlign: align }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
         <tbody>
           {rows.slice(0, 15).map((r, i) => {
             const bc = bucketColor(r.bucket)

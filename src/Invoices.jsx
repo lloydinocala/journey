@@ -585,14 +585,15 @@ export default function Invoices({ profile }) {
         <>
         <div ref={scrollTableRef} onScroll={syncFromTable} style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 300px)' }}>
           <div className="grid-table" style={{ gridTemplateColumns, minWidth: tableMinWidth }}>
-            <div className="grid-cell grid-head" style={{ ...actionsHeaderStyle, position: 'sticky', top: 0, zIndex: 3 }}></div>
+            <div className="grid-cell grid-head" style={{ ...actionsHeaderStyle, position: 'sticky', top: 0, zIndex: 5 }}></div>
             {visibleColumnDefs.map((col) => (
               <div
                 key={col.key}
                 className="grid-cell grid-head"
                 style={{
                   ...headerCellStyle(col.key),
-                  position: 'sticky', top: 0, zIndex: 2,
+                  position: 'sticky', top: 0,
+                  zIndex: FROZEN_KEYS.includes(col.key) ? 4 : 2,
                   cursor: ['invoice_date', 'invoice_number', 'customer', 'amount_due', 'balance', 'status'].includes(col.key) ? 'pointer' : 'default',
                 }}
                 onClick={() => {
