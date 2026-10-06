@@ -54,6 +54,7 @@ export default function Invoices({ profile }) {
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [invoices, setInvoices] = useState([])
   const [editDiagInv, setEditDiagInv] = useState(null)
+  const [activeTab, setActiveTab] = useState('invoices')  // 'invoices' | 'collections'
   const [diagDraft, setDiagDraft] = useState('')
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
@@ -502,8 +503,27 @@ export default function Invoices({ profile }) {
         </div>
       )}
 
-      {!loading && <CollectionsSequencer invoices={invoices} />}
+      {/* Two tabs on one page: the full invoice list, and the collections-priority view. */}
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
+        {[['invoices', 'Invoices'], ['collections', 'Collections']].map(([key, label]) => (
+          <button key={key} type="button" onClick={() => setActiveTab(key)}
+            style={{ border: 'none', background: 'none', padding: '9px 18px', fontSize: 14,
+              fontWeight: activeTab === key ? 700 : 500,
+              color: activeTab === key ? '#176E7A' : 'var(--mist)',
+              borderBottom: activeTab === key ? '2px solid #176E7A' : '2px solid transparent',
+              marginBottom: -1, cursor: 'pointer' }}>
+            {label}
+          </button>
+        ))}
+      </div>
 
+      {activeTab === 'collections' && (
+        loading
+          ? <p style={{ color: 'var(--mist)' }}>Loading…</p>
+          : <div style={{ maxHeight: 'calc(100vh - 230px)', overflowY: 'auto' }}><CollectionsSequencer invoices={invoices} /></div>
+      )}
+
+      {activeTab === 'invoices' && (<>
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="field" style={{ marginBottom: 0, minWidth: 160 }}>
           <label htmlFor="statusFilter">Status</label>
@@ -563,15 +583,16 @@ export default function Invoices({ profile }) {
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
         <>
-        <div ref={scrollTableRef} onScroll={syncFromTable} style={{ overflowX: 'auto' }}>
+        <div ref={scrollTableRef} onScroll={syncFromTable} style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 300px)' }}>
           <div className="grid-table" style={{ gridTemplateColumns, minWidth: tableMinWidth }}>
-            <div className="grid-cell grid-head" style={actionsHeaderStyle}></div>
+            <div className="grid-cell grid-head" style={{ ...actionsHeaderStyle, position: 'sticky', top: 0, zIndex: 3 }}></div>
             {visibleColumnDefs.map((col) => (
               <div
                 key={col.key}
                 className="grid-cell grid-head"
                 style={{
                   ...headerCellStyle(col.key),
+                  position: 'sticky', top: 0, zIndex: 2,
                   cursor: ['invoice_date', 'invoice_number', 'customer', 'amount_due', 'balance', 'status'].includes(col.key) ? 'pointer' : 'default',
                 }}
                 onClick={() => {
@@ -676,6 +697,7 @@ export default function Invoices({ profile }) {
         )}
         </>
       )}
+      </>)}
 
       {newItemMode && (
         <QuickAddModal
