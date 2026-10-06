@@ -36,7 +36,10 @@ export default function CalendarTodoTile({ orgId, profile, isMobile }) {
     load()
   }
 
+  const t = today()
   const count = items.length
+  // "Flagged" = due today or already overdue — these must stand out.
+  const flaggedCount = items.filter((i) => i.due_date && i.due_date <= t).length
   const inputStyle = { width: '100%', padding: '7px 9px', border: '1px solid var(--border)', borderRadius: 7, fontSize: 13, boxSizing: 'border-box' }
 
   return (
@@ -49,6 +52,12 @@ export default function CalendarTodoTile({ orgId, profile, isMobile }) {
         <strong style={{ fontSize: 14, color: '#176E7A' }}>📝 To-Do{count ? ` (${count})` : ''}</strong>
         <span onClick={() => nav('/to-do')} style={{ fontSize: 11.5, color: '#2E6FB5', cursor: 'pointer', fontWeight: 700 }}>Open →</span>
       </div>
+
+      {flaggedCount > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#DC2626', color: '#fff', borderRadius: 7, padding: '6px 10px', marginBottom: 10, fontSize: 12.5, fontWeight: 800 }}>
+          🚩 {flaggedCount} due today{items.some((i) => i.due_date && i.due_date < t) ? ' or overdue' : ''}
+        </div>
+      )}
 
       <input value={body} onChange={(e) => setBody(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add() }}
         placeholder="Add a to-do…" style={{ ...inputStyle, marginBottom: 6 }} />
@@ -63,15 +72,27 @@ export default function CalendarTodoTile({ orgId, profile, isMobile }) {
       ) : (
         <div style={{ maxHeight: 300, overflowY: 'auto' }}>
           {items.map((r) => {
-            const overdue = r.due_date && r.due_date < today()
+            const overdue = r.due_date && r.due_date < t
+            const dueToday = r.due_date === t
+            const flag = overdue || dueToday
             return (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 0', borderTop: '1px solid var(--border)' }}>
+              <div key={r.id} style={{
+                display: 'flex', alignItems: 'flex-start', gap: 8, padding: flag ? '7px 8px' : '6px 0',
+                borderTop: flag ? 'none' : '1px solid var(--border)',
+                background: flag ? '#FDE8E8' : 'transparent',
+                borderLeft: flag ? '4px solid #DC2626' : 'none',
+                borderRadius: flag ? 6 : 0,
+                marginBottom: flag ? 5 : 0,
+              }}>
                 <input type="checkbox" checked={false} onChange={() => complete(r)} title="Mark done" style={{ width: 16, height: 16, flex: 'none', marginTop: 2, cursor: 'pointer' }} />
-                <div style={{ flex: 1, minWidth: 0, fontSize: 13, lineHeight: 1.3 }}>
+                <div style={{ flex: 1, minWidth: 0, fontSize: 13, lineHeight: 1.3, fontWeight: flag ? 700 : 400 }}>
+                  {flag && <span style={{ marginRight: 4 }}>🚩</span>}
                   {r.body}
                   {r.due_date && (
-                    <span style={{ display: 'block', fontSize: 11, color: overdue ? '#B0342F' : 'var(--mist)', fontWeight: overdue ? 700 : 400 }}>
-                      {overdue ? 'overdue ' : 'due '}{new Date(r.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    <span style={{ display: 'block', fontSize: 11, marginTop: 1,
+                      color: flag ? '#B0342F' : 'var(--mist)', fontWeight: flag ? 800 : 400,
+                      textTransform: flag ? 'uppercase' : 'none', letterSpacing: flag ? '.03em' : 0 }}>
+                      {overdue ? 'Overdue' : dueToday ? 'Due today' : 'due'} · {new Date(r.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                   )}
                 </div>
