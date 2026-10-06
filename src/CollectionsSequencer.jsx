@@ -57,7 +57,7 @@ export default function CollectionsSequencer({ invoices }) {
         <thead>
           <tr>
             {[['#', 'left'], ['Customer', 'left'], ['Invoice', 'left'], ['Balance', 'right'], ['Age', 'right'], ['Bucket', 'left']].map(([h, align]) => (
-              <th key={h} style={{ position: 'sticky', top: 0, zIndex: 1, background: '#FBFCFE', textAlign: align, boxShadow: 'inset 0 -1px 0 #E2E8F0' }}>{h}</th>
+              <th key={h} style={{ position: 'sticky', top: 0, zIndex: 1, background: '#1B3A6B', textAlign: align }}>{h}</th>
             ))}
           </tr>
         </thead>
