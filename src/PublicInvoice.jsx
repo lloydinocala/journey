@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import InvoiceDocument from './InvoiceDocument'
 import PMReportDocument from './PMReportDocument'
 
 export default function PublicInvoice() {
   const { invoiceId } = useParams()
+  // ?print=1 opens this document straight into the browser's Save-as-PDF / print flow,
+  // so the customer can download it to their phone or desktop from the portal.
+  const [sp] = useSearchParams()
+  const autoPrint = sp.get('print') === '1'
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -118,6 +122,13 @@ export default function PublicInvoice() {
         setLoading(false)
       })
   }, [invoiceId])
+
+  // Once the document has rendered, fire the print/save dialog for a ?print=1 (Download) open.
+  useEffect(() => {
+    if (!autoPrint || loading || !data) return
+    const t = setTimeout(() => { try { window.print() } catch (_) { /* ignore */ } }, 700)
+    return () => clearTimeout(t)
+  }, [autoPrint, loading, data])
 
   if (loading) {
     return (
@@ -240,6 +251,11 @@ export default function PublicInvoice() {
       : methodDone ? doneFooter
         : chooserFooter
 
+  // The "Paid on …" stamp is worth keeping in a printed/saved PDF; the pay choosers,
+  // approve/decline buttons and the "explain" tool are not — those get .cp-noprint.
+  const footerIsPaidStamp = !isEstimate && !!data.invoice.paid_at && !methodDone
+  const docFooter = footerIsPaidStamp ? footer : <div className="cp-noprint">{footer}</div>
+
   return (
     <div style={{
       minHeight: '100dvh',
@@ -249,9 +265,17 @@ export default function PublicInvoice() {
       padding: 'clamp(16px, 4vw, 40px) clamp(10px, 4vw, 20px) calc(clamp(24px, 6vw, 56px) + env(safe-area-inset-bottom, 0px))',
       background: '#EEF1F6',
     }}>
+      {/* Hide the interactive controls when the document is printed/saved as a PDF. */}
+      <style>{`@media print { .cp-noprint { display: none !important; } }`}</style>
+      <div className="cp-noprint" style={{ maxWidth: 800, margin: '0 auto 10px', display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={() => { try { window.print() } catch (_) { /* ignore */ } }}
+          style={{ border: '1px solid #CBD5E1', background: '#fff', color: '#334155', fontWeight: 700, fontSize: 13.5, borderRadius: 10, padding: '9px 16px', cursor: 'pointer' }}>
+          ⬇ Download / Print
+        </button>
+      </div>
       {data.pmReport && <PMReportDocument report={data.pmReport} org={data.org} property={data.property} customer={data.customer} />}
       {(!data.pmReport || (data.lineItems && data.lineItems.length > 0)) ? (
-        <InvoiceDocument data={data} footer={footer} />
+        <InvoiceDocument data={data} footer={docFooter} />
       ) : (
         <div style={{ maxWidth: 800, margin: '0 auto', background: 'white', borderRadius: 12, padding: '24px 28px', textAlign: 'center', color: '#1F7A43', fontWeight: 600, boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}>
           No repairs are recommended at this time — your system is in good working order.
@@ -259,7 +283,7 @@ export default function PublicInvoice() {
       )}
 
       {data.lineItems && data.lineItems.length > 0 && (
-        <div style={{ maxWidth: 800, margin: '12px auto 0' }}>
+        <div className="cp-noprint" style={{ maxWidth: 800, margin: '12px auto 0' }}>
           {!explain.open ? (
             <button onClick={explainCharges}
               style={{ border: '1px solid #CBD5E1', background: '#fff', color: '#334155', fontWeight: 600, fontSize: 13.5, borderRadius: 10, padding: '10px 16px', cursor: 'pointer', width: '100%' }}>
