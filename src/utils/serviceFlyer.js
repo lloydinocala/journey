@@ -1,7 +1,9 @@
-// Shared "service QR" flyer — prints TWO identical labels on one standard US Letter
-// (8.5" x 11") sheet, each sized to an 8.125" x 5" label (2-up: top half + bottom half).
-// Printing a normal Letter page (rather than a custom page size the print dialog can't
-// honor) is what keeps each flyer inside one label instead of straddling the seam.
+// Shared "service QR" flyer — prints ONE label on the TOP HALF of a standard US Letter
+// (8.5" x 11") sheet, sized to an 8.125" x 5" label (2-up stock: top half + bottom half).
+// Only the top label is used so each print is a single, unique code; flip the sheet over
+// to run a second, different code onto the other label. Printing a normal Letter page
+// (rather than a custom page size the print dialog can't honor) is what keeps the flyer
+// inside one label instead of straddling the seam.
 // Left side: subscriber logo + business name + landlord-approval notice. Right side: QR.
 // Used from Service Requests and the New Job form so both produce the identical page.
 
@@ -26,7 +28,7 @@ export function printServiceFlyer({ qrUrl, orgName, orgLogoUrl, orgPhone, addres
     ? `<div class="phone">Questions? Call us at <strong>${esc(orgPhone)}</strong></div>`
     : ''
 
-  // One label's inner content (rendered twice — top and bottom of the sheet).
+  // One label's inner content — rendered once, into the top half of the sheet.
   const label = `
     <div class="label">
       <div class="left">
@@ -81,7 +83,6 @@ export function printServiceFlyer({ qrUrl, orgName, orgLogoUrl, orgPhone, addres
 </style></head>
 <body onload="setTimeout(function(){window.focus();window.print()},350)">
   <div class="sheet">
-    ${label}
     ${label}
   </div>
 </body></html>`)
