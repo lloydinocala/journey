@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/sms-signup", "destination": "/sms-signup.html" },
+    { "source": "/sms-policy", "destination": "/sms-policy.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
