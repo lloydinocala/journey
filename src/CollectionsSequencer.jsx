@@ -52,8 +52,10 @@ export default function CollectionsSequencer({ invoices }) {
           context={{ open_invoices: rows.slice(0, 30).map((r) => ({ customer: r.customer, invoice: r.number, balance: Math.round(r.balance), days_outstanding: r.days })) }} />
       </div>
 
-      {/* Only the table scrolls — the heading and the plan button stay fixed above it, like the Invoices tab. */}
-      <div style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}>
+      {/* Only the table scrolls — the heading and the plan button stay fixed above it, like the Invoices tab.
+          The cap keeps the whole box inside .main-content-area so that area never scrolls and carries the
+          sticky header away (collections has few rows, so a taller cap would let the outer area scroll instead). */}
+      <div style={{ maxHeight: 'calc(100vh - 480px)', overflowY: 'auto', overscrollBehavior: 'contain' }}>
       {/* border-collapse must be 'separate' or Chrome won't honor position:sticky on the <th> (the header scrolls away). */}
       <table className="data-table" style={{ fontSize: 12.5, borderCollapse: 'separate', borderSpacing: 0 }}>
         <thead>
