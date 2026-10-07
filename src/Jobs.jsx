@@ -775,6 +775,9 @@ export default function Jobs({ profile }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <h2>Jobs</h2>
           <span className="badge">{jobs.length.toLocaleString()} total</span>
+          <Link to="/calendar" className="logout-button" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px' }} title="Back to the Calendar">
+            🗓 Calendar
+          </Link>
         </div>
         <NewItemDropdown onSelect={setNewItemMode} />
       </div>
