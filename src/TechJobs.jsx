@@ -181,9 +181,12 @@ export default function TechJobs({ profile }) {
     <div className="mobile-shell">
       <div className="mobile-header">
         <div className="mobile-header-top-row">
-          <div>
-            <div className="mobile-header-date">{dateDisplay}</div>
-            <div className="mobile-header-title">My Job Cards</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src="/brand/journey-icon.png" alt="Journey HVAC" style={{ height: 34, width: 34, borderRadius: 8, flex: '0 0 auto' }} />
+            <div>
+              <div className="mobile-header-date">{dateDisplay}</div>
+              <div className="mobile-header-title">My Job Cards</div>
+            </div>
           </div>
           <div className="mobile-header-actions">
             {isFieldAdmin(profile) && (

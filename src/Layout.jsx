@@ -446,7 +446,13 @@ export default function Layout({ profile }) {
       )}
       <AnnouncementBanner profile={profile} />
       <header className="app-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div className="app-topbar-brand"><span className="tb-the">The</span> <span className="tb-journey">Journey</span> <span className="tb-tag">starts here.</span></div>
+        <div className="app-topbar-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img src="/brand/journey-icon.png" alt="" style={{ height: 36, width: 36, borderRadius: 8, display: 'block', flex: '0 0 auto' }} />
+          <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.08 }}>
+            <span style={{ fontWeight: 800, fontSize: 16, color: '#fff', letterSpacing: '.01em' }}>Journey <span style={{ color: '#8FB4D6' }}>HVAC</span></span>
+            <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>From Surviving to Thriving</span>
+          </span>
+        </div>
         <Link to="/features" title="Find any feature in the app" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.14)', color: '#fff', textDecoration: 'none', fontWeight: 700, fontSize: 13, padding: '7px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.28)', whiteSpace: 'nowrap' }}>
           <span aria-hidden="true">🧭</span> Find a Feature
         </Link>

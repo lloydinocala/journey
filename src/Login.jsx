@@ -31,11 +31,8 @@ export default function Login() {
   return (
     <div className="auth-screen">
       <div className="auth-card">
-        <div className="route-signature">
-          <span className="waypoint" />
-          <span className="line" />
-        </div>
-        <h1 className="wordmark">Journey</h1>
+        <img src="/brand/journey-logo.png" alt="Journey HVAC — From Surviving to Thriving"
+          style={{ display: 'block', width: '100%', maxWidth: 250, height: 'auto', margin: '0 auto 10px' }} />
         <p className="subtitle">Sign in to your dispatch board</p>
         {error && <div className="auth-error">{error}</div>}
         <form onSubmit={handleSubmit}>
