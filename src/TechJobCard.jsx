@@ -21,6 +21,7 @@ const INCOMPLETE_REASONS = [
   'Awaiting parts or materials',
   'Needs estimate — information still pending',
   'Weather or site conditions prevented completion',
+  'No one home / unable to access property',
   'Customer-authorized part not on truck',
   'Emergency or scheduling interruption',
   'Other',
