@@ -34,7 +34,7 @@ const PAGE_TITLES = {
   '/import': 'Data Station', '/pricebook': 'Residential Flat Rate', '/pricebook-commercial': 'Commercial Flat Rate', '/systems-pricebook': 'Residential Systems', '/time-and-materials': 'Time & Materials', '/filter-pricebook': 'Filter Pricebook',
   '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
   '/payroll': 'Payroll Capture', '/session-log': 'Sign-In Log',
-  '/organizations': 'Organizations', '/announcements': 'Announcements', '/my': 'My Pay & Benefits',
+  '/organizations': 'Organizations', '/entitlements': 'Plans & Entitlements', '/announcements': 'Announcements', '/my': 'My Pay & Benefits',
   '/features': 'Feature Directory', '/training': 'Training Manual',
 }
 function pageTitle(pathname) {
@@ -246,6 +246,7 @@ export function buildSections(profile) {
       // Platform / super-admin-only controls, tucked here so subscriber orgs never see them.
       { label: 'Lender Directory', icon: 'directory', path: '/financing-directory', super: true },
       { label: 'Organizations', icon: 'organizations', path: '/organizations', super: true },
+      { label: 'Plans & Entitlements', icon: 'financials', path: '/entitlements', super: true },
       { label: 'Announcements', icon: 'marketing', path: '/announcements', super: true },
     ],
   }

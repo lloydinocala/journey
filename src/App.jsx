@@ -57,6 +57,7 @@ import TechChecklistRun from './TechChecklistRun'
 import DiscountCatalog from './DiscountCatalog'
 import OnCallSchedule from './OnCallSchedule'
 import RolesConfig from './RolesConfig'
+import Entitlements from './Entitlements'
 import MySchedule from './MySchedule'
 import MaintenanceAgreementTiers from './MaintenanceAgreementTiers'
 import ChecklistTemplates from './ChecklistTemplates'
@@ -210,7 +211,7 @@ function AuthenticatedApp() {
           supabase.auth.signOut()
           return
         }
-        const [permsRes, elemRes, rewardsRes, mktRes, toolsRes, effPerms] = await Promise.all([
+        const [permsRes, elemRes, rewardsRes, mktRes, toolsRes, effPerms, entRes] = await Promise.all([
           supabase.from('user_permissions').select('permission_key').eq('user_id', session.user.id),
           userRes.data.org_id
             ? supabase.from('elements_settings').select('entitled').eq('org_id', userRes.data.org_id).maybeSingle()
@@ -225,6 +226,10 @@ function AuthenticatedApp() {
             ? supabase.from('tools_settings').select('enabled').eq('org_id', userRes.data.org_id).maybeSingle()
             : Promise.resolve({ data: null }),
           loadPermissions(session.user.id, userRes.data.org_id),
+          // Unified feature entitlements (plans + add-ons + overrides) resolved to a key list.
+          userRes.data.org_id
+            ? supabase.rpc('org_entitlements', { p_org_id: userRes.data.org_id })
+            : Promise.resolve({ data: [] }),
         ])
         // Prime the active org timezone so all times render/parse in the
         // organization's zone, not the viewer's device zone. Super-admins have
@@ -243,6 +248,7 @@ function AuthenticatedApp() {
           payrollEntitled: !!(rewardsRes?.data?.payroll_entitled ?? rewardsRes?.data?.entitled),
           marketingEntitled: !!mktRes?.data?.entitled,   // Marketing-HVAC subscription gate
           toolsEntitled: !!toolsRes?.data?.enabled,      // Tools Management module gate (optional)
+          entitlements: entRes?.data || [],             // unified feature keys for hasFeature(profile, key)
         })
       })
   }, [session])
@@ -336,6 +342,7 @@ function AuthenticatedApp() {
         <Route path="/team" element={<Team profile={profile} />} />
         <Route path="/on-call" element={<OnCallSchedule profile={profile} />} />
         <Route path="/roles" element={<RolesConfig profile={profile} />} />
+        <Route path="/entitlements" element={<Entitlements profile={profile} />} />
         <Route path="/session-log" element={<SessionLog profile={profile} />} />
         <Route path="/import" element={<ImportDashboard />} />
         <Route path="/import/customers" element={<CustomerImport profile={profile} />} />
