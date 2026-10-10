@@ -117,11 +117,11 @@ const WORK_PAGES = [
 ]
 const DISPATCH_PAGES = [
   { label: 'Dispatch Station', path: '/dispatch' },
-  { label: 'Call Console', path: '/call' },
+  { label: 'Call Console', path: '/call', highlight: true },
   { label: 'Call Log', path: '/call-log' },
   { label: 'Known Others', path: '/known-contacts' },
   { label: 'Service Requests', path: '/service-requests' },
-  { label: 'Calendar', path: '/calendar' },
+  { label: 'Calendar', path: '/calendar', highlight: true },
   { label: 'Dispatch Map', path: '/dispatch-map' },
   { label: 'Filter Orders', path: '/filter-orders' },
   { label: 'Text Archive', path: '/text-archive', perm: 'view_text_archive' },
@@ -555,7 +555,10 @@ export default function Layout({ profile }) {
                 key={item.path}
                 to={item.path}
                 className={'rail-item' + (activePath && item.path === activePath ? ' active' : '')}
-                style={item.icon ? undefined : { paddingLeft: 20 }}
+                style={{
+                  ...(item.icon ? null : { paddingLeft: 20 }),
+                  ...(item.highlight ? { background: 'rgba(245,197,66,0.16)', boxShadow: 'inset 3px 0 0 #F5C542', color: '#FBE7A6', fontWeight: 700 } : null),
+                }}
               >
                 {item.icon ? <RailIcon k={item.icon} /> : null}
                 <span className="rail-label">{item.label}</span>
