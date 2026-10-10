@@ -88,6 +88,7 @@ import SystemEstimate from './SystemEstimate'
 import NewSystemEstimate from './NewSystemEstimate'
 import SystemEstimates from './SystemEstimates'
 import OperationsDashboard from './OperationsDashboard'
+import CommandCenter from './CommandCenter'
 import { AdminDash } from './SectionDashboards'
 import FinancialsDash from './FinancialsDashboard'
 import { CommandDashboard } from './modules/dashboard-hvac'
@@ -307,9 +308,7 @@ function AuthenticatedApp() {
      // app) is excluded; techs already route to /tech.
      (profile.role === 'tech' || (deviceKind() === 'mobile' && profile.role !== 'super_admin')) ? <Navigate to="/tech" replace />
        : (profile.default_landing && LANDING_PATHS.has(profile.default_landing)) ? <Navigate to={profile.default_landing} replace />
-       : profile.role === 'super_admin' ? <OperationsDashboard profile={profile} />
-       : can(profile, 'view_home_dashboard') ? <OrgHome profile={profile} />
-            : <OperationsDashboard profile={profile} />
+       : <CommandCenter profile={profile} />
    } />
         <Route path="/customers" element={<Customers profile={profile} />} />
         <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
@@ -384,7 +383,7 @@ function AuthenticatedApp() {
         <Route path="/new-system-estimate" element={<NewSystemEstimate profile={profile} />} />
         <Route path="/estimates" element={<Estimates profile={profile} />} />
         <Route path="/system-estimates" element={<SystemEstimates profile={profile} />} />
-        <Route path="/home" element={<CommandDashboard profile={profile} />} />
+        <Route path="/home" element={<CommandCenter profile={profile} />} />
         <Route path="/financials" element={<FinancialsDash profile={profile} />} />
         <Route path="/admin" element={<AdminDash profile={profile} />} />
         <Route path="/operations" element={<OperationsDashboard profile={profile} />} />
