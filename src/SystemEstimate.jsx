@@ -395,10 +395,10 @@ export default function SystemEstimate({ profile }) {
       .eq('id', estimate.id)
   }
 
-  async function handleSendEmail() {
+  async function handleSend(channel) {
     setSendingEmail(true)
     setSendError('')
-    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId: estimate.id } })
+    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId: estimate.id, channel } })
     setSendingEmail(false)
     if (error) {
       let detail = error.message
@@ -739,8 +739,11 @@ export default function SystemEstimate({ profile }) {
               <button className="auth-button" style={{ width: 'auto', padding: '8px 20px', background: '#2E7FC4' }} onClick={() => window.open('/view-invoice/' + estimate.id, '_blank')}>
                 Review / Preview
               </button>
-              <button className="auth-button" style={{ width: 'auto', padding: '8px 20px' }} onClick={handleSendEmail} disabled={sendingEmail}>
-                {sendingEmail ? 'Sending…' : estimate.sent_at ? 'Resend to Customer' : 'Send to Customer'}
+              <button className="auth-button" style={{ width: 'auto', padding: '8px 20px' }} onClick={() => handleSend('email')} disabled={sendingEmail}>
+                {sendingEmail ? 'Sending…' : estimate.sent_at ? 'Re-email to Customer' : 'Email to Customer'}
+              </button>
+              <button className="auth-button" style={{ width: 'auto', padding: '8px 20px', background: '#0E7C66' }} onClick={() => handleSend('sms')} disabled={sendingEmail}>
+                Text to Customer
               </button>
               {estimate.sent_at && (
                 <span style={{ fontSize: 13, color: 'var(--mist)' }}>

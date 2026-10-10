@@ -270,11 +270,12 @@ export default function Estimates({ profile }) {
     loadEstimates(selectedOrg)
   }
 
-  async function sendEstimate(est) {
+  async function sendEstimate(est, channel = 'email') {
     const verb = est.sent_at ? 'Resend' : 'Send'
-    if (!window.confirm(`${verb} estimate ${est.invoice_number} to the customer's email on file?`)) return
+    const how = channel === 'sms' ? "mobile number" : "email"
+    if (!window.confirm(`${verb} estimate ${est.invoice_number} to the customer's ${how} on file?`)) return
     setSendingId(est.id)
-    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId: est.id } })
+    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId: est.id, channel } })
     setSendingId(null)
     if (error) {
       let msg = error.message || 'Send failed.'
@@ -283,7 +284,8 @@ export default function Estimates({ profile }) {
       return
     }
     if (data?.error) { alert(`Could not ${verb.toLowerCase()} this estimate: ${data.error}`); return }
-    alert(`Estimate ${est.invoice_number} sent to ${data?.sentTo || 'the customer'}.`)
+    const dest = channel === 'sms' ? (data?.sentText || "the customer's phone") : (data?.sentTo || 'the customer')
+    alert(`Estimate ${est.invoice_number} ${channel === 'sms' ? 'texted' : 'emailed'} to ${dest}.`)
     loadEstimates(selectedOrg)
   }
 
@@ -621,8 +623,11 @@ export default function Estimates({ profile }) {
                   <a href={'/view-invoice/' + est.id} target="_blank" rel="noopener noreferrer" className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
                     View
                   </a>
-                  <button className="logout-button" disabled={sendingId === est.id} title={sentTitle(est)} onClick={() => sendEstimate(est)}>
-                    {sendingId === est.id ? 'Sending…' : est.sent_at ? 'Resend' : 'Send'}
+                  <button className="logout-button" disabled={sendingId === est.id} title={sentTitle(est)} onClick={() => sendEstimate(est, 'email')}>
+                    {sendingId === est.id ? 'Sending…' : est.sent_at ? 'Re-email' : 'Email'}
+                  </button>
+                  <button className="logout-button" disabled={sendingId === est.id} title="Text the review/approve link to the customer's mobile" onClick={() => sendEstimate(est, 'sms')}>
+                    Text
                   </button>
                   <button className="logout-button" onClick={() => addToIncompleteJobs(est)}>
                     + Incomplete

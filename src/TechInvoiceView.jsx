@@ -126,7 +126,7 @@ export default function TechInvoiceView({ profile }) {
     loadAll()
   }, [invoiceId])
 
-  async function handleSendEmail() {
+  async function handleSend(channel) {
     setSendError('')
     const isEst = invoiceRow?.kind === 'estimate'
     if (realItems < 1) {
@@ -140,7 +140,7 @@ export default function TechInvoiceView({ profile }) {
     // build the invoice) are the proof of work; sending and collecting payment are
     // independent — send first or take payment first, in person or by link.
     setSendingEmail(true)
-    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId } })
+    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId, channel } })
     setSendingEmail(false)
     if (error) {
       let detail = error.message
@@ -378,8 +378,11 @@ export default function TechInvoiceView({ profile }) {
             <div className="section-card-body">
               <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 0 }}>No login required for the customer.</p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button className="action-btn primary" style={{ flex: '1 1 auto' }} onClick={handleSendEmail} disabled={sendingEmail}>
-                  {sendingEmail ? 'Sending…' : invoiceRow?.sent_at ? 'Resend to Customer' : 'Send to Customer'}
+                <button className="action-btn primary" style={{ flex: '1 1 auto' }} onClick={() => handleSend('email')} disabled={sendingEmail}>
+                  {sendingEmail ? 'Sending…' : invoiceRow?.sent_at ? 'Re-email' : 'Email to Customer'}
+                </button>
+                <button className="action-btn" style={{ flex: '1 1 auto', background: '#0E7C66', color: '#fff' }} onClick={() => handleSend('sms')} disabled={sendingEmail}>
+                  Text to Customer
                 </button>
                 {isEstimate && (
                   <button className="action-btn" style={{ flex: '1 1 auto', background: '#2E7FC4' }} onClick={() => window.open(payLinkUrl(), '_blank')}>

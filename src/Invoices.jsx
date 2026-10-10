@@ -289,11 +289,12 @@ export default function Invoices({ profile }) {
     loadInvoices(selectedOrg)
   }
 
-  async function sendInvoice(inv) {
+  async function sendInvoice(inv, channel = 'email') {
     const verb = inv.sent_at ? 'Resend' : 'Send'
-    if (!window.confirm(`${verb} invoice ${inv.invoice_number} to the customer's email on file?`)) return
+    const how = channel === 'sms' ? "mobile number" : "email"
+    if (!window.confirm(`${verb} invoice ${inv.invoice_number} to the customer's ${how} on file?`)) return
     setSendingId(inv.id)
-    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId: inv.id } })
+    const { data, error } = await supabase.functions.invoke('send-invoice-email', { body: { invoiceId: inv.id, channel } })
     setSendingId(null)
     if (error) {
       let msg = error.message || 'Send failed.'
@@ -302,7 +303,8 @@ export default function Invoices({ profile }) {
       return
     }
     if (data?.error) { alert(`Could not ${verb.toLowerCase()} this invoice: ${data.error}`); return }
-    alert(`Invoice ${inv.invoice_number} sent to ${data?.sentTo || 'the customer'}.`)
+    const dest = channel === 'sms' ? (data?.sentText || "the customer's phone") : (data?.sentTo || 'the customer')
+    alert(`Invoice ${inv.invoice_number} ${channel === 'sms' ? 'texted' : 'emailed'} to ${dest}.`)
     loadInvoices(selectedOrg)
   }
 
@@ -618,8 +620,11 @@ export default function Invoices({ profile }) {
                   <a href={'/view-invoice/' + inv.id} target="_blank" rel="noopener noreferrer" className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
                     View
                   </a>
-                  <button className="logout-button" disabled={sendingId === inv.id} title={sentTitle(inv)} onClick={() => sendInvoice(inv)}>
-                    {sendingId === inv.id ? 'Sending…' : inv.sent_at ? 'Resend' : 'Send'}
+                  <button className="logout-button" disabled={sendingId === inv.id} title={sentTitle(inv)} onClick={() => sendInvoice(inv, 'email')}>
+                    {sendingId === inv.id ? 'Sending…' : inv.sent_at ? 'Re-email' : 'Email'}
+                  </button>
+                  <button className="logout-button" disabled={sendingId === inv.id} title="Text the view/pay link to the customer's mobile" onClick={() => sendInvoice(inv, 'sms')}>
+                    Text
                   </button>
                   {inv.sent_at && Number(inv.balance || 0) > 0.5 && (
                     <AiAssist compact label="AI reminder" title={'Payment reminder · ' + inv.invoice_number}
