@@ -326,6 +326,32 @@ export default function Layout({ profile }) {
     return t ? t.p : ''
   }, [location.pathname, targets])
 
+  // Top section tabs — the day's main hubs. Each navigates to the hub's dash;
+  // the existing route-driven rail then re-scopes to that hub's pages on its own.
+  // Gated the same way the sections are (Inventory/WorkForce hidden for techs).
+  const sectionTabs = useMemo(() => {
+    const has = (k) => sections.some((s) => s.key === k)
+    const tabs = [
+      { key: 'command', label: 'Command Center', to: '/home', color: '#2E6FB5' },
+      { key: 'work', label: 'Jobs & Customers', to: '/jobs-dash', color: '#0E7C66' },
+      { key: 'dispatch', label: 'Dispatch', to: '/dispatch', color: '#B45309' },
+    ]
+    if (has('inventory-central')) tabs.push({ key: 'inventory-central', label: 'Inventory Central', to: '/inventory-central', color: '#6A54C4' })
+    if (has('workforce')) tabs.push({ key: 'workforce', label: 'WorkForce', to: '/workforce', color: '#15803D' })
+    return tabs
+  }, [sections])
+  // Which hub owns the current route (so the right tab lights up). Falls back to
+  // null when you're somewhere outside the hubs (Admin, Financials, etc.).
+  const activeTabKey = useMemo(() => {
+    const p = location.pathname
+    if (p === '/' || p === '/home') return 'command'
+    if (openStack.includes('work')) return 'work'
+    if (openStack.includes('dispatch')) return 'dispatch'
+    if (openStack.includes('inventory-central')) return 'inventory-central'
+    if (openStack.includes('workforce')) return 'workforce'
+    return null
+  }, [location.pathname, openStack])
+
   // openStack = keys of the currently-drilled-into groups (empty = root menu).
   const [openStack, setOpenStack] = useState(() => resolveStack(location.pathname, targets))
   const [navCollapsed, setNavCollapsed] = useState(false)
@@ -457,6 +483,32 @@ export default function Layout({ profile }) {
           <span aria-hidden="true">🧭</span> Find a Feature
         </Link>
       </header>
+      <nav className="section-tabbar" aria-label="Sections">
+        {sectionTabs.map((t) => {
+          const on = activeTabKey === t.key
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => navigate(t.to)}
+              aria-current={on ? 'page' : undefined}
+              style={{
+                cursor: 'pointer', fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap',
+                padding: '9px 18px', borderRadius: '10px 10px 0 0', marginBottom: '-2px',
+                borderTop: `1px solid ${on ? t.color : '#CBD5E1'}`,
+                borderLeft: `1px solid ${on ? t.color : '#CBD5E1'}`,
+                borderRight: `1px solid ${on ? t.color : '#CBD5E1'}`,
+                borderBottom: on ? `2px solid ${t.color}` : '2px solid transparent',
+                background: on ? t.color : t.color + '14',
+                color: on ? '#ffffff' : t.color,
+                transition: 'background .12s',
+              }}
+            >
+              {t.label}
+            </button>
+          )
+        })}
+      </nav>
       <div className="shell-body">
         {navCollapsed ? (
           <button className="sidebar-panel-reopen" onClick={() => setNavCollapsed(false)} title="Show menu" aria-label="Show menu">›</button>

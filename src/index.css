@@ -838,6 +838,23 @@ html { overflow-x: hidden; }
   min-width: 0;
 }
 
+/* Top section tabs — main hubs under the dark header; the rail re-scopes to the
+   active hub. Folder look: active tab's bottom border merges into the baseline. */
+.section-tabbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 10px 24px 0;
+  background: var(--panel);
+  border-bottom: 2px solid #CBD5E1;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.section-tabbar::-webkit-scrollbar { height: 0; }
+@media (max-width: 640px) {
+  .section-tabbar { padding: 8px 12px 0; }
+}
+
 .sidebar-rail {
   width: 92px;
   background: var(--nav-bg);
