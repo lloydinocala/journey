@@ -243,7 +243,7 @@ export default function OperationsDashboard({ profile }) {
 
       {/* Hero vital signs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, marginBottom: 14 }}>
-        <Vital label="Outstanding A/R" value={money(d.outstanding)} sub={`${d.unpaid.length} unpaid invoice${d.unpaid.length === 1 ? '' : 's'}`} to="/invoices" accent={d.outstanding > 0 ? C.over : C.good} />
+        <Vital label="Outstanding A/R" value={money(d.outstanding)} sub={`${d.unpaid.length} unpaid invoice${d.unpaid.length === 1 ? '' : 's'}`} to="/invoices?tab=collections" accent={d.outstanding > 0 ? C.over : C.good} />
         <Vital label="Estimates Out" value={money(d.pendEstTotal)} sub={`${d.pendEst.length}${d.pendTypeLabel && d.pendTypeLabel !== 'mixed' ? ' ' + d.pendTypeLabel : ''} awaiting a reply${d.pendTypeLabel === 'mixed' ? ' · Job + System' : ''}`} to={d.pendLink || '/estimates'} accent={d.pendEst.length ? C.amber : C.good} />
         <Vital label="Jobs to Schedule" value={String(d.toSchedule.length)} sub="need a real date" to="/jobs" accent={d.toSchedule.length ? C.amber : C.good} />
         <Vital label="Maintenance Due" value={String(d.maintDue.length)} sub="within 30 days" to="/maintenance-due" accent={d.maintDue.length ? C.amber : C.good} />
@@ -264,7 +264,7 @@ export default function OperationsDashboard({ profile }) {
 
       <SectionHead>Needs attention now</SectionHead>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16, marginBottom: 24 }}>
-        <Card title="Unpaid Invoices" headline={money(d.outstanding)} count={d.unpaid.length} seeAll="/invoices" emptyMsg="No money on the street">
+        <Card title="Unpaid Invoices" headline={money(d.outstanding)} count={d.unpaid.length} seeAll="/invoices?tab=collections" emptyMsg="No money on the street">
           {d.unpaid.slice(0, 4).map((x) => (
             <Row key={x.id} to={x.link} left={<>{x.num} · {x.cust}</>} right={<Pill tone={invTone(x.days)}>{ageLabel(x.days)}</Pill>} amt={money(x.amt)} />
           ))}
@@ -353,7 +353,9 @@ function Card({ title, headline, count, seeAll, emptyMsg, children }) {
   return (
     <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16, boxShadow: '0 1px 3px rgba(20,30,50,0.04)' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
-        <span style={{ fontWeight: 700, fontSize: 14.5 }}>{title}</span>
+        {seeAll
+          ? <Link to={seeAll} style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, textDecoration: 'none' }}>{title} →</Link>
+          : <span style={{ fontWeight: 700, fontSize: 14.5 }}>{title}</span>}
         <span style={{ fontSize: 20, fontWeight: 800, color: empty ? C.good : C.ink }}>{empty ? '✓' : headline}</span>
       </div>
       {empty ? (

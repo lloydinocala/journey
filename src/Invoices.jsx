@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import CollectionsSequencer from './CollectionsSequencer'
+import CollectionsCockpit from './CollectionsCockpit'
 import ReceivePayment from './ReceivePayment'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
@@ -90,6 +91,7 @@ export default function Invoices({ profile }) {
   }, [])
 
   const [searchParams] = useSearchParams()
+  useEffect(() => { if (searchParams.get('tab') === 'collections') setActiveTab('collections') }, [searchParams])
   const highlightId = searchParams.get('invoice')
   const highlightRef = useRef(null)
   const didScrollRef = useRef(false)
@@ -522,7 +524,10 @@ export default function Invoices({ profile }) {
       {activeTab === 'collections' && (
         loading
           ? <p style={{ color: 'var(--mist)' }}>Loading…</p>
-          : <CollectionsSequencer invoices={invoices} />
+          : <>
+              <CollectionsCockpit orgId={profile.org_id || selectedOrg} />
+              <CollectionsSequencer invoices={invoices} />
+            </>
       )}
 
       {activeTab === 'invoices' && (<>
