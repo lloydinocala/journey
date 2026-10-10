@@ -326,6 +326,24 @@ export default function Layout({ profile }) {
     return t ? t.p : ''
   }, [location.pathname, targets])
 
+  // openStack = keys of the currently-drilled-into groups (empty = root menu).
+  const [openStack, setOpenStack] = useState(() => resolveStack(location.pathname, targets))
+  const [navCollapsed, setNavCollapsed] = useState(false)
+  const [logoutShiftId, setLogoutShiftId] = useState(null)
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  // Navigating (including deep-linking) opens the nav to the matching branch.
+  useEffect(() => {
+    setOpenStack(resolveStack(location.pathname, targets))
+  }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const currentNode = openStack.length ? nodeAt(sections, openStack) : null
+  const currentChildren = currentNode ? (currentNode.children || []) : sections
+  const parentStack = openStack.slice(0, -1)
+  const parentNode = parentStack.length ? nodeAt(sections, parentStack) : null
+  const parentLabel = parentNode ? parentNode.label : 'Home'
+  const atRoot = openStack.length === 0
+
   // Top section tabs — the day's main hubs. Each navigates to the hub's dash;
   // the existing route-driven rail then re-scopes to that hub's pages on its own.
   // Gated the same way the sections are (Inventory/WorkForce hidden for techs).
@@ -351,24 +369,6 @@ export default function Layout({ profile }) {
     if (openStack.includes('workforce')) return 'workforce'
     return null
   }, [location.pathname, openStack])
-
-  // openStack = keys of the currently-drilled-into groups (empty = root menu).
-  const [openStack, setOpenStack] = useState(() => resolveStack(location.pathname, targets))
-  const [navCollapsed, setNavCollapsed] = useState(false)
-  const [logoutShiftId, setLogoutShiftId] = useState(null)
-  const [loggingOut, setLoggingOut] = useState(false)
-
-  // Navigating (including deep-linking) opens the nav to the matching branch.
-  useEffect(() => {
-    setOpenStack(resolveStack(location.pathname, targets))
-  }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const currentNode = openStack.length ? nodeAt(sections, openStack) : null
-  const currentChildren = currentNode ? (currentNode.children || []) : sections
-  const parentStack = openStack.slice(0, -1)
-  const parentNode = parentStack.length ? nodeAt(sections, parentStack) : null
-  const parentLabel = parentNode ? parentNode.label : 'Home'
-  const atRoot = openStack.length === 0
 
   function openGroup(node) {
     if (node.dash) navigate(node.dash)
