@@ -49,6 +49,7 @@ const COLUMNS = [
   { key: 'completed_at', label: 'Completed Time' },
   { key: 'status', label: 'Job Status' },
   { key: 'invoice_sent', label: 'Invoice Status' },
+  { key: 'invoice_number', label: 'INV #' },
   { key: 'job_notes', label: 'Job Notes' },
 ]
 
@@ -346,6 +347,10 @@ export default function Jobs({ profile }) {
     )
     return j.invoice ? <Link to={'/invoice/' + j.id} title={j.invoice.invoice_number} style={{ textDecoration: 'none' }}>{pill}</Link> : pill
   }
+  function invoiceNumberCell(j) {
+    if (!j.invoice) return <span style={{ color: 'var(--mist)' }}>—</span>
+    return <Link to={'/invoice/' + j.id} title={'Open invoice ' + j.invoice.invoice_number} style={{ color: '#2E7FC4', textDecoration: 'underline', fontWeight: 600, whiteSpace: 'nowrap' }}>{j.invoice.invoice_number}</Link>
+  }
 
   function durationLabel(hrs) {
     if (hrs == null || hrs === '') return ''
@@ -630,7 +635,7 @@ export default function Jobs({ profile }) {
     state: 60, zip: 80, flags: 150, gate_code: 90, tenant_1: 120, tenant_1_phone: 110,
     tenant_2: 120, tenant_2_phone: 110, technician_1: 130, technician_2: 130, technician_3: 130, technician_4: 130,
     on_my_way_at: 150, arrival_at: 150, completed_at: 150, status: 100, job_notes: 200,
-    customer: 160, invoice_sent: 120,
+    customer: 160, invoice_sent: 120, invoice_number: 110,
   }
   const ACTIONS_WIDTH = 240
   const gridTemplateColumns = ACTIONS_WIDTH + 'px ' + visibleColumnDefs.map((c) => (COLUMN_WIDTHS[c.key] || 130) + 'px').join(' ')
@@ -754,6 +759,7 @@ export default function Jobs({ profile }) {
     if (key === 'arrival_at') return timeDisplay(j.arrival_at)
     if (key === 'completed_at') return timeDisplay(j.completed_at)
     if (key === 'job_notes') return j.job_notes || '—'
+    if (key === 'invoice_number') return j.invoice?.invoice_number || '—'
     if (key === 'invoice_sent') return invoiceStatusText(j)
     return ''
   }
@@ -1072,6 +1078,11 @@ export default function Jobs({ profile }) {
                         {invoiceStatusBadge(j)}
                       </div>
                     )
+                    if (col.key === 'invoice_number') return (
+                      <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>
+                        {invoiceNumberCell(j)}
+                      </div>
+                    )
                     return <div key={col.key} className="grid-cell" style={cellStyle(col.key, rowBg)}>{cellValue(j, col.key)}</div>
                   })}
                 </>
@@ -1105,6 +1116,8 @@ export default function Jobs({ profile }) {
                         ) : (j.properties?.customers?.display_name || '—')
                       ) : col.key === 'invoice_sent' ? (
                         invoiceStatusBadge(j)
+                      ) : col.key === 'invoice_number' ? (
+                        invoiceNumberCell(j)
                       ) : col.key === 'street_address' ? (
                         j.properties?.street_address
                           ? <Link to={'/properties?q=' + encodeURIComponent(j.properties.street_address)} style={{ color: '#2E7FC4', textDecoration: 'underline' }}>{j.properties.street_address}</Link>
