@@ -298,6 +298,11 @@ export default function TechJobCard({ profile }) {
   const [savingStop, setSavingStop] = useState(false)
   const [stopError, setStopError] = useState('')
 
+  // No-charge visit (callback / warranty / courtesy — closes at $0)
+  const [noChargeReason, setNoChargeReason] = useState('')
+  const [savingNoCharge, setSavingNoCharge] = useState(false)
+  const [noChargeErr, setNoChargeErr] = useState('')
+
   const [lockHint, setLockHint] = useState(false)
   const [googleMsg, setGoogleMsg] = useState('')
 
@@ -317,7 +322,7 @@ export default function TechJobCard({ profile }) {
     setLoading(true)
     const { data } = await supabase.from('jobs').select(`
       id, org_id, property_id, customer_id, job_number, segment, status, start_time, duration_hours, job_type,
-      service_complaint, internal_notes, auth_diagnose_only, auth_limit_amount, service_estimate_not_needed, plan_options_sent_at, plan_options_declined_at, read_notes_before_job,
+      service_complaint, internal_notes, auth_diagnose_only, auth_limit_amount, service_estimate_not_needed, plan_options_sent_at, plan_options_declined_at, read_notes_before_job, no_charge, no_charge_reason,
       tech_email_edited_at, tech_phone_edited_at, diagnosis_note, diagnosis_recorded_at, pre_photo_skip_reason, arrival_at, paused_at, paused_seconds,
       properties ( street_address, unit, city, state, zip, gate_code, expected_system_count ),
       customers ( display_name, spouse_name, primary_phone, secondary_phone, email_1 ),
@@ -448,8 +453,12 @@ export default function TechJobCard({ profile }) {
   // Diagnosis is blue the moment a real note exists (voice or typed) — no minimum length.
   const diagnosisDone = !!(job?.diagnosis_note && job.diagnosis_note.trim())
 
-  const invoiceDone = !!invoice && invoiceItems > 0
-  const viewSendDone = !!invoice?.sent_at
+  // No-charge visits (callbacks, warranty, courtesy): nothing is billed, so the
+  // billing spine (invoice built, invoice sent, services estimate, plan offer) is
+  // satisfied by the explicit no-charge decision and the job can close at $0.
+  const noCharge = !!job?.no_charge
+  const invoiceDone = noCharge || (!!invoice && invoiceItems > 0)
+  const viewSendDone = noCharge || !!invoice?.sent_at
   // HARD GATE: verification (post-work) photos must exist before any invoice building or payment.
   // "We don't bill for work we haven't done — and haven't verified by photo."
   const verifyDone = postPhotos.length > 0
@@ -461,8 +470,8 @@ export default function TechJobCard({ profile }) {
   // Customer said "not interested" on THIS visit — satisfies the gate without
   // forcing another agreement email. Per-visit only; the next visit prompts again.
   const planDeclined = !!job?.plan_options_declined_at
-  const maintDone = planExists || planSent || planDeclined
-  const serviceEstDone = !!job?.service_estimate_not_needed || serviceEstItems > 0
+  const maintDone = noCharge || planExists || planSent || planDeclined
+  const serviceEstDone = noCharge || !!job?.service_estimate_not_needed || serviceEstItems > 0
 
   // Install jobs: the system was already sold and quoted, so the tech doesn't build a
   // services estimate on the visit — hide the whole "Create Services Estimate" group
@@ -515,7 +524,7 @@ export default function TechJobCard({ profile }) {
 
   // Required tasks that drive the status pill. Warning banners do NOT count.
   const requiredDone = equipDone && preWorkPhotosDone && middleGateDone && (showServiceEstimate ? serviceEstDone : true) && invoiceDone && viewSendDone && verifyDone && (showEstimateGroup ? maintDone : true)
-  const allClear = requiredDone && !exceedsLimit
+  const allClear = noCharge || (requiredDone && !exceedsLimit)
   const status = job?.status
 
   // Group completion (all subsections blue) → auto-close the group; next opens manually.
@@ -690,6 +699,24 @@ export default function TechJobCard({ profile }) {
     }
     setJob((p) => ({ ...p, status: finalStatus, paused_at: null }))
     setSavingStop(false); setShowStopModal(false)
+  }
+
+  async function markNoCharge() {
+    const reason = noChargeReason.trim()
+    if (!reason) return
+    setSavingNoCharge(true); setNoChargeErr('')
+    const { error } = await supabase.from('jobs').update({ no_charge: true, no_charge_reason: reason }).eq('id', jobId)
+    if (error) { setNoChargeErr(error.message); setSavingNoCharge(false); return }
+    setJob((p) => ({ ...p, no_charge: true, no_charge_reason: reason }))
+    setSavingNoCharge(false)
+  }
+  async function clearNoCharge() {
+    setSavingNoCharge(true); setNoChargeErr('')
+    const { error } = await supabase.from('jobs').update({ no_charge: false, no_charge_reason: null }).eq('id', jobId)
+    if (error) { setNoChargeErr(error.message); setSavingNoCharge(false); return }
+    setJob((p) => ({ ...p, no_charge: false, no_charge_reason: null }))
+    setNoChargeReason('')
+    setSavingNoCharge(false)
   }
 
   // ---- section actions ----
@@ -1520,6 +1547,28 @@ export default function TechJobCard({ profile }) {
         <div className={`jc-group ${paymentGroupDone ? 'blue' : 'red'}`}>
         <GroupHead g="payment" label="Collect Payment" done={paymentGroupDone} />
         {openGroup === 'payment' && (<div className="jc-group-body">
+        {/* No charge — callbacks / warranty / courtesy visits close at $0 with no invoice or payment */}
+        <div className="jc-task">
+          <TaskHead k="nocharge" title="No Charge for This Visit" icon={<IconReceipt />} done={noCharge} />
+          {isOpen('nocharge') && (
+            <div className="jc-task-body">
+              {noCharge ? (
+                <>
+                  <p className="jc-done-line">No charge — nothing due.{job?.no_charge_reason ? ` (${job.no_charge_reason})` : ''}</p>
+                  <button className="jc-btn wide ghost" style={{ marginTop: 8 }} disabled={savingNoCharge} onClick={clearNoCharge}>Undo — this visit has a charge</button>
+                </>
+              ) : (
+                <>
+                  <p className="jc-muted-note" style={{ marginBottom: 8 }}>For a callback, warranty, or courtesy visit where nothing is billed. Closes the job at $0 — no invoice or payment needed, and the billing steps below are skipped.</p>
+                  <input value={noChargeReason} onChange={(e) => setNoChargeReason(e.target.value)} placeholder="Reason (e.g. Callback — corrected drain, no new work)" style={{ width: '100%', padding: 11, fontSize: 15, borderRadius: 10, border: '1px solid var(--jc-line)', marginBottom: 10 }} />
+                  <button className="jc-btn wide" disabled={savingNoCharge || !noChargeReason.trim()} onClick={markNoCharge}>{savingNoCharge ? 'Saving…' : 'Mark No Charge — $0, nothing to send'}</button>
+                </>
+              )}
+              {noChargeErr && <p className="jc-muted-note" style={{ color: 'var(--jc-red)', marginTop: 8 }}>{noChargeErr}</p>}
+            </div>
+          )}
+        </div>
+
         {/* Completion (post-repair) photos — the hard gate before Invoice lands in the estimate/invoice build */}
         <div className="jc-task">
           <TaskHead k="completion_photos" title="Verify" icon={<IconCamera />} done={verifyDone}
@@ -1547,7 +1596,7 @@ export default function TechJobCard({ profile }) {
         </div>
 
         {/* Invoice Builder (required) — HARD-GATED: verification photos + air filters + agreement offered */}
-        {!canBuildInvoice && <LockNote text={`Before building the invoice — ${invoiceBlockers.join('; ')}.`} />}
+        {!canBuildInvoice && !noCharge && <LockNote text={`Before building the invoice — ${invoiceBlockers.join('; ')}.`} />}
         <div className="jc-task">
           <TaskHead k="invoice" title="Invoice Builder" icon={<IconReceipt />} done={invoiceDone} locked={!canBuildInvoice}
             actions={canBuildInvoice ? <button className="jc-th-action" onClick={() => navigate(`/tech/invoice/${jobId}`)}>+Add</button> : null} />
@@ -1564,7 +1613,7 @@ export default function TechJobCard({ profile }) {
           <TaskHead k="viewsend" title="View & Send Invoice" icon={<IconReceipt />} done={viewSendDone} />
           {isOpen('viewsend') && (
             <div className="jc-task-body">
-              {!invoice ? <p className="jc-muted-note">No invoice yet — start it in Invoice Builder above.</p> : (
+              {noCharge ? <p className="jc-done-line">No charge for this visit — nothing to send.</p> : !invoice ? <p className="jc-muted-note">No invoice yet — start it in Invoice Builder above.</p> : (
                 <>
                   <div className="jc-kv"><span>Total Due</span><strong>${invoiceTotal.toFixed(2)}</strong></div>
                   <div className="jc-kv"><span>Status</span><strong>{invoice.paid_at ? 'Paid' : 'Unpaid'}{invoice.sent_at ? ' · Sent' : ''}</strong></div>
