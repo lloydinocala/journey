@@ -40,6 +40,14 @@ export default function TechSettings({ profile }) {
           </div>
         </div>
 
+        <div className="jc-task">
+          <div className="jc-task-head blue" style={{ cursor: 'default' }}><span className="jc-th-title">Ask Quincy</span></div>
+          <div className="jc-task-body">
+            <p className="jc-muted-note">Tap the mic and talk — Quincy answers questions, resends an invoice, or (for admins) sends an email or text, and reads the reply back to you. Hands-light for when you're on the move.</p>
+            <button className="jc-btn ghost wide" style={{ marginTop: 10 }} onClick={() => navigate('/tech/apollo')}>Open Quincy (voice)</button>
+          </div>
+        </div>
+
         {(profile?.role === 'org_admin' || profile?.role === 'super_admin') && (
           <div className="jc-task">
             <div className="jc-task-head blue" style={{ cursor: 'default' }}><span className="jc-th-title">Office App</span></div>
