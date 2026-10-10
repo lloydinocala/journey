@@ -40,18 +40,21 @@ export default function CommandCenter({ profile }) {
 
       <h2 className="page-title" style={{ marginBottom: 10 }}>{current.name}</h2>
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '0 0 18px' }}>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'flex-end', borderBottom: '2px solid #CBD5E1', margin: '0 0 18px', paddingLeft: 2 }}>
         {TABS.map((t) => {
           const on = active === t.key
           return (
             <button key={t.key} type="button" onClick={() => go(t.key)}
               style={{
-                border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14,
-                padding: '9px 18px', borderRadius: 10,
-                background: on ? t.color : t.color + '1A',
+                cursor: 'pointer', fontWeight: 700, fontSize: 14, padding: '9px 18px',
+                borderRadius: '10px 10px 0 0', marginBottom: '-2px',
+                borderTop: `1px solid ${on ? t.color : '#CBD5E1'}`,
+                borderLeft: `1px solid ${on ? t.color : '#CBD5E1'}`,
+                borderRight: `1px solid ${on ? t.color : '#CBD5E1'}`,
+                borderBottom: on ? `2px solid ${t.color}` : '2px solid transparent',
+                background: on ? t.color : t.color + '14',
                 color: on ? '#ffffff' : t.color,
-                boxShadow: on ? `0 2px 8px ${t.color}55` : 'none',
-                transition: 'background .12s, box-shadow .12s',
+                transition: 'background .12s',
               }}>
               {t.label}
             </button>
