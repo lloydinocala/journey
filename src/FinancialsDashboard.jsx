@@ -20,7 +20,7 @@ const C = {
 const money = (n) => '$' + Math.round(Number(n) || 0).toLocaleString()
 const money1k = (n) => { n = Number(n) || 0; return Math.abs(n) >= 1000 ? '$' + (n / 1000).toFixed(1) + 'k' : '$' + Math.round(n) }
 
-export default function FinancialsDashboard({ profile }) {
+export default function FinancialsDashboard({ profile, embedded }) {
   const nav = useNavigate()
   const isSuper = profile?.role === 'super_admin'
   const allowed = isSuper || can(profile, 'view_financials_dashboard')
@@ -131,10 +131,12 @@ export default function FinancialsDashboard({ profile }) {
   return (
     <div style={{ padding: '22px 24px 70px', maxWidth: 1040 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        {!embedded && (
         <div>
           <div style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: 0.3, color: BRAND }}>Financials</div>
           <h2 style={{ fontSize: 25, fontWeight: 800, letterSpacing: -0.5, margin: '4px 0 0' }}>Money in, money out</h2>
         </div>
+        )}
         {isSuper && <div><div style={{ fontSize: 11.5, color: FAINT, marginBottom: 4, textAlign: 'right' }}>Organization</div><OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} /></div>}
       </div>
 
