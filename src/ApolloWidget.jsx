@@ -2,6 +2,7 @@ import QuincyBadge from './QuincyBadge'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './utils/supabase'
 import { IconSparkles, IconPhone } from './MobileIcons'
+import useQuincyVoice from './useQuincyVoice'
 
 const SUPPORT_PHONE_DISPLAY = '(352) 484-6341'
 
@@ -59,9 +60,10 @@ export default function ApolloWidget({ profile }) {
     return data?.id || null
   }
 
-  async function sendMessage(e) {
-    e?.preventDefault()
-    const text = input.trim()
+  const voice = useQuincyVoice((heard) => send(heard))
+
+  async function send(rawText) {
+    const text = (rawText || '').trim()
     if (!text || sending) return
     setError('')
     const nextMessages = [...messages, { role: 'user', content: text }]
@@ -83,9 +85,15 @@ export default function ApolloWidget({ profile }) {
 
     setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }])
     saveMessage('assistant', data.reply)
+    if (voice.voiceOn) voice.speak(data.reply)
     if (userMessageId && data.topic) {
       await supabase.from('apollo_messages').update({ topic: data.topic }).eq('id', userMessageId)
     }
+  }
+
+  function sendMessage(e) {
+    e?.preventDefault()
+    send(input)
   }
 
   return (
@@ -121,13 +129,27 @@ export default function ApolloWidget({ profile }) {
           </div>
 
           <form className="apollo-widget-input-row" onSubmit={sendMessage}>
+            {voice.supported && (
+              <button type="button" title={voice.listening ? 'Listening… tap to stop' : 'Speak to Quincy'}
+                onClick={() => (voice.listening ? voice.stopListening() : voice.startListening())}
+                disabled={sending || loadingHistory}
+                style={{ background: voice.listening ? '#C0392B' : undefined, color: voice.listening ? '#fff' : undefined }}>
+                {voice.listening ? '●' : '🎤'}
+              </button>
+            )}
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask Quincy…"
+              placeholder={voice.listening ? 'Listening…' : 'Ask Quincy…'}
               disabled={sending || loadingHistory}
             />
+            {voice.canSpeak && (
+              <button type="button" title={voice.voiceOn ? 'Reading replies aloud — tap to mute' : 'Read replies aloud'}
+                onClick={() => { if (voice.voiceOn) { voice.stopSpeaking(); voice.setVoiceOn(false) } else { voice.setVoiceOn(true) } }}>
+                {voice.voiceOn ? '🔊' : '🔇'}
+              </button>
+            )}
             <button type="submit" disabled={sending || loadingHistory || !input.trim()}>Send</button>
           </form>
         </div>
