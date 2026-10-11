@@ -4,8 +4,25 @@ import QuincyBrief from '../../QuincyBrief'
 import './marketing.css'
 
 export default function MarketingCommand({ profile }) {
-  const orgId = profile?.org_id
+  const isSuper = !profile?.org_id
+  const [orgs, setOrgs] = useState([])
+  const [selOrg, setSelOrg] = useState('')
+  const orgId = profile?.org_id || selOrg
   const [m, setM] = useState(null)
+
+  useEffect(() => {
+    if (!isSuper) return
+    supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
+      const l = data || []
+      setOrgs(l)
+      const saved = localStorage.getItem('mkt_org')
+      const pick = (saved && l.find((o) => o.id === saved)?.id)
+        || l.find((o) => /journey \(platform\)/i.test(o.name))?.id
+        || l[0]?.id || ''
+      setSelOrg(pick)
+    })
+  }, [isSuper])
+  function changeOrg(id) { setSelOrg(id); localStorage.setItem('mkt_org', id); setM(null) }
 
   useEffect(() => {
     if (!orgId) return
@@ -42,6 +59,18 @@ export default function MarketingCommand({ profile }) {
         <h2>Command Center</h2>
         <p>Every channel and dollar measured against real booked revenue — pulled from Journey jobs, not vanity metrics.</p>
       </div>
+
+      {isSuper && (
+        <div className="card mb16">
+          <div className="card-head">
+            <h3>Marketing as</h3>
+            <div className="spacer" />
+            <select value={selOrg} onChange={(e) => changeOrg(e.target.value)} style={{ padding: '8px 11px', border: '1px solid #cdd7e1', borderRadius: 8, fontSize: 14, minWidth: 220 }}>
+              {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', margin: '4px 0 16px', padding: '11px 15px', borderRadius: 12, background: (m && m.pending > 0) ? '#FAF2E0' : '#E7F0F1', border: '1px solid ' + ((m && m.pending > 0) ? '#EAD3A0' : '#BCD7D9') }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>

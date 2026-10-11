@@ -29,6 +29,7 @@ export default function MarketingQueue({ profile }) {
   const [fb, setFb] = useState(null)
   const [fbForm, setFbForm] = useState({ open: false, page_id: '', token: '', saving: false })
   const [imgUrls, setImgUrls] = useState({})
+  const [imgBusy, setImgBusy] = useState({})
 
   useEffect(() => {
     if (!isSuper) return
@@ -154,6 +155,25 @@ export default function MarketingQueue({ profile }) {
     } catch (e) { alert('Post failed: ' + (e.message || e)) }
   }
 
+  async function uploadImage(item, file) {
+    setImgBusy((b) => ({ ...b, [item.id]: true }))
+    try {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      const path = `${orgId}/${item.id}/${crypto.randomUUID()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('marketing-media').upload(path, file, { contentType: file.type || 'image/jpeg', upsert: true })
+      if (upErr) throw upErr
+      const { data: pub } = supabase.storage.from('marketing-media').getPublicUrl(path)
+      await supabase.from('marketing_content_items').update({ image_url: pub?.publicUrl || null }).eq('id', item.id)
+      await loadItems(campaign.id)
+    } catch (e) { alert('Image upload failed: ' + (e.message || e)) }
+    setImgBusy((b) => ({ ...b, [item.id]: false }))
+  }
+
+  async function removeImage(item) {
+    await supabase.from('marketing_content_items').update({ image_url: null }).eq('id', item.id)
+    loadItems(campaign.id)
+  }
+
   async function setStatus(item, status) {
     const patch = { status }
     if (status === 'scheduled') { patch.approved_by = profile?.id || null; patch.approved_at = new Date().toISOString() }
@@ -263,9 +283,19 @@ export default function MarketingQueue({ profile }) {
                   <span className={`post-status ${it.status}`}>{STATUS_LABEL[it.status] || it.status}</span>
                 </div>
                 <div className="post-body">
-                  {it.image_path && imgUrls[it.id] && (<img src={imgUrls[it.id]} alt="job" style={{ width: '100%', maxWidth: 380, borderRadius: 10, marginBottom: 10, display: 'block' }} />)}
+                  {(it.image_url || (it.image_path && imgUrls[it.id])) && (<img src={it.image_url || imgUrls[it.id]} alt="post" style={{ width: '100%', maxWidth: 380, borderRadius: 10, marginBottom: 10, display: 'block' }} />)}
                   <div className="text">{it.body}</div>
-                  {it.media_note && !it.image_path && <div className="media">🖼 {it.media_note}</div>}
+                  {it.media_note && !it.image_path && !it.image_url && <div className="media">🖼 {it.media_note}</div>}
+                  {it.status !== 'posted' && (
+                    <div className="post-actions" style={{ marginTop: 10 }}>
+                      <label className="btn" style={{ cursor: 'pointer' }}>
+                        {imgBusy[it.id] ? 'Uploading…' : (it.image_url ? 'Replace image' : 'Attach image')}
+                        <input type="file" accept="image/*" style={{ display: 'none' }} disabled={imgBusy[it.id]}
+                          onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) uploadImage(it, f); e.target.value = '' }} />
+                      </label>
+                      {it.image_url && <button className="btn" onClick={() => removeImage(it)}>Remove image</button>}
+                    </div>
+                  )}
                 </div>
                 {it.status === 'pending_review' && (
                   <div className="post-actions">

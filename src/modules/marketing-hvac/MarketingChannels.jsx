@@ -18,11 +18,28 @@ const TYPE_LABEL = { organic: 'Organic content', paid: 'Paid ads', reviews: 'Rep
 const GLYPH = { organic: '#2f7be0', paid: '#6a54c4', reviews: '#c78320', reengage: '#1c9b5c', custom: '#5a6b80' }
 
 export default function MarketingChannels({ profile }) {
-  const orgId = profile?.org_id
+  const isSuper = !profile?.org_id
+  const [orgs, setOrgs] = useState([])
+  const [selOrg, setSelOrg] = useState('')
+  const orgId = profile?.org_id || selOrg
   const [list, setList] = useState(null)
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState({ name: '', channel_type: 'custom', delivery_mode: 'manual' })
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!isSuper) return
+    supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
+      const l = data || []
+      setOrgs(l)
+      const saved = localStorage.getItem('mkt_org')
+      const pick = (saved && l.find((o) => o.id === saved)?.id)
+        || l.find((o) => /journey \(platform\)/i.test(o.name))?.id
+        || l[0]?.id || ''
+      setSelOrg(pick)
+    })
+  }, [isSuper])
+  function changeOrg(id) { setSelOrg(id); localStorage.setItem('mkt_org', id); setList(null) }
 
   async function load() {
     const { data, error } = await supabase
@@ -31,6 +48,18 @@ export default function MarketingChannels({ profile }) {
     setList(data || [])
   }
   useEffect(() => { if (orgId) load() }, [orgId])
+
+  const OrgPicker = isSuper ? (
+    <div className="card mb16">
+      <div className="card-head">
+        <h3>Marketing as</h3>
+        <div className="spacer" />
+        <select value={selOrg} onChange={(e) => changeOrg(e.target.value)} style={{ padding: '8px 11px', border: '1px solid #cdd7e1', borderRadius: 8, fontSize: 14, minWidth: 220 }}>
+          {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+        </select>
+      </div>
+    </div>
+  ) : null
 
   async function seedBuiltins() {
     setBusy(true)
@@ -61,10 +90,17 @@ export default function MarketingChannels({ profile }) {
     load()
   }
 
+  if (!orgId) {
+    return (
+      <div className="mkt"><div className="view-head"><h2>Channels &amp; assets</h2></div>
+        {OrgPicker}<p className="muted">Choose an organization.</p></div>
+    )
+  }
+
   if (list === null) {
     return (
       <div className="mkt"><div className="view-head"><h2>Channels &amp; assets</h2></div>
-        <p className="muted">Loading…</p></div>
+        {OrgPicker}<p className="muted">Loading…</p></div>
     )
   }
 
@@ -74,6 +110,8 @@ export default function MarketingChannels({ profile }) {
         <h2>Channels &amp; assets</h2>
         <p>The built-in channels plus any asset you add — Yelp, Angi, direct mail, a referral program, a QR code on the truck. Each gets a tracked link and lands in the same report.</p>
       </div>
+
+      {OrgPicker}
 
       {list.length === 0 ? (
         <div className="card"><div className="card-body" style={{ textAlign: 'center' }}>

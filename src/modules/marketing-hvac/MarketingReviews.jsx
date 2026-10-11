@@ -13,9 +13,26 @@ const TRIGGER_STEPS = [
 ]
 
 export default function MarketingReviews({ profile }) {
-  const orgId = profile?.org_id
+  const isSuper = !profile?.org_id
+  const [orgs, setOrgs] = useState([])
+  const [selOrg, setSelOrg] = useState('')
+  const orgId = profile?.org_id || selOrg
   const [requests, setRequests] = useState(null)
   const [completedJobs, setCompletedJobs] = useState(0)
+
+  useEffect(() => {
+    if (!isSuper) return
+    supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
+      const l = data || []
+      setOrgs(l)
+      const saved = localStorage.getItem('mkt_org')
+      const pick = (saved && l.find((o) => o.id === saved)?.id)
+        || l.find((o) => /journey \(platform\)/i.test(o.name))?.id
+        || l[0]?.id || ''
+      setSelOrg(pick)
+    })
+  }, [isSuper])
+  function changeOrg(id) { setSelOrg(id); localStorage.setItem('mkt_org', id); setRequests(null) }
 
   useEffect(() => {
     if (!orgId) return
@@ -36,6 +53,18 @@ export default function MarketingReviews({ profile }) {
         <h2>Reviews &amp; reputation</h2>
         <p>The #1 contractor marketing lever. Journey fires a review request the moment a job is marked complete — and reviews lift both your Local Pack and Local Services Ads ranking.</p>
       </div>
+
+      {isSuper && (
+        <div className="card mb16">
+          <div className="card-head">
+            <h3>Marketing as</h3>
+            <div className="spacer" />
+            <select value={selOrg} onChange={(e) => changeOrg(e.target.value)} style={{ padding: '8px 11px', border: '1px solid #cdd7e1', borderRadius: 8, fontSize: 14, minWidth: 220 }}>
+              {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
 
       <div className="kpis" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
         <div className="kpi"><div className="label">Completed jobs</div><div className="val">{completedJobs}</div><div className="sub">eligible to trigger a request</div></div>
