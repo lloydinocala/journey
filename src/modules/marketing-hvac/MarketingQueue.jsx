@@ -30,6 +30,10 @@ export default function MarketingQueue({ profile }) {
   const [fbForm, setFbForm] = useState({ open: false, page_id: '', token: '', saving: false })
   const [imgUrls, setImgUrls] = useState({})
   const [imgBusy, setImgBusy] = useState({})
+  const [editing, setEditing] = useState({})
+  const [savingBody, setSavingBody] = useState({})
+  const [schedEdit, setSchedEdit] = useState({})
+  const [savingSched, setSavingSched] = useState({})
 
   useEffect(() => {
     if (!isSuper) return
@@ -174,6 +178,38 @@ export default function MarketingQueue({ profile }) {
     loadItems(campaign.id)
   }
 
+  function startEdit(item) { setEditing((e) => ({ ...e, [item.id]: item.body || '' })) }
+  function changeEdit(id, v) { setEditing((e) => ({ ...e, [id]: v })) }
+  function cancelEdit(id) { setEditing((e) => { const n = { ...e }; delete n[id]; return n }) }
+  async function saveBody(item) {
+    const text = (editing[item.id] ?? '').trim()
+    if (!text) { alert('Post text can’t be empty.'); return }
+    setSavingBody((b) => ({ ...b, [item.id]: true }))
+    try {
+      await supabase.from('marketing_content_items').update({ body: text }).eq('id', item.id)
+      cancelEdit(item.id)
+      await loadItems(campaign.id)
+    } catch (e) { alert('Save failed: ' + (e.message || e)) }
+    setSavingBody((b) => ({ ...b, [item.id]: false }))
+  }
+
+  function startSched(item) { setSchedEdit((s) => ({ ...s, [item.id]: toLocalInput(item.scheduled_for) })) }
+  function changeSched(id, v) { setSchedEdit((s) => ({ ...s, [id]: v })) }
+  function cancelSched(id) { setSchedEdit((s) => { const n = { ...s }; delete n[id]; return n }) }
+  async function saveSched(item) {
+    const v = schedEdit[item.id]
+    if (!v) return
+    let iso
+    try { iso = new Date(v).toISOString() } catch { alert('Pick a valid date and time.'); return }
+    setSavingSched((b) => ({ ...b, [item.id]: true }))
+    try {
+      await supabase.from('marketing_content_items').update({ scheduled_for: iso }).eq('id', item.id)
+      cancelSched(item.id)
+      await loadItems(campaign.id)
+    } catch (e) { alert('Save failed: ' + (e.message || e)) }
+    setSavingSched((b) => ({ ...b, [item.id]: false }))
+  }
+
   async function setStatus(item, status) {
     const patch = { status }
     if (status === 'scheduled') { patch.approved_by = profile?.id || null; patch.approved_at = new Date().toISOString() }
@@ -282,9 +318,35 @@ export default function MarketingQueue({ profile }) {
                   <div className="spacer" />
                   <span className={`post-status ${it.status}`}>{STATUS_LABEL[it.status] || it.status}</span>
                 </div>
+                <div style={{ padding: '0 0 8px', fontSize: 13, color: '#5a6b80', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {schedEdit[it.id] !== undefined ? (
+                    <>
+                      <input type="datetime-local" value={schedEdit[it.id]} onChange={(e) => changeSched(it.id, e.target.value)}
+                        style={{ padding: '6px 8px', border: '1px solid #cdd7e1', borderRadius: 8, fontSize: 13 }} />
+                      <button className="btn approve" disabled={savingSched[it.id]} onClick={() => saveSched(it)}>{savingSched[it.id] ? 'Saving…' : 'Save date'}</button>
+                      <button className="btn" onClick={() => cancelSched(it.id)}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <span>🗓 Scheduled: <b>{fmtSched(it.scheduled_for)}</b></span>
+                      {it.status !== 'posted' && <button className="btn" style={{ padding: '3px 9px', fontSize: 12 }} onClick={() => startSched(it)}>Change date</button>}
+                    </>
+                  )}
+                </div>
                 <div className="post-body">
                   {(it.image_url || (it.image_path && imgUrls[it.id])) && (<img src={it.image_url || imgUrls[it.id]} alt="post" style={{ width: '100%', maxWidth: 380, borderRadius: 10, marginBottom: 10, display: 'block' }} />)}
-                  <div className="text">{it.body}</div>
+                  {editing[it.id] !== undefined ? (
+                    <div style={{ marginBottom: 10 }}>
+                      <textarea value={editing[it.id]} onChange={(e) => changeEdit(it.id, e.target.value)} rows={8}
+                        style={{ width: '100%', padding: 10, border: '1px solid #cdd7e1', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', lineHeight: 1.45, resize: 'vertical', boxSizing: 'border-box' }} />
+                      <div className="post-actions" style={{ marginTop: 6 }}>
+                        <button className="btn approve" disabled={savingBody[it.id]} onClick={() => saveBody(it)}>{savingBody[it.id] ? 'Saving…' : 'Save text'}</button>
+                        <button className="btn" onClick={() => cancelEdit(it.id)}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text">{it.body}</div>
+                  )}
                   {it.media_note && !it.image_path && !it.image_url && <div className="media">🖼 {it.media_note}</div>}
                   {it.status !== 'posted' && (
                     <div className="post-actions" style={{ marginTop: 10 }}>
@@ -294,6 +356,7 @@ export default function MarketingQueue({ profile }) {
                           onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) uploadImage(it, f); e.target.value = '' }} />
                       </label>
                       {it.image_url && <button className="btn" onClick={() => removeImage(it)}>Remove image</button>}
+                      {editing[it.id] === undefined && <button className="btn" onClick={() => startEdit(it)}>Edit text</button>}
                     </div>
                   )}
                 </div>
@@ -326,3 +389,13 @@ export default function MarketingQueue({ profile }) {
 }
 
 const inp = { display: 'block', width: '100%', marginTop: 4, padding: '9px 11px', border: '1px solid #cdd7e1', borderRadius: 8, fontSize: 14 }
+
+function fmtSched(iso) {
+  if (!iso) return 'No date set'
+  try { return new Date(iso).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) } catch { return String(iso) }
+}
+function toLocalInput(iso) {
+  const d = iso ? new Date(iso) : new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes())
+}
