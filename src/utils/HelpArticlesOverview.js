@@ -76,7 +76,7 @@ export const HELP_ARTICLES = [
         "h": "Getting around (the left menu)",
         "items": [
           "The menu is a single column. HOME stays pinned at the top on every screen — tap it to jump back to the top level.",
-          "Tap a section — Train Station, Inventory Central, WorkForce, Command Center, Financials, or Admin — and its menu opens in place, with a \"BACK TO:\" line just under HOME to step back one level at a time.",
+          "Tap a section — Train Station, Inventory Central, WorkForce, Marketing Center, Financials, or Admin — and its menu opens in place, with a \"BACK TO:\" line just under HOME to step back one level at a time.",
           "Owners and admins see a \"Field App\" button near the bottom of the menu that opens the phone / field app on this device. From inside the field app, Mobile App Settings → \"Switch to Office App\" brings you back. Because you can be signed in on one computer and one phone at once, your desktop can stay in the office while your phone is in the field app."
         ]
       },

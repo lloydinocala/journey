@@ -93,7 +93,7 @@ export const REWARDS_CERT_NAV = {
   key: 'rewards-cert',
   label: 'Certified Payroll',
   items: [
-    { label: 'Projects', path: '/rewards/certified/projects' },
+    { label: 'Prevailing Wage Projects', path: '/rewards/certified/projects' },
     { label: 'Prevailing Wage', path: '/rewards/certified/wage-rates' },
     { label: 'Certified Payroll', path: '/rewards/certified' },
   ],

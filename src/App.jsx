@@ -74,6 +74,7 @@ import Estimate from './Estimate'
 import NewFollowupEstimate from './NewFollowupEstimate'
 import Estimates from './Estimates'
 import Announcements from './Announcements'
+import WebsiteAnnouncement from './WebsiteAnnouncement'
 import PublicInvoice from './PublicInvoice'
 import PublicChecklistReport from './PublicChecklistReport'
 import PublicTrack from './PublicTrack'
@@ -422,6 +423,9 @@ function AuthenticatedApp() {
         ))}
         {profile.role === 'super_admin' && (
           <Route path="/announcements" element={<Announcements />} />
+        )}
+        {profile.role === 'super_admin' && (
+          <Route path="/website-announcement" element={<WebsiteAnnouncement profile={profile} />} />
         )}
         {profile.role === 'super_admin' && (
           <Route path="/organizations" element={<Organizations />} />

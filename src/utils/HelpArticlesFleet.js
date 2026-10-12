@@ -63,7 +63,7 @@ export const FLEET_HELP_ARTICLES = [
   },
   {
     id: 'fleet-maintenance',
-    title: 'Maintenance',
+    title: 'Fleet Maintenance',
     area: 'Fleet',
     keywords: ['maintenance', 'pm', 'oil change', 'service', 'schedule', 'interval', 'miles', 'days', 'wash', 'tune-up', 'due'],
     purpose: 'Preventive-maintenance schedules that flag when service is due — and the place to pre-schedule recurring date-driven tasks like washes.',

@@ -34,7 +34,7 @@ const PAGE_TITLES = {
   '/import': 'Data Station', '/pricebook': 'Res Flat Rate Pricebook', '/pricebook-commercial': 'Comm Flat Rate Pricebook', '/systems-pricebook': 'Res Systems Pricebook', '/time-and-materials': 'Time & Materials', '/filter-pricebook': 'Filter Pricebook',
   '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
   '/payroll': 'Payroll Capture', '/session-log': 'Sign-In Log',
-  '/organizations': 'Organizations', '/entitlements': 'Plans & Entitlements', '/announcements': 'Announcements', '/my': 'My Pay & Benefits',
+  '/organizations': 'Organizations', '/entitlements': 'Plans & Entitlements', '/announcements': 'Announcements', '/website-announcement': 'Website Announcement', '/my': 'My Pay & Benefits',
   '/features': 'Feature Directory', '/training': 'Training Manual',
 }
 function pageTitle(pathname) {
@@ -226,14 +226,14 @@ export function buildSections(profile) {
   }
   const workforce = { key: 'workforce', label: 'WorkForce', icon: 'workforce', dash: '/workforce', children: wfStations }
 
-  // Command Center = the Marketing module (already labeled Command Center in its nav).
+  // Marketing Center = the Marketing module. ("Command Center" is the top-bar Home tab.)
   const commandCenterItems = [
-    { label: 'Command Center', icon: 'marketing', path: '/marketing' },
+    { label: 'Marketing Center', icon: 'marketing', path: '/marketing' },
     { label: 'Approval Queue', icon: 'approval', path: '/marketing/queue' },
     { label: 'Channels & Assets', icon: 'channels', path: '/marketing/channels' },
     { label: 'Reviews', icon: 'reviews', path: '/marketing/reviews' },
   ]
-  const commandCenter = { key: 'command-center', label: 'Command Center', icon: 'marketing', dash: '/marketing', children: commandCenterItems }
+  const commandCenter = { key: 'command-center', label: 'Marketing Center', icon: 'marketing', dash: '/marketing', children: commandCenterItems }
 
   const financials = { key: 'financials', label: 'Financials', icon: 'financials', path: '/financials' }
 
@@ -248,6 +248,7 @@ export function buildSections(profile) {
       { label: 'Organizations', icon: 'organizations', path: '/organizations', super: true },
       { label: 'Plans & Entitlements', icon: 'financials', path: '/entitlements', super: true },
       { label: 'Announcements', icon: 'marketing', path: '/announcements', super: true },
+      { label: 'Website Announcement', icon: 'marketing', path: '/website-announcement', super: true },
     ],
   }
 

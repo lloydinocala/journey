@@ -400,7 +400,7 @@ export const HELP_ARTICLES = [
       {
         "h": "The pieces",
         "items": [
-          "Command Center — the KPIs: channels, active campaigns, drafts awaiting your yes, leads, and review requests.",
+          "Marketing Center — the KPIs: channels, active campaigns, drafts awaiting your yes, leads, and review requests.",
           "Approval Queue — AI-drafted posts and messages that wait for your approval before anything goes out. Nothing publishes on its own.",
           "Channels & Assets — the built-in and custom channels you market through, and the brand assets used.",
           "Reviews — review requests and your reputation. Reviews are the top contractor-marketing lever: a request goes out when a job is marked complete."
@@ -408,7 +408,7 @@ export const HELP_ARTICLES = [
       },
       {
         "h": "Good to know",
-        "body": "The customer review link a request points to is your per-organization Google review link, set in Settings. Drafts always wait for a person — the Command Center leads with anything sitting in the approval queue."
+        "body": "The customer review link a request points to is your per-organization Google review link, set in Settings. Drafts always wait for a person — the Marketing Center leads with anything sitting in the approval queue."
       }
     ]
   },

@@ -56,7 +56,7 @@ export default function MarketingCommand({ profile }) {
   return (
     <div className="mkt">
       <div className="view-head">
-        <h2>Command Center</h2>
+        <h2>Marketing Center</h2>
         <p>Every channel and dollar measured against real booked revenue — pulled from Journey jobs, not vanity metrics.</p>
       </div>
 

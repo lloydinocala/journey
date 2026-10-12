@@ -102,7 +102,7 @@ export const ELEMENTS_FLEET_NAV = {
     { label: 'Fleet Dashboard', path: '/fleet' },
     { label: 'Vehicles', path: '/fleet/vehicles' },
     { label: 'Fuel Log', path: '/fleet/fuel' },
-    { label: 'Maintenance', path: '/fleet/maintenance' },
+    { label: 'Fleet Maintenance', path: '/fleet/maintenance' },
     { label: 'Repairs & Cost', path: '/fleet/repairs' },
     { label: 'Routes & GPS', path: '/fleet/routes' },
     { label: 'Inspections', path: '/fleet/inspections' },
@@ -129,6 +129,6 @@ export const TOOLS_NAV = {
     { label: 'Tool Catalog', path: '/tools/catalog' },
     { label: 'Orders & Receipts', path: '/tools/orders' },
     { label: 'Reconcile', path: '/tools/reconcile' },
-    { label: 'Maintenance', path: '/tools/maintenance' },
+    { label: 'Tool Maintenance', path: '/tools/maintenance' },
   ],
 }

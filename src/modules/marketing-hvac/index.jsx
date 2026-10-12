@@ -16,9 +16,9 @@ export const MARKETING_ROUTES = [
 // Sidebar category (Layout.jsx). Shown to office roles (not techs).
 export const MARKETING_NAV = {
   key: 'marketing',
-  label: 'Command Center',
+  label: 'Marketing Center',
   items: [
-    { label: 'Command Center', path: '/marketing' },
+    { label: 'Marketing Center', path: '/marketing' },
     { label: 'Approval Queue', path: '/marketing/queue' },
     { label: 'Channels & Assets', path: '/marketing/channels' },
     { label: 'Reviews', path: '/marketing/reviews' },

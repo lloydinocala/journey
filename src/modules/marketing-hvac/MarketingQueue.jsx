@@ -264,7 +264,7 @@ export default function MarketingQueue({ profile }) {
           ) : !fbForm.open ? (
             <div>
               <div className="note" style={{ marginBottom: 12 }}><span className="i">i</span>
-                <span>Connect this org’s Facebook Page once so Command Center can post to it. You’ll paste the Page ID and a Page Access Token from your Meta app.</span></div>
+                <span>Connect this org’s Facebook Page once so Marketing Center can post to it. You’ll paste the Page ID and a Page Access Token from your Meta app.</span></div>
               <button className="btn approve" onClick={() => setFbForm((f) => ({ ...f, open: true }))}>Connect Facebook page</button>
             </div>
           ) : (
