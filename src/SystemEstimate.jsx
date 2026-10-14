@@ -25,6 +25,30 @@ function boldEquipmentLines(text) {
   })
 }
 
+
+// Service calls an estimate can be tied to: recent or still-open jobs at the property
+// (not installs). Tying a system estimate to the call it came from lets approval waive
+// that call's charge; with no call picked, approval simply creates the new install job.
+export async function loadServiceCallsForProperty(propertyId, customerId) {
+  if (!propertyId && !customerId) return []
+  const since = new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10)
+  const { data } = await supabase
+    .from('jobs')
+    .select('id, job_number, segment, job_date, status, job_type')
+    .or([propertyId && `property_id.eq.${propertyId}`, customerId && `customer_id.eq.${customerId}`].filter(Boolean).join(','))
+    .is('deleted_at', null)
+    .or(`job_date.gte.${since},status.in.(scheduled,in_progress,incomplete,unscheduled)`)
+    .order('job_date', { ascending: false })
+    .limit(15)
+  return (data || []).filter((j) => !/install|retrofit/i.test(j.job_type || ''))
+}
+export function pickLikelyServiceCall(jobs) {
+  const today = new Date().toISOString().slice(0, 10)
+  const live = jobs.find((j) => j.status === 'in_progress') || jobs.find((j) => j.job_date === today && j.status !== 'canceled')
+  return live ? live.id : ''
+}
+export const serviceCallLabel = (j) => `${j.job_number}${j.segment > 1 ? '-' + j.segment : ''} · ${j.job_type || 'Job'} · ${j.job_date || 'no date'} · ${j.status}`
+
 export default function SystemEstimate({ profile }) {
   const { jobId, estimateId } = useParams()
   const [job, setJob] = useState(null)
@@ -62,6 +86,8 @@ export default function SystemEstimate({ profile }) {
   const [taxRate, setTaxRate] = useState(0)
 
   const [sendingEmail, setSendingEmail] = useState(false)
+  const [serviceCalls, setServiceCalls] = useState([])
+  const [installJob, setInstallJob] = useState(null)
   const [sendError, setSendError] = useState('')
 
   async function loadJobAndEstimate() {
@@ -384,9 +410,41 @@ export default function SystemEstimate({ profile }) {
   }
 
   async function updateApprovalStatus(status) {
+    if (status === 'Approved' && !estimate.approved_at) {
+      const call = serviceCalls.find((j) => j.id === estimate.reference_job_id)
+      const msg = 'Record this estimate as APPROVED?\n\n' +
+        '• A new install job is created (unscheduled, in Needs Dispatch).\n' +
+        '• This estimate becomes that job\'s invoice — same lines and price.\n' +
+        (call ? `• Service call ${call.job_number} is set to $0 (new system sold).` : '• No service call is linked, so nothing is waived.')
+      if (!window.confirm(msg)) return
+      const { error } = await supabase.from('invoices').update({
+        approval_status: 'Approved', approved_at: new Date().toISOString(), approved_by: profile?.full_name || 'Office',
+      }).eq('id', estimate.id)
+      if (error) { alert(error.message); return }
+      const { data: fresh } = await supabase.from('invoices').select('*').eq('id', estimate.id).single()
+      if (fresh) setEstimate(fresh)
+      return
+    }
     await supabase.from('invoices').update({ approval_status: status }).eq('id', estimate.id)
     setEstimate((prev) => ({ ...prev, approval_status: status }))
   }
+
+  async function linkServiceCall(jobIdToLink) {
+    const { error } = await supabase.from('invoices').update({ reference_job_id: jobIdToLink || null }).eq('id', estimate.id)
+    if (error) { alert(error.message); return }
+    setEstimate((prev) => ({ ...prev, reference_job_id: jobIdToLink || null }))
+  }
+
+  // Service calls at this property (for linking) + the install job once approved.
+  useEffect(() => {
+    if (!estimate?.id || (!job?.property_id && !job?.customer_id)) return
+    loadServiceCallsForProperty(job.property_id, job.customer_id).then(setServiceCalls)
+  }, [estimate?.id, job?.property_id, job?.customer_id])
+  useEffect(() => {
+    const jid = estimate?.spawned_job_id || estimate?.converted_to_job_id
+    if (!jid) { setInstallJob(null); return }
+    supabase.from('jobs').select('id, job_number, status').eq('id', jid).maybeSingle().then(({ data }) => setInstallJob(data || null))
+  }, [estimate?.spawned_job_id, estimate?.converted_to_job_id])
 
   async function saveDiscount() {
     await supabase
@@ -485,6 +543,20 @@ export default function SystemEstimate({ profile }) {
                   <option value="Pending Financing">Pending Financing</option>
                 </select>
               </div>
+              {estimateId && !estimate.approved_at && (
+                <div style={{ marginTop: 8 }}>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--mist)', marginBottom: 2 }}>From service call</label>
+                  <select value={estimate.reference_job_id || ''} onChange={(e) => linkServiceCall(e.target.value)} style={{ fontSize: 13, maxWidth: 280 }}>
+                    <option value="">None — becomes a new job only</option>
+                    {serviceCalls.map((j) => <option key={j.id} value={j.id}>{serviceCallLabel(j)}</option>)}
+                  </select>
+                </div>
+              )}
+              {installJob && (
+                <div style={{ marginTop: 8, fontSize: 13 }}>
+                  Install job: <Link to={`/jobs?job=${installJob.id}`} style={{ fontWeight: 700 }}>{installJob.job_number}</Link> <span style={{ color: 'var(--mist)' }}>({installJob.status})</span>
+                </div>
+              )}
             </div>
           </div>
 

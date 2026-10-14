@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import CustomerSearchSelect from './CustomerSearchSelect'
+import { loadServiceCallsForProperty, pickLikelyServiceCall, serviceCallLabel } from './SystemEstimate'
 
 // New-system SALE estimate. Property-based (no job, no service call), but you START from the
 // customer — we remember customers by name, not addresses. Existing customer -> pick them, then
@@ -27,6 +28,8 @@ export default function NewSystemEstimate({ profile }) {
   const [stateAbbr, setStateAbbr] = useState('')
   const [zip, setZip] = useState('')
 
+  const [serviceCalls, setServiceCalls] = useState([])
+  const [fromJobId, setFromJobId] = useState('')
   const [creating, setCreating] = useState(false)
   const [err, setErr] = useState('')
 
@@ -55,6 +58,13 @@ export default function NewSystemEstimate({ profile }) {
         setAddNewProperty((data || []).length === 0)
       })
   }, [existingCustomerId])
+
+  // A tech may have left the call while the office sells the system — offer to tie the
+  // estimate to that service call (pre-picked when one is in progress or dated today).
+  useEffect(() => {
+    if (!propertyId || addNewProperty) { setServiceCalls([]); setFromJobId(''); return }
+    loadServiceCallsForProperty(propertyId, existingCustomerId).then((jobs) => { setServiceCalls(jobs); setFromJobId(pickLikelyServiceCall(jobs)) })
+  }, [propertyId, addNewProperty, existingCustomerId])
 
   async function createEstimate() {
     if (creating) return
@@ -108,6 +118,7 @@ export default function NewSystemEstimate({ profile }) {
       kind: 'estimate',
       estimate_type: 'system',
       job_id: null,
+      reference_job_id: (!addNewProperty && propId === propertyId && fromJobId) ? fromJobId : null,
       property_id: propId,
       bills_to_customer_id: custId,
       invoice_date: new Date().toISOString().slice(0, 10),
@@ -177,6 +188,19 @@ export default function NewSystemEstimate({ profile }) {
                 ))}
                 <option value="__new__">+ Add a new property…</option>
               </select>
+            </div>
+          )}
+
+          {propertyId && !addNewProperty && (
+            <div>
+              <label style={fieldLabel}>From service call</label>
+              <select style={input} value={fromJobId} onChange={(e) => setFromJobId(e.target.value)}>
+                <option value="">None — becomes a new job only</option>
+                {serviceCalls.map((j) => <option key={j.id} value={j.id}>{serviceCallLabel(j)}</option>)}
+              </select>
+              <p style={{ fontSize: 12, color: 'var(--mist)', margin: '4px 0 0' }}>
+                If a tech was just out on a call here, pick it — when the system is approved, that call is set to $0.
+              </p>
             </div>
           )}
 

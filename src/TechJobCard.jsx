@@ -230,11 +230,11 @@ export default function TechJobCard({ profile }) {
     if (!job?.job_type || !job?.org_id) { setLinkedChecklist(null); setChecklistRunStatus(null); setJtCfgDb(null); return }
     let live = true
     ;(async () => {
-      const { data: jt } = await supabase.from('job_types').select('checklist_id, middle_gate, show_service_estimate, checklists(id, name)').eq('org_id', job.org_id).eq('name', job.job_type).maybeSingle()
+      const { data: jt } = await supabase.from('job_types').select('checklist_id, middle_gate, show_service_estimate, invoice_behavior, checklists(id, name)').eq('org_id', job.org_id).eq('name', job.job_type).maybeSingle()
       if (!live) return
       const cl = jt?.checklists || null
       setLinkedChecklist(cl)
-      setJtCfgDb(jt ? { middle: jt.middle_gate, showServiceEstimate: jt.show_service_estimate } : null)
+      setJtCfgDb(jt ? { middle: jt.middle_gate, showServiceEstimate: jt.show_service_estimate, invoiceBehavior: jt.invoice_behavior } : null)
       if (cl) {
         const { data: r } = await supabase.from('checklist_runs').select('status').eq('job_id', job.id).maybeSingle()
         if (live) setChecklistRunStatus(r?.status || null)
@@ -476,7 +476,9 @@ export default function TechJobCard({ profile }) {
   // Install jobs: the system was already sold and quoted, so the tech doesn't build a
   // services estimate on the visit — hide the whole "Create Services Estimate" group
   // (and drop its gates) when the job type is Install.
-  const isInstallJob = (job?.job_type || '').trim().toLowerCase().includes('install')
+  // Also covers Retrofit, and any job type set to bill "From Systems estimate".
+  const jobTypeLc = (job?.job_type || '').trim().toLowerCase()
+  const isInstallJob = jobTypeLc.includes('install') || jobTypeLc.includes('retrofit') || jtCfgDb?.invoiceBehavior === 'from_systems_estimate'
   const showEstimateGroup = !isInstallJob
 
   // The invoice can't be built until the process steps are complete: verification photos

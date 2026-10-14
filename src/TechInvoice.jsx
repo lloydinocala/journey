@@ -51,6 +51,29 @@ export default function TechInvoice({ profile }) {
       .eq('kind', 'invoice')
       .maybeSingle()
 
+
+    // Install jobs spawned from an approved System Estimate: that estimate IS this job's
+    // invoice. Let the server snapshot it (same lines, price and discount the customer
+    // approved) instead of opening a blank invoice with a trip charge.
+    if (!existingInvoice) {
+      const { data: linkedEst } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('kind', 'estimate')
+        .eq('estimate_type', 'system')
+        .eq('approval_status', 'Approved')
+        .or(`spawned_job_id.eq.${jobId},converted_to_job_id.eq.${jobId}`)
+        .limit(1)
+        .maybeSingle()
+      if (linkedEst) {
+        const { data: invId, error: snapErr } = await supabase.rpc('create_install_invoice_from_estimate', { p_estimate_id: linkedEst.id, p_job_id: jobId })
+        if (!snapErr && invId) {
+          const { data: snap } = await supabase.from('invoices').select('*').eq('id', invId).single()
+          existingInvoice = snap
+        }
+      }
+    }
+
     if (!existingInvoice) {
       const { count } = await supabase
         .from('invoices')
