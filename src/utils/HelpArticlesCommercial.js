@@ -41,6 +41,10 @@ export const HELP_ARTICLES = [
         'Add, rename, or reorder lines freely before the first pay application. After billing starts, changing a scheduled value asks you to confirm, because contract changes normally go through a change order.',
         'A line that has been billed on a submitted application cannot be deleted.',
       ]},
+      { h: 'Change Orders and Lien Waivers tabs', items: [
+        'Change Orders: write, price, and approve changes to the contract. Approved changes add lines to the schedule of values and raise the contract sum to date.',
+        'Lien Waivers: Florida statutory progress and final waivers and the contractor\'s final payment affidavit, filled in from the project.',
+      ]},
       { h: 'Overview tab', items: [
         'Tiles show the contract sum, completed and stored to date, certified to date, retainage held, and the balance to finish.',
         'Phases & gates: check a gate when it is met (contract signed, submittals approved, rough-in inspection, equipment set, final inspection, retainage released). Journey stamps the date and moves the project to the next phase. Gates never lock anything.',
@@ -71,7 +75,13 @@ export const HELP_ARTICLES = [
         'Journey creates a normal invoice for the payment due, so payment collection, receipts, and QuickBooks work as usual. If nothing is due, no invoice is made.',
         'Print / Save PDF produces the Application for Payment summary and the Continuation Sheet.',
       ]},
+      { h: 'Retainage and the final application', items: [
+        'Each draft has its own retainage rates. Leave them blank to use the project\'s rate, or lower them when the contract allows a reduction (for example, 10% down to 5% at 50% complete). Retainage is figured on the whole amount completed to date, so lowering the rate releases the difference on that application.',
+        'Tick "Final application: release all retainage" on the last application. Retainage drops to 0%, the payment due includes everything held back, and submitting it records the "Retainage released" gate and moves the project to Closeout.',
+        'After submitting, use the buttons at the top to prepare the lien paperwork: a progress payment waiver for a regular application, or the final payment waiver and final payment affidavit for the final one.',
+      ]},
       { h: 'AIA G702 / G703 format', items: [
+        'Approved change orders flow into the Application for Payment: line 2 (net change by change orders) and the change order summary (additions and deductions approved in previous months and this month).',
         'Journey\'s pay applications follow the AIA G702/G703 format that owners, general contractors, and lenders expect: the Application for Payment summary matches G702 (lines 1 through 9) and the Continuation Sheet matches G703 (columns A through I).',
         'The calculations are the same: total completed and stored (G = D + E + F), percent complete (G ÷ C), balance to finish (C − G), retainage, earned less retainage, less previous certificates, and current payment due.',
         'If a contract requires the official AIA document itself, the numbers from Journey\'s continuation sheet transfer to it line for line.',
@@ -82,7 +92,59 @@ export const HELP_ARTICLES = [
   },
 ]
 
+HELP_ARTICLES.push(
+  {
+    id: 'commercial-change-orders',
+    title: 'Change Orders',
+    area: 'Commercial Projects',
+    keywords: ['change order', 'co', 'extra', 'deduct', 'scope change', 'markup', 'contract sum', 'approval', 'days added'],
+    purpose: 'Price, send, and record approval of changes to a commercial contract. Nothing bills until a change order is approved.',
+    sections: [
+      { h: 'Writing one', items: [
+        'Open the project, go to the Change Orders tab, and click + New change order.',
+        'Give it a title, a reason (owner request, field condition, design change, RFI response, and so on), the scope in plain words, the owner or GC\'s own CO number if they have one, and any days added to the schedule.',
+        'Price each line from labor, material, equipment, subcontract, and other cost, plus a markup %. Use negative numbers for work being removed (a deduct).',
+        'Print / Save PDF makes a change order for signatures, showing the original contract, earlier approved changes, this change, and the new contract sum. You can show or hide the cost breakdown.',
+      ]},
+      { h: 'Statuses', items: [
+        'Draft: still being priced. Mark sent for approval once it goes to the owner or GC; the date is recorded and the dashboard flags any left waiting more than 14 days.',
+        'Approve: record the date and who approved it. The contract sum goes up (or down), and each priced line becomes a schedule-of-values line marked CO so the work can be billed on the next pay application.',
+        'Rejected or Void: kept for the record and never billed. A rejected change order can be reopened as a draft.',
+        'Unapprove is possible only until the change order appears on a submitted pay application. After that, write a deducting change order instead.',
+      ]},
+      { h: 'Where the totals show up', body: 'The Overview tab shows the contract sum to date (original plus approved changes) and pending changes. The Change Orders page under Commercial Projects lists every change order across all projects, with the total still waiting on approval.' },
+    ],
+  },
+  {
+    id: 'commercial-lien-waivers',
+    title: 'Lien Waivers (Florida)',
+    area: 'Commercial Projects',
+    keywords: ['lien', 'waiver', 'release', 'florida', '713', 'final payment affidavit', 'progress payment', 'notice to owner', 'conditional', 'check'],
+    purpose: 'Prepare Florida\'s statutory lien waivers and the contractor\'s final payment affidavit, filled in from the project and its pay applications.',
+    sections: [
+      { h: 'The three documents', items: [
+        'Waiver and Release of Lien Upon Progress Payment: Fla. Stat. 713.20(4). Covers work through a date, for the amount of one payment. It does not cover retainage or later work.',
+        'Waiver and Release of Lien Upon Final Payment: Fla. Stat. 713.20(5). Given for the final payment.',
+        'Contractor\'s Final Payment Affidavit: Fla. Stat. 713.06(3)(d). States that everyone under your contract who served a notice to owner has been paid, or lists who has not and how much. It must be signed before a notary and given to the owner before final payment.',
+      ]},
+      { h: 'Using them', items: [
+        'From a submitted pay application, use Prepare progress payment waiver (or the final waiver and affidavit on a final application). Or start one from the project\'s Lien Waivers tab.',
+        'Check the names, amount, dates, and property description, add who signs, then Print / Save PDF.',
+        'The form wording is the statute\'s and cannot be edited; Florida does not allow anyone to require a different form (713.20(6)).',
+        'Mark delivered once it is handed over, so the tab shows what has gone out.',
+      ]},
+      { h: 'Important', items: [
+        'A Florida statutory waiver releases your lien rights for the amount stated as soon as you sign it. Hand it over when you are paid.',
+        'If you are trading the waiver for a check, tick "Conditioned on payment of a check" and enter the check number. Florida allows a waiver given for a check to be conditioned on the check being paid (713.20(7)).',
+        'Journey fills in the statutory forms; it does not give legal advice. Ask your attorney about anything unusual, such as public (bonded) projects.',
+      ]},
+    ],
+  },
+)
+
 export const ROUTE_HELP = {
+  '/commercial/change-orders': 'commercial-change-orders',
+  '/commercial/lien-documents': 'commercial-lien-waivers',
   '/commercial': 'commercial-dashboard',
   '/commercial/projects': 'commercial-projects',
   '/commercial/pay-apps': 'commercial-pay-applications',

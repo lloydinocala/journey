@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
-import { money, pct, num, fmtDate, today, PHASES, phaseLabel, createNextPayApp, tileStyle, tabBtn } from './data'
+import { money, pct, num, fmtDate, today, PHASES, phaseLabel, createNextPayApp, tileStyle, tabBtn, approvedCoTotal, pendingCoTotal } from './data'
+import ChangeOrdersTab from './ChangeOrdersTab'
+import LienWaiversTab from './LienWaiversTab'
 
-// Commercial Projects · one project's workspace (Overview · Schedule of Values · Pay Applications).
+// Commercial Projects · one project's workspace
+// (Overview · Schedule of Values · Pay Applications · Change Orders · Lien Waivers).
 export default function CommercialProject({ profile }) {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -12,16 +15,20 @@ export default function CommercialProject({ profile }) {
   const [sov, setSov] = useState([])
   const [apps, setApps] = useState([])
   const [invoices, setInvoices] = useState({})
+  const [cos, setCos] = useState([])
+  const [docs, setDocs] = useState([])
   const [err, setErr] = useState('')
 
   const load = useCallback(async () => {
-    const [{ data: p, error }, { data: s }, { data: a }] = await Promise.all([
+    const [{ data: p, error }, { data: s }, { data: a }, { data: c }, { data: ld }] = await Promise.all([
       supabase.from('cp_projects').select('*, customers(display_name), properties(street_address, unit, city, state, zip)').eq('id', id).maybeSingle(),
       supabase.from('cp_sov_lines').select('*').eq('project_id', id).order('sort_order').order('item_no'),
       supabase.from('cp_pay_apps').select('*').eq('project_id', id).order('app_number'),
+      supabase.from('cp_change_orders').select('*').eq('project_id', id).order('co_number'),
+      supabase.from('cp_lien_documents').select('*').eq('project_id', id).order('created_at', { ascending: false }),
     ])
     if (error || !p) { setErr(error?.message || 'Project not found'); return }
-    setProject(p); setSov(s || []); setApps(a || [])
+    setProject(p); setSov(s || []); setApps(a || []); setCos(c || []); setDocs(ld || [])
     const invIds = (a || []).map((x) => x.invoice_id).filter(Boolean)
     if (invIds.length) {
       const { data: inv } = await supabase.from('invoices').select('id, invoice_number, paid_at, total_paid, amount_due, sent_at').in('id', invIds)
@@ -63,21 +70,26 @@ export default function CommercialProject({ profile }) {
         <button style={tabBtn(tab === 'overview')} onClick={() => setTab('overview')}>Overview</button>
         <button style={tabBtn(tab === 'sov')} onClick={() => setTab('sov')}>Schedule of Values</button>
         <button style={tabBtn(tab === 'payapps')} onClick={() => setTab('payapps')}>Pay Applications ({apps.length})</button>
+        <button style={tabBtn(tab === 'cos')} onClick={() => setTab('cos')}>Change Orders ({cos.length})</button>
+        <button style={tabBtn(tab === 'liens')} onClick={() => setTab('liens')}>Lien Waivers ({docs.length})</button>
       </div>
 
-      {tab === 'overview' && <Overview project={project} sov={sov} latest={latest} onSaved={load} />}
-      {tab === 'sov' && <SovTab project={project} sov={sov} hasSubmitted={submitted.length > 0} onSaved={load} />}
+      {tab === 'overview' && <Overview project={project} sov={sov} latest={latest} cos={cos} onSaved={load} />}
+      {tab === 'sov' && <SovTab project={project} sov={sov} cos={cos} hasSubmitted={submitted.length > 0} onSaved={load} />}
+      {tab === 'cos' && <ChangeOrdersTab project={project} changeOrders={cos} profile={profile} />}
+      {tab === 'liens' && <LienWaiversTab project={project} docs={docs} apps={apps} />}
       {tab === 'payapps' && <PayAppsTab apps={apps} invoices={invoices} onOpen={(a) => navigate(`/commercial/pay-apps/${a.id}`)} onNew={startPayApp} draft={draft} />}
     </div>
   )
 }
 
-function Overview({ project, sov, latest, onSaved }) {
+function Overview({ project, sov, latest, cos, onSaved }) {
   const [editing, setEditing] = useState(false)
   const [f, setF] = useState(project)
   const [saving, setSaving] = useState(false)
   useEffect(() => { setF(project) }, [project])
-  const contract = num(project.original_contract)
+  const approvedCO = approvedCoTotal(cos), pendingCO = pendingCoTotal(cos)
+  const contract = num(project.original_contract) + approvedCO
   const sovTotal = sov.reduce((s, l) => s + num(l.scheduled_value), 0)
   const completed = latest ? num(latest.total_completed) : 0
   const certified = latest ? num(latest.earned_less_retainage) : 0
@@ -121,7 +133,8 @@ function Overview({ project, sov, latest, onSaved }) {
   return (
     <div style={{ display: 'grid', gap: 22 }}>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        {tile('Contract sum', money(contract), Math.abs(sovTotal - contract) > 0.005 ? `Schedule of values totals ${money(sovTotal)}` : 'Schedule of values matches', Math.abs(sovTotal - contract) > 0.005 ? '#B00020' : undefined)}
+        {tile('Contract sum to date', money(contract), approvedCO || pendingCO ? `Original ${money(project.original_contract)} · approved changes ${money(approvedCO)}${pendingCO ? ` · pending ${money(pendingCO)}` : ''}` : null)}
+        {tile('Schedule of values', money(sovTotal), Math.abs(sovTotal - contract) > 0.005 ? `${money(Math.abs(contract - sovTotal))} ${sovTotal < contract ? 'not yet assigned' : 'over the contract'}` : 'Matches the contract', Math.abs(sovTotal - contract) > 0.005 ? '#B00020' : undefined)}
         {tile('Completed & stored', money(completed), contract ? pct(completed / contract) + ' of contract' : '')}
         {tile('Certified to date', money(certified), 'Earned less retainage', '#1F7A43')}
         {tile(`Retainage held (${num(project.retainage_percent)}%)`, money(retHeld), 'Released at closeout', '#9a6a12')}
@@ -182,14 +195,14 @@ function Overview({ project, sov, latest, onSaved }) {
   )
 }
 
-function SovTab({ project, sov, hasSubmitted, onSaved }) {
+function SovTab({ project, sov, cos, hasSubmitted, onSaved }) {
   const [rows, setRows] = useState(sov)
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
   useEffect(() => { setRows(sov); setDirty(false) }, [sov])
   const total = rows.reduce((s, r) => s + num(r.scheduled_value), 0)
-  const contract = num(project.original_contract)
+  const contract = num(project.original_contract) + approvedCoTotal(cos)
   const diff = contract - total
   const upd = (i, k, v) => { const n = rows.slice(); n[i] = { ...n[i], [k]: v }; setRows(n); setDirty(true) }
 
@@ -203,6 +216,7 @@ function SovTab({ project, sov, hasSubmitted, onSaved }) {
   async function removeLine(i) {
     const r = rows[i]
     if (r._new) { setRows(rows.filter((_, j) => j !== i)); return }
+    if (r.change_order_id) { setMsg('This line came from an approved change order. Unapprove the change order to remove it.'); return }
     if (!window.confirm(`Remove line ${r.item_no || ''} "${r.description}"?`)) return
     const { error } = await supabase.from('cp_sov_lines').delete().eq('id', r.id)
     if (error) { setMsg(error.message.includes('locked') ? 'This line has been billed on a submitted pay application, so it stays. Set it aside by leaving its value as billed.' : error.message); return }
@@ -225,7 +239,7 @@ function SovTab({ project, sov, hasSubmitted, onSaved }) {
 
   return (
     <div>
-      <p style={{ fontSize: 14, color: 'var(--mist)', marginTop: 0 }}>Split the contract across the work. Every pay application bills against these lines, so they should total the contract sum.</p>
+      <p style={{ fontSize: 14, color: 'var(--mist)', marginTop: 0 }}>Split the contract across the work. Every pay application bills against these lines, so they should total the contract sum. Approved change orders add their own lines (marked CO).</p>
       <div style={{ overflowX: 'auto' }}>
         <table className="data-table" style={{ minWidth: 760 }}>
           <thead><tr><th style={{ width: 90 }}>Item #</th><th>Description of work</th><th style={{ width: 170, textAlign: 'right' }}>Scheduled value</th><th style={{ width: 130 }}>Cost code</th><th style={{ width: 60 }}></th></tr></thead>
@@ -234,7 +248,9 @@ function SovTab({ project, sov, hasSubmitted, onSaved }) {
               <tr key={r.id || 'n' + i}>
                 <td><input value={r.item_no || ''} onChange={(e) => upd(i, 'item_no', e.target.value)} style={{ width: '100%' }} /></td>
                 <td><input value={r.description || ''} onChange={(e) => upd(i, 'description', e.target.value)} style={{ width: '100%' }} placeholder="e.g. Chiller equipment supply" /></td>
-                <td><input type="number" step="0.01" value={r.scheduled_value ?? ''} onChange={(e) => upd(i, 'scheduled_value', e.target.value)} style={{ width: '100%', textAlign: 'right' }} /></td>
+                <td>{r.change_order_id
+                  ? <div style={{ textAlign: 'right' }} title="Set by the approved change order">{money(r.scheduled_value)} <span className="badge">CO</span></div>
+                  : <input type="number" step="0.01" value={r.scheduled_value ?? ''} onChange={(e) => upd(i, 'scheduled_value', e.target.value)} style={{ width: '100%', textAlign: 'right' }} />}</td>
                 <td><input value={r.cost_code || ''} onChange={(e) => upd(i, 'cost_code', e.target.value)} style={{ width: '100%' }} /></td>
                 <td><button className="logout-button" style={{ padding: '2px 10px', fontSize: 13 }} onClick={() => removeLine(i)} title="Remove line">✕</button></td>
               </tr>
@@ -252,7 +268,7 @@ function SovTab({ project, sov, hasSubmitted, onSaved }) {
       <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
         <button className="logout-button" onClick={addLine}>+ Add line</button>
         <button className="auth-button" style={{ width: 'auto', padding: '8px 18px' }} onClick={save} disabled={!dirty || saving}>{saving ? 'Saving…' : 'Save schedule of values'}</button>
-        <span style={{ alignSelf: 'center', fontSize: 13, color: 'var(--mist)' }}>Contract sum: {money(contract)}</span>
+        <span style={{ alignSelf: 'center', fontSize: 13, color: 'var(--mist)' }}>Contract sum to date: {money(contract)}{approvedCoTotal(cos) ? ' (includes approved change orders)' : ''}</span>
       </div>
     </div>
   )
@@ -273,7 +289,7 @@ function PayAppsTab({ apps, invoices, onOpen, onNew, draft }) {
             const inv = a.invoice_id ? invoices[a.invoice_id] : null
             return (
               <tr key={a.id} onClick={() => onOpen(a)} style={{ cursor: 'pointer' }}>
-                <td style={{ fontWeight: 600 }}>#{a.app_number}</td>
+                <td style={{ fontWeight: 600 }}>#{a.app_number}{a.is_final ? <span className="badge" style={{ marginLeft: 6 }}>Final</span> : null}</td>
                 <td>{fmtDate(a.period_to)}</td>
                 <td>{a.status === 'draft' ? <span className="badge">Draft</span> : <span className="status-pill status-active">Submitted {fmtDate(a.submitted_at?.slice(0, 10))}</span>}</td>
                 <td style={{ textAlign: 'right' }}>{a.status === 'draft' ? '—' : money(a.total_completed)}</td>

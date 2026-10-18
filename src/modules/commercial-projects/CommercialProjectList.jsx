@@ -18,16 +18,19 @@ export default function CommercialProjectList({ profile }) {
   const load = useCallback(async () => {
     if (!orgId) { setRows([]); setLoading(false); return }
     setLoading(true)
-    const [{ data: projects }, { data: apps }] = await Promise.all([
+    const [{ data: projects }, { data: apps }, { data: cos }] = await Promise.all([
       supabase.from('cp_projects').select('*, customers(display_name)').eq('org_id', orgId).order('created_at', { ascending: false }),
       supabase.from('cp_pay_apps').select('project_id, app_number, status, total_completed, retainage_amount, earned_less_retainage').eq('org_id', orgId).order('app_number'),
+      supabase.from('cp_change_orders').select('project_id, amount').eq('org_id', orgId).eq('status', 'approved'),
     ])
+    const coSum = {}
+    for (const c of cos || []) coSum[c.project_id] = num(coSum[c.project_id]) + num(c.amount)
     const latest = {}, drafts = {}
     for (const a of apps || []) {
       if (a.status === 'submitted') latest[a.project_id] = a
       else drafts[a.project_id] = a.app_number
     }
-    setRows((projects || []).map((p) => ({ ...p, latest: latest[p.id] || null, draftNo: drafts[p.id] || null })))
+    setRows((projects || []).map((p) => ({ ...p, contractToDate: num(p.original_contract) + num(coSum[p.id]), latest: latest[p.id] || null, draftNo: drafts[p.id] || null })))
     setLoading(false)
   }, [orgId])
   useEffect(() => { load() }, [load])
@@ -60,13 +63,13 @@ export default function CommercialProjectList({ profile }) {
         <div className="tbl-scroll" style={{ overflowX: 'auto' }}>
           <table className="data-table" style={{ minWidth: 1050 }}>
             <thead><tr>
-              <th>Project #</th><th>Project</th><th>Customer / GC</th><th style={{ textAlign: 'right' }}>Contract</th>
+              <th>Project #</th><th>Project</th><th>Customer / GC</th><th style={{ textAlign: 'right' }}>Contract to date</th>
               <th style={{ textAlign: 'right' }}>% complete</th><th style={{ textAlign: 'right' }}>Certified to date</th>
               <th style={{ textAlign: 'right' }}>Retainage held</th><th>Phase</th><th>Pay apps</th>
             </tr></thead>
             <tbody>
               {shown.map((r) => {
-                const c = num(r.original_contract)
+                const c = num(r.contractToDate)
                 const done = r.latest ? num(r.latest.total_completed) : 0
                 return (
                   <tr key={r.id} onClick={() => navigate(`/commercial/projects/${r.id}`)} style={{ cursor: 'pointer' }}>

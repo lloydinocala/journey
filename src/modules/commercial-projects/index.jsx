@@ -6,6 +6,9 @@ import CommercialProjectList from './CommercialProjectList'
 import CommercialProject from './CommercialProject'
 import PayApplications from './PayApplications'
 import PayAppEditor from './PayAppEditor'
+import ChangeOrders from './ChangeOrders'
+import ChangeOrderEditor from './ChangeOrderEditor'
+import LienDocument from './LienDocument'
 
 export const COMMERCIAL_FEATURE = 'commercial_projects'
 
@@ -15,10 +18,14 @@ export const COMMERCIAL_ROUTES = [
   { path: '/commercial/projects/:id', Component: CommercialProject },
   { path: '/commercial/pay-apps', Component: PayApplications },
   { path: '/commercial/pay-apps/:id', Component: PayAppEditor },
+  { path: '/commercial/change-orders', Component: ChangeOrders },
+  { path: '/commercial/change-orders/:id', Component: ChangeOrderEditor },
+  { path: '/commercial/lien-documents/:id', Component: LienDocument },
 ]
 
 export const COMMERCIAL_NAV_ITEMS = [
   { label: 'Commercial Dashboard', path: '/commercial' },
   { label: 'Commercial Project List', path: '/commercial/projects' },
   { label: 'Pay Applications', path: '/commercial/pay-apps' },
+  { label: 'Change Orders', path: '/commercial/change-orders' },
 ]

@@ -26,7 +26,7 @@ const PAGE_TITLES = {
   '/jobs-dash': 'Jobs Dashboard', '/jobs-management': 'Jobs Management', '/jobs': 'Jobs',
   '/tasks': 'Tasks', '/to-do': 'To-Do', '/customers': 'Customers', '/properties': 'Properties',
   '/system-estimates': 'System Estimates', '/estimates': 'Job Estimates', '/invoices': 'Invoices', '/projects': 'Projects',
-  '/commercial': 'Commercial Projects Dashboard', '/commercial/projects': 'Commercial Projects', '/commercial/pay-apps': 'Pay Applications',
+  '/commercial': 'Commercial Projects Dashboard', '/commercial/projects': 'Commercial Projects', '/commercial/pay-apps': 'Pay Applications', '/commercial/change-orders': 'Change Orders', '/commercial/lien-documents': 'Lien Waiver',
   '/maintenance-station': 'Maintenance Station', '/maintenance-dashboard': 'Maintenance Dashboard',
   '/maintenance-agreements': 'Maintenance Agreements', '/maintenance-due': 'Maintenance Due',
   '/maintenance-tiers': 'Maintenance Tiers', '/filter-subscriptions': 'Filter Subscriptions',

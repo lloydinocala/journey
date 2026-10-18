@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
-import { money, pct, num, r2, fmtDate, computeSheet, summarize, loadPayApp, AIA_FORMAT_NOTE, AIA_TRADEMARK_NOTE } from './data'
+import { money, pct, num, r2, fmtDate, computeSheet, summarize, loadPayApp, appRates, coSummary, createLienDoc, AIA_FORMAT_NOTE, AIA_TRADEMARK_NOTE } from './data'
 
 // Commercial Projects · one Application for Payment with its Continuation Sheet.
 // Drafts are edited here (work this period + materials stored); Submit locks it,
@@ -12,7 +12,7 @@ export default function PayAppEditor() {
   const [d, setD] = useState(null)
   const [org, setOrg] = useState(null)
   const [edits, setEdits] = useState({})          // sov_line_id -> { work_this_period, stored_to_date }
-  const [hdr, setHdr] = useState({ application_date: '', period_to: '', notes: '' })
+  const [hdr, setHdr] = useState({ application_date: '', period_to: '', notes: '', retainage_percent: '', retainage_stored_percent: '', is_final: false })
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [confirming, setConfirming] = useState(false)
@@ -22,17 +22,26 @@ export default function PayAppEditor() {
     if (r.error) { setMsg(r.error); return }
     setD(r)
     setEdits(Object.fromEntries(r.lines.map((l) => [l.sov_line_id, { work_this_period: l.work_this_period, stored_to_date: l.stored_to_date }])))
-    setHdr({ application_date: r.app.application_date || '', period_to: r.app.period_to || '', notes: r.app.notes || '' })
+    setHdr({ application_date: r.app.application_date || '', period_to: r.app.period_to || '', notes: r.app.notes || '',
+      retainage_percent: r.app.status === 'draft' ? (r.app.retainage_percent ?? '') : '', retainage_stored_percent: r.app.status === 'draft' ? (r.app.retainage_stored_percent ?? '') : '',
+      is_final: !!r.app.is_final })
     const { data: o } = await supabase.from('organizations').select('name, business_phone, business_email').eq('id', r.app.org_id).maybeSingle()
     setOrg(o || null)
   }, [id])
   useEffect(() => { load() }, [load])
 
   const locked = d?.app.status === 'submitted'
-  const rates = useMemo(() => ({
-    rw: locked ? d?.app.retainage_percent : d?.project?.retainage_percent,
-    rs: locked ? d?.app.retainage_stored_percent : (d?.project?.retainage_stored_percent ?? d?.project?.retainage_percent),
-  }), [d, locked])
+  const rates = useMemo(() => {
+    if (!d) return { rw: 0, rs: 0 }
+    if (locked) return { rw: num(d.app.retainage_percent), rs: num(d.app.retainage_stored_percent) }
+    const draftApp = { is_final: hdr.is_final,
+      retainage_percent: hdr.retainage_percent === '' ? null : num(hdr.retainage_percent),
+      retainage_stored_percent: hdr.retainage_stored_percent === '' ? null : num(hdr.retainage_stored_percent) }
+    return appRates(draftApp, d.project)
+  }, [d, locked, hdr.is_final, hdr.retainage_percent, hdr.retainage_stored_percent])
+  const cosum = useMemo(() => (d ? (locked
+    ? { addPrev: num(d.app.co_additions_prev), dedPrev: num(d.app.co_deductions_prev), addThis: num(d.app.co_additions_this), dedThis: num(d.app.co_deductions_this), net: num(d.app.net_change_orders) }
+    : coSummary(d.changeOrders, d.prevPeriodEnd)) : null), [d, locked])
   const lineRows = useMemo(() => (d ? d.sov.map((s) => {
     const base = d.lines.find((l) => l.sov_line_id === s.id) || { sov_line_id: s.id }
     return locked ? base : { ...base, ...(edits[s.id] || {}) }
@@ -46,8 +55,8 @@ export default function PayAppEditor() {
         retainage: num(a.retainage_amount), earned: num(a.earned_less_retainage), prev: num(a.previous_certificates), due: num(a.current_payment_due),
         balanceToFinish: num(a.contract_sum_to_date) - num(a.earned_less_retainage) }
     }
-    return summarize(d.project, sheet.totals, d.previousCertificates)
-  }, [d, sheet, locked])
+    return summarize(d.project, sheet.totals, d.previousCertificates, cosum?.net || 0)
+  }, [d, sheet, locked, cosum])
 
   if (msg && !d) return <div><h2 className="page-title">Pay Application</h2><p>{msg}</p></div>
   if (!d || !sheet) return <div><h2 className="page-title">Pay Application</h2><p style={{ color: 'var(--mist)' }}>Loading…</p></div>
@@ -60,12 +69,15 @@ export default function PayAppEditor() {
     setE(row.sov.id, 'work_this_period', r2(target - row.D - row.F))
   }
   const overLines = sheet.rows.filter((r) => r.over)
-  const sovMismatch = Math.abs(sheet.totals.C - num(project.original_contract)) > 0.005
+  const sovMismatch = Math.abs(sheet.totals.C - sum.contractToDate) > 0.005
 
   async function saveDraft(silent) {
     setBusy(true); setMsg('')
     const { error: he } = await supabase.from('cp_pay_apps').update({
       application_date: hdr.application_date || null, period_to: hdr.period_to || null, notes: hdr.notes || null,
+      is_final: !!hdr.is_final,
+      retainage_percent: hdr.is_final || hdr.retainage_percent === '' ? null : num(hdr.retainage_percent),
+      retainage_stored_percent: hdr.is_final || hdr.retainage_stored_percent === '' ? null : num(hdr.retainage_stored_percent),
     }).eq('id', app.id)
     if (he) { setBusy(false); setMsg(he.message); return false }
     for (const s of d.sov) {
@@ -95,6 +107,12 @@ export default function PayAppEditor() {
     load()
   }
 
+  async function makeLien(type) {
+    const r = await createLienDoc(project, type, app)
+    if (r.error) { setMsg(r.error); return }
+    navigate(`/commercial/lien-documents/${r.id}`)
+  }
+
   async function deleteDraft() {
     if (!window.confirm(`Delete draft pay application #${app.app_number}?`)) return
     await supabase.from('cp_pay_apps').delete().eq('id', app.id)
@@ -119,7 +137,7 @@ export default function PayAppEditor() {
       @media print { .cp-printonly { display: inline !important; } }`}</style>
 
       <div className="cp-noprint">
-        <h2 className="page-title">Application for Payment #{app.app_number}</h2>
+        <h2 className="page-title">{(locked ? app.is_final : hdr.is_final) ? 'Final ' : ''}Application for Payment #{app.app_number}</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(0,32,96,0.06)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 14 }}>
           <span className="badge">AIA G702 / G703 format</span>
           <span>{AIA_FORMAT_NOTE} Application for Payment = G702 · Continuation Sheet = G703.</span>
@@ -145,7 +163,15 @@ export default function PayAppEditor() {
           </div>
         )}
         {msg && <div style={{ margin: '0 0 12px', fontWeight: 600, color: /saved|Submitted/.test(msg) ? '#1F7A43' : '#B00020' }}>{msg}</div>}
-        {sovMismatch && !locked && <div style={{ color: '#B00020', marginBottom: 10, fontSize: 14 }}>The schedule of values totals {money(sheet.totals.C)} but the contract is {money(project.original_contract)}. Fix the schedule of values before submitting.</div>}
+        {sovMismatch && !locked && <div style={{ color: '#B00020', marginBottom: 10, fontSize: 14 }}>The schedule of values totals {money(sheet.totals.C)} but the contract sum to date is {money(sum.contractToDate)}. Fix the schedule of values before submitting.</div>}
+        {locked && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12, fontSize: 14 }}>
+            <span>Lien paperwork for this application:</span>
+            {!app.is_final && <button className="logout-button" onClick={() => makeLien('progress_waiver')}>Prepare progress payment waiver ({money(app.current_payment_due)})</button>}
+            {app.is_final && <button className="logout-button" onClick={() => makeLien('final_waiver')}>Prepare final payment waiver</button>}
+            {app.is_final && <button className="logout-button" onClick={() => makeLien('final_affidavit')}>Prepare final payment affidavit</button>}
+          </div>
+        )}
         {overLines.length > 0 && <div style={{ color: '#9a6a12', marginBottom: 10, fontSize: 14 }}>Billed past scheduled value: {overLines.map((r) => r.sov.item_no || r.sov.description).join(', ')}. Check the entry or add a change order.</div>}
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -156,6 +182,22 @@ export default function PayAppEditor() {
           <div className="field" style={{ minWidth: 260, flex: '1 1 260px' }}><label>Notes (internal)</label>
             <input value={hdr.notes} disabled={locked} onChange={(e) => setHdr({ ...hdr, notes: e.target.value })} /></div>
         </div>
+        {!locked && (
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-end', background: 'var(--panel)', border: '1px solid var(--line-strong)', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
+            <div style={{ fontWeight: 700, flex: '1 1 100%' }}>Retainage on this application</div>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 14, flex: '1 1 100%' }}>
+              <input type="checkbox" checked={hdr.is_final} onChange={(e) => setHdr({ ...hdr, is_final: e.target.checked })} />
+              <span><strong>Final application: release all retainage.</strong> Retainage drops to 0%, so the payment due includes everything held back. Submitting it marks the "Retainage released" gate.</span>
+            </label>
+            {!hdr.is_final && <>
+              <div className="field" style={{ minWidth: 150 }}><label>Retainage % on work</label>
+                <input type="number" step="0.1" placeholder={String(num(project.retainage_percent))} value={hdr.retainage_percent} onChange={(e) => setHdr({ ...hdr, retainage_percent: e.target.value })} /></div>
+              <div className="field" style={{ minWidth: 170 }}><label>Retainage % on stored</label>
+                <input type="number" step="0.1" placeholder={String(num(project.retainage_stored_percent ?? project.retainage_percent))} value={hdr.retainage_stored_percent} onChange={(e) => setHdr({ ...hdr, retainage_stored_percent: e.target.value })} /></div>
+              <div style={{ fontSize: 13, color: 'var(--mist)', flex: '1 1 260px' }}>Leave blank to use the project's {num(project.retainage_percent)}%. Lower it when the contract allows a reduction (for example, 10% down to 5% at 50% complete); the difference is released on this application.</div>
+            </>}
+          </div>
+        )}
         {!locked && <p style={{ fontSize: 13, color: 'var(--mist)', margin: '0 0 8px' }}>Enter <strong>work this period</strong> in dollars, or type a <strong>% to date</strong> and Journey fills it in. <strong>Materials stored</strong> is the balance on hand now (delivered or stored offsite, not yet installed) — it carries forward from the last application.</p>}
       </div>
 
@@ -187,7 +229,7 @@ export default function PayAppEditor() {
             </tbody>
           </table>
         </div>
-        <Summary sum={sum} rates={rates} sheet={sheet} />
+        <Summary sum={sum} rates={rates} sheet={sheet} cosum={cosum} isFinal={locked ? app.is_final : hdr.is_final} />
         <div style={{ marginTop: 16, paddingTop: 8, borderTop: '1px solid var(--line-strong)', fontSize: 11.5, color: 'var(--mist)' }}>
           {AIA_FORMAT_NOTE} {AIA_TRADEMARK_NOTE}
         </div>
@@ -215,7 +257,7 @@ function PrintHeader({ org, project, app, siteText, hdr }) {
   )
 }
 
-function Summary({ sum, rates, sheet }) {
+function Summary({ sum, rates, sheet, cosum, isFinal }) {
   const ln = (n, label, v, strong) => (
     <div style={{ display: 'flex', padding: '5px 0', borderBottom: '1px solid var(--line-strong)', fontWeight: strong ? 800 : 400, fontSize: strong ? 16 : 14 }}>
       <span style={{ width: 26, color: 'var(--mist)' }}>{n}</span><span style={{ flex: 1 }}>{label}</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(v)}</span>
@@ -223,8 +265,24 @@ function Summary({ sum, rates, sheet }) {
   )
   const workRet = sheet.rows.reduce((s, r) => s + r2(((r.D + r.E) * num(rates.rw)) / 100), 0)
   const storedRet = sheet.rows.reduce((s, r) => s + r2((r.F * num(rates.rs)) / 100), 0)
+  const coCell = { textAlign: 'right', padding: '3px 6px', fontVariantNumeric: 'tabular-nums' }
   return (
-    <div style={{ maxWidth: 560, marginTop: 18, marginLeft: 'auto', background: 'var(--panel)', border: '1px solid var(--line-strong)', borderRadius: 10, padding: '10px 16px' }}>
+    <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'flex-end', marginTop: 18 }}>
+    {cosum && (cosum.addPrev || cosum.dedPrev || cosum.addThis || cosum.dedThis) ? (
+      <div style={{ background: 'var(--panel)', border: '1px solid var(--line-strong)', borderRadius: 10, padding: '10px 16px', fontSize: 13 }}>
+        <div style={{ fontWeight: 800, marginBottom: 4 }}>Change order summary</div>
+        <table style={{ borderCollapse: 'collapse' }}>
+          <thead><tr><th></th><th style={coCell}>Additions</th><th style={coCell}>Deductions</th></tr></thead>
+          <tbody>
+            <tr><td>Approved in previous months</td><td style={coCell}>{money(cosum.addPrev)}</td><td style={coCell}>{money(cosum.dedPrev)}</td></tr>
+            <tr><td>Approved this month</td><td style={coCell}>{money(cosum.addThis)}</td><td style={coCell}>{money(cosum.dedThis)}</td></tr>
+            <tr style={{ fontWeight: 700 }}><td>Totals</td><td style={coCell}>{money(cosum.addPrev + cosum.addThis)}</td><td style={coCell}>{money(cosum.dedPrev + cosum.dedThis)}</td></tr>
+            <tr style={{ fontWeight: 700 }}><td>Net change by change orders</td><td colSpan={2} style={coCell}>{money(cosum.net)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    ) : null}
+    <div style={{ maxWidth: 560, flex: '1 1 420px', background: 'var(--panel)', border: '1px solid var(--line-strong)', borderRadius: 10, padding: '10px 16px' }}>
       <div style={{ fontWeight: 800, marginBottom: 4 }}>Contractor's application summary <span style={{ fontWeight: 400, fontSize: 13, color: 'var(--mist)' }}>(G702 format)</span></div>
       {ln('1', 'Original contract sum', sum.original)}
       {ln('2', 'Net change by change orders', sum.netCO)}
@@ -235,6 +293,8 @@ function Summary({ sum, rates, sheet }) {
       {ln('7', 'Less previous certificates for payment', sum.prev)}
       {ln('8', 'Current payment due (6 − 7)', sum.due, true)}
       {ln('9', 'Balance to finish, including retainage (3 − 6)', sum.balanceToFinish)}
+      {isFinal ? <div style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 6 }}>Final application: all retainage is released on this application.</div> : null}
+    </div>
     </div>
   )
 }
