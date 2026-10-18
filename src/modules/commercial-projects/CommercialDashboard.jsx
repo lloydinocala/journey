@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import OrgPicker from '../../OrgPicker'
 import { money, num, fmtDate, phaseLabel, useOrg, tileStyle } from './data'
+import { submittalFlag, rfiFlag, equipmentFlag, inspectionFlag, punchFlag } from './logConfigs'
 
 // Commercial Projects · Dashboard — the money summary across all active
 // commercial projects, then the items that need someone's attention.
@@ -12,11 +13,16 @@ export default function CommercialDashboard({ profile }) {
 
   const load = useCallback(async () => {
     if (!orgId) { setData(null); return }
-    const [{ data: projects }, { data: apps }, { data: sov }, { data: cos }] = await Promise.all([
+    const [{ data: projects }, { data: apps }, { data: sov }, { data: cos }, { data: subs }, { data: rfis }, { data: equip }, { data: insp }, { data: punch }] = await Promise.all([
       supabase.from('cp_projects').select('id, name, project_number, status, phase, original_contract, gates').eq('org_id', orgId),
       supabase.from('cp_pay_apps').select('id, project_id, app_number, status, period_to, total_completed, retainage_amount, earned_less_retainage, current_payment_due, invoice_id').eq('org_id', orgId).order('app_number'),
       supabase.from('cp_sov_lines').select('project_id, scheduled_value').eq('org_id', orgId),
       supabase.from('cp_change_orders').select('id, project_id, co_number, title, status, amount, sent_date').eq('org_id', orgId),
+      supabase.from('cp_submittals').select('id, project_id, number, title, status, due_date').eq('org_id', orgId),
+      supabase.from('cp_rfis').select('id, project_id, number, subject, status, needed_by, cost_impact, schedule_impact, change_order_id').eq('org_id', orgId),
+      supabase.from('cp_equipment').select('id, project_id, tag, description, status, lead_time_weeks, promised_ship_date, need_by_date').eq('org_id', orgId),
+      supabase.from('cp_inspections').select('id, project_id, inspection_type, status, scheduled_date').eq('org_id', orgId),
+      supabase.from('cp_punch_items').select('id, project_id, number, description, status, due_date').eq('org_id', orgId),
     ])
     const invIds = (apps || []).map((a) => a.invoice_id).filter(Boolean)
     let inv = {}
@@ -24,7 +30,7 @@ export default function CommercialDashboard({ profile }) {
       const { data: iv } = await supabase.from('invoices').select('id, invoice_number, paid_at, invoice_date').in('id', invIds)
       inv = Object.fromEntries((iv || []).map((i) => [i.id, i]))
     }
-    setData({ projects: projects || [], apps: apps || [], sov: sov || [], cos: cos || [], inv })
+    setData({ projects: projects || [], apps: apps || [], sov: sov || [], cos: cos || [], subs: subs || [], rfis: rfis || [], equip: equip || [], insp: insp || [], punch: punch || [], inv })
   }, [orgId])
   useEffect(() => { load() }, [load])
 
@@ -72,6 +78,26 @@ export default function CommercialDashboard({ profile }) {
     const age = c.status === 'sent' && c.sent_date ? Math.floor((now - Date.parse(c.sent_date)) / DAY) : 0
     if (p && age > 14) attention.push({ p, tone: 'amber', text: `Change order #${c.co_number} (${money(c.amount)}) waiting on approval for ${age} days`, to: `/commercial/change-orders/${c.id}` })
   }
+  const activeIds = new Set(active.map((p) => p.id))
+  const pushFlags = (list, flagFn, labelFn, tab) => {
+    for (const r of list) {
+      if (!activeIds.has(r.project_id)) continue
+      const f = flagFn(r); if (!f) continue
+      const p = data.projects.find((x) => x.id === r.project_id)
+      attention.push({ p, tone: f.tone, text: `${labelFn(r)}: ${f.text}`, to: `/commercial/projects/${p.id}?tab=${tab}` })
+    }
+  }
+  pushFlags(data.equip, equipmentFlag, (r) => `Equipment ${r.tag || r.description}`, 'equip')
+  pushFlags(data.subs, submittalFlag, (r) => `Submittal #${r.number} ${r.title}`, 'subs')
+  pushFlags(data.rfis, rfiFlag, (r) => `RFI #${r.number} ${r.subject}`, 'subs')
+  pushFlags(data.insp, inspectionFlag, (r) => r.inspection_type, 'field')
+  const overduePunch = {}
+  for (const r of data.punch) if (activeIds.has(r.project_id) && punchFlag(r)?.tone === 'red') overduePunch[r.project_id] = (overduePunch[r.project_id] || 0) + 1
+  for (const [pid, n] of Object.entries(overduePunch)) {
+    const p = data.projects.find((x) => x.id === pid)
+    attention.push({ p, tone: 'red', text: `${n} overdue punch item${n === 1 ? '' : 's'}`, to: `/commercial/projects/${pid}?tab=field` })
+  }
+  attention.sort((a, b) => (a.tone === b.tone ? 0 : a.tone === 'red' ? -1 : 1))
   for (const p of data.projects) {
     if ((p.status === 'complete' || p.phase === 'closeout') && !p.gates?.retainage_released && num(latest[p.id]?.retainage_amount) > 0)
       attention.push({ p, tone: 'amber', text: `${money(latest[p.id].retainage_amount)} retainage still held at closeout` })

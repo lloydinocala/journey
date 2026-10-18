@@ -63,6 +63,7 @@ const SECTIONS = [
       'The Tower — a live overview of the team.',
       "Everyone's Schedule — see the whole team's day, not just your own.",
       'Create work on the fly — + New Job, + Service Estimate, + Follow-up Estimate, and + System Estimate.',
+      'Commercial Projects (when your company has it) — on a commercial job, file today\'s daily log, add punch items with photos, mark punch items done, and record inspection results.',
     ],
   },
   {

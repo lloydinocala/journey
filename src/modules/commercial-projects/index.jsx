@@ -9,6 +9,8 @@ import PayAppEditor from './PayAppEditor'
 import ChangeOrders from './ChangeOrders'
 import ChangeOrderEditor from './ChangeOrderEditor'
 import LienDocument from './LienDocument'
+import { SubmittalsRfis, EquipmentProcurement } from './CrossProjectLogs'
+import TechProjects from './TechProjects'
 
 export const COMMERCIAL_FEATURE = 'commercial_projects'
 
@@ -21,6 +23,14 @@ export const COMMERCIAL_ROUTES = [
   { path: '/commercial/change-orders', Component: ChangeOrders },
   { path: '/commercial/change-orders/:id', Component: ChangeOrderEditor },
   { path: '/commercial/lien-documents/:id', Component: LienDocument },
+  { path: '/commercial/submittals', Component: SubmittalsRfis },
+  { path: '/commercial/equipment', Component: EquipmentProcurement },
+]
+
+// Field app (phone) project mode for leads/supervisors.
+export const COMMERCIAL_TECH_ROUTES = [
+  { path: '/tech/projects', Component: TechProjects },
+  { path: '/tech/projects/:id', Component: TechProjects },
 ]
 
 export const COMMERCIAL_NAV_ITEMS = [
@@ -28,4 +38,6 @@ export const COMMERCIAL_NAV_ITEMS = [
   { label: 'Commercial Project List', path: '/commercial/projects' },
   { label: 'Pay Applications', path: '/commercial/pay-apps' },
   { label: 'Change Orders', path: '/commercial/change-orders' },
+  { label: 'Submittals & RFIs', path: '/commercial/submittals' },
+  { label: 'Equipment & Procurement', path: '/commercial/equipment' },
 ]

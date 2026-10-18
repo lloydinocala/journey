@@ -134,7 +134,7 @@ import TechManual from './TechManual'
 // Fleet remains. (ELEMENTS_ROUTES intentionally no longer rendered.)
 import { ELEMENTS_ROUTES, ELEMENTS_FLEET_ROUTES, TOOLS_ROUTES } from './modules/elements-hvac'
 import { REFRIGERANT_ROUTES } from './modules/refrigerant-hvac'
-import { COMMERCIAL_ROUTES, COMMERCIAL_FEATURE } from './modules/commercial-projects'
+import { COMMERCIAL_ROUTES, COMMERCIAL_TECH_ROUTES, COMMERCIAL_FEATURE } from './modules/commercial-projects'
 import { hasFeature } from './utils/entitlements'
 import { SUPPLIES_ROUTES } from './modules/supplies-hvac'
 import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES, MyPortal, HrEmployees } from './modules/rewards-hvac'
@@ -272,6 +272,9 @@ function AuthenticatedApp() {
         <Route path="/tech/cycle-counts" element={<TechCycleCounts profile={profile} />} />
         <Route path="/tech/manual" element={<TechManual profile={profile} />} />
         <Route path="/tech/settings" element={<TechSettings profile={profile} />} />
+        {hasFeature(profile, COMMERCIAL_FEATURE) && COMMERCIAL_TECH_ROUTES.map((r) => (
+          <Route key={r.path} path={r.path} element={<r.Component profile={profile} />} />
+        ))}
         <Route path="/tech/task/:taskId" element={<TechTaskCard profile={profile} />} />
         <Route path="/tech/:jobId" element={<TechJobCard profile={profile} />} />
         <Route path="/tech/invoice/:jobId" element={<TechInvoice profile={profile} />} />

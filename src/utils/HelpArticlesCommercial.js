@@ -142,7 +142,78 @@ HELP_ARTICLES.push(
   },
 )
 
+HELP_ARTICLES.push(
+  {
+    id: 'commercial-submittals-rfis',
+    title: 'Submittals & RFIs',
+    area: 'Commercial Projects',
+    keywords: ['submittal', 'shop drawing', 'cut sheet', 'rfi', 'request for information', 'engineer', 'architect', 'review', 'approved as noted', 'resubmit'],
+    purpose: 'Track what has been sent to the design team for approval, and the questions waiting on answers.',
+    sections: [
+      { h: 'Submittals', items: [
+        'Add each item sent for approval (equipment cut sheets, shop drawings, samples) with its spec section and who it went to. Attach the files.',
+        'Setting the status to Submitted stamps today as the sent date and sets a review-due date 14 days out; change it to match the contract.',
+        'When it comes back, set Approved, Approved as noted, Revise & resubmit, or Rejected and attach the stamped return. For a resubmittal, raise the revision number.',
+        'An overdue review shows in red here, on the Submittals & RFIs page, and on the dashboard.',
+      ]},
+      { h: 'RFIs', items: [
+        'Write the question, the drawing or spec reference, and who it is asked to. Setting it Open stamps the sent date and an answer-needed-by date 7 days out.',
+        'Record the answer when it arrives. Tick Cost impact or Schedule impact when the answer changes the work; Journey then reminds you to write a change order and lets you link it.',
+      ]},
+    ],
+  },
+  {
+    id: 'commercial-equipment',
+    title: 'Equipment & Procurement',
+    area: 'Commercial Projects',
+    keywords: ['equipment', 'procurement', 'lead time', 'chiller', 'rtu', 'ahu', 'purchase order', 'ship date', 'need by', 'crane', 'rigging'],
+    purpose: 'Keep every major unit on schedule: approved, ordered, shipped, delivered, and set — with warnings before a late unit holds up the job.',
+    sections: [
+      { h: 'What to enter', items: [
+        'One row per major unit: tag (RTU-1), description, manufacturer and model, quantity, the approved submittal, vendor, PO number, and lead time in weeks.',
+        'Needed on site by: the date the unit has to be there for the crane or the crew. This drives the warnings.',
+        'Update the status as it moves (Ordered, In production, Shipped, Delivered, Set). Changing the status fills in today\'s date for that step.',
+      ]},
+      { h: 'Warnings', items: [
+        'Red when the vendor\'s promised ship date is later than the need-by date.',
+        'Amber when the order-by date (need-by minus lead time) is within 14 days and the unit is not ordered; red once that date has passed.',
+        'The Equipment & Procurement page lists every unit on every project with the at-risk ones first.',
+      ]},
+    ],
+  },
+  {
+    id: 'commercial-field',
+    title: 'Field: daily logs, inspections, TAB, punch list',
+    area: 'Commercial Projects',
+    keywords: ['daily log', 'inspection', 'tab', 'testing adjusting balancing', 'punch list', 'punch item', 'field', 'photos', 'crew hours'],
+    purpose: 'The field record of a commercial job, from the office or the phone.',
+    sections: [
+      { h: 'Daily logs', body: 'Crew, hours, weather, work performed, deliveries, delays, and photos for each day on site. They back up every pay application and every delay claim. Field leads file them from the phone: Supervisor Tools → Commercial Projects.' },
+      { h: 'Inspections', body: 'Rough-in, above-ceiling, pressure tests, fire/smoke dampers, final mechanical. Record the result and attach the inspection card. A failed inspection, or one past its date with no result, shows on the dashboard. A passed final mechanical inspection is checked off on the closeout list.' },
+      { h: 'TAB', body: 'The balancing contractor, scope, dates, deficiencies found, and the TAB report itself. A received report is noted on the closeout list.' },
+      { h: 'Punch list', body: 'Numbered items with location, photo, who it is assigned to, and a due date. The field marks items Done; the office verifies them. Overdue items show on the dashboard.' },
+    ],
+  },
+  {
+    id: 'commercial-closeout-documents',
+    title: 'Closeout & Documents',
+    area: 'Commercial Projects',
+    keywords: ['closeout', 'o&m', 'manuals', 'warranties', 'as-built', 'training', 'attic stock', 'documents', 'drawings', 'specs', 'insurance', 'certificate'],
+    purpose: 'Finish the job cleanly so retainage is released, and keep every project file in one place.',
+    sections: [
+      { h: 'Closeout checklist', items: [
+        'Opens with the standard items: O&M manuals, warranties, as-builts, owner training, attic stock, TAB report, final inspection, punch list, controls demonstration, final waiver, final payment affidavit, and retainage release. Add items your contract requires; mark others N/A.',
+        'Attach the delivered manuals, warranties, and drawings to each item as the record of delivery.',
+        'Next to each item, Journey shows what it already knows: a passed final inspection, a received TAB report, open punch items, a delivered final waiver or affidavit, a submitted final application.',
+      ]},
+      { h: 'Documents', body: 'Upload the contract, drawings, specifications, permits, insurance certificates, reports, and photos, sorted by category. Files are private to your company.' },
+    ],
+  },
+)
+
 export const ROUTE_HELP = {
+  '/commercial/submittals': 'commercial-submittals-rfis',
+  '/commercial/equipment': 'commercial-equipment',
   '/commercial/change-orders': 'commercial-change-orders',
   '/commercial/lien-documents': 'commercial-lien-waivers',
   '/commercial': 'commercial-dashboard',

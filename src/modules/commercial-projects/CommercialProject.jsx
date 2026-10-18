@@ -1,16 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import { money, pct, num, fmtDate, today, PHASES, phaseLabel, createNextPayApp, tileStyle, tabBtn, approvedCoTotal, pendingCoTotal } from './data'
 import ChangeOrdersTab from './ChangeOrdersTab'
 import LienWaiversTab from './LienWaiversTab'
+import { SubmittalsRfisTab, EquipmentTab, FieldTab, CloseoutTab, DocumentsTab } from './ProjectLogsTabs'
 
 // Commercial Projects · one project's workspace
 // (Overview · Schedule of Values · Pay Applications · Change Orders · Lien Waivers).
 export default function CommercialProject({ profile }) {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [tab, setTab] = useState('overview')
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState(params.get('tab') || 'overview')
   const [project, setProject] = useState(null)
   const [sov, setSov] = useState([])
   const [apps, setApps] = useState([])
@@ -66,18 +68,29 @@ export default function CommercialProject({ profile }) {
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--line-strong)', margin: '14px 0 18px' }}>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', borderBottom: '1px solid var(--line-strong)', margin: '14px 0 18px' }}>
         <button style={tabBtn(tab === 'overview')} onClick={() => setTab('overview')}>Overview</button>
         <button style={tabBtn(tab === 'sov')} onClick={() => setTab('sov')}>Schedule of Values</button>
         <button style={tabBtn(tab === 'payapps')} onClick={() => setTab('payapps')}>Pay Applications ({apps.length})</button>
         <button style={tabBtn(tab === 'cos')} onClick={() => setTab('cos')}>Change Orders ({cos.length})</button>
         <button style={tabBtn(tab === 'liens')} onClick={() => setTab('liens')}>Lien Waivers ({docs.length})</button>
+        <span style={{ borderLeft: '1px solid var(--line-strong)', margin: '6px 6px' }} />
+        <button style={tabBtn(tab === 'subs')} onClick={() => setTab('subs')}>Submittals & RFIs</button>
+        <button style={tabBtn(tab === 'equip')} onClick={() => setTab('equip')}>Equipment</button>
+        <button style={tabBtn(tab === 'field')} onClick={() => setTab('field')}>Field</button>
+        <button style={tabBtn(tab === 'closeout')} onClick={() => setTab('closeout')}>Closeout</button>
+        <button style={tabBtn(tab === 'docs')} onClick={() => setTab('docs')}>Documents</button>
       </div>
 
       {tab === 'overview' && <Overview project={project} sov={sov} latest={latest} cos={cos} onSaved={load} />}
       {tab === 'sov' && <SovTab project={project} sov={sov} cos={cos} hasSubmitted={submitted.length > 0} onSaved={load} />}
       {tab === 'cos' && <ChangeOrdersTab project={project} changeOrders={cos} profile={profile} />}
       {tab === 'liens' && <LienWaiversTab project={project} docs={docs} apps={apps} />}
+      {tab === 'subs' && <SubmittalsRfisTab project={project} profile={profile} />}
+      {tab === 'equip' && <EquipmentTab project={project} profile={profile} />}
+      {tab === 'field' && <FieldTab project={project} profile={profile} />}
+      {tab === 'closeout' && <CloseoutTab project={project} docs={docs} apps={apps} />}
+      {tab === 'docs' && <DocumentsTab project={project} profile={profile} />}
       {tab === 'payapps' && <PayAppsTab apps={apps} invoices={invoices} onOpen={(a) => navigate(`/commercial/pay-apps/${a.id}`)} onNew={startPayApp} draft={draft} />}
     </div>
   )
