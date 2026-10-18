@@ -211,6 +211,48 @@ HELP_ARTICLES.push(
   },
 )
 
+HELP_ARTICLES.push(
+  {
+    id: 'commercial-budget',
+    title: 'Budget, Cost & Earned Value',
+    area: 'Commercial Projects',
+    keywords: ['budget', 'cost', 'cost to complete', 'earned value', 'margin', 'fade', 'overbilled', 'underbilled', 'wip', 'cost code', 'labor rate', 'forecast', 'cpi'],
+    purpose: 'Know while the job is running whether it is making money: budget vs actual by cost code, earned value, forecast at completion, and over/under billing.',
+    sections: [
+      { h: 'Setting up the budget', items: [
+        'Open the project\'s Budget tab. Start from the schedule of values (one budget line per line of work at a target margin), then split each line into labor hours, labor, material, equipment, subcontract, and other.',
+        'Link each budget line to the schedule-of-values line it is billed against. That link is what lets Journey compare cost with billing line by line.',
+        'Enter your blended labor cost per crew hour (loaded cost, not billing rate). Crew hours from daily logs then count as labor cost automatically; a daily log can be charged to a budget line.',
+      ]},
+      { h: 'Recording cost', body: 'Add cost entries for material and equipment invoices, subcontractor bills, rentals, permits, and labor not in daily logs. Charge each to a budget line; anything left unallocated still counts in the project totals.' },
+      { h: 'Reading the numbers', items: [
+        'Earned value: each line\'s budget times the percent billed on its linked schedule-of-values line. Cost variance below zero means more has been spent than that progress is worth.',
+        'Forecast at completion: assumes the budget holds, but a line spending ahead of its progress is projected at its current rate. Enter your own estimate to complete to override.',
+        'Projected margin: contract sum to date minus forecast cost. The dashboard flags a project whose projected margin falls well below the planned margin.',
+        'Over/under billing: what has been billed (gross, before retainage) against earned revenue, which is the contract times the share of forecast cost already spent. This is the number on a contractor\'s WIP schedule.',
+      ]},
+      { h: 'The honest-billing guard', body: 'On a draft pay application, each line shows the cost % spent next to its billed %. A line billed more than 10 points ahead of its cost is highlighted, and the submit confirmation says so. Front-loading is common; Journey just makes sure it is a decision, not an accident.' },
+    ],
+  },
+  {
+    id: 'commercial-quincy',
+    title: 'Quincy on commercial projects',
+    area: 'Commercial Projects',
+    keywords: ['quincy', 'ai', 'suggest', 'pay application', 'briefing', 'rfi', 'draft', 'daily log', 'change order scope'],
+    purpose: 'Quincy drafts; you decide. Every suggestion shows its evidence and nothing is applied without your click.',
+    sections: [
+      { h: 'Where Quincy helps', items: [
+        'Pay application: "Quincy: suggest this period from field records" reads the period\'s daily logs, equipment deliveries, and inspections and proposes a percent complete (and stored-material balance) for the lines the records support, each with the records it relied on. Accept one, accept all, or ignore them.',
+        'Project briefing: on the Overview tab, "Quincy: brief me on this project" writes a short status summary: what moved, what is late, what money is at risk.',
+        'RFIs: "Quincy: write the question" turns your rough notes into a clear question for the engineer.',
+        'Daily logs: "Quincy: tidy this entry" cleans up a rough field note without adding facts.',
+        'Change orders: "Quincy: write the scope" drafts the scope paragraph from the title, reason, and priced lines.',
+      ]},
+      { h: 'Ground rules', body: 'Quincy only uses facts already in Journey and says when there is not enough to go on. It never raises a line below what was already billed, never goes past 100%, and never submits or sends anything. Read every draft before you use it.' },
+    ],
+  },
+)
+
 export const ROUTE_HELP = {
   '/commercial/submittals': 'commercial-submittals-rfis',
   '/commercial/equipment': 'commercial-equipment',

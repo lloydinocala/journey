@@ -10,17 +10,19 @@ export function useLookups(project) {
   const [lk, setLk] = useState({})
   const load = useCallback(async () => {
     if (!project) return
-    const [{ data: v }, { data: u }, { data: s }, { data: c }] = await Promise.all([
+    const [{ data: v }, { data: u }, { data: s }, { data: c }, { data: b }] = await Promise.all([
       supabase.from('vendors').select('id, name').eq('org_id', project.org_id).eq('is_active', true).order('name'),
       supabase.from('users').select('id, full_name').eq('org_id', project.org_id).eq('is_active', true).order('full_name'),
       supabase.from('cp_submittals').select('id, number, title').eq('project_id', project.id).order('number'),
       supabase.from('cp_change_orders').select('id, co_number, title').eq('project_id', project.id).order('co_number'),
+      supabase.from('cp_budget_lines').select('id, cost_code, description').eq('project_id', project.id).order('sort_order'),
     ])
     setLk({
       vendors: (v || []).map((x) => ({ value: x.id, label: x.name })),
       users: (u || []).map((x) => ({ value: x.id, label: x.full_name })),
       submittals: (s || []).map((x) => ({ value: x.id, label: `#${x.number} ${x.title}` })),
       changeOrders: (c || []).map((x) => ({ value: x.id, label: `CO #${x.co_number} ${x.title}` })),
+      budgetLines: (b || []).map((x) => ({ value: x.id, label: `${x.cost_code ? x.cost_code + ' ' : ''}${x.description}` })),
     })
   }, [project])
   useEffect(() => { load() }, [load])

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import { money, num, r2, fmtDate, today, CO_REASONS, CO_STATUS, coLineAmount, approvedCoTotal } from './data'
+import AiAssist from '../../AiAssist'
 
 // Commercial Projects · one change order: scope, priced lines, approval, printout.
 // Approving adds its lines to the schedule of values and raises the contract sum.
@@ -143,7 +144,11 @@ export default function ChangeOrderEditor() {
           <div className="field" style={{ minWidth: 150 }}><label>Owner/GC CO #</label><input value={co.owner_reference || ''} onChange={(e) => setC('owner_reference', e.target.value)} disabled={!editable} /></div>
           <div className="field" style={{ minWidth: 120 }}><label>Days added</label><input type="number" value={co.days_added ?? 0} onChange={(e) => setC('days_added', e.target.value)} disabled={!editable} /></div>
           <div className="field" style={{ flex: '1 1 100%' }}><label>Scope of the change</label>
-            <textarea rows={3} style={{ width: '100%' }} value={co.description || ''} onChange={(e) => setC('description', e.target.value)} disabled={!editable} placeholder="What is being added, removed, or changed, and why." /></div>
+            <textarea rows={3} style={{ width: '100%' }} value={co.description || ''} onChange={(e) => setC('description', e.target.value)} disabled={!editable} placeholder="What is being added, removed, or changed, and why." />
+            {editable && <div style={{ marginTop: 6 }}><AiAssist compact title="Draft change order scope" label="Quincy: write the scope" insertLabel="Use this" onInsert={(t) => setC('description', t)}
+              system="Write the scope paragraph for a commercial HVAC change order the owner or general contractor will sign. Say plainly what is added, removed, or changed, where, and why (from the reason and notes). Do not restate prices. 2 to 4 sentences. Use only the facts given; leave [placeholders] for anything missing."
+              prompt="Write the change order scope."
+              context={{ project: project.name, title: co.title, reason: co.reason || '', owner_reference: co.owner_reference || '', notes: co.description || '', priced_lines: lines.map((l) => ({ item: l.description, amount: coLineAmount(l) })), days_added: num(co.days_added) }} /></div>}</div>
         </div>
         <p style={{ fontSize: 13, color: 'var(--mist)', margin: '0 0 8px' }}>Price each line from cost plus markup. Use negative numbers for work being removed (a deduct).</p>
         <div style={{ overflowX: 'auto' }}>

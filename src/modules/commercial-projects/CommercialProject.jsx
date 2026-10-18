@@ -5,6 +5,8 @@ import { money, pct, num, fmtDate, today, PHASES, phaseLabel, createNextPayApp, 
 import ChangeOrdersTab from './ChangeOrdersTab'
 import LienWaiversTab from './LienWaiversTab'
 import { SubmittalsRfisTab, EquipmentTab, FieldTab, CloseoutTab, DocumentsTab } from './ProjectLogsTabs'
+import BudgetTab from './BudgetTab'
+import ProjectBriefing from './ProjectBriefing'
 
 // Commercial Projects · one project's workspace
 // (Overview · Schedule of Values · Pay Applications · Change Orders · Lien Waivers).
@@ -74,6 +76,7 @@ export default function CommercialProject({ profile }) {
         <button style={tabBtn(tab === 'payapps')} onClick={() => setTab('payapps')}>Pay Applications ({apps.length})</button>
         <button style={tabBtn(tab === 'cos')} onClick={() => setTab('cos')}>Change Orders ({cos.length})</button>
         <button style={tabBtn(tab === 'liens')} onClick={() => setTab('liens')}>Lien Waivers ({docs.length})</button>
+        <button style={tabBtn(tab === 'budget')} onClick={() => setTab('budget')}>Budget</button>
         <span style={{ borderLeft: '1px solid var(--line-strong)', margin: '6px 6px' }} />
         <button style={tabBtn(tab === 'subs')} onClick={() => setTab('subs')}>Submittals & RFIs</button>
         <button style={tabBtn(tab === 'equip')} onClick={() => setTab('equip')}>Equipment</button>
@@ -82,10 +85,12 @@ export default function CommercialProject({ profile }) {
         <button style={tabBtn(tab === 'docs')} onClick={() => setTab('docs')}>Documents</button>
       </div>
 
+      {tab === 'overview' && <ProjectBriefing project={project} latest={latest} cos={cos} apps={apps} />}
       {tab === 'overview' && <Overview project={project} sov={sov} latest={latest} cos={cos} onSaved={load} />}
       {tab === 'sov' && <SovTab project={project} sov={sov} cos={cos} hasSubmitted={submitted.length > 0} onSaved={load} />}
       {tab === 'cos' && <ChangeOrdersTab project={project} changeOrders={cos} profile={profile} />}
       {tab === 'liens' && <LienWaiversTab project={project} docs={docs} apps={apps} />}
+      {tab === 'budget' && <BudgetTab project={project} profile={profile} onProjectSaved={load} />}
       {tab === 'subs' && <SubmittalsRfisTab project={project} profile={profile} />}
       {tab === 'equip' && <EquipmentTab project={project} profile={profile} />}
       {tab === 'field' && <FieldTab project={project} profile={profile} />}

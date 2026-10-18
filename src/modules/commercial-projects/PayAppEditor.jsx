@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
-import { money, pct, num, r2, fmtDate, computeSheet, summarize, loadPayApp, appRates, coSummary, createLienDoc, AIA_FORMAT_NOTE, AIA_TRADEMARK_NOTE } from './data'
+import { money, pct, num, r2, fmtDate, today, computeSheet, summarize, loadPayApp, appRates, coSummary, createLienDoc, AIA_FORMAT_NOTE, AIA_TRADEMARK_NOTE } from './data'
+import { loadCostPicture, FADE_TOLERANCE } from './cost'
+import QuincyPayAppSuggest from './QuincyPayAppSuggest'
 
 // Commercial Projects · one Application for Payment with its Continuation Sheet.
 // Drafts are edited here (work this period + materials stored); Submit locks it,
@@ -16,6 +18,7 @@ export default function PayAppEditor() {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [confirming, setConfirming] = useState(false)
+  const [cost, setCost] = useState(null)
 
   const load = useCallback(async () => {
     const r = await loadPayApp(id)
@@ -27,6 +30,7 @@ export default function PayAppEditor() {
       is_final: !!r.app.is_final })
     const { data: o } = await supabase.from('organizations').select('name, business_phone, business_email').eq('id', r.app.org_id).maybeSingle()
     setOrg(o || null)
+    if (r.project) loadCostPicture(r.project).then(setCost).catch(() => setCost(null))
   }, [id])
   useEffect(() => { load() }, [load])
 
@@ -69,6 +73,10 @@ export default function PayAppEditor() {
     setE(row.sov.id, 'work_this_period', r2(target - row.D - row.F))
   }
   const overLines = sheet.rows.filter((r) => r.over)
+  // Overbilling guard: billed % on a line well ahead of its cost % complete.
+  const costPctFor = (sid) => (cost && cost.costPctBySov[sid] != null ? cost.costPctBySov[sid] : null)
+  const aheadLines = locked ? [] : sheet.rows.filter((r) => { const c = costPctFor(r.sov.id); return c != null && r.pct - c > FADE_TOLERANCE })
+  const showCost = !locked && cost && Object.keys(cost.costPctBySov).length > 0
   const sovMismatch = Math.abs(sheet.totals.C - sum.contractToDate) > 0.005
 
   async function saveDraft(silent) {
@@ -157,7 +165,8 @@ export default function PayAppEditor() {
           <div style={{ background: 'rgba(242,169,60,0.12)', border: '1px solid rgba(242,169,60,0.5)', borderRadius: 10, padding: 14, marginBottom: 14 }}>
             <strong>Submit application #{app.app_number} for {money(sum.due)}?</strong>
             <div style={{ fontSize: 14, margin: '6px 0 10px' }}>Submitting locks this application (corrections go on the next one) and creates an invoice for the payment due.
-              {overLines.length ? ` ${overLines.length} line${overLines.length > 1 ? 's are' : ' is'} billed past its scheduled value.` : ''}</div>
+              {overLines.length ? ` ${overLines.length} line${overLines.length > 1 ? 's are' : ' is'} billed past its scheduled value.` : ''}
+              {aheadLines.length ? ` ${aheadLines.length} line${aheadLines.length > 1 ? 's are' : ' is'} billed well ahead of cost spent.` : ''}</div>
             <button className="auth-button" style={{ width: 'auto', padding: '6px 16px', marginRight: 8 }} onClick={submit}>Yes, submit</button>
             <button className="logout-button" onClick={() => setConfirming(false)}>Not yet</button>
           </div>
@@ -172,6 +181,7 @@ export default function PayAppEditor() {
             {app.is_final && <button className="logout-button" onClick={() => makeLien('final_affidavit')}>Prepare final payment affidavit</button>}
           </div>
         )}
+        {aheadLines.length > 0 && <div style={{ color: '#9a6a12', marginBottom: 10, fontSize: 14 }}>Billing ahead of cost: {aheadLines.map((r) => `${r.sov.item_no || r.sov.description} (billed ${pct(r.pct)}, cost ${pct(costPctFor(r.sov.id))})`).join('; ')}. Front-loading is common, but make sure the work is really there — Journey shows it so it is a choice, not an accident.</div>}
         {overLines.length > 0 && <div style={{ color: '#9a6a12', marginBottom: 10, fontSize: 14 }}>Billed past scheduled value: {overLines.map((r) => r.sov.item_no || r.sov.description).join(', ')}. Check the entry or add a change order.</div>}
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -198,6 +208,15 @@ export default function PayAppEditor() {
             </>}
           </div>
         )}
+        {!locked && <QuincyPayAppSuggest d={d} rows={sheet.rows} periodTo={hdr.period_to || today()} onAccept={(row, pctToDate, storedToDate) => {
+          setEdits((prev) => {
+            const cur = { ...(prev[row.sov.id] || {}) }
+            if (storedToDate != null) cur.stored_to_date = r2(storedToDate)
+            const F = storedToDate != null ? num(storedToDate) : row.F
+            if (pctToDate != null) cur.work_this_period = r2((num(pctToDate) / 100) * row.C - row.D - F)
+            return { ...prev, [row.sov.id]: cur }
+          })
+        }} />}
         {!locked && <p style={{ fontSize: 13, color: 'var(--mist)', margin: '0 0 8px' }}>Enter <strong>work this period</strong> in dollars, or type a <strong>% to date</strong> and Journey fills it in. <strong>Materials stored</strong> is the balance on hand now (delivered or stored offsite, not yet installed) — it carries forward from the last application.</p>}
       </div>
 
@@ -209,7 +228,7 @@ export default function PayAppEditor() {
             <thead><tr>
               <th>A<br />Item</th><th>B<br />Description of work</th><th style={cell}>C<br />Scheduled value</th><th style={cell}>D<br />From previous apps</th>
               <th style={cell}>E<br />This period</th>{!locked && <th className="cp-noprint" style={cell}>% to date</th>}<th style={cell}>F<br />Materials stored</th>
-              <th style={cell}>G<br />Completed & stored</th><th style={cell}>%<br />(G÷C)</th><th style={cell}>H<br />Balance to finish</th><th style={cell}>I<br />Retainage</th>
+              <th style={cell}>G<br />Completed & stored</th><th style={cell}>%<br />(G÷C)</th>{showCost && <th className="cp-noprint" style={cell}>Cost %<br />spent</th>}<th style={cell}>H<br />Balance to finish</th><th style={cell}>I<br />Retainage</th>
             </tr></thead>
             <tbody>
               {sheet.rows.map((r) => (
@@ -218,13 +237,14 @@ export default function PayAppEditor() {
                   <td style={cell}>{locked ? money(r.E) : <><span className="cp-printonly">{money(r.E)}</span><input className="cp-noprint" type="number" step="0.01" style={numInput} value={edits[r.sov.id]?.work_this_period ?? 0} onChange={(e) => setE(r.sov.id, 'work_this_period', e.target.value)} /></>}</td>
                   {!locked && <td className="cp-noprint" style={cell}><input type="number" step="0.1" style={{ width: 70, textAlign: 'right' }} placeholder={(r.pct * 100).toFixed(0)} onBlur={(e) => { setPctToDate(r, e.target.value); e.target.value = '' }} /></td>}
                   <td style={cell}>{locked ? money(r.F) : <><span className="cp-printonly">{money(r.F)}</span><input className="cp-noprint" type="number" step="0.01" style={numInput} value={edits[r.sov.id]?.stored_to_date ?? 0} onChange={(e) => setE(r.sov.id, 'stored_to_date', e.target.value)} /></>}</td>
-                  <td style={cell}>{money(r.G)}</td><td style={cell}>{pct(r.pct)}</td><td style={cell}>{money(r.H)}</td><td style={cell}>{money(r.ret)}</td>
+                  <td style={cell}>{money(r.G)}</td><td style={cell}>{pct(r.pct)}</td>
+                  {showCost && <td className="cp-noprint" style={{ ...cell, color: costPctFor(r.sov.id) != null && r.pct - costPctFor(r.sov.id) > FADE_TOLERANCE ? '#9a6a12' : 'var(--mist)', fontWeight: costPctFor(r.sov.id) != null && r.pct - costPctFor(r.sov.id) > FADE_TOLERANCE ? 700 : 400 }}>{costPctFor(r.sov.id) != null ? pct(costPctFor(r.sov.id)) : '—'}</td>}<td style={cell}>{money(r.H)}</td><td style={cell}>{money(r.ret)}</td>
                 </tr>
               ))}
               <tr style={{ fontWeight: 800 }}>
                 <td></td><td>Totals</td><td style={cell}>{money(sheet.totals.C)}</td><td style={cell}>{money(sheet.totals.D)}</td><td style={cell}>{money(sheet.totals.E)}</td>
                 {!locked && <td className="cp-noprint"></td>}<td style={cell}>{money(sheet.totals.F)}</td><td style={cell}>{money(sheet.totals.G)}</td>
-                <td style={cell}>{pct(sheet.totals.pct)}</td><td style={cell}>{money(sheet.totals.H)}</td><td style={cell}>{money(sheet.totals.ret)}</td>
+                <td style={cell}>{pct(sheet.totals.pct)}</td>{showCost && <td className="cp-noprint"></td>}<td style={cell}>{money(sheet.totals.H)}</td><td style={cell}>{money(sheet.totals.ret)}</td>
               </tr>
             </tbody>
           </table>

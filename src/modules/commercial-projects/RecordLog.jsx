@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../utils/supabase'
 import { fmtDate, num, today } from './data'
 import { uploadFiles, openFile, removeFile } from './files'
+import AiAssist from '../../AiAssist'
 
 // A configurable log (submittals, RFIs, equipment, daily logs, inspections, TAB,
 // punch list). Each config names its table, fields, statuses, and an optional
@@ -128,6 +129,8 @@ export default function RecordLog({ config, project, lookups = {}, profile, onCh
             {config.fields.map((f) => (
               <div key={f.key} className="field" style={{ minWidth: f.w || 180, flex: f.full ? '1 1 100%' : `1 1 ${f.w || 180}px` }}>
                 <label>{f.label}{f.required ? ' *' : ''}</label>{input(f)}
+                {f.ai && <div style={{ marginTop: 6 }}><AiAssist compact title={f.ai.title} label={f.ai.label} system={f.ai.system} prompt={f.ai.prompt}
+                  context={f.ai.context(editing, project)} insertLabel="Use this" onInsert={(t) => setEditing((e) => ({ ...e, [f.key]: t }))} /></div>}
               </div>
             ))}
           </div>
