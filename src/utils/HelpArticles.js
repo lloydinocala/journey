@@ -19,8 +19,9 @@ import * as Admin from './HelpArticlesAdmin'
 import * as Inventory from './HelpArticlesInventory'
 import * as Tools from './HelpArticlesTools'
 import * as Supplies from './HelpArticlesSupplies'
+import * as Commercial from './HelpArticlesCommercial'
 
-const SECTIONS = [Overview, Dispatch, Operations, Financials, Maintenance, Permitting, DataStation, Admin, Inventory, Tools, Supplies]
+const SECTIONS = [Overview, Dispatch, Operations, Financials, Maintenance, Permitting, DataStation, Admin, Inventory, Tools, Supplies, Commercial]
 const arr = (m) => (m && Array.isArray(m.HELP_ARTICLES) ? m.HELP_ARTICLES : [])
 const obj = (m) => (m && m.ROUTE_HELP && typeof m.ROUTE_HELP === 'object' ? m.ROUTE_HELP : {})
 

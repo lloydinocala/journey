@@ -12,6 +12,8 @@ import { ELEMENTS_FLEET_NAV, TOOLS_NAV } from './modules/elements-hvac'
 import { REFRIGERANT_NAV } from './modules/refrigerant-hvac'
 import { SUPPLIES_NAV } from './modules/supplies-hvac'
 import { REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV } from './modules/rewards-hvac'
+import { COMMERCIAL_NAV_ITEMS, COMMERCIAL_FEATURE } from './modules/commercial-projects'
+import { hasFeature } from './utils/entitlements'
 
 // Human page titles for the top-bar "Viewing Organization" pill. Longest-prefix
 // match, with a title-cased fallback so newly-added pages still read cleanly.
@@ -24,6 +26,7 @@ const PAGE_TITLES = {
   '/jobs-dash': 'Jobs Dashboard', '/jobs-management': 'Jobs Management', '/jobs': 'Jobs',
   '/tasks': 'Tasks', '/to-do': 'To-Do', '/customers': 'Customers', '/properties': 'Properties',
   '/system-estimates': 'System Estimates', '/estimates': 'Job Estimates', '/invoices': 'Invoices', '/projects': 'Projects',
+  '/commercial': 'Commercial Projects Dashboard', '/commercial/projects': 'Commercial Projects', '/commercial/pay-apps': 'Pay Applications',
   '/maintenance-station': 'Maintenance Station', '/maintenance-dashboard': 'Maintenance Dashboard',
   '/maintenance-agreements': 'Maintenance Agreements', '/maintenance-due': 'Maintenance Due',
   '/maintenance-tiers': 'Maintenance Tiers', '/filter-subscriptions': 'Filter Subscriptions',
@@ -187,11 +190,26 @@ export function buildSections(profile) {
   const showHR = notTech && (isSuper || profile?.hrEntitled)
   const showPayroll = notTech && (isSuper || profile?.payrollEntitled || profile?.hrEntitled)
   const showMarketing = notTech && (isSuper || profile?.marketingEntitled)
+  const showCommercial = notTech && hasFeature(profile, COMMERCIAL_FEATURE)
+
+  // Projects: with the Commercial add-on it becomes a group with two headers
+  // (Residential = the original Projects page, unchanged; Commercial = the module).
+  const workPages = showCommercial
+    ? WORK_PAGES.map((p) => (p.path !== '/projects' ? p : {
+        key: 'projects', label: 'Projects', dash: '/projects',
+        children: [
+          { header: 'Residential Projects' },
+          { label: 'Projects', path: '/projects' },
+          { header: 'Commercial Projects' },
+          ...COMMERCIAL_NAV_ITEMS,
+        ],
+      }))
+    : WORK_PAGES
 
   const trainStation = {
     key: 'train-station', label: 'Train Station', icon: 'start', dash: '/train-station',
     children: [
-      { key: 'work', label: 'Jobs & Customers', icon: 'work', dash: '/jobs-dash', children: WORK_PAGES },
+      { key: 'work', label: 'Jobs & Customers', icon: 'work', dash: '/jobs-dash', children: workPages },
       { key: 'dispatch', label: 'Dispatch Station', icon: 'dispatch', dash: '/dispatch', children: DISPATCH_PAGES },
       { key: 'maintenance', label: 'Maintenance Station', icon: 'maintenance', dash: '/maintenance-station', children: MAINT_PAGES },
       { key: 'permitting', label: 'Permitting Station', icon: 'permitting', dash: '/permits', children: PERMIT_PAGES },
@@ -319,7 +337,7 @@ export default function Layout({ profile }) {
   }, [profile?.org_id, isSuperAdmin])
 
   const sections = useMemo(() => buildSections(profile), [
-    profile?.role, profile?.toolsEntitled, profile?.hrEntitled, profile?.payrollEntitled, profile?.marketingEntitled,
+    profile?.role, profile?.toolsEntitled, profile?.hrEntitled, profile?.payrollEntitled, profile?.marketingEntitled, profile?.entitlements,
   ])
   const targets = useMemo(() => collectTargets(sections, [], []), [sections])
   const activePath = useMemo(() => {
@@ -539,8 +557,12 @@ export default function Layout({ profile }) {
           )}
 
           {/* The current level's menu. */}
-          {currentChildren.filter(visible).map((item) => (
-            item.children ? (
+          {currentChildren.filter(visible).map((item, i) => (
+            item.header ? (
+              <div key={'h-' + i} style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--nav-mist)', fontWeight: 800, padding: '12px 14px 3px 20px', borderTop: i ? '1px solid rgba(255,255,255,0.08)' : 'none', marginTop: i ? 6 : 0 }}>
+                {item.header}
+              </div>
+            ) : item.children ? (
               <button
                 key={item.key}
                 className="rail-item"
