@@ -12,6 +12,18 @@ function fmtDateTime(t) {
 
 // Print just the selected thread (not the whole page): opens a clean print
 // window with the conversation and triggers the browser's print dialog.
+// Who/what/delivery line under each bubble: kind, recipient, and whether it really went out.
+const KIND_LABEL = { on_my_way: 'On My Way', review: 'Review request', message: 'Technician' }
+function metaLine(m) {
+  if (m.direction === 'inbound') return 'Customer'
+  const kind = KIND_LABEL[m.kind] || 'Technician'
+  const to = m.recipient_name || m.to_phone ? ` → ${[m.recipient_name, m.to_phone].filter(Boolean).join(' ')}` : ''
+  const st = m.status === 'sent' ? ' · ✓ Sent'
+    : m.status === 'failed' ? ` · ✗ Not sent${m.error ? ` (${m.error})` : ''}`
+    : ' · Not sent (saved before texting was connected)'
+  return kind + to + st
+}
+
 function printThread(t) {
   if (!t) return
   const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -19,7 +31,7 @@ function printThread(t) {
     const out = m.direction !== 'inbound'
     return `<div style="margin:8px 0;text-align:${out ? 'right' : 'left'}">`
       + `<div style="display:inline-block;max-width:72%;padding:8px 12px;border-radius:12px;text-align:left;font-size:13px;line-height:1.4;background:${out ? '#215F9A' : '#EEF1F4'};color:${out ? '#fff' : '#101418'}">${esc(m.body)}</div>`
-      + `<div style="font-size:10px;color:#888;margin-top:2px">${out ? 'Technician' : 'Customer'} &middot; ${esc(fmtDateTime(m.created_at))}</div></div>`
+      + `<div style="font-size:10px;color:#888;margin-top:2px">${esc(metaLine(m))} &middot; ${esc(fmtDateTime(m.created_at))}</div></div>`
   }).join('')
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Text thread — ${esc(t.customer)} — Job ${esc(t.jobNumber)}</title></head>`
     + `<body style="font-family:Arial,Helvetica,sans-serif;padding:24px;color:#101418">`
@@ -51,7 +63,7 @@ export default function TextArchive({ profile }) {
     setLoading(true)
     const { data } = await supabase
       .from('job_texts')
-      .select('id, body, direction, created_at, archived_at, flagged_at, job_id, jobs ( job_number, segment, deleted_at, customers ( display_name ), job_technicians ( users ( full_name ) ) )')
+      .select('id, body, direction, created_at, archived_at, flagged_at, job_id, kind, status, error, to_phone, recipient_name, jobs ( job_number, segment, deleted_at, customers ( display_name ), job_technicians ( users ( full_name ) ) )')
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
     setRows(data || [])
@@ -144,7 +156,7 @@ export default function TextArchive({ profile }) {
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : filtered.length === 0 ? (
-        <p style={{ color: 'var(--mist)' }}>{threads.length === 0 ? 'No text threads yet. A thread appears here as soon as a technician sends a message on a job (shown as “active”), and stays here as “archived” once the job is stopped.' : 'No threads match your search.'}</p>
+        <p style={{ color: 'var(--mist)' }}>{threads.length === 0 ? 'No text threads yet. A thread appears here as soon as a text goes out on a job — On My Way alerts, technician messages, and review requests (shown as “active”) — and stays here as “archived” once the job is stopped.' : 'No threads match your search.'}</p>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 20, alignItems: 'start' }}>
           {/* Thread list */}
@@ -222,7 +234,7 @@ export default function TextArchive({ profile }) {
                           borderBottomRightRadius: out ? 4 : 14, borderBottomLeftRadius: out ? 14 : 4,
                         }}>{m.body}</div>
                         <div style={{ fontSize: 11, color: '#9AA6B2', marginTop: 3 }}>
-                          {out ? 'Technician' : 'Customer'} · {fmtDateTime(m.created_at)}
+                          <span style={{ color: m.status === 'failed' ? '#B5462F' : undefined }}>{metaLine(m)}</span> · {fmtDateTime(m.created_at)}
                         </div>
                       </div>
                     )

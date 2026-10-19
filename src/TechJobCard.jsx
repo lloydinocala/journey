@@ -1037,8 +1037,16 @@ export default function TechJobCard({ profile }) {
     const { data: orgRow } = await supabase.from('organizations').select('google_review_url').eq('id', job.org_id).maybeSingle()
     const link = orgRow?.google_review_url
     if (!link) { setGoogleMsg('No Google review link is set yet — add one in Settings.'); setTimeout(() => setGoogleMsg(''), 3200); return }
-    await supabase.from('job_texts').insert({ org_id: job.org_id, job_id: jobId, to_phone: phoneList[0] || null, body: `Thanks for choosing us! Please leave a review: ${link}`, direction: 'outbound', created_by: uid })
-    setGoogleMsg('Review link queued to the customer.'); setTimeout(() => setGoogleMsg(''), 2200)
+    // Sent for real through Twilio; send-job-text also logs it to the Text Archive.
+    setGoogleMsg('Sending…')
+    const { data, error } = await supabase.functions.invoke('send-job-text', { body: { jobId, body: `Thanks for choosing us! Please leave a review: ${link}`, kind: 'review' } })
+    let errMsg = data?.error || null
+    if (error && !errMsg) {
+      try { errMsg = (await error.context?.json())?.error } catch (e) { /* ignore */ }
+      errMsg = errMsg || error.message
+    }
+    setGoogleMsg(errMsg ? `Review link not sent: ${errMsg}` : `Review link texted to ${data?.toName || 'the customer'}.`)
+    setTimeout(() => setGoogleMsg(''), errMsg ? 6000 : 3000)
   }
 
   if (loading || !job) {

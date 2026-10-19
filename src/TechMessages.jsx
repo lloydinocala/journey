@@ -23,6 +23,7 @@ export default function TechMessages({ profile }) {
   const [texts, setTexts] = useState([])
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
   const [loading, setLoading] = useState(true)
   const [uid, setUid] = useState(null)
   const endRef = useRef(null)
@@ -48,7 +49,7 @@ export default function TechMessages({ profile }) {
   async function loadTexts() {
     const { data } = await supabase
       .from('job_texts')
-      .select('id, body, direction, created_at, to_phone')
+      .select('id, body, direction, created_at, to_phone, recipient_name, kind, status, error')
       .eq('job_id', jobId)
       .is('archived_at', null)
       .order('created_at', { ascending: true })
@@ -59,12 +60,20 @@ export default function TechMessages({ profile }) {
   const custName = job?.customers?.display_name || 'Customer'
   const custPhone = job?.customers?.primary_phone || null
 
+  // Sends for real through Twilio (send-job-text), which also logs the text with its
+  // delivery status. A failed send is still logged, so it shows here marked "Not sent".
   async function send() {
     if (!body.trim() || !job || closed) return
-    setSending(true)
-    const payload = { org_id: job.org_id, job_id: jobId, to_phone: custPhone, body: body.trim(), direction: 'outbound', created_by: uid }
-    const { error } = await supabase.from('job_texts').insert(payload)
-    if (!error) { setBody(''); await loadTexts() }
+    setSending(true); setSendError('')
+    const { data, error } = await supabase.functions.invoke('send-job-text', { body: { jobId, body: body.trim(), kind: 'message' } })
+    let errMsg = data?.error || null
+    if (error && !errMsg) {
+      try { errMsg = (await error.context?.json())?.error } catch (e) { /* ignore */ }
+      errMsg = errMsg || error.message
+    }
+    if (!errMsg) setBody('')
+    else setSendError(errMsg)
+    await loadTexts()
     setSending(false)
   }
 
@@ -92,7 +101,11 @@ export default function TechMessages({ profile }) {
           texts.map((m) => (
             <div key={m.id} className={`msg-row ${m.direction === 'inbound' ? 'in' : 'out'}`}>
               <div className="msg-bubble">{m.body}</div>
-              <div className="msg-time">{fmtTime(m.created_at)}</div>
+              <div className="msg-time">
+                {m.kind === 'on_my_way' ? 'On My Way · ' : m.kind === 'review' ? 'Review request · ' : ''}
+                {fmtTime(m.created_at)}
+                {m.direction !== 'inbound' && m.status === 'failed' && <span style={{ color: '#B5462F', fontWeight: 700 }}> · Not sent</span>}
+              </div>
             </div>
           ))
         )}
@@ -102,6 +115,8 @@ export default function TechMessages({ profile }) {
       {closed ? (
         <div className="msg-closed">Job closed — messaging is disabled and the thread is archived to the office.</div>
       ) : (
+        <>
+        {sendError && <div className="msg-closed" style={{ color: '#B5462F' }}>Not sent: {sendError}</div>}
         <div className="msg-compose">
           <textarea
             className="msg-input"
@@ -113,6 +128,7 @@ export default function TechMessages({ profile }) {
           />
           <button className="msg-send" disabled={sending || !body.trim()} onClick={send}>{sending ? '…' : 'Send'}</button>
         </div>
+        </>
       )}
     </div>
   )
