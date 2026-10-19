@@ -454,6 +454,73 @@ export const HELP_ARTICLES = [
         "body": "Everything is scoped to the selected organization; platform owners get a picker. The Dispatch Station’s \"Needs dispatch\" tile opens this page."
       }
     ]
+  },
+  {
+    "id": "agent-inbox",
+    "title": "Agent Inbox & AI Agents",
+    "area": "Dispatch",
+    "keywords": [
+      "agent",
+      "agents",
+      "agent inbox",
+      "ai",
+      "automatic",
+      "follow up",
+      "follow-up",
+      "collections",
+      "reminder",
+      "reschedule",
+      "reply",
+      "triage",
+      "approve",
+      "draft",
+      "quincy",
+      "autonomy",
+      "quiet hours"
+    ],
+    "purpose": "Journey's AI agents watch for situations that need action and prepare the work before anyone asks — a follow-up on an unanswered estimate, a payment reminder, a reply to a customer's text, new visit times for a job that needs rescheduling. Drafts land in the Agent Inbox for the people whose role covers them. You review, edit if you like, and approve — or dismiss.",
+    "sections": [
+      {
+        "h": "Where to find it",
+        "body": "The 🤖 button in the top bar shows how many items are waiting on you (it turns red when one is urgent). Click it, or open Agent Inbox from the Dispatch or Jobs station. Records the agent is working on — an invoice, an estimate, a text thread, Needs Rescheduling — also show a blue \"Agent prepared…\" banner that links to the draft."
+      },
+      {
+        "h": "What the agents do today",
+        "items": [
+          "Rescheduling offers — when a job lands in Needs Rescheduling, drafts a text offering the customer the next open visit windows.",
+          "Customer reply triage — when a customer texts back, sorts the reply (confirming, rescheduling, question, complaint), flags urgent ones, and drafts an answer. It never confirms a booking for you; it tells the customer the office will confirm.",
+          "Estimate follow-ups — a first follow-up after 5 days with no answer, a second one later. No pressure, and it makes \"not right now\" easy to say.",
+          "Collections reminders — payment reminders at 14, 30 and 45 days, each a little firmer, always polite. Invoices with a payment waiting on confirmation or financing in progress are skipped."
+        ]
+      },
+      {
+        "h": "Who sees what",
+        "body": "Each person sees only the items their roles & permissions cover: rescheduling items go to people who can assign technicians, customer replies to the dispatch messaging contact, estimate follow-ups to people who can send estimates, and collections to people with financial access. Admins see everything. The database enforces this, and approving re-checks your permission before anything is sent."
+      },
+      {
+        "h": "Reviewing an item",
+        "items": [
+          "Read why the agent flagged it, then edit the subject or message right in the card.",
+          "Approve & send — sends the text or email and logs it (texts also appear in the job's thread in the Text Archive).",
+          "Dismiss — drops this one. For follow-up and reminder sequences, the next step still comes later unless the estimate is answered or the invoice is paid.",
+          "Items clear themselves when they stop being needed — the estimate was approved, the invoice was paid, someone already replied, the return visit was staged.",
+          "Activity log — everything the agents drafted, sent, or did on their own in the last 60 days."
+        ]
+      },
+      {
+        "h": "Settings (admins)",
+        "items": [
+          "Settings → AI Agents: turn agents on or off for the company, set the daily limit on automatic AI drafts, and set quiet hours.",
+          "Each skill has an autonomy level: Suggest (flags it, no draft), Draft for approval (the default), or Do it and report (sends on its own and logs it). Customer messages never go out on their own during quiet hours — they wait until quiet hours end.",
+          "Adjust timing per skill — e.g. when estimate follow-ups start, or which days collections reminders go out.",
+          "Run agents now (on the Agent Inbox) checks immediately instead of waiting for the next 15-minute check."
+        ]
+      },
+      {
+        "h": "QuincyAI in Help",
+        "body": "The Ask AI tab in Help is a limited agent. Besides answering questions, QuincyAI can take you to the right page, and can set up a task or move a job for you — always as a confirm card you check and approve. It looks things up and makes changes only through your own access, so it can never do something you couldn't do yourself."
+      }
+    ]
   }
 ]
 
@@ -463,5 +530,6 @@ export const ROUTE_HELP = {
   "/call-log": "call-log",
   "/service-requests": "service-requests",
   "/needs-rescheduling": "needs-rescheduling",
-  "/dispatch-map": "dispatch-map"
+  "/dispatch-map": "dispatch-map",
+  "/agent-inbox": "agent-inbox"
 }

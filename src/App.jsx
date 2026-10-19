@@ -57,6 +57,7 @@ import TechChecklistRun from './TechChecklistRun'
 import DiscountCatalog from './DiscountCatalog'
 import OnCallSchedule from './OnCallSchedule'
 import NeedsRescheduling from './NeedsRescheduling'
+import AgentInbox from './AgentInbox'
 import TeamCommunications from './TeamCommunications'
 import RolesConfig from './RolesConfig'
 import Entitlements from './Entitlements'
@@ -348,6 +349,7 @@ function AuthenticatedApp() {
         <Route path="/team" element={<Team profile={profile} />} />
         <Route path="/on-call" element={<OnCallSchedule profile={profile} />} />
         <Route path="/needs-rescheduling" element={<NeedsRescheduling profile={profile} />} />
+        <Route path="/agent-inbox" element={<AgentInbox profile={profile} />} />
         <Route path="/team-communications" element={<TeamCommunications profile={profile} />} />
         <Route path="/roles" element={<RolesConfig profile={profile} />} />
         <Route path="/entitlements" element={<Entitlements profile={profile} />} />

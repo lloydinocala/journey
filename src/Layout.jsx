@@ -5,6 +5,7 @@ import { can } from './utils/permissions'
 import { getDeviceId } from './utils/deviceId'
 import AnnouncementBanner from './AnnouncementBanner'
 import CallMessageNotifier from './CallMessageNotifier'
+import AgentInboxBadge from './AgentInboxBadge'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
 import CallbackAlert from './CallbackAlert'
@@ -37,7 +38,7 @@ const PAGE_TITLES = {
   '/rewards': 'Human Resources', '/marketing': 'Marketing', '/permits': 'Permits',
   '/building-authorities': 'Building Authorities', '/warranty-registrations': 'Warranty Registrations',
   '/import': 'Data Station', '/pricebook': 'Res Flat Rate Pricebook', '/pricebook-commercial': 'Comm Flat Rate Pricebook', '/systems-pricebook': 'Res Systems Pricebook', '/time-and-materials': 'Time & Materials', '/filter-pricebook': 'Filter Pricebook',
-  '/needs-rescheduling': 'Needs Rescheduling', '/team-communications': 'Team Communications', '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
+  '/needs-rescheduling': 'Needs Rescheduling', '/agent-inbox': 'Agent Inbox', '/team-communications': 'Team Communications', '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
   '/payroll': 'Payroll Capture', '/session-log': 'Sign-In Log',
   '/organizations': 'Organizations', '/entitlements': 'Plans & Entitlements', '/announcements': 'Announcements', '/website-announcement': 'Website Announcement', '/my': 'My Pay & Benefits',
   '/features': 'Feature Directory', '/training': 'Training Manual',
@@ -109,6 +110,7 @@ function RailIcon({ k }) {
 // ---------------------------------------------------------------------------
 const WORK_PAGES = [
   { label: 'Jobs Dash', path: '/jobs-dash' },
+  { label: 'Agent Inbox', path: '/agent-inbox' },
   { label: 'Jobs', path: '/jobs' },
   { label: 'Jobs Management', path: '/jobs-management' },
   { label: 'Tasks', path: '/tasks' },
@@ -121,6 +123,7 @@ const WORK_PAGES = [
 ]
 const DISPATCH_PAGES = [
   { label: 'Dispatch Station', path: '/dispatch' },
+  { label: 'Agent Inbox', path: '/agent-inbox' },
   { label: 'Call Console', path: '/call', highlight: true },
   { label: 'Call Log', path: '/call-log' },
   { label: 'Known Others', path: '/known-contacts' },
@@ -505,6 +508,7 @@ export default function Layout({ profile }) {
           </span>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+        <AgentInboxBadge profile={profile} />
         <CallMessageNotifier profile={profile} />
         {(() => {
           // ⚙ Page settings — jumps to this page's section of the one Settings page.
@@ -636,7 +640,7 @@ export default function Layout({ profile }) {
         <div className="main-content-area">
           <Outlet />
         </div>
-        <HelpDrawer />
+        <HelpDrawer profile={profile} />
       </div>
     </div>
   )

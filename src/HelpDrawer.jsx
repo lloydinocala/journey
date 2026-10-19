@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import QuincyProposals from './QuincyProposals'
 import { HELP_ARTICLES, ROUTE_HELP } from './utils/HelpArticles'
 // Namespace import so a missing/renamed export in the Fleet help file can never
 // hard-fail the whole build (Rollup errors on an unresolved *named* import).
@@ -55,6 +56,8 @@ const AI_SYSTEM = 'You are QuincyAI, the in-app help assistant for Journey, an H
 
 const AI_EXAMPLES = [
   'How do I send a system estimate?',
+  'Make a task for tomorrow at 9 to pick up parts at the supply house',
+  'Take me to the jobs that need rescheduling',
   'Where do I record a tool sent for repair?',
   'How does a covered refrigerant system get flagged?',
   'How do I raise a PO for supplies?',
@@ -62,7 +65,7 @@ const AI_EXAMPLES = [
 
 // Floating "?" button + a right-side Help drawer. Works with zero AI (searchable docs) for users
 // who aren't comfortable with AI yet; the "Ask AI" tab is the on-ramp for those who are.
-export default function HelpDrawer() {
+export default function HelpDrawer({ profile }) {
   const location = useLocation()
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState('docs') // 'docs' | 'ai'
@@ -74,6 +77,8 @@ export default function HelpDrawer() {
   const [aiSources, setAiSources] = useState([])
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState('')
+  const [aiProposals, setAiProposals] = useState([])
+  const [aiHistory, setAiHistory] = useState([])
 
   // On open, jump to the article that matches the current page (context-aware).
   useEffect(() => {
@@ -93,24 +98,42 @@ export default function HelpDrawer() {
     setTab('docs')
   }, [open])
 
+  // Pages Quincy may offer to open: every page that has a help guide.
+  function quincyPages() {
+    const byId = Object.fromEntries(ALL_ARTICLES.map((a) => [a.id, a.title]))
+    return Object.entries(ALL_ROUTE_HELP).map(([path, id]) => ({ path, title: byId[id] || path }))
+      .concat([{ path: '/agent-inbox', title: 'Agent Inbox' }])
+  }
+
   async function askQuincy(question) {
     const q = (question || '').trim()
     if (!q || aiLoading) return
-    setAiQ(q); setAiLoading(true); setAiError(''); setAiAnswer(''); setAiSources([])
+    setAiQ(q); setAiLoading(true); setAiError(''); setAiAnswer(''); setAiSources([]); setAiProposals([])
     const picked = rankArticles(q, 6)
     const docs = (picked.length ? picked : ALL_ARTICLES.slice(0, 4)).map(articleToDoc)
     try {
-      const { data, error } = await supabase.functions.invoke('ai-assist', {
-        body: { system: AI_SYSTEM, prompt: q, context: { question: q, helpDocs: docs } },
+      // QuincyAI as a limited agent: answers, looks things up with the user's own access,
+      // and proposes actions as confirm cards.
+      const { data, error } = await supabase.functions.invoke('quincy-help-agent', {
+        body: { question: q, history: aiHistory, pages: quincyPages(), helpDocs: docs, currentPath: location.pathname },
       })
-      if (error || data?.error) {
-        setAiError(data?.error || error?.message || 'QuincyAI could not answer right now — try Browse & Search.')
-      } else {
-        setAiAnswer((data?.text || '').trim())
-        setAiSources(picked)
-      }
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'failed')
+      const text = (data?.text || '').trim()
+      setAiAnswer(text || (data?.proposals?.length ? 'Here you go:' : ''))
+      setAiProposals(data?.proposals || [])
+      setAiSources(picked)
+      setAiHistory((h) => [...h, { role: 'user', content: q }, { role: 'assistant', content: text || '(proposed an action)' }].slice(-6))
     } catch (e) {
-      setAiError('QuincyAI could not answer right now — try Browse & Search.')
+      // Fall back to a plain answer from the guides.
+      try {
+        const { data, error } = await supabase.functions.invoke('ai-assist', {
+          body: { system: AI_SYSTEM, prompt: q, context: { question: q, helpDocs: docs } },
+        })
+        if (error || data?.error) setAiError(data?.error || error?.message || 'QuincyAI could not answer right now — try Browse & Search.')
+        else { setAiAnswer((data?.text || '').trim()); setAiSources(picked) }
+      } catch (e2) {
+        setAiError('QuincyAI could not answer right now — try Browse & Search.')
+      }
     }
     setAiLoading(false)
   }
@@ -155,7 +178,7 @@ export default function HelpDrawer() {
           {tab === 'ai' ? (
             <div>
               <form onSubmit={(e) => { e.preventDefault(); askQuincy(aiQ) }} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                <input value={aiQ} onChange={(e) => setAiQ(e.target.value)} placeholder="Ask QuincyAI about Journey…" autoFocus
+                <input value={aiQ} onChange={(e) => setAiQ(e.target.value)} placeholder="Ask QuincyAI — or tell it what to do…" autoFocus
                   style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid #D5DAE1', fontSize: 14, boxSizing: 'border-box' }} />
                 <button type="submit" disabled={aiLoading || !aiQ.trim()}
                   style={{ padding: '9px 14px', borderRadius: 8, border: 'none', background: brand, color: '#fff', fontWeight: 700, fontSize: 13, cursor: aiLoading ? 'default' : 'pointer', opacity: aiLoading || !aiQ.trim() ? 0.6 : 1 }}>Ask</button>
@@ -168,6 +191,7 @@ export default function HelpDrawer() {
               ) : aiAnswer ? (
                 <div>
                   <div style={{ whiteSpace: 'pre-wrap', fontSize: 13.5, lineHeight: 1.55, color: '#1F2A37' }}>{aiAnswer}</div>
+                  <QuincyProposals proposals={aiProposals} profile={profile} onNavigate={() => setOpen(false)} />
                   {aiSources.length > 0 && (
                     <div style={{ marginTop: 14, borderTop: '1px solid #EEF1F6', paddingTop: 10 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: '#8A93A6', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>Based on</div>
@@ -183,7 +207,7 @@ export default function HelpDrawer() {
                 </div>
               ) : (
                 <div style={{ color: '#64748B' }}>
-                  <p style={{ fontSize: 13.5, lineHeight: 1.55, marginTop: 4 }}>Ask in plain English and QuincyAI answers from Journey’s help guides — where to go and what to click.</p>
+                  <p style={{ fontSize: 13.5, lineHeight: 1.55, marginTop: 4 }}>Ask in plain English. QuincyAI answers from Journey’s help guides, can take you to the right page, and can set things up for you — like creating a task or moving a job — for you to confirm. It can only do what your own access allows.</p>
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#8A93A6', textTransform: 'uppercase', letterSpacing: 0.4, margin: '14px 0 8px' }}>Try asking</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {AI_EXAMPLES.map((ex) => (

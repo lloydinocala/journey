@@ -8,6 +8,7 @@ import { can } from './permissions'
 export const SETTINGS_SECTIONS = [
   { key: 'me', label: 'My Preferences', admin: false, desc: 'Settings that apply only to you.' },
   { key: 'company', label: 'Company', admin: true, desc: 'Your business identity — branding, contact info, and time zone.' },
+  { key: 'agents', label: 'AI Agents', admin: true, desc: 'What the agents watch for, how much they may do on their own, and their limits.' },
   { key: 'work', label: 'Jobs & Customers', admin: true, desc: 'Job types, estimates, invoices, and sales tax.' },
   { key: 'dispatch', label: 'Dispatch', admin: true, desc: 'Business hours, scheduling, and online booking.' },
   { key: 'permitting', label: 'Permitting', admin: true, desc: 'Permit tracking.' },
@@ -23,7 +24,7 @@ const ROUTE_SECTIONS = {
   '/invoices': 'work', '/payments-to-confirm': 'work',
   '/dispatch': 'dispatch', '/calendar': 'dispatch', '/dispatch-map': 'dispatch', '/call': 'dispatch',
   '/call-log': 'dispatch', '/service-requests': 'dispatch', '/filter-orders': 'dispatch',
-  '/text-archive': 'workforce', '/team-communications': 'workforce', '/on-call': 'dispatch', '/needs-rescheduling': 'dispatch',
+  '/text-archive': 'workforce', '/team-communications': 'workforce', '/on-call': 'dispatch', '/needs-rescheduling': 'dispatch', '/agent-inbox': 'agents',
   '/permits': 'permitting', '/building-authorities': 'permitting',
   '/workforce': 'workforce', '/team': 'workforce', '/roles': 'workforce', '/time-clock': 'workforce', '/payroll': 'workforce',
   '/financials': 'financials', '/financing-central': 'financials',

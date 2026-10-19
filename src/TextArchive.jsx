@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { AgentDraftsBanner } from './AgentInboxBadge'
 import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
 
@@ -52,7 +53,8 @@ export default function TextArchive({ profile }) {
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
   const [dateFilter, setDateFilter] = useState('')
-  const [selectedJob, setSelectedJob] = useState(null)
+  // ?job=<id> opens that thread (links from the Agent Inbox).
+  const [selectedJob, setSelectedJob] = useState(() => { try { return new URLSearchParams(window.location.search).get('job') } catch (e) { return null } })
   const [confirmDelete, setConfirmDelete] = useState(null)
   const canView = can(profile, 'view_text_archive')
   const canDelete = can(profile, 'delete_text_archive')
@@ -192,6 +194,7 @@ export default function TextArchive({ profile }) {
               <p style={{ color: 'var(--mist)', textAlign: 'center', marginTop: 40 }}>Select a thread on the left to read it.</p>
             ) : (
               <>
+                <AgentDraftsBanner subjectId={current.jobId} />
                 <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: 12, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                   <div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: '#101418' }}>{current.customer}</div>

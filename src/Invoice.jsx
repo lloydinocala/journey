@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
 import SignaturePad from './SignaturePad'
 import RoutingSummary from './RoutingSummary'
+import { AgentDraftsBanner } from './AgentInboxBadge'
 import AiAssist from './AiAssist'
 
 // Customer-facing "work performed" summary for a finished invoice — reads only the invoice
@@ -562,6 +563,7 @@ async function loadLineItems(invoiceId) {
       ) : (
         <>
           <Link to="/jobs" className="nav-link">← Back to Jobs</Link>
+          <AgentDraftsBanner subjectId={invoice?.id} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '16px 0 24px' }}>
             <div>
               <h2 className="page-title" style={{ marginBottom: 4 }}>

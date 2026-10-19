@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import { AgentDraftsBanner } from './AgentInboxBadge'
 import AiAssist from './AiAssist'
 
 const EST_SCOPE_SYS = 'Write a short, customer-facing scope-of-work summary for an HVAC estimate, based only on the line items provided. 2 to 4 plain-language sentences a homeowner understands, describing what the work covers. Do not invent items or prices. Ready to paste into the estimate.'
@@ -367,6 +368,7 @@ export default function Estimate({ profile }) {
       ) : (
         <>
           <Link to="/jobs" className="nav-link">← Back to Jobs</Link>
+          <AgentDraftsBanner subjectId={estimate?.id} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '16px 0 24px' }}>
             <div>
               <h2 className="page-title" style={{ marginBottom: 4 }}>{estimate.invoice_number} — Job {job.job_number}</h2>

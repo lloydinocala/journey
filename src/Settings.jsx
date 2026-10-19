@@ -10,6 +10,7 @@ import BusinessHours from './BusinessHours'
 import BookingRules from './BookingRules'
 import ServiceRequestSettings from './ServiceRequestSettings'
 import TaskSettings from './TaskSettings'
+import AgentSettings from './AgentSettings'
 import CallHandlingPrefs from './CallHandlingPrefs'
 import PayrollSettings from './PayrollSettings'
 import CollectionsSettings from './CollectionsSettings'
@@ -567,6 +568,10 @@ export default function Settings({ profile }) {
         </button>
         {tzSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
       </form>
+      </SettingsSection>
+
+      <SettingsSection id="agents" isAdmin={isAdmin} highlight={highlight}>
+      <AgentSettings orgId={selectedOrg} />
       </SettingsSection>
 
       <SettingsSection id="work" isAdmin={isAdmin} highlight={highlight}>

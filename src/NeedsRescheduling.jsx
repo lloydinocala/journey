@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { AgentDraftsBanner } from './AgentInboxBadge'
 import { fetchAllRows } from './utils/csvImport'
 
 // Dispatch side of incomplete-job routing. When a tech stops a job as Incomplete for
@@ -93,6 +94,7 @@ export default function NeedsRescheduling({ profile }) {
         Stage the return visit to put it in the Calendar tray. If it&rsquo;s really a parts or estimate issue, send it to Jobs Management.
         Each job clears from this list once its return visit is marked Complete.
       </p>
+      <div style={{ maxWidth: 820 }}><AgentDraftsBanner skill="reschedule_offer" label="rescheduling texts" /></div>
       {msg && <div style={{ margin: '0 0 12px', padding: '8px 12px', borderRadius: 8, background: '#EAF3EC', color: '#2E7D52', fontSize: 13.5, maxWidth: 820 }}>{msg}</div>}
 
       {loading ? (
