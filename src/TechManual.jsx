@@ -28,6 +28,8 @@ const SECTIONS = [
       'Tap On My Way when you head to the site, so the office and customer know you are coming.',
       'Tap Start My Time when you begin work, Pause My Time for a break, and Stop My Time when you finish. Your time on the job is tracked for you.',
       'The Customer card has the address (tap for directions), the phone number (tap to call), and messaging — use Open Messages to text the customer.',
+      'On My Way texts every tenant at the property plus the homeowner. Messages and the Google review link go to the on-site contact (the first tenant, or the homeowner). Customer replies show up in the job\u2019s Messages screen. If a text can\u2019t be sent, you\u2019ll see "Not sent" and the reason.',
+      'If you have to Stop My Time before the job is done, pick the reason. Parts and estimate reasons go to Jobs Management; no one home, weather, or a scheduling interruption go to Dispatch to reschedule. Choosing "Other" requires a short note so the office knows what happened.',
       'Start Here walks you through the visit. Service History shows past work at the property. Private Notes are internal — the customer never sees them.',
     ],
   },
@@ -35,6 +37,7 @@ const SECTIONS = [
     h: 'Estimates & invoices',
     items: [
       'Build a job estimate or a system (equipment) estimate right from the job. Add your line items and any approved discounts, then present it to the customer.',
+      'On a system estimate, use Add/Edit System to pick the equipment — picking a new system replaces the current one. Tick Include thermostat and Include lineset to add them as their own priced lines. Later, use the Lineset & Thermostat box to add or change either one without re-picking the equipment. Installation includes and Warranty are descriptions with no price, and Warranty always stays last.',
       'On an estimate, tap "✨ AI: draft scope" (or "draft proposal" on a system estimate) to turn your line items into a short, plain-language summary for the customer. It writes a draft you can edit — read it over and fix anything before you share it. It never sends on its own.',
       'When the work is done, create an invoice for it.',
       'Use Collect Payment on the job to take payment in the field.',

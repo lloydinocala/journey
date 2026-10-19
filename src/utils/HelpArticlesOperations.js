@@ -11,7 +11,9 @@ export const HELP_ARTICLES = [
       "filter",
       "filters",
       "filter order",
+      "new filter order",
       "flt",
+      "filter invoice",
       "air filter",
       "reorder",
       "pricebook",
@@ -19,51 +21,67 @@ export const HELP_ARTICLES = [
       "shipped",
       "fulfill",
       "merv",
-      "subscription"
+      "cancel",
+      "refund",
+      "refund owed",
+      "mark handed back",
+      "stripe"
     ],
-    "purpose": "Filter Orders is where every air-filter sale is placed, fulfilled, and tracked — orders from the customer portal, phoned in by a customer or a tech, from the website, or entered in the office. Each one is a FLT-#### invoice linked to the customer.",
+    "purpose": "Filter Orders is where every air-filter sale is placed, delivered, and tracked, whether it came from the customer portal, a phone call from a customer or tech, the website, or the office. Each order is a FLT-#### invoice linked to the customer (it shows as \"Filter Invoice\" in the customer’s records).",
     "sections": [
       {
-        "h": "What it is for",
-        "body": "This is the one place all filter orders land, whatever their source, so nothing is missed and every order is tracked from placed to delivered. Payment and fulfillment are tracked separately — you can deliver an order before it is paid, and the customer gets a pay link either way."
+        "h": "Placing a new order",
+        "items": [
+          "1. Click + New ▾ (top right) and choose New Filter Order. The same New Filter Order popup is in every + New menu in the app, so you can start one from anywhere.",
+          "2. Customer: type a name and click the customer.",
+          "3. Property: choose the address the filters are for.",
+          "4. Order source: choose Office, Called in — customer, Called in — tech, Customer Portal, or Website.",
+          "5. If the property has filters on file, click \"Use these\". If it has ordered before, click \"Reorder last\". Both fill in the sizes for you; check them before creating.",
+          "6. For each filter line, fill in width × height × thickness, MERV, and quantity. Click \"+ Add another size\" for more lines, or ✕ to remove one.",
+          "7. Add Notes if you like (delivery instructions, gate code). Notes is the only optional field.",
+          "8. Click \"Create order\" at the bottom (the button stays in view while you scroll). Any missing field is outlined in red and listed above the button.",
+          "Creating the order makes an unpaid FLT-#### invoice and emails the customer a pay link if they have an email on file. Prices come from your filter pricebook. A size that is not in the pricebook is left off, so add it there first."
+        ]
       },
       {
         "h": "Finding orders",
         "items": [
-          "Tabs: Open (still to fulfill, with a count), Delivered, All, and Removed (deleted orders, kept so they can be restored).",
-          "The list refreshes on its own every 30 seconds and on tab focus; Refresh forces it now.",
-          "Each row links the customer to their file and shows the property, source, filter sizes, total, payment, and delivery status."
+          "Tabs: Open (still to deliver, with a count), Delivered, Refunds owed (only appears when a cash or check refund is waiting), and All.",
+          "Each row shows the order number, date, customer (click to open their file) and address, source, filters, total, payment status, and delivery status.",
+          "The list refreshes itself every 30 seconds and when you return to the tab. Click Refresh to update it now."
         ]
       },
       {
-        "h": "Placing an order",
+        "h": "Delivering an order",
         "items": [
-          "Click + New order. Search the customer by name and choose their property.",
-          "Journey shows that property’s filters on file and its last order — click \"Use these\" or \"Reorder last\" to prefill instead of re-typing sizes.",
-          "Set the order source, then verify each filter line (width × height × thickness, MERV, quantity). Sizes are priced from your filter pricebook — a size not in the pricebook is skipped, so add it there first if needed.",
-          "Click Create order. That makes an unpaid FLT-#### invoice and emails the customer a pay link if they have an email on file. Payment is not required to place or deliver."
+          "1. Work the Open tab.",
+          "2. Change the Delivery dropdown as the order moves: Ordered → Shipped → Delivered by tech / Delivered / Picked up.",
+          "3. When you pick Shipped, type the carrier or tracking number in the \"Shipped via\" box.",
+          "Delivered by tech, Delivered, and Picked up move the order to the Delivered tab. You can deliver before the customer pays; the Payment pill shows Paid or Unpaid."
         ]
       },
       {
-        "h": "Fulfilling and tracking",
+        "h": "Changing an order",
         "items": [
-          "Work the Open tab. As each order moves, set its Delivery dropdown: Ordered → Shipped (add the carrier/tracking in the \"Shipped via\" box) → Delivered by tech / Delivered / Picked up.",
-          "The terminal statuses (delivered/picked up) move the order to the Delivered tab.",
-          "The Payment pill shows Paid / Unpaid / Cancelled at a glance."
+          "Edit: change quantities or click Remove on a line. The new total shows as you go. Save, or click \"Cancel edit\". To add a different size, place a new order so the price comes from the pricebook.",
+          "Invoice: opens the customer’s invoice to view or re-send.",
+          "Delete: removes a mistaken order from the list (it asks you to confirm)."
         ]
       },
       {
-        "h": "Editing an order",
+        "h": "Cancelling an order (and refunds)",
         "items": [
-          "Edit — adjust quantities or remove lines inline; the new total recalculates as you go.",
-          "To add a different filter size, place a new order (so pricing always comes from the pricebook).",
-          "Cancel keeps the order on record but drops it off the open list; Un-cancel restores it. Delete removes a mistaken order — it moves to the Removed tab, where Restore brings it back if you deleted it in error.",
-          "Invoice — opens the customer’s invoice to view or re-send."
+          "1. Click Cancel on the row. An unpaid order simply drops off the open list and stays on record.",
+          "2. If the order was already paid, Journey tells you how much was paid and asks you to confirm.",
+          "Card payments made online through Stripe are refunded to the card automatically. The row then shows \"Refunded $__ to card\".",
+          "Cash or check payments are flagged \"Refund owed\". The order appears on the Refunds owed tab, and a red \"Refunds owed\" tile appears on the Train Station and Dispatch Station.",
+          "3. When you hand the cash or check refund back, click \"Mark handed back\" under the amount and confirm. The row then reads \"Cash/check refund handed back\".",
+          "Un-cancel restores a cancelled order, but not after a refund was issued or flagged. In that case, place a new order."
         ]
       },
       {
         "h": "Good to know",
-        "body": "Everything is scoped to the selected organization. Filters on file come from the property record, so keeping that up to date makes reordering a two-click job."
+        "body": "Everything is scoped to the selected organization (platform owners get a picker). Filters on file come from the property record, so keeping them current makes reordering a two-click job."
       }
     ]
   },
@@ -192,7 +210,12 @@ export const HELP_ARTICLES = [
       "service call",
       "approval status",
       "projected profit",
-      "archive"
+      "archive",
+      "profit",
+      "profit %",
+      "partial",
+      "no cost data",
+      "cost"
     ],
     "purpose": "Job Estimates are the quotes you send for service and repair work tied to a job. This table tracks each one from sent to sold, and turns an approved estimate into schedulable work. (New-system quotes live on the separate System Estimates page.)",
     "sections": [
@@ -209,12 +232,21 @@ export const HELP_ARTICLES = [
         ]
       },
       {
+        "h": "How Projected Profit is worked out",
+        "items": [
+          "Projected Profit = the estimate total minus sales tax, minus the parts cost.",
+          "Parts cost comes from the actual parts used when they have been recorded; otherwise from the pricebook Cost of each line.",
+          "\"(partial)\" means some priced lines have no cost on file, so the profit shown is higher than it really is. Add costs in the pricebook to fix it.",
+          "\"No cost data\" means there is nothing to subtract yet, so no profit is shown."
+        ]
+      },
+      {
         "h": "Working an estimate",
         "items": [
           "Set the Estimating Technician and update Approval Status (Pending, Approved, Declined, Pending Financing, Completed) right in the row.",
           "Send / Resend emails the estimate to the customer (the button’s tooltip shows when it was last sent and to whom); View opens the customer-facing copy; Edit opens the estimate to change it.",
           "Inside the estimate (Edit), an \"✨ AI: draft scope\" helper turns the line items into a short, plain-language scope-of-work summary a homeowner understands. You review and edit the draft, then paste it in — it never sends anything on its own and never states a total.",
-        "+ Incomplete flags the linked job as needing another visit and attaches this estimate to it."
+          "+ Incomplete flags the linked job as needing another visit and attaches this estimate to it."
         ]
       },
       {
@@ -260,7 +292,7 @@ export const HELP_ARTICLES = [
           "Click + New System Estimate to start one — it quotes a system against a property (no job needed yet).",
           "Each row links the customer to their file and the property to Properties. Set the Estimating Technician and Approval Status inline.",
           "Send / Resend emails the proposal; View shows the customer’s copy; Edit reopens the estimate. Search, filter by status, show archived, pick columns, and Export CSV as on the other tables.",
-        "Opening a system estimate (Edit) shows an \"✨ AI: draft proposal\" helper that turns the equipment, installation, and warranty lines into a warm, plain-language proposal summary for the homeowner — translating model numbers into benefits. Review, edit, and paste; nothing is sent automatically and no total is stated."
+          "Opening a system estimate (Edit) shows an \"✨ AI: draft proposal\" helper that turns the equipment, installation, and warranty lines into a warm, plain-language proposal summary for the homeowner — translating model numbers into benefits. Review, edit, and paste; nothing is sent automatically and no total is stated."
         ]
       },
       {
@@ -299,13 +331,30 @@ export const HELP_ARTICLES = [
       "restore",
       "export",
       "trip charge",
-      "search"
+      "search",
+      "retrofits",
+      "duct cleaning",
+      "diagnosis",
+      "tabs",
+      "install",
+      "permit",
+      "financing"
     ],
-    "purpose": "Jobs is the master list of all the work — service calls, new-system installs, and maintenance visits — everything scheduled and done. It is where you find any job, edit it inline, and open its paperwork.",
+    "purpose": "Jobs is the master list of all the work: service calls, new-system installs, duct cleaning, and maintenance visits. Find any job, edit it right in the row, read the tech’s diagnosis, and open its paperwork. Tabs give you focused views for Retrofits and Duct Cleaning.",
     "sections": [
       {
         "h": "What it is for",
         "body": "Everything the company does is a job, and this is the table of all of them. Use it to locate a job, change its details, assign technicians, and jump to its invoice or estimate. Day-to-day scheduling is easier on the Calendar; Jobs is for finding and editing the record itself."
+      },
+      {
+        "h": "The tabs: All Jobs, Retrofits, Duct Cleaning",
+        "items": [
+          "All Jobs: every job, with the columns you choose in Columns ▾.",
+          "Retrofits: only new-system jobs (job types RETROFIT, INSTALL, ELECTRIC SPLIT SYSTEM, GAS FURNACE SYSTEM, MINI-SPLIT, PACKAGED UNIT, and SIDE-DISCHARGE). Extra columns: Estimate Total and Approval (from the system estimate that became the job), Payment / Financing (Paid, Financing status, Confirmed, Selected, or Awaiting method), and Permit (status and number).",
+          "Duct Cleaning: only DUCT CLEANING jobs, with a Price column (the invoice total), both technicians, and job notes.",
+          "Each tab shows how many of its jobs are still open, for example \"Retrofits (4 open)\".",
+          "Retrofits and Duct Cleaning use a fixed set of columns; the Columns ▾ picker applies to All Jobs."
+        ]
       },
       {
         "h": "Finding a job",
@@ -314,6 +363,15 @@ export const HELP_ARTICLES = [
           "Search matches job number, address, customer, issue, or technician. Arriving from a Home dashboard chart pre-fills the search or a job-type filter.",
           "Use Columns to show or hide fields; your layout is remembered in your browser. Job #, Segment, Date, and Customer stay pinned (with their headers) as you scroll sideways.",
           "Click a sortable column header to sort (Job # sorts numerically, newest first by default)."
+        ]
+      },
+      {
+        "h": "Reading the Diagnosis column",
+        "items": [
+          "The Diagnosis column shows what the tech found, read live from the job’s invoice: the tech’s diagnosis note, or the invoice’s Diagnosis line when there is no note.",
+          "1. Click the diagnosis text to open the full write-up.",
+          "2. Click \"Open invoice\" in that window to go to the invoice.",
+          "It is read live and never copied, so a change on the invoice shows here right away. It shows — when there is no diagnosis yet."
         ]
       },
       {
@@ -366,23 +424,35 @@ export const HELP_ARTICLES = [
       "segment",
       "delivery",
       "staged",
-      "dispatch"
+      "dispatch",
+      "reason",
+      "other",
+      "needs rescheduling",
+      "→ dispatch",
+      "route"
     ],
-    "purpose": "Jobs Management is the parts-and-follow-up desk. When a job needs a part before it can be finished, it lands here so the office can price it, order it, track its delivery, and stage the return visit — all in one place, feeding Dispatch automatically once the part arrives.",
+    "purpose": "Jobs Management is the parts-and-follow-up desk. Incomplete jobs that need a part, an estimate, or office follow-up land here so the office can price it, order it, track delivery, and stage the return visit. Jobs that only need another visit go to Dispatch’s Needs Rescheduling page instead.",
     "sections": [
       {
-        "h": "What it is for",
-        "body": "A job appears in the Incomplete Jobs list the moment a customer signs off on a follow-up estimate (or a tech marks a job incomplete). The office works each row left to right: confirm the equipment, get the estimate approved, order the part, then stage the next segment so Dispatch can schedule the return visit when the part is in. A row clears itself once that return visit is marked Complete. Red = nothing done yet; yellow = a return visit already exists."
+        "h": "How jobs get here",
+        "items": [
+          "When a tech stops a job as Incomplete, they pick a reason. Parts, estimate, and \"Other\" reasons come here. A customer signing off on a follow-up estimate also puts the job here.",
+          "\"No one home\", \"Weather or site conditions\", and \"Emergency or scheduling interruption\" go to Dispatch’s Needs Rescheduling page instead.",
+          "The Reason column shows the tech’s reason. When they chose \"Other\", their required short note shows in quotes underneath.",
+          "If a row only needs a new visit (not parts or an estimate), click \"→ Dispatch\" to send it to Needs Rescheduling. A job you send by hand stays where you put it.",
+          "Red row = nothing done yet; yellow row = a return visit already exists. A row clears itself once the newest visit is marked Complete."
+        ]
       },
       {
         "h": "Working an incomplete job",
         "items": [
+          "Work each row left to right: confirm the equipment, get the estimate approved, order the part, then stage the next segment.",
           "Open Estimate opens the follow-up estimate in a side panel that stays visible while you fill in the parts fields.",
           "Brand / Model # / Serial # auto-fill from the property’s equipment on file; edit them if needed.",
           "Warranty or Cash: choose Warranty, Cash, or Punchlist. Claim Status then offers only the valid choices — Warranty → Pending / Approved; Cash → Not Warranty Eligible; Punchlist → Punchlist.",
           "Price is a free-text field you fill in; Availability is a date you enter for when the part will be available.",
           "Verbal Approval records the new estimate amount and its status (Pending / Approved / Declined / Punchlist). If it’s Declined, Edit shows \"Flip to Complete\" to close the job out (it also reads Completed on the Jobs table).",
-          "Edit saves the row; Delete removes the entry from Jobs Management (it does not delete the job)."
+          "Edit opens the row for changes (Save or Cancel). \"→ Dispatch\" sends the row to Needs Rescheduling. Delete removes the entry from Jobs Management (any parts ordered stay on record, and the job itself is not deleted)."
         ]
       },
       {
@@ -424,7 +494,13 @@ export const HELP_ARTICLES = [
       "ban",
       "history",
       "billing contact",
-      "export"
+      "export",
+      "last job",
+      "properties",
+      "multi-property",
+      "landlord",
+      "property manager",
+      "sort"
     ],
     "purpose": "The Customers page is your directory of everyone you serve — searchable, editable, and exportable — and the doorway to each customer’s full file, where their properties, jobs, invoices, estimates, agreements, warranties, and history all live in one place.",
     "sections": [
@@ -435,8 +511,12 @@ export const HELP_ARTICLES = [
       {
         "h": "Finding and tailoring the list",
         "items": [
+          "The list opens sorted by most recent job created (newest first), then by last name, so the customers you are working with now are at the top.",
+          "Last Job shows when the customer’s most recent job was created. Properties shows how many active properties they own or manage.",
+          "A purple \"Multi-property · N\" badge next to the name marks customers with 2 or more properties, such as landlords and property managers.",
+          "Click any column header to sort by it; click again to reverse. Click Last Job to get back to the default order.",
           "Search by name, company, phone, or email.",
-          "Show archived includes retired customers; Columns lets you show or hide fields (remembered in your browser); click a header to sort.",
+          "Show archived includes retired customers; Columns lets you show or hide fields (remembered in your browser).",
           "Export CSV downloads the current list, including each customer’s status and Do-Not-Service flag."
         ]
       },
@@ -543,7 +623,10 @@ export const HELP_ARTICLES = [
       "job popup",
       "business hours",
       "map",
-      "slot"
+      "slot",
+      "unassigned tasks",
+      "assign to",
+      "task"
     ],
     "purpose": "The Calendar is the visual schedule — every job on its day and time — and the place where unscheduled work becomes scheduled work. Drag a waiting job onto the grid to book it; drag a booked job to move it.",
     "sections": [
@@ -565,6 +648,15 @@ export const HELP_ARTICLES = [
           "The left-hand tray lists every job that still needs a slot — self-booked requests, approved estimates turned into jobs, and office-created jobs — no matter which dates the grid is showing.",
           "ASAP jobs are grouped at the top under URGENT; the rest are grouped by their requested day.",
           "Each card shows the requested time window, customer, job type, and address. Collapse the tray with its header when you need the room."
+        ]
+      },
+      {
+        "h": "The Unassigned Tasks tray",
+        "items": [
+          "Under Needs Dispatch, an \"Unassigned Tasks\" tray lists tasks created with no one assigned. It only appears when there is at least one.",
+          "Each card shows the destination, date and time, and description.",
+          "1. Pick a person in the card’s \"Assign to…\" list. The task goes to that person’s phone as a Job Card and leaves the tray.",
+          "To change a task’s time or details, use the Tasks page."
         ]
       },
       {
@@ -596,61 +688,93 @@ export const HELP_ARTICLES = [
     "keywords": [
       "task",
       "tasks",
+      "new task",
       "field task",
       "errand",
       "parts pickup",
       "assign",
+      "unassigned",
+      "unassigned tasks",
       "on my way",
       "start",
       "stop",
       "task pay",
       "job card",
       "destination",
-      "dispatch errand"
+      "locked",
+      "archive",
+      "show archived",
+      "payroll"
     ],
-    "purpose": "Tasks are standalone errands you assign to a field user — a parts pickup, a drop-off, a quick stop — with a destination, address, and time. Each becomes a time-tracked Job Card on that person’s phone, so an errand is scheduled, routed, and paid much like a job.",
+    "purpose": "Tasks are errands for a field user that are not customer jobs, like a parts pickup, a drop-off, or a quick stop. Each assigned task becomes a time-tracked Job Card on that person’s phone, so it is scheduled, recorded, and paid much like a job.",
     "sections": [
-      {
-        "h": "What it is for",
-        "body": "Use Tasks for work that has to happen out in the field but is not a customer job — most often picking up parts. It is not the office sticky-note list (that is the To-Do list behind the Dispatch \"To-Dos\" tile). A task carries a destination and a time, cannot be double-booked over the person’s jobs, and records their time and location as they run it."
-      },
       {
         "h": "Creating a task",
         "items": [
-          "Click + New Task and choose who it is assigned to.",
-          "For a parts run, pick a Parts House to quick-fill the destination, or Link to Parts Order to auto-fill the vendor’s name, address, and what to pick up. Otherwise type any destination and address.",
-          "Add a contact (name/title/phone), a description, and choose what happens On Completion — finish, return to the shop, or return to a job.",
-          "Set date, time, and duration. Journey blocks a time that overlaps the person’s jobs or other tasks."
+          "1. Click + New Task (top right). This is the only way to create a task.",
+          "2. Assign to: pick a person, or leave it \"Unassigned — stage it on the Calendar\".",
+          "3. Pick a Parts House to fill in the name and address, or type any destination name and address.",
+          "4. Add a contact name, title, and phone if useful.",
+          "5. Set the Date, Time, and Duration, and add a Description (for example \"Re: PO # or Job #\").",
+          "6. Choose On Completion: \"Done — back to Job Cards\", \"Return to Shop\", or \"Return to Job\".",
+          "7. Click Create Task.",
+          "An unassigned task waits in the Calendar’s \"Unassigned Tasks\" tray until someone picks a person in its \"Assign to…\" list."
+        ]
+      },
+      {
+        "h": "Editing a task (right in the row)",
+        "items": [
+          "1. Click Edit on the row. The row turns into editable fields.",
+          "2. Change who it is assigned to (or set it back to Unassigned), the destination (with \"Parts house quick-fill…\"), address, contact, date and time, duration, what happens on completion, the linked parts order, and the description.",
+          "3. Click Save, or Cancel to discard.",
+          "Journey will not save a time that overlaps the person’s jobs or other tasks; it tells you what it overlaps.",
+          "The On My Way / Started / Stopped times are recorded by the phone and cannot be typed in."
         ]
       },
       {
         "h": "How the field user runs it",
         "items": [
           "The task appears as a Job Card on their phone.",
-          "They tap On My Way, Start My Time, then Stop My Time — each stamped with time and GPS location.",
-          "If they mark it Incomplete, it turns red here with their reason."
+          "They tap On My Way, Start My Time, then Stop My Time. Each tap is stamped with the time and GPS location.",
+          "If they mark it Incomplete, the row turns red here and shows their reason."
         ]
       },
       {
-        "h": "Tracking and records",
+        "h": "Completed tasks are locked",
         "items": [
-          "The table shows assignee, destination (with PARTS / return-to badges), address, tap-to-call/text contact, date/time, duration, the three button-times, status, and description.",
-          "Click Records on a row to see each button’s timestamp and map location, total worked time, and task pay, plus the linked parts order.",
-          "Use \"Show completed / canceled\" to include finished tasks.",
-          "Use \"Show removed\" to list deleted tasks; each has a Restore button to bring one back if it was removed by mistake."
+          "A completed task is a payroll record. Its Edit and Delete buttons are replaced by \"🔒 Locked\", and the database blocks changes too.",
+          "Completed tasks archive automatically 3 weeks after they are stopped (the default). Change this in Settings → Jobs & Customers → Tasks, or pick \"Always show — never archive\". Use the ⚙ Page Settings button to get there.",
+          "Archived tasks are hidden, not deleted. Tick \"Show archived\" to see them (they appear faded)."
+        ]
+      },
+      {
+        "h": "Finding and tracking tasks",
+        "items": [
+          "The header shows how many tasks are open, and how many are marked incomplete.",
+          "Columns: Assigned To (or an Unassigned pill), Destination (with PARTS and ↩ SHOP / ↩ JOB badges), Address, Contact (tap to call or text), Date & Time, Duration, On My Way, Started, Stopped, Status, and Description.",
+          "Tick \"Show completed / canceled\" to include finished tasks.",
+          "Click Records on a row to see each button’s time and map location, total worked time, task pay, the linked parts order, and any incomplete reason. Click Hide to close it."
+        ]
+      },
+      {
+        "h": "Cancelling and deleting",
+        "items": [
+          "Cancel (and confirm) keeps the task on the list marked Canceled.",
+          "Delete (and confirm) removes a task that is not completed. There is no restore button, so use Cancel if you may need the record."
         ]
       },
       {
         "h": "Task pay",
         "items": [
-          "Open Task pay summary and set a date range to see each employee’s completed-task count, worked time, and pay.",
-          "Worked time is Start My Time → Stop My Time; the rate is the employee’s task rate (Settings → Employee Pay Rates).",
-          "This is a task-time report — it does not post to payroll on its own."
+          "1. Click \"Task pay summary\".",
+          "2. Set the From and To dates.",
+          "The table shows each employee’s completed tasks, worked time (Start My Time → Stop My Time), task rate, and pay, with a total. \"set rate\" in red means that person has no task rate yet (Settings → WorkForce → Employee Pay Rates).",
+          "This is a report only; it does not post to payroll on its own. Click \"Hide task pay\" to close it."
         ]
       },
       {
         "h": "Good to know",
-        "body": "Cancel keeps a task on the list as Canceled; Delete removes it from the list but keeps it recoverable — turn on \"Show removed\" to Restore a deleted task. Everything is scoped to the selected organization (platform owners get a picker)."
+        "body": "Tasks are not the office To-Do list (that is the To-Dos tile on the Dispatch Station). Everything is scoped to the selected organization (platform owners get a picker)."
       }
     ]
   },
@@ -702,13 +826,21 @@ export const HELP_ARTICLES = [
       "print",
       "flag",
       "important",
-      "paper trail"
+      "paper trail",
+      "on my way",
+      "review request",
+      "sent",
+      "not sent",
+      "customer reply",
+      "tenant",
+      "team communications",
+      "delivery status"
     ],
-    "purpose": "A read-only record of every text conversation technicians have with customers from a job — one thread per conversation — so you always have a paper trail of what was communicated, by whom, and when.",
+    "purpose": "A read-only record of every text sent from a job (On My Way alerts, technician messages, and review requests) and every customer reply, one thread per job. Each text shows what it was, who it went to, and whether it really went out. It lives under WorkForce → Team Communications.",
     "sections": [
       {
         "h": "What it is for",
-        "body": "This is your communication record, not a place to start new conversations. A thread appears as soon as a technician sends the first message on a job (shown as \"active\") and stays here as \"archived\" once the job is stopped. Use it to check what a customer was told, settle a dispute, or keep a copy for a warranty or claim."
+        "body": "This is your communication record, not a place to start new conversations. A thread appears as soon as a text goes out on a job (shown as \"active\") and stays here as \"archived\" once the job is stopped. Use it to check what a customer was told, prove a text was delivered, settle a dispute, or keep a copy for a warranty or claim. Open it from WorkForce → Team Communications → Text Archive, or the Text Archive button on the Team Communications page."
       },
       {
         "h": "Who can see it",
@@ -723,13 +855,108 @@ export const HELP_ARTICLES = [
         ]
       },
       {
+        "h": "Reading each text",
+        "items": [
+          "Under every text is a line saying what it was: On My Way, Review request, Technician (a message from the tech), or Customer reply (with who sent it).",
+          "It shows who it went to (name and number), then ✓ Sent, or ✗ Not sent with the reason (shown in red). \"Not sent (saved before texting was connected)\" marks older texts that were only saved.",
+          "Customer replies arrive in the same thread.",
+          "On My Way alerts go to every tenant on the property plus the homeowner. Technician messages and review links go to the on-site contact."
+        ]
+      },
+      {
         "h": "Working with a thread",
         "items": [
-          "Print Thread — opens a clean, print-ready copy of just that conversation for a file or claim.",
-          "Flag important (★) — marks a thread you may need again; it rises to the top and is locked against deletion.",
-          "Delete thread (Admins only) — removes a thread after a confirm. If it is flagged important, unflag it first.",
+          "🖨 Print Thread — opens a clean, print-ready copy of just that conversation for a file or claim.",
+          "☆ Flag important — marks a thread you may need again (it shows ★ Important and a ★ in the list) and locks it against deletion. Click it again to unflag.",
+          "Delete thread (Admins only) — click it, then Delete to confirm. A flagged thread shows \"🔒 Flagged — can’t delete\" until you unflag it.",
           "The job number links to the job; a job that was later deleted shows \"(deleted)\" but keeps its thread on record."
         ]
+      }
+    ]
+  },
+  {
+    "id": "system-estimate-builder",
+    "title": "Building a System Estimate",
+    "area": "Operations",
+    "keywords": [
+      "system estimate",
+      "build",
+      "add/edit system",
+      "equipment",
+      "lineset",
+      "thermostat",
+      "installation includes",
+      "warranty",
+      "special feature",
+      "misc item",
+      "discount",
+      "send",
+      "text",
+      "email",
+      "tier",
+      "replace"
+    ],
+    "purpose": "This is the screen where you build a new-system proposal: pick the equipment, add the lineset, thermostat, add-ons, and extras, then send it to the customer. Techs build the same estimate in the field app with the same steps.",
+    "sections": [
+      {
+        "h": "Top of the page",
+        "items": [
+          "Set the Estimating Technician and the Approval Status (Pending, Approved, Rejected, Pending Financing).",
+          "\"From service call\" (before approval) links this proposal to the service call it came from, or leave it on \"None — becomes a new job only\".",
+          "Once it has been converted, an Install job link shows the job number and status.",
+          "\"✨ AI: draft proposal\" writes a short, plain-language summary from the line items for you to review and paste. It never sends anything and never states a total."
+        ]
+      },
+      {
+        "h": "Picking the system (Add/Edit System)",
+        "items": [
+          "1. Choose the System type, then the Size (Tons).",
+          "2. Narrow the list with SEER2, Brand, or the search box (model #, brand) if needed.",
+          "3. Click the system you want. Its installed price shows under the list.",
+          "4. Tick Taxable if the system is taxed.",
+          "5. Optional: tick \"Include lineset\" and enter its price, and/or \"Include thermostat (its own priced line)\" and enter the model and price. The thermostat starts with the default from System Estimate Setup.",
+          "6. Click \"Add to estimate\".",
+          "Picking a system replaces the current one. Estimates hold one system at a time; there is no stacking of several options. To show a different choice, pick it and it replaces the old one."
+        ]
+      },
+      {
+        "h": "Lineset & Thermostat (without re-picking the equipment)",
+        "items": [
+          "Once a system is on the estimate, a \"Lineset & Thermostat\" box appears.",
+          "1. Click \"+ Add Lineset\" (or \"Edit Lineset\") or \"+ Add Thermostat\" (or \"Edit Thermostat\").",
+          "2. Type the description and price.",
+          "3. Click \"Add to estimate\" (or Save), or Cancel.",
+          "The lineset prints under \"Also includes:\". The thermostat is its own priced line."
+        ]
+      },
+      {
+        "h": "Installation includes and Warranty",
+        "items": [
+          "These are added automatically from System Estimate Setup when you pick a system.",
+          "They are description-only lines, marked \"Description only — no price\". They tell the customer what is included and what is covered.",
+          "Warranty always prints last on the estimate."
+        ]
+      },
+      {
+        "h": "Add-ons, extras, and discount",
+        "items": [
+          "Add Special Feature: pick an add-on from your catalog and click \"Add feature\". Add as many as apply.",
+          "Add Misc Item: type a description (permits, extra materials, disposal fees), quantity, and unit price, tick Taxable if needed, and click \"Add to estimate\".",
+          "In the line-item table you can change any priced line’s quantity or unit price, or click Remove. A \"PENDING · tech request\" item needs a price and an admin’s Approve.",
+          "Discount: choose $ or % and type the amount. Subtotal, sales tax, discount, and Estimated Total update below."
+        ]
+      },
+      {
+        "h": "Sending it to the customer",
+        "items": [
+          "The Customer link box shows the page the customer sees (no login needed). Use Copy or Open.",
+          "Click \"Review / Preview\" to check it first.",
+          "Click \"Email to Customer\" (or \"Re-email to Customer\") or \"Text to Customer\". The last-sent time shows next to the buttons."
+        ]
+      },
+      {
+        "h": "Good to know",
+        "body": "Set the default installation text, default thermostat, and warranty wording on System Estimate Setup. When permit tracking is on, a Permit section appears at the bottom. Once approved, convert it to an install job from the System Estimates list."
       }
     ]
   }
@@ -749,5 +976,7 @@ export const ROUTE_HELP = {
   "/estimates": "estimates",
   "/vendors": "vendors-parts",
   "/parts-catalog": "vendors-parts",
-  "/text-archive": "text-archive"
+  "/text-archive": "text-archive",
+  "/system-estimate/": "system-estimate-builder",
+  "/system-estimate-p/": "system-estimate-builder"
 }

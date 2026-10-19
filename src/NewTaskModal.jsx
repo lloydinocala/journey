@@ -152,7 +152,7 @@ export default function NewTaskModal({ orgId, profile, onClose, onCreated }) {
             </select>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <div className="form-actions" style={{ display: 'flex', gap: 8, marginTop: 16 }}>
             <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto', padding: '10px 24px' }}>
               {saving ? 'Creating\u2026' : 'Create Task'}
             </button>

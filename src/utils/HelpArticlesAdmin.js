@@ -171,36 +171,90 @@ export const HELP_ARTICLES = [
     "area": "Admin",
     "keywords": [
       "settings",
-      "business hours",
-      "holidays",
-      "branding",
+      "page settings",
+      "gear",
+      "my preferences",
+      "starting page",
+      "call handling",
+      "when a call comes in for me",
+      "company",
       "logo",
-      "payment terms",
-      "organization",
-      "preferences",
+      "branding",
+      "time zone",
+      "jobs & customers",
+      "tasks",
+      "sales tax",
       "job types",
       "routing",
-      "job type config",
-      "diagnosis",
-      "checklist"
+      "dispatch",
+      "business hours",
+      "holidays",
+      "online booking",
+      "service requests",
+      "qr",
+      "permitting",
+      "workforce",
+      "pay rates",
+      "pay period",
+      "financials",
+      "stripe",
+      "collections",
+      "quickbooks",
+      "admin only"
     ],
-    "purpose": "Your organization’s settings — the things you configure once that flow through the whole app.",
+    "purpose": "Settings is one page with a section for each main menu heading. My Preferences applies only to you; every other section is for admins and applies to the whole company. Any page that has settings has a ⚙ Page Settings button that jumps straight to its section.",
     "sections": [
       {
-        "h": "What lives here",
+        "h": "Finding the setting you need",
         "items": [
-          "Business hours and holidays — which drive the slots available on the Calendar and in booking.",
-          "Branding shown to customers on estimates and invoices.",
-          "Payment terms and other organization-wide preferences."
+          "1. From any page that has settings, click ⚙ Page Settings in the top bar. Settings opens at that page’s section, highlighted.",
+          "2. Make your change and click that setting’s Save button (some dropdowns and checkboxes save as soon as you change them and show \"Saved ✓\").",
+          "3. Click \"← Back to [page]\" at the top to return to where you were.",
+          "Or open Settings directly and click a heading in the left-hand list to jump to that section."
+        ]
+      },
+      {
+        "h": "Who can change what",
+        "items": [
+          "My Preferences is open to everyone and only affects you.",
+          "Every other section is marked \"Admin only\". If you are not an admin, it shows 🔒 in the left list and reads \"Only an admin can change these settings.\""
+        ]
+      },
+      {
+        "h": "What is in each section",
+        "items": [
+          "My Preferences: \"Your starting page\" (where the app opens when you sign in) and \"When a call comes in for me\" (how the receptionist handles calls meant for you — see below).",
+          "Company: Logo, App Icon, Brand colors, Business contact info, and Time zone.",
+          "Jobs & Customers: Tasks (how long completed tasks stay before they archive; default 3 weeks, or \"Always show\"), Sales tax, and Job types.",
+          "Dispatch: Business hours (with holidays), Online booking rules, and Service requests (QR stickers) — how many days before finished requests archive (default 30).",
+          "Permitting: \"Track installation permits\". When on, a Permit section appears on System Estimates and permits show on the customer profile.",
+          "WorkForce: Call handling for the team, Employee pay rates, and Payroll pay period. Roles and team members are managed on the Roles & Tags and Team pages.",
+          "Financials & Payments: Payments (connect your Stripe account so card payments go straight to you), Collections & reminders, and QuickBooks.",
+          "Inventory Central: a link to the separate Inventory Settings page."
+        ]
+      },
+      {
+        "h": "When a call comes in for me",
+        "items": [
+          "1. In My Preferences, pick your First choice: Transfer the call to me if I’m available, Forward the call to my cell phone, Take a message, or Book an appointment on my calendar.",
+          "2. Pick \"If that isn’t possible\" (your fallback), or leave \"— nothing else —\".",
+          "3. If you chose forwarding, enter the cell phone number to forward to.",
+          "4. Add optional notes for the receptionist, then click Save.",
+          "Admins can set this for each office or management team member in WorkForce → \"Call handling for the team\". Anyone not set defaults to \"Take a message\"."
         ]
       },
       {
         "h": "Job types & routing",
         "items": [
-          "Each job type carries its own routing rules, so the type you choose when a job is created is what decides how that job behaves — there is no hard-coded logic behind it.",
-          "Per type you set: what fills the Diagnosis step, the estimate format (service/repair vs. a full system proposal), which pricebook it draws from, whether it runs as a progress-billing Project, how it invoices, and whether it is customer-facing.",
-          "A job type can be linked to a Checklist; any checklist you create is available to assign here and shows automatically in the dropdown, so new checklists are usable the moment you make them."
+          "Job types fill the Type dropdown when creating a job, and each type’s settings decide how the job behaves: its estimate format (service/repair or a full system proposal), default pricebook, and billing behavior.",
+          "Add a Commercial type and set its pricebook to Commercial Flat Rate when you do commercial work.",
+          "Turn a type off instead of deleting it if past jobs still use it.",
+          "A job type can be linked to a Checklist; any checklist you create shows in the dropdown right away."
         ]
+      },
+      {
+        "h": "Good to know",
+        "body": "Platform owners pick the organization at the top (\"Viewing organization\"). Settings changes apply right away for everyone in the organization, except My Preferences, which is just yours."
       }
     ]
   },
@@ -437,6 +491,84 @@ export const HELP_ARTICLES = [
         "body": "Open My Pay & Benefits to see your recent paychecks, your benefits and deductions, your tax/direct-deposit details, and your time-off balance and requests. It shows only your own information."
       }
     ]
+  },
+  {
+    "id": "team-communications",
+    "title": "Team Communications",
+    "area": "WorkForce",
+    "keywords": [
+      "team communications",
+      "call messages",
+      "take a call",
+      "take a call for",
+      "call for a team member",
+      "message",
+      "phone message",
+      "transfer",
+      "forward",
+      "appointment",
+      "receptionist",
+      "notification",
+      "desktop notification",
+      "badge",
+      "mark handled",
+      "reopen",
+      "text archive",
+      "call handling"
+    ],
+    "purpose": "Team Communications (under WorkForce) is where calls taken for team members are logged and delivered: messages, appointment requests, and notes about transferred or forwarded calls. Each person follows their own call instructions, gets notified, and works their own inbox. The Text Archive lives here too.",
+    "sections": [
+      {
+        "h": "Step 1 — everyone sets how their calls are handled",
+        "items": [
+          "1. Go to Settings → My Preferences → \"When a call comes in for me\".",
+          "2. Choose a First choice and a fallback (\"If that isn’t possible\"): transfer the call, forward it to your cell, take a message, or book an appointment.",
+          "3. Enter your cell number if you chose forwarding, add any notes for the receptionist, and click Save.",
+          "Admins can set this for the whole team in Settings → WorkForce → \"Call handling for the team\". Anyone not set defaults to \"Take a message\"."
+        ]
+      },
+      {
+        "h": "Step 2 — taking a call for someone",
+        "items": [
+          "1. Click \"📞 Take a call for…\" (top of this page), or \"📞 Call for a team member\" on the Call Console.",
+          "2. Pick who the call is for. Their instructions appear: first choice, what to do if that is not possible, any cell number, and their notes.",
+          "3. Click what you did: Transfer, Forward to cell, Take a message, or Book appointment. ★ marks their first choice.",
+          "4. Enter the caller’s name and phone. For a message, type the message. For an appointment, type what it is about and pick the date and time.",
+          "5. Tick Urgent if it cannot wait.",
+          "6. Click \"Send message\", \"Book & notify\", \"Log transfer & notify\", or \"Log forward & notify\".",
+          "A message or appointment needs the caller’s name or phone; a message also needs the message text."
+        ]
+      },
+      {
+        "h": "What the person receives",
+        "items": [
+          "The 📨 button in their top bar turns red and shows how many of their messages are not yet handled. Clicking it opens this page. The count goes down as they click \"Mark handled\".",
+          "A desktop notification pops up for each new message while Journey is open (marked URGENT when ticked). The browser asks for permission the first time you click the 📨 button; allow it to get pop-ups.",
+          "New messages are checked about every 30 seconds."
+        ]
+      },
+      {
+        "h": "Working your inbox",
+        "items": [
+          "My call messages: calls taken for you. Everyone: all messages for the whole team (shown to admins, reception, and dispatch).",
+          "Each card shows the type (Message, Appointment request, Call transferred, Call forwarded), the caller and a \"call back\" link, when it was taken and by whom, the appointment time (📅), and the message. Urgent cards have a red edge.",
+          "1. Handle the call, then click \"Mark handled\". It drops off the list.",
+          "2. Tick \"Show handled\" to see handled messages again; click Reopen to put one back on the list.",
+          "The Text Archive button opens customer text threads."
+        ]
+      },
+      {
+        "h": "Current limits",
+        "items": [
+          "Transfers and forwards are done on your phone for now. Journey records them and notifies the person; this becomes one click once the phone system is connected.",
+          "A booked appointment shows in the person’s messages. It is not added to the Calendar yet."
+        ]
+      },
+      {
+        "h": "Good to know",
+        "body": "Find it under WorkForce → Team Communications, with Call Messages and Text Archive underneath. Everything is scoped to your organization."
+      }
+    ]
   }
 ]
 
@@ -466,5 +598,6 @@ export const ROUTE_HELP = {
   "/marketing/channels": "marketing",
   "/marketing/reviews": "marketing",
   "/marketing": "marketing",
-  "/my": "my-portal"
+  "/my": "my-portal",
+  "/team-communications": "team-communications"
 }

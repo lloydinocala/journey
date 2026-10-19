@@ -23,13 +23,41 @@ export const HELP_ARTICLES = [
       "paid",
       "reminder",
       "diagnosis",
-      "ledger"
+      "ledger",
+      "payments to confirm",
+      "confirm method",
+      "financing",
+      "approve financing",
+      "mark paid",
+      "collections",
+      "profit",
+      "profit %",
+      "partial",
+      "no cost data"
     ],
-    "purpose": "Invoices is where you bill customers for completed work and get paid — the master list of what has been billed, what is still owed, and every payment recorded against it.",
+    "purpose": "Invoices is where you bill customers for completed work and get paid: the master list of what has been billed, what is still owed, and every payment recorded against it. It has three tabs: Invoices, Payments to Confirm, and Collections.",
     "sections": [
       {
         "h": "What it is for",
         "body": "This is the money side of the business: send bills, chase what is owed, and record payments accurately. Payments here are real ledger entries (not just a flag), so balances stay honest and the money shows up in cash reports."
+      },
+      {
+        "h": "The three tabs",
+        "items": [
+          "Invoices: the full invoice list (everything below).",
+          "Payments to Confirm: invoices and approved System Estimates where the customer picked how they will pay, but it is not settled yet. The tab shows a count when anything is waiting. (This used to be its own page; old links and the dashboard tile now open this tab.)",
+          "Collections: a priority view of unpaid invoices to help you decide who to follow up with first."
+        ]
+      },
+      {
+        "h": "Working Payments to Confirm",
+        "items": [
+          "Each row shows the invoice or system estimate (click to open it), the date the customer chose, the customer, the method, the balance, and a status badge: Awaiting method, Selected, Confirmed, or Financing — applied / approved / denied / funded.",
+          "1. If a system estimate has no method yet, pick one in \"Set method…\" (Cash, Check, Card, Financing).",
+          "2. For cash, check, or card, click \"Confirm method\" once you have verified it. That releases the install for scheduling.",
+          "3. For financing, click \"Approve financing\" when the lender approves (this also releases the install), or Deny if they decline.",
+          "4. On an invoice, click \"Mark PAID\" once the money is collected and confirm the amount and method."
+        ]
       },
       {
         "h": "Finding and reading invoices",
@@ -37,6 +65,15 @@ export const HELP_ARTICLES = [
           "Filter by All / Unpaid / Paid, search by invoice #, job #, or customer, and toggle Show archived. The header shows how many invoices and the total dollars outstanding.",
           "A completed job whose invoice is still unpaid is flagged in yellow so it stands out.",
           "Columns cover the trip charge and line items, the money breakdown, technicians, profit, and a click-to-edit Diagnosis (editing it updates the job’s diagnosis everywhere). Use Columns to choose fields and Export CSV to pull the list."
+        ]
+      },
+      {
+        "h": "How Profit and Profit % are worked out",
+        "items": [
+          "Profit = the invoice total minus sales tax, minus the parts cost. Profit % shows the same profit as a percentage.",
+          "Parts cost uses the actual parts used on the job when they have been recorded; otherwise it uses the pricebook Cost of each line.",
+          "\"(partial)\" means some priced lines have no cost on file, so the profit shown is higher than it really is. Add costs in the pricebook (or record parts used) to fix it.",
+          "\"No cost data\" means there is nothing to subtract yet, so no profit is shown."
         ]
       },
       {

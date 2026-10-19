@@ -185,9 +185,12 @@ export const HELP_ARTICLES = [
       "boilerplate",
       "what is included",
       "manufacturer years",
-      "contractor years"
+      "contractor years",
+      "thermostat",
+      "default thermostat",
+      "thermostat price"
     ],
-    "purpose": "Sets the \"what’s included\" installation blocks and the exact warranty wording that print on every System Estimate — write them once here instead of on every quote. Installation includes is set per system type, since what an install comes with differs by type.",
+    "purpose": "Sets the text and defaults every System Estimate starts with: the \"what’s included\" installation blocks (per system type), the default thermostat and its price, and the exact warranty wording. Write them once here instead of on every quote.",
     "sections": [
       {
         "h": "What it is for",
@@ -203,14 +206,24 @@ export const HELP_ARTICLES = [
         ]
       },
       {
+        "h": "Thermostat (default)",
+        "items": [
+          "The thermostat is its own priced line on each System Estimate.",
+          "1. Type the default thermostat (for example \"Honeywell T6 Pro Thermostat\") and its default price.",
+          "2. Click Save.",
+          "This pre-fills the thermostat on every new System Estimate (office and field app). The estimator can change the model and price on each estimate, or add or edit it later with \"+ Add Thermostat\" / \"Edit Thermostat\" without re-picking the equipment."
+        ]
+      },
+      {
         "h": "Warranty (exact words)",
         "items": [
-          "Shown verbatim to the customer. It supports two placeholders, {manufacturer_years} and {contractor_years}, which are filled automatically from the specific system chosen on each estimate."
+          "Shown verbatim to the customer. It supports two placeholders, {manufacturer_years} and {contractor_years}, which are filled automatically from the specific system chosen on each estimate.",
+          "Installation includes and Warranty print as description-only lines (no price) on the estimate, and the Warranty always prints last."
         ]
       },
       {
         "h": "Good to know",
-        "body": "Fill in the default, any per-type blocks, and the warranty, then click Save — they flow onto every System Estimate with the correct installation block per type and the warranty year numbers substituted per selected system. Platform owners get an organization picker."
+        "body": "Fill in the default, any per-type blocks, the thermostat, and the warranty, then click Save. They flow onto every System Estimate with the correct installation block per type and the warranty year numbers filled in for the selected system. Changes apply to systems picked after you save; estimates already built keep their text until the system is picked again. Platform owners get an organization picker."
       }
     ]
   },

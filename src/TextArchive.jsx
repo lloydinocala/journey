@@ -15,7 +15,7 @@ function fmtDateTime(t) {
 // Who/what/delivery line under each bubble: kind, recipient, and whether it really went out.
 const KIND_LABEL = { on_my_way: 'On My Way', review: 'Review request', message: 'Technician' }
 function metaLine(m) {
-  if (m.direction === 'inbound') return 'Customer'
+  if (m.direction === 'inbound') return `Customer reply${m.recipient_name || m.to_phone ? ` from ${[m.recipient_name, m.to_phone].filter(Boolean).join(' ')}` : ''}`
   const kind = KIND_LABEL[m.kind] || 'Technician'
   const to = m.recipient_name || m.to_phone ? ` → ${[m.recipient_name, m.to_phone].filter(Boolean).join(' ')}` : ''
   const st = m.status === 'sent' ? ' · ✓ Sent'

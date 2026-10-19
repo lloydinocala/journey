@@ -811,6 +811,18 @@ html { overflow-x: hidden; }
   font-size: 25px;
 }
 
+/* Forms: the Create / Save row stays pinned to the bottom of the form while it scrolls,
+   so it's always visible, and it sits below the fields instead of covering them. */
+.modal-card .form-actions {
+  position: sticky;
+  bottom: -32px;
+  margin: 16px -32px -32px !important;
+  padding: 12px 32px 16px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  z-index: 2;
+}
+
 .modal-row {
   margin: 10px 0;
   font-size: 17px;

@@ -10,63 +10,90 @@ export const HELP_ARTICLES = [
     "keywords": [
       "service requests",
       "qr",
+      "qr code",
       "sticker",
+      "label",
       "homeowner",
       "tenant",
+      "landlord",
       "approve",
       "decline",
       "owner approval",
       "dispatch",
       "create job",
-      "request page"
+      "request page",
+      "archive",
+      "unarchive",
+      "history",
+      "report",
+      "success",
+      "triage",
+      "urgent"
     ],
-    "purpose": "Service Requests is the inbox for jobs customers start themselves — by scanning the QR service sticker on their equipment. Approve a request and Journey creates the job in the dispatch tray, billed to the property’s account holder. A built-in approval step protects the account holder when the request comes from someone else, like a tenant.",
+    "purpose": "Service Requests is the inbox for jobs customers start themselves by scanning the QR service sticker at their home. Approve a request and Journey creates the job in the Calendar’s Needs Dispatch tray, billed to the property’s account holder. When someone other than the account holder (like a tenant) asks, the landlord has to approve first. The page has three tabs: Active, History, and Report.",
     "sections": [
       {
-        "h": "What it is for",
-        "body": "This turns a sticker on the air handler into a booking channel. A customer scans it, describes the problem, and it appears here — no phone call needed. Your job is to review each one and either turn it into a job or decline it. The approval safeguard means a tenant can report a problem without being able to authorize billable work in the owner’s name."
-      },
-      {
-        "h": "The two queues",
+        "h": "Working the Active tab (new requests)",
         "items": [
-          "Ready to dispatch — requests you can approve straight into a job. These are from the account holder, or already owner-approved.",
-          "Awaiting homeowner approval — requests made by someone other than the account holder. Nothing is scheduled or billed until the owner approves.",
-          "Every card is color-coded by urgency: emergency (red), soon (amber), flexible (green), and carries a basis badge showing how it qualified."
+          "1. Open the Active tab. Requests waiting on you are split into two groups: \"Awaiting homeowner approval\" (from someone other than the account holder) and \"Ready to dispatch\".",
+          "2. Read each card: the category (Repair, Tune-up, Question) and the urgency the customer picked, the address and the account it bills to, what they wrote, who reported it (name and phone), and when it came in.",
+          "3. Check the triage badge. Journey reads the request text and marks it Urgent or Elevated when it mentions things like a gas smell, smoke, no heat, no cooling, a leak, or an elderly person or baby in the home. The reasons it matched are printed next to the badge, and the most urgent requests sort to the top.",
+          "4. On a Ready to dispatch card, click \"Approve → create job\". The job lands in the Calendar’s Needs Dispatch tray. Schedule it like any other job.",
+          "5. On an Awaiting card, wait for the landlord to approve from their email. If they approved by phone instead, click \"Owner approved (I called) → ready\" to move it to Ready to dispatch.",
+          "6. Click Decline (and confirm) to close a request you will not act on.",
+          "The list refreshes itself every 30 seconds and when you come back to the browser tab. Click Refresh to update it now."
         ]
       },
       {
-        "h": "Reading a request",
+        "h": "The landlord-approval safeguard",
+        "body": "When the person asking is not the account holder, Journey emails the account holder a link to approve and holds the request under \"Awaiting homeowner approval\". Nothing is scheduled or billed until they say yes. A tenant can report a problem, but cannot approve billable work in the owner’s name."
+      },
+      {
+        "h": "The History tab (finished requests)",
         "items": [
-          "Top line: category (Repair, Tune-up, Question) and the urgency the customer chose.",
-          "Property address and the account holder it will bill to; the free-text details; and who reported it (name and phone).",
-          "The timestamp shows when it came in."
+          "1. Open the History tab to see approved and declined requests, newest first. Each card shows its outcome: \"Approved → job created\" or \"Declined\".",
+          "2. Archived requests are hidden. Tick \"Show archived\" to include them. An archived card shows the date it was archived.",
+          "3. Anyone can click Archive to hide a finished request, or Unarchive to bring it back.",
+          "4. Admins also see Edit and Delete. Edit lets you fix the reporter name, phone, and details, then click Save (or Cancel).",
+          "5. Delete removes the request permanently, and it also drops out of the Report. Journey warns you first. Only delete a request that was entered by mistake; otherwise use Archive, which keeps the record."
         ]
       },
       {
-        "h": "Working the queue",
+        "h": "Automatic archiving (nothing is auto-deleted)",
         "items": [
-          "Approve → create job — creates the job in the dispatch tray, billed to the property’s account holder. Then schedule and dispatch it like any job.",
-          "Decline — dismisses a request that is not actionable (asks you to confirm).",
-          "Owner approved (I called) → ready — on an awaiting card, use this after you have confirmed approval another way (e.g. the owner phoned in); it moves the request to Ready to dispatch.",
-          "Active / History — the Active tab is the live queue you work; the History tab is a read-only archive of requests already handled, each showing its outcome (Approved → job created, or Declined), newest first.",
-          "The list refreshes on its own every 30 seconds and when you return to the tab; Refresh forces it now."
+          "Every night, finished requests archive themselves: a declined request a set number of days after it was declined, and an approved request that many days after the job’s invoice is paid in full.",
+          "The number of days is set in Settings → Dispatch → \"Service requests (QR stickers)\" → \"Archive after __ days\" (default 30). Use the ⚙ Page Settings button in the top bar to get there.",
+          "Archiving only hides a request. Nothing is deleted automatically, and archived requests still count in the Report."
         ]
       },
       {
-        "h": "The homeowner-approval safeguard",
-        "body": "When a request comes from someone who is not the account holder, Journey automatically emails the account holder a link to approve it, and holds the request in \"Awaiting homeowner approval\" — nothing is scheduled or billed until they say yes. If they approve by phone instead, you can move it forward yourself with the \"Owner approved (I called)\" button."
+        "h": "The Report tab (is the QR program working?)",
+        "items": [
+          "1. Open the Report tab and pick a period: Last 30 days, Last 90 days, Last 12 months, or All time.",
+          "Requests: how many came in, and how many became jobs, were declined, or are still open.",
+          "Became jobs: the share of decided requests that turned into jobs.",
+          "Landlord approved: of requests that needed the landlord, how many they approved or declined.",
+          "Landlord response time: the average time from request to the landlord’s answer.",
+          "Repair calls via QR: the share of repair jobs that came through a QR request; the rest were phoned in.",
+          "Sales from requests: invoice totals (before sales tax) from jobs that came from requests, and their share of all sales.",
+          "Homes with QR codes: properties whose sticker has been printed, and how many of those have tenants.",
+          "Requests per QR home: requests in the period divided by homes with QR codes.",
+          "The report counts every request, including archived ones, so archiving never changes the numbers. The same report is the \"Service Requests\" tab on the Command Center home."
+        ]
       },
       {
-        "h": "Print a service QR sticker",
+        "h": "Printing a QR sticker for a home",
         "items": [
-          "Under \"Print a service QR sticker,\" search a property by street address and pick it.",
-          "Journey generates that property’s QR code (a link to its own request page).",
-          "Click \"Open full-size to print\" and put the sticker on the equipment. Anyone at that address who scans it opens a request page already tied to their property."
+          "1. Scroll to \"Print a service QR sticker\" (on the Active tab).",
+          "2. Type a street address or customer name in the search box and click the right property.",
+          "3. Click \"Print label (top half)\" to print the branded label (your logo, business name, and the landlord-approval notice) on the top half of a Letter sheet. Flip the sheet to print a different home’s code on the other half.",
+          "4. Or click \"Print code only\" for just the QR code, or \"Open full-size\" for a large image.",
+          "Printing marks the property as having a QR code (that is what the Report counts). Anyone who scans the code opens a request page already tied to that address."
         ]
       },
       {
         "h": "Good to know",
-        "body": "Everything is scoped to the selected organization. The Active view shows requests still to handle; approved and declined ones move to the History tab, where they stay on record so you can look back at what was requested and how it was resolved."
+        "body": "Everything is scoped to the selected organization; platform owners pick it from \"Viewing organization\". Requests show up as the \"New service requests\" tile on the Dispatch Station."
       }
     ]
   },
@@ -160,7 +187,12 @@ export const HELP_ARTICLES = [
       "known contact",
       "vendor",
       "note",
-      "who is calling"
+      "who is calling",
+      "call for a team member",
+      "take a call",
+      "message",
+      "transfer",
+      "forward"
     ],
     "purpose": "The Call Console is what you open the moment the phone rings. Type the caller’s number and it instantly identifies who is calling — customer, vendor, employee, or a saved contact — and pulls up everything you need to help them: history, equipment, plan, and balance. Then log the call so nothing falls through the cracks.",
     "sections": [
@@ -211,6 +243,17 @@ export const HELP_ARTICLES = [
         ]
       },
       {
+        "h": "When the caller wants a team member",
+        "items": [
+          "1. Click \"📞 Call for a team member\" (top of the page).",
+          "2. Choose who the call is for. Their instructions appear: their first choice, what to do if that is not possible, and any notes.",
+          "3. Pick what you did: Transfer, Forward to cell, Take a message, or Book appointment (★ marks their first choice).",
+          "4. Enter the caller’s name and phone, plus the message or appointment details, and tick Urgent if needed.",
+          "5. Click the button at the bottom to log it. That person gets a 📨 badge in the top bar and a desktop notification.",
+          "For now, do the actual transfer or forward on your phone, then log it here. See the Team Communications help for the full details."
+        ]
+      },
+      {
         "h": "Good to know",
         "body": "Everything is scoped to the selected organization (platform owners get an org picker). A banned-customer banner is a warning, not a lock — use your judgment. Logging is the point: an unlogged call is invisible to the rest of the office."
       }
@@ -243,12 +286,14 @@ export const HELP_ARTICLES = [
         "body": "Open Dispatch first thing and at intervals through the day to see, in one place, everything front-of-house that needs a hand. It reads the same shared signal registry as the Train Station roll-up, so anything you clear here also clears there — the numbers never disagree. You do not do the work on this page; each tile takes you to the page where you do it."
       },
       {
-        "h": "The eight things it watches",
+        "h": "The ten things it watches",
         "items": [
           "New service requests — customer requests waiting to be reviewed and booked → opens Service Requests.",
           "Jobs to schedule — approved jobs not yet on the board → opens the Calendar.",
           "Needs dispatch — scheduled jobs with no technician assigned → opens the Dispatch Map.",
+          "Needs rescheduling — incomplete jobs stopped for no access, weather, or an interruption → opens Needs Rescheduling.",
           "Parts in — schedule return — a staged return visit whose part has arrived (marked Delivery Verified in Jobs Management) and can now be booked → opens the Calendar.",
+          "Refunds owed (shown red) — cancelled filter orders paid by cash or check where the money still has to be handed back → opens Filter Orders.",
           "Filter orders to fulfill — filter orders awaiting fulfillment → opens Filter Orders.",
           "To-Dos — open office reminders → opens the To-Do list.",
           "Calls to return (shown red — most urgent) — calls flagged for a call-back → opens the Call Log.",
@@ -270,6 +315,145 @@ export const HELP_ARTICLES = [
         "body": "Counts are live and scoped to the selected organization. Red tiles are urgent, amber tiles are routine attention. An empty board — \"The board’s clear\" — is the win."
       }
     ]
+  },
+  {
+    "id": "needs-rescheduling",
+    "title": "Needs Rescheduling",
+    "area": "Dispatch",
+    "keywords": [
+      "needs rescheduling",
+      "reschedule",
+      "incomplete",
+      "incomplete job",
+      "no one home",
+      "no access",
+      "weather",
+      "interruption",
+      "return visit",
+      "stage",
+      "stop my time",
+      "jobs management",
+      "dispatch"
+    ],
+    "purpose": "Needs Rescheduling is Dispatch’s list of incomplete jobs that only need another visit, such as when no one was home, the weather stopped the work, or an emergency pulled the tech away. Stage the return visit from here and it goes into the Calendar’s Needs Dispatch tray.",
+    "sections": [
+      {
+        "h": "How jobs get here",
+        "items": [
+          "When a tech stops a job as Incomplete in the field app, they pick a reason. Journey sends the job to the right desk based on that reason.",
+          "These three reasons come here, to Dispatch: \"No one home / unable to access property\", \"Weather or site conditions prevented completion\", and \"Emergency or scheduling interruption\".",
+          "Every other reason (parts, estimates, \"Other\") goes to Jobs Management instead.",
+          "When a tech picks \"Other\", they must type a short note. The note shows in quotes under the reason on both pages.",
+          "If someone moved a job by hand with \"→ Dispatch\" or \"→ Jobs Management\", Journey keeps it where they put it."
+        ]
+      },
+      {
+        "h": "Reading the table",
+        "items": [
+          "Job # (click to open the job), Customer, Phone, and Address.",
+          "Reason: the tech’s reason, with their note underneath when there is one.",
+          "Stopped: the date the tech stopped the job.",
+          "Return visit: either a \"Stage return visit\" button, a link that says \"In Calendar tray — schedule it\", or \"Scheduled [date]\" once it is on the calendar."
+        ]
+      },
+      {
+        "h": "Rescheduling a job, step by step",
+        "items": [
+          "1. Call the customer (the phone number is in the row) to agree on a new time.",
+          "2. Click \"Stage return visit\". Journey creates the next segment of the same job with no date or tech and puts it in the Calendar’s Needs Dispatch tray. A green message confirms it.",
+          "3. Click \"In Calendar tray — schedule it\" (or open the Calendar) and drag the visit onto the day and time you want.",
+          "4. When the tech marks that return visit Complete, the row clears from this list by itself.",
+          "If it turns out to be a parts or estimate problem, click \"→ Jobs Management\" to hand it to the office instead."
+        ]
+      },
+      {
+        "h": "Good to know",
+        "body": "A count of these jobs shows as the \"Needs rescheduling\" tile on the Train Station and the Dispatch Station. Records clear only when the newest visit for the job is Complete. Platform owners get an organization picker."
+      }
+    ]
+  },
+  {
+    "id": "dispatch-map",
+    "title": "Dispatch Map",
+    "area": "Dispatch",
+    "keywords": [
+      "dispatch map",
+      "map",
+      "route",
+      "routing",
+      "optimize route",
+      "territory",
+      "territories",
+      "zip",
+      "county",
+      "live tracking",
+      "gps",
+      "unassigned",
+      "ai dispatch",
+      "suggest tech",
+      "assign",
+      "new"
+    ],
+    "purpose": "The Dispatch Map shows a day’s jobs, unscheduled bookings, and your technicians on a map, so you can assign the right tech, see territories, and plan efficient routes.",
+    "sections": [
+      {
+        "h": "Getting around",
+        "items": [
+          "1. Pick the day with the Date box. Click Refresh to reload.",
+          "2. Use the 🗓 button to switch to the Calendar for the same date (📍 is the map view you are on).",
+          "3. Color by: Tech colors each pin by its technician; Territory colors pins by the territory they fall in.",
+          "4. Tick \"Territory zones\" to shade your territories on the map, and \"Unscheduled bookings\" to show jobs still waiting for a date (any date).",
+          "The bar shows how many jobs and techs are on the map, and how many techs are reporting their location live right now.",
+          "Click any pin to see the customer, time, job type, address, tech, and a suggested tech when one fits better."
+        ]
+      },
+      {
+        "h": "Reading the pins",
+        "items": [
+          "Red dot: unassigned or needs attention.",
+          "Gray dot: completed.",
+          "Colored dot: assigned (in the tech’s color, or the territory color).",
+          "Red diamond: an unscheduled booking.",
+          "Green teardrop: a technician’s location."
+        ]
+      },
+      {
+        "h": "Assigning techs with AI Dispatch",
+        "items": [
+          "1. The \"✨ AI Dispatch — unassigned jobs\" panel lists jobs with no tech. Use + / – to open or close it.",
+          "2. Click \"✨ Suggest tech\" on a job. Journey ranks techs by drive time, workload, and territory, with a short reason for each.",
+          "3. Click Assign next to the tech you want. Nothing is assigned until you click Assign.",
+          "Drive times are straight-line estimates until a tech has live GPS or a stop that day."
+        ]
+      },
+      {
+        "h": "Optimizing routes",
+        "items": [
+          "1. Choose a tech (or \"All techs\") in \"🧭 Optimize route\".",
+          "2. Numbered pins show the suggested visit order, starting from the tech’s current location when known. A summary shows stops, miles, drive minutes, and miles saved.",
+          "Miles and times are straight-line estimates unless road data is connected. The suggestion does not change the schedule; reorder jobs on the Calendar if you want to follow it.",
+          "Set it back to Off to hide the route."
+        ]
+      },
+      {
+        "h": "Setting up territories",
+        "items": [
+          "1. Click \"Manage territories\".",
+          "2. Enter a Name and pick a Color.",
+          "3. Type the ZIP codes it covers (comma or space separated). Optionally add whole counties with the county search.",
+          "4. Click the tech(s) who own it, then click \"Add territory\" (or \"Save territory\" when editing).",
+          "Use Edit or Delete on an existing territory, and \"+ New\" to start a fresh one."
+        ]
+      },
+      {
+        "h": "Creating something new",
+        "body": "Use the + New ▾ menu (top right) to create a job, task, customer, property, estimate, invoice, filter order, or other item without leaving the map. The map refreshes after you save."
+      },
+      {
+        "h": "Good to know",
+        "body": "Everything is scoped to the selected organization; platform owners get a picker. The Dispatch Station’s \"Needs dispatch\" tile opens this page."
+      }
+    ]
   }
 ]
 
@@ -277,5 +461,7 @@ export const ROUTE_HELP = {
   "/dispatch": "dispatch-station",
   "/call": "call-console",
   "/call-log": "call-log",
-  "/service-requests": "service-requests"
+  "/service-requests": "service-requests",
+  "/needs-rescheduling": "needs-rescheduling",
+  "/dispatch-map": "dispatch-map"
 }
