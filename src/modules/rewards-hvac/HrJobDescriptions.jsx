@@ -3,6 +3,14 @@ import { useState, useEffect } from 'react'
 import { listJobDescriptions, addJobDescription, updateJobDescription } from './hrData'
 import { useOrgSelector, OrgBar } from './shared'
 import AiAssist from '../../AiAssist'
+import { supabase } from '../../utils/supabase'
+
+// Built-in HVAC role classifications; companies can add their own (stored per company).
+export const CLASSIFICATION_SUGGESTIONS = [
+  'Lead Installer', 'Installer', 'Install Helper', 'Service Technician I', 'Service Technician II', 'Service Technician III',
+  'Maintenance Technician', 'Apprentice', 'Duct Cleaning Technician', 'Comfort Advisor / Sales', 'Dispatcher / CSR',
+  'Office Manager', 'Warehouse / Inventory', 'Field Supervisor', 'Operations Manager',
+]
 
 const blank = { title: '', classification: '', flsa_status: 'non_exempt', pay_range_low: '', pay_range_high: '', summary: '', duties: '', requirements: '' }
 
@@ -44,9 +52,20 @@ export default function HrJobDescriptions({ profile }) {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  const [customCls, setCustomCls] = useState([])
   async function load() {
     if (!org.selectedOrg) return
     setRows(await listJobDescriptions(org.selectedOrg, { includeInactive: showInactive }))
+    const { data } = await supabase.from('rewards_job_classifications').select('name').eq('org_id', org.selectedOrg).order('name')
+    setCustomCls((data || []).map((x) => x.name))
+  }
+  const classOptions = [...new Set([...CLASSIFICATION_SUGGESTIONS, ...customCls, ...rows.map((r) => r.classification).filter(Boolean)])]
+  async function addClassification() {
+    const name = (window.prompt('New classification name:') || '').trim()
+    if (!name) return
+    await supabase.from('rewards_job_classifications').upsert({ org_id: org.selectedOrg, name }, { onConflict: 'org_id,name' })
+    setCustomCls((c) => [...new Set([...c, name])])
+    setForm((f) => ({ ...f, classification: name }))
   }
   useEffect(() => { load() }, [org.selectedOrg, showInactive])
 
@@ -85,7 +104,12 @@ export default function HrJobDescriptions({ profile }) {
         <form onSubmit={submit} style={{ marginBottom: 20, border: '1px solid var(--border)', borderRadius: 12, padding: 18 }}>
           <div className="inline-form" style={{ flexWrap: 'wrap', gap: 12 }}>
             <div className="field"><label>Title</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required /></div>
-            <div className="field"><label>Classification</label><input value={form.classification} onChange={(e) => setForm({ ...form, classification: e.target.value })} placeholder="HVAC Installer" /></div>
+            <div className="field"><label>Classification</label>
+              <select value={form.classification} onChange={(e) => (e.target.value === '__add__' ? addClassification() : setForm({ ...form, classification: e.target.value }))}>
+                <option value="">— select —</option>
+                {classOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="__add__">+ Add new classification…</option>
+              </select></div>
             <div className="field"><label>FLSA status</label>
               <select value={form.flsa_status} onChange={(e) => setForm({ ...form, flsa_status: e.target.value })}>
                 <option value="non_exempt">Non-exempt (OT eligible)</option><option value="exempt">Exempt</option></select></div>

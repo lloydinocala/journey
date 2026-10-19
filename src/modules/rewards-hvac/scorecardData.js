@@ -126,3 +126,33 @@ export async function upsertReview(orgId, { employee_id, period_label, period_da
     { onConflict: 'employee_id,period_label' }
   )
 }
+
+// ---- Positions: which metrics apply to which job description ----
+// An employee's position is employees.job_description_id. If that position has metrics
+// assigned, only those count for them (the rest grey out); with none assigned, all count.
+export async function listMetricPositions(orgId) {
+  const { data } = await supabase.from('rewards_scorecard_metric_positions').select('job_description_id, metric_id').eq('org_id', orgId)
+  return data || []
+}
+export async function setMetricPosition(orgId, jobDescriptionId, metricId, on) {
+  if (on) return supabase.from('rewards_scorecard_metric_positions').upsert({ org_id: orgId, job_description_id: jobDescriptionId, metric_id: metricId }, { onConflict: 'job_description_id,metric_id' })
+  return supabase.from('rewards_scorecard_metric_positions').delete().eq('job_description_id', jobDescriptionId).eq('metric_id', metricId)
+}
+export function applicableMetricIds(positions, jobDescriptionId) {
+  if (!jobDescriptionId) return null
+  const ids = positions.filter((p) => p.job_description_id === jobDescriptionId).map((p) => p.metric_id)
+  return ids.length ? new Set(ids) : null   // null = all metrics apply
+}
+// Company average per metric for a period (aggregates only).
+export async function companyAverages(orgId, periodLabel) {
+  const { data } = await supabase.rpc('sc_company_averages', { p_org: orgId, p_period: periodLabel })
+  return Object.fromEntries((data || []).map((r) => [r.metric_id, { avg: Number(r.avg_value), n: r.n }]))
+}
+// How a value compares to the company average, respecting the metric's direction.
+export function vsAverage(m, v, avg) {
+  if (v == null || v === '' || avg == null || isNaN(avg) || m.direction === 'actual') return null
+  const d = Number(v) - Number(avg)
+  if (Math.abs(d) < 1e-9) return 'even'
+  const better = m.direction === 'lower' ? d < 0 : d > 0
+  return better ? 'above' : 'below'
+}

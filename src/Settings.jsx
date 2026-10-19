@@ -11,6 +11,7 @@ import BookingRules from './BookingRules'
 import ServiceRequestSettings from './ServiceRequestSettings'
 import TaskSettings from './TaskSettings'
 import AgentSettings from './AgentSettings'
+import TimeOffSettings from './TimeOffSettings'
 import CallHandlingPrefs from './CallHandlingPrefs'
 import PayrollSettings from './PayrollSettings'
 import CollectionsSettings from './CollectionsSettings'
@@ -730,6 +731,9 @@ export default function Settings({ profile }) {
       </SettingsSection>
 
       <SettingsSection id="workforce" isAdmin={isAdmin} highlight={highlight}>
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Time off</h3>
+      <TimeOffSettings orgId={selectedOrg} />
+
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Call handling for the team</h3>
       <CallHandlingPrefs profile={profile} orgId={selectedOrg} adminMode />
 

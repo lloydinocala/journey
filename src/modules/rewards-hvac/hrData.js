@@ -35,6 +35,24 @@ export async function listEmployees(orgId, { includeInactive = false } = {}) {
   return data || []
 }
 
+// Everyone active on the Team gets an HR employee record: creates one (linked to the
+// login, pay left blank) for any active login that doesn't have one yet. Returns how many
+// were created. Used by the Skills Matrix so the whole team always appears.
+export async function ensureTeamEmployees(orgId) {
+  const [{ data: users }, { data: emps }] = await Promise.all([
+    supabase.from('users').select('id, full_name, role, is_active').eq('org_id', orgId).eq('is_active', true),
+    supabase.from('employees').select('user_id').eq('org_id', orgId).not('user_id', 'is', null),
+  ])
+  const linked = new Set((emps || []).map((e) => e.user_id))
+  const missing = (users || []).filter((u) => u.role !== 'super_admin' && !linked.has(u.id))
+  let made = 0
+  for (const u of missing) {
+    const { error } = await supabase.from('employees').insert({ org_id: orgId, user_id: u.id, full_name: (u.full_name || '').trim() || 'Unnamed', pay_type: 'hourly', is_active: true })
+    if (!error) made++
+  }
+  return made
+}
+
 export async function addEmployee(orgId, row) {
   return supabase.from('employees').insert({ org_id: orgId, ...row }).select().single()
 }
@@ -327,7 +345,7 @@ export async function dashboardData(orgId) {
 
   // Discipline follow-ups coming due (a stored follow_up_date we were not surfacing)
   discipline.forEach((d) => {
-    if (!d.follow_up_date) return
+    if (!d.follow_up_date || (d.status && d.status !== 'active')) return
     const days = daysTo(d.follow_up_date)
     if (days < 0) {
       flags.push({ flag_type: 'discipline_followup', severity: 'red', subject_label: empName(d.employee_id), message: `Discipline follow-up overdue by ${Math.abs(days)} days` })

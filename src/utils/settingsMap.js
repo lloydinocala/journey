@@ -26,7 +26,7 @@ const ROUTE_SECTIONS = {
   '/call-log': 'dispatch', '/service-requests': 'dispatch', '/filter-orders': 'dispatch',
   '/text-archive': 'workforce', '/team-communications': 'workforce', '/on-call': 'dispatch', '/needs-rescheduling': 'dispatch', '/agent-inbox': 'agents',
   '/permits': 'permitting', '/building-authorities': 'permitting',
-  '/workforce': 'workforce', '/team': 'workforce', '/roles': 'workforce', '/time-clock': 'workforce', '/payroll': 'workforce',
+  '/workforce': 'workforce', '/team': 'workforce', '/roles': 'workforce', '/time-clock': 'workforce', '/payroll': 'workforce', '/rewards': 'workforce', '/my': 'me',
   '/financials': 'financials', '/financing-central': 'financials',
   '/elements': 'inventory', '/inventory-central': 'inventory',
 }

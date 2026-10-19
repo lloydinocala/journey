@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import { confirmNotOut } from './TimeOffNotice'
 import TimePicker15 from './TimePicker15'
 import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
@@ -476,6 +477,7 @@ export default function Jobs({ profile }) {
 
   async function addTechnicianToJob(jobId, userId) {
     setError('')
+    if (editJobDate && !(await confirmNotOut(selectedOrg, editJobDate, [userId]))) return
     const nextSort = editTechnicians.length > 0 ? Math.max(...editTechnicians.map((t) => t.sort_order)) + 1 : 1
     const { error } = await supabase.from('job_technicians').insert({
       org_id: selectedOrg,

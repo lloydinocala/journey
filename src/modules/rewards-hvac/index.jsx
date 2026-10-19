@@ -3,6 +3,7 @@
 // exactly like the Elements module.
 import HrDashboard from './HrDashboard'
 import HrEmployees from './HrEmployees'
+import HrEmployeeFile from './HrEmployeeFile'
 import HrJobDescriptions from './HrJobDescriptions'
 import HrHiring from './HrHiring'
 import HrOnboarding from './HrOnboarding'
@@ -35,6 +36,7 @@ export { HrEmployees }
 export const REWARDS_HR_ROUTES = [
   { path: '/rewards', Component: HrDashboard },
   { path: '/rewards/employees', Component: HrEmployees },
+  { path: '/rewards/employee-file', Component: HrEmployeeFile },
   { path: '/rewards/job-descriptions', Component: HrJobDescriptions },
   { path: '/rewards/hiring', Component: HrHiring },
   { path: '/rewards/onboarding', Component: HrOnboarding },
@@ -68,6 +70,7 @@ export const REWARDS_HR_NAV = {
   items: [
     { label: 'HR Dashboard', path: '/rewards' },
     { label: 'Employees', path: '/rewards/employees' },
+    { label: 'Employee Files', path: '/rewards/employee-file' },
     { label: 'Job Descriptions', path: '/rewards/job-descriptions' },
     { label: 'Hiring', path: '/rewards/hiring' },
     { label: 'Onboarding', path: '/rewards/onboarding' },

@@ -6,7 +6,7 @@ import { supabase } from '../../utils/supabase'
 import { buildW2s } from './yearEndData'
 import { addPtoRequest, listPtoRequests, cancelPtoRequest } from './r4Data'
 import { listCertifications, listOnboarding, listDocuments, certLabel, signedHrUrl } from './hrData'
-import { listMetrics, listEntries, listReviews, currentQuarter } from './scorecardData'
+import { listMetrics, listEntries, listReviews, currentQuarter, listMetricPositions, applicableMetricIds, companyAverages } from './scorecardData'
 import { ScorecardTable } from './HrScorecards'
 import MyPayExplainer from './MyPayExplainer'
 import { getLang, setLang, makeT } from './i18n'
@@ -37,6 +37,9 @@ export default function MyPortal({ profile }) {
   const [myCerts, setMyCerts] = useState([])
   const [myOnboarding, setMyOnboarding] = useState([])
   const [myDocs, setMyDocs] = useState([])
+  const [myFile, setMyFile] = useState({ disc: [], seps: [] })
+  const [scApplicable, setScApplicable] = useState(null)
+  const [scAverages, setScAverages] = useState(null)
 
   async function loadRequests(empId) {
     if (!empId || !profile.org_id) { setRequests([]); return }
@@ -52,7 +55,7 @@ export default function MyPortal({ profile }) {
         supabase.from('rewards_pto_balances').select('*'),
         supabase.from('rewards_pto_policies').select('id, name, leave_type'),
         supabase.from('rewards_employee_hr').select('ssn_last4, work_state').maybeSingle(),
-        supabase.from('employees').select('id').eq('user_id', profile.id).maybeSingle(),
+        supabase.from('employees').select('id, job_description_id').eq('user_id', profile.id).maybeSingle(),
         profile.org_id ? listMetrics(profile.org_id) : Promise.resolve([]),
       ])
       if (!alive) return
@@ -73,7 +76,16 @@ export default function MyPortal({ profile }) {
           listOnboarding(profile.org_id, empId),
           listDocuments(profile.org_id, { employeeId: empId }),
         ])
-        setScEntries(se); setScReviews(sr); setMyCerts(ce); setMyOnboarding(ob); setMyDocs(dc)
+        setScEntries(se); setScReviews(sr); setMyCerts(ce); setMyOnboarding(ob)
+        setMyDocs((dc || []).filter((d) => d.employee_visible !== false))
+        // Records HR shared to this person's file (RLS also limits it to shared ones).
+        const [fd, fs, pos] = await Promise.all([
+          supabase.from('rewards_discipline').select('*').eq('employee_id', empId).eq('employee_visible', true).neq('status', 'deleted').order('incident_date', { ascending: false }),
+          supabase.from('rewards_separations').select('*').eq('employee_id', empId).eq('employee_visible', true).neq('status', 'deleted'),
+          listMetricPositions(profile.org_id),
+        ])
+        setMyFile({ disc: fd.data || [], seps: fs.data || [] })
+        setScApplicable(applicableMetricIds(pos, emp.data?.job_description_id))
       }
       setLoading(false)
     })()
@@ -104,6 +116,7 @@ export default function MyPortal({ profile }) {
     .sort((a, b) => (a.d < b.d ? 1 : -1))
   const scCur = scPeriods[0]?.l || currentQuarter().label
   const scLast = scPeriods[1]?.l || '—'
+  useEffect(() => { if (profile.org_id && scCur) companyAverages(profile.org_id, scCur).then(setScAverages) }, [profile.org_id, scCur])
   const scValueOf = (mid, label) => (scEntries.find((e) => e.metric_id === mid && e.period_label === label) || {}).value
 
   return (
@@ -118,7 +131,7 @@ export default function MyPortal({ profile }) {
       <div style={{ color: 'var(--mist)', marginBottom: 18 }}>{profile.full_name}</div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-        {[['pay', t('tab_pay')], ['pto', t('tab_pto')], ['w2', t('tab_w2')], ...(scMetrics.length ? [['scorecard', t('tab_scorecard')]] : []), ['certs', t('tab_certs')], ['onboarding', t('tab_onboarding')], ['docs', t('tab_docs')]].map(([k, l]) => (
+        {[['pay', t('tab_pay')], ['pto', t('tab_pto')], ['w2', t('tab_w2')], ...(scMetrics.length ? [['scorecard', t('tab_scorecard')]] : []), ['certs', t('tab_certs')], ['onboarding', t('tab_onboarding')], ['docs', t('tab_docs')], ['file', t('tab_file')]].map(([k, l]) => (
           <button key={k} className="logout-button" style={tab === k ? { background: '#1B3A6B', color: '#fff' } : undefined} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
@@ -234,7 +247,8 @@ export default function MyPortal({ profile }) {
             scEntries.length === 0 ? <p style={{ color: 'var(--mist)' }}>{t('sc_none')}</p> : (
               <>
                 <p style={{ color: 'var(--mist)', fontSize: 13, marginBottom: 12 }}>{t('sc_intro')}</p>
-                <ScorecardTable metrics={scMetrics} valueOf={scValueOf} curLabel={scCur} lastLabel={scLast} />
+                <ScorecardTable metrics={scMetrics} valueOf={scValueOf} curLabel={scCur} lastLabel={scLast} applicable={scApplicable} averages={scAverages} />
+                <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 6 }}>{t('sc_avg_note')}</p>
                 {(() => {
                   const rv = scReviews.find((r) => r.period_label === scCur)
                   if (!rv || (!rv.summary && !rv.goals)) return null
@@ -276,6 +290,31 @@ export default function MyPortal({ profile }) {
                   ))}
                 </tbody>
               </table>
+            )
+          )}
+
+          {tab === 'file' && (
+            !myFile.disc.length && !myFile.seps.length ? <p style={{ color: 'var(--mist)' }}>{t('file_none')}</p> : (
+              <>
+                <p style={{ color: 'var(--mist)', fontSize: 13 }}>{t('file_intro')}</p>
+                {myFile.disc.length > 0 && (<>
+                  <h3 style={{ fontSize: 15, margin: '10px 0 6px' }}>{t('file_disc')}</h3>
+                  <table className="data-table"><thead><tr><th>{t('col_date')}</th><th>{t('col_action')}</th><th>{t('col_details')}</th></tr></thead><tbody>
+                    {myFile.disc.map((r) => (
+                      <tr key={r.id}><td>{r.incident_date}</td><td style={{ textTransform: 'capitalize' }}>{r.type}{r.status === 'rescinded' ? ' (rescinded)' : ''}</td>
+                        <td style={{ whiteSpace: 'pre-wrap', fontSize: 13 }}>{[r.incident, r.description, r.improvement_plan && ('Improvement plan: ' + r.improvement_plan)].filter(Boolean).join('\n\n')}</td></tr>
+                    ))}
+                  </tbody></table>
+                </>)}
+                {myFile.seps.length > 0 && (<>
+                  <h3 style={{ fontSize: 15, margin: '16px 0 6px' }}>{t('file_sep')}</h3>
+                  <table className="data-table"><tbody>
+                    {myFile.seps.map((r) => (
+                      <tr key={r.id}><td>{r.effective_date}</td><td style={{ textTransform: 'capitalize' }}>{r.separation_type}</td><td>{r.rehire_eligible ? 'Eligible for rehire' : 'Not eligible for rehire'}</td></tr>
+                    ))}
+                  </tbody></table>
+                </>)}
+              </>
             )
           )}
 

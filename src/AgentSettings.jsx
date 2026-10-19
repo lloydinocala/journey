@@ -35,7 +35,7 @@ export default function AgentSettings({ orgId }) {
       supabase.from('org_agent_skill_settings').select('*').eq('org_id', orgId),
       supabase.from('agent_actions').select('id', { count: 'exact', head: true }).eq('org_id', orgId).neq('mode', 'suggest').gte('created_at', new Date(Date.now() - 86400000).toISOString()),
     ])
-    setOrg(o.data); setSkills(sk.data || []); setUsed(u.count || 0)
+    setOrg(o.data); setSkills((sk.data || []).filter((x) => x.configurable !== false)); setUsed(u.count || 0)
     const m = {}
     for (const s of sk.data || []) {
       const row = (st.data || []).find((x) => x.skill_key === s.key)

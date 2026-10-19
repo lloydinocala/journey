@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import PlaceFilterOrderModal from './PlaceFilterOrderModal'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import { confirmNotOut } from './TimeOffNotice'
 import TripChargePicker from './TripChargePicker'
 import CustomerSearchSelect from './CustomerSearchSelect'
 import PropertySearchSelect from './PropertySearchSelect'
@@ -216,6 +217,7 @@ function QuickAddModalInner({ mode, orgId, profile, onClose, onCreated, prefillC
       setError('Please pick a job.')
       return
     }
+    if (contJobDate && !(await confirmNotOut(orgId, contJobDate, [contTechnicianId, contTechnician2Id, contTechnician3Id, contTechnician4Id]))) return
     setSaving(true)
 
     const maxSegment = allJobs
@@ -284,6 +286,7 @@ function QuickAddModalInner({ mode, orgId, profile, onClose, onCreated, prefillC
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    if (jobDate && !(await confirmNotOut(orgId, jobDate, [technicianId, technician2Id, technician3Id, technician4Id]))) return
     setSaving(true)
 
     try {

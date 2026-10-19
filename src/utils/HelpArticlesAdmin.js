@@ -397,6 +397,7 @@ export const HELP_ARTICLES = [
     ],
     "purpose": "Fair, numbers-based quarterly performance scorecards — you define the metrics, record each quarter's values, and get an evidence-grounded review draft. Turn it on in HR Settings.",
     "sections": [
+      {"h": "Measures by position, and the company average", "items": ["Manage metrics → \"Which measures apply to each position\": tick the measures that count for each job description. Measures that don't apply are greyed out on that person's scorecard and left out of the count. A position with nothing ticked uses every measure.", "Set each employee's position on their Employee File.", "The Company avg column shows the average across all employees for that measure this quarter, with ▲ above / ▼ below. Comparisons are always to the team average — never to another individual. Employees see the same comparison in their own records."]},
       {
         "h": "What it is for",
         "body": "A quarterly performance record built on real numbers, not opinions. You choose the metrics that matter, record each person's results per quarter, and every quarter is kept as a permanent history. It's built to be fair and defensible: cells that miss the accepted minimum are highlighted, and last quarter shows next to this one so trends are plain."
@@ -569,6 +570,82 @@ export const HELP_ARTICLES = [
         "body": "Find it under WorkForce → Team Communications, with Call Messages and Text Archive underneath. Everything is scoped to your organization."
       }
     ]
+  },
+  {
+    "id": "hr-records",
+    "title": "Employee Files, Discipline, Separations & Time Off",
+    "area": "Human Resources",
+    "keywords": [
+      "employee file",
+      "personnel file",
+      "discipline",
+      "write-up",
+      "rescind",
+      "override",
+      "separation",
+      "termination",
+      "reinstate",
+      "archive",
+      "time off",
+      "pto",
+      "approve time off",
+      "out",
+      "dispatch",
+      "skills matrix",
+      "classification",
+      "shared with employee",
+      "my records",
+      "history",
+      "print for signature"
+    ],
+    "purpose": "How Journey keeps a clean, legally careful record of each employee — one Employee File per person, discipline and separations with a full change history, and time off that dispatch can see.",
+    "sections": [
+      {
+        "h": "Employee File (HR → Employee Files)",
+        "items": [
+          "One page per employee pulling together their position, discipline, separations, scorecard, certifications and documents.",
+          "Set the employee's Position (job description) here — it decides which scorecard measures count for them.",
+          "Each discipline record, separation and document has a Shared / Hidden switch. Shared items appear in the employee's own records (My Records → My File / Documents). Scorecards and certifications always show to the employee.",
+          "Medical, drug-test and leave (FMLA) records do not belong in the Employee File — keep them in a separate confidential file."
+        ]
+      },
+      {
+        "h": "Discipline",
+        "items": [
+          "Click a record to open it: details, improvement plan, who issued it, and its full history.",
+          "Print for signature — a printable notice with an acknowledgment statement and lines for the employee, supervisor and a witness (if the employee declines to sign). Signing confirms receipt, not agreement.",
+          "Edit… — change the record; you must give a reason, and the original wording is kept in the history.",
+          "Override / rescind… — voids the action with a reason. It stays on file marked Rescinded and stops counting as active discipline (its follow-up no longer flags on the HR Dashboard).",
+          "Delete… — with a reason. The record is hidden but kept (marked Deleted) so retention rules are still met; Restore brings it back. Tick Show rescinded & deleted to see them."
+        ]
+      },
+      {
+        "h": "Separations",
+        "items": [
+          "The reason is a single choice from a behavior-only list (resignation, no-call/no-show, attendance, insubordination, policy violation, job abandonment, layoff, not specified). There are deliberately no competency or accusation reasons.",
+          "Row buttons: 🖨 print the official record, Archive / Unarchive, Delete… (with a reason, kept as Deleted), and Add to file (share with the employee).",
+          "Open a record for Edit… (with reason) and Reinstate employee… (with reason) — reinstating marks the separation Reinstated and makes the employee active again.",
+          "Views: Current, Archived, and All (including deleted)."
+        ]
+      },
+      {
+        "h": "Time off",
+        "items": [
+          "Employees request time off in My Records → Time off (in the field app: My Records in the jobs header).",
+          "Settings → WorkForce → Time off: turn \"Time-off requests need approval\" on or off. Off = requests are approved automatically.",
+          "When approval is on, people with the Approve time off permission (Owners and Supervisors tags and field supervisors by default — change it on Roles & Tags) get each request in their Agent Inbox and approve or deny it on HR → Time Off.",
+          "Approved time off shows on the Dispatch Station and the Calendar as 🌴 Out, and Journey warns you if you try to assign a job to someone who's out that day. The record itself stays in HR.",
+          "Sending approved time-off hours into payroll arrives with the upcoming Payroll update."
+        ]
+      },
+      {
+        "h": "Skills Matrix and job classifications",
+        "items": [
+          "Skills run down the side and employees across the top. Everyone active on the Team appears — Journey creates a basic HR record for anyone who didn't have one (fill in their pay on Employees).",
+          "Job Descriptions: Classification is now a dropdown of common HVAC roles, plus \"+ Add new classification…\" for your own."
+        ]
+      }
+    ]
   }
 ]
 
@@ -582,16 +659,17 @@ export const ROUTE_HELP = {
   "/settings": "settings",
   "/announcements": "announcements",
   "/rewards/employees": "employees",
+  "/rewards/employee-file": "hr-records",
   "/rewards/job-descriptions": "hr",
   "/rewards/hiring": "hr",
   "/rewards/onboarding": "hr",
-  "/rewards/discipline": "hr",
-  "/rewards/separations": "hr",
+  "/rewards/discipline": "hr-records",
+  "/rewards/separations": "hr-records",
   "/rewards/certifications": "hr",
-  "/rewards/skills": "hr",
+  "/rewards/skills": "hr-records",
   "/rewards/scorecards": "scorecards",
   "/rewards/documents": "hr",
-  "/rewards/time-off": "hr",
+  "/rewards/time-off": "hr-records",
   "/rewards/settings": "hr",
   "/rewards": "hr",
   "/marketing/queue": "marketing",

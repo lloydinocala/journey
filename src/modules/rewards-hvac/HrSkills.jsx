@@ -2,7 +2,7 @@
 // Distinct from Certifications (which tracks licensed/expiring credentials);
 // this is a proficiency grid to help with job assignment and development.
 import { useState, useEffect, useMemo } from 'react'
-import { listEmployees, listSkills, addSkill, updateSkill, listEmployeeSkills, setEmployeeSkill, SKILL_LEVELS } from './hrData'
+import { listEmployees, ensureTeamEmployees, listSkills, addSkill, updateSkill, listEmployeeSkills, setEmployeeSkill, SKILL_LEVELS } from './hrData'
 import { useOrgSelector, OrgBar, EmptyRoster } from './shared'
 import AiAssist from '../../AiAssist'
 
@@ -23,9 +23,13 @@ export default function HrSkills({ profile }) {
   const [form, setForm] = useState(blank)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [added, setAdded] = useState(0)
 
   async function load() {
     if (!org.selectedOrg) return
+    // Everyone active on the Team appears: create any missing HR records first.
+    const made = await ensureTeamEmployees(org.selectedOrg).catch(() => 0)
+    if (made) setAdded(made)
     const [emps, sk, lv] = await Promise.all([
       listEmployees(org.selectedOrg), listSkills(org.selectedOrg), listEmployeeSkills(org.selectedOrg),
     ])
@@ -98,27 +102,28 @@ export default function HrSkills({ profile }) {
         <p style={{ color: 'var(--mist)' }}>No employees yet.</p>
       ) : (
         <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 10 }}>
-          <table className="data-table" style={{ minWidth: 640 }}>
+          {/* Skills down the side, employees across the top. */}
+          <table className="data-table" style={{ minWidth: 200 + employees.length * 120 }}>
             <thead>
               <tr>
-                <th style={{ position: 'sticky', left: 0, background: '#1B3A6B', zIndex: 1 }}>Employee</th>
-                {skills.map((s) => (
-                  <th key={s.id} style={{ whiteSpace: 'nowrap' }}>
-                    {s.name}
-                    <button className="logout-button" title="Archive skill" style={{ padding: '0 6px', marginLeft: 6, fontSize: 11 }}
-                      onClick={() => { if (confirm(`Archive "${s.name}"?`)) updateSkill(s.id, { active: false }).then(load) }}>×</button>
-                  </th>
+                <th style={{ position: 'sticky', left: 0, background: '#1B3A6B', zIndex: 1, minWidth: 190 }}>Skill</th>
+                {employees.map((e) => (
+                  <th key={e.id} style={{ whiteSpace: 'nowrap', textAlign: 'center', minWidth: 110 }}>{e.full_name}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {employees.map((e) => (
-                <tr key={e.id}>
-                  <td style={{ position: 'sticky', left: 0, background: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>{e.full_name}</td>
-                  {skills.map((s) => {
+              {skills.map((s) => (
+                <tr key={s.id}>
+                  <td style={{ position: 'sticky', left: 0, background: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    {s.name}{s.category && <span style={{ fontWeight: 400, fontSize: 11.5, color: 'var(--mist)', marginLeft: 6 }}>{s.category}</span>}
+                    <button className="logout-button" title="Archive skill" style={{ padding: '0 6px', marginLeft: 6, fontSize: 11 }}
+                      onClick={() => { if (confirm(`Archive "${s.name}"?`)) updateSkill(s.id, { active: false }).then(load) }}>×</button>
+                  </td>
+                  {employees.map((e) => {
                     const lvl = levels[e.id + ':' + s.id] || 0
                     return (
-                      <td key={s.id} style={{ padding: 4 }}>
+                      <td key={e.id} style={{ padding: 4, textAlign: 'center' }}>
                         <select
                           value={lvl}
                           onChange={(ev) => setCell(e.id, s.id, Number(ev.target.value))}
@@ -135,7 +140,8 @@ export default function HrSkills({ profile }) {
           </table>
         </div>
       )}
-      <p style={{ color: 'var(--mist)', fontSize: 11.5, marginTop: 10 }}>Changes save as you set them. Use this to spot coverage gaps and plan cross-training.</p>
+      {added > 0 && <p style={{ color: '#166534', fontSize: 12.5, marginTop: 10 }}>Added {added} team member{added === 1 ? '' : 's'} who had no HR record yet — fill in their pay and hire date on Employees.</p>}
+      <p style={{ color: 'var(--mist)', fontSize: 11.5, marginTop: 10 }}>Everyone active on the Team appears here. Changes save as you set them. Use this to spot coverage gaps and plan cross-training.</p>
     </div>
   )
 }

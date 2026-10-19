@@ -4,10 +4,10 @@
 // missed minimums flagged. Employees see their own read-only in the portal.
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { listEmployees, getSettings } from './hrData'
+import { listEmployees, getSettings, listJobDescriptions } from './hrData'
 import {
   listMetrics, addMetric, updateMetric, seedDefaultMetrics, listEntries, upsertEntry,
-  listReviews, upsertReview,
+  listReviews, upsertReview, listMetricPositions, setMetricPosition, applicableMetricIds, companyAverages, vsAverage,
   CATEGORY_ORDER, UNITS, DIRECTIONS, fmtValue, fmtMinimum, isFail, currentQuarter, METRIC_CATALOG,
 } from './scorecardData'
 import { useOrgSelector, OrgBar, EmptyRoster } from './shared'
@@ -26,7 +26,9 @@ function orderedByCategory(metrics) {
 function priorQuarter(y, q) { return q > 1 ? { y, q: q - 1 } : { y: y - 1, q: 4 } }
 
 // Shared presentational table — used here (editable) and in the portal (read-only).
-export function ScorecardTable({ metrics, valueOf, curLabel, lastLabel, editing = false, draft = {}, onDraft }) {
+// applicable: Set of metric ids that count for this person's position (null = all).
+// averages: { metric_id: { avg, n } } company average for the current period (optional).
+export function ScorecardTable({ metrics, valueOf, curLabel, lastLabel, editing = false, draft = {}, onDraft, applicable = null, averages = null }) {
   const groups = orderedByCategory(metrics)
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -39,18 +41,22 @@ export function ScorecardTable({ metrics, valueOf, curLabel, lastLabel, editing 
               <th style={{ color: '#fff' }}>Minimal accepted</th>
               <th style={{ color: '#fff', textAlign: 'center' }}>{curLabel} (Current)</th>
               <th style={{ color: '#fff', textAlign: 'center' }}>{lastLabel} (Last)</th>
+              {averages && <th style={{ color: '#fff', textAlign: 'center' }}>Company avg</th>}
             </tr>
             {g.items.map((m) => {
+              const na = applicable && !applicable.has(m.id)
               const cur = valueOf(m.id, curLabel)
               const last = valueOf(m.id, lastLabel)
-              const fail = isFail(m, cur)
+              const fail = !na && isFail(m, cur)
+              const avg = averages?.[m.id]?.avg
+              const cmp = na ? null : vsAverage(m, cur, avg)
               return (
-                <tr key={m.id}>
-                  <td style={{ fontWeight: 600, color: '#152238' }}>{m.name}</td>
+                <tr key={m.id} style={na ? { opacity: 0.38 } : undefined} title={na ? 'Does not apply to this position — not counted' : undefined}>
+                  <td style={{ fontWeight: 600, color: '#152238' }}>{m.name}{na && <span style={{ fontWeight: 400, fontSize: 11.5 }}> · n/a for position</span>}</td>
                   <td style={{ fontSize: 12.5, color: 'var(--mist)', maxWidth: 260 }}>{m.description}</td>
                   <td style={{ fontSize: 13 }}>{fmtMinimum(m)}</td>
                   <td style={{ textAlign: 'center', background: fail ? '#FBE0E0' : undefined }}>
-                    {editing ? (
+                    {editing && !na ? (
                       <input type="number" step="0.01" value={draft[m.id] ?? (cur ?? '')} onChange={(e) => onDraft(m.id, e.target.value)}
                         style={{ width: 90, textAlign: 'center', border: `1px solid ${fail ? '#DC2626' : 'var(--border)'}`, borderRadius: 6, padding: '4px 6px' }} />
                     ) : (
@@ -58,6 +64,12 @@ export function ScorecardTable({ metrics, valueOf, curLabel, lastLabel, editing 
                     )}
                   </td>
                   <td style={{ textAlign: 'center', color: 'var(--mist)' }}>{fmtValue(m.unit, last)}</td>
+                  {averages && (
+                    <td style={{ textAlign: 'center', color: 'var(--mist)' }}>
+                      {na ? '—' : fmtValue(m.unit, avg)}
+                      {cmp && cmp !== 'even' && <div style={{ fontSize: 11, fontWeight: 700, color: cmp === 'above' ? '#15803D' : '#B42318' }}>{cmp === 'above' ? '▲ above avg' : '▼ below avg'}</div>}
+                    </td>
+                  )}
                 </tr>
               )
             })}
@@ -93,13 +105,17 @@ export default function HrScorecards({ profile }) {
   const [pickCat, setPickCat] = useState([])          // metric-catalog checklist selection
   const [addingCat, setAddingCat] = useState(false)
   const [catMsg, setCatMsg] = useState('')
+  const [positions, setPositions] = useState([])
+  const [jds, setJds] = useState([])
+  const [averages, setAverages] = useState({})
 
   async function loadBase() {
     if (!org.selectedOrg) return
-    const [mx, emps, s] = await Promise.all([
+    const [mx, emps, s, pos, jd] = await Promise.all([
       listMetrics(org.selectedOrg), listEmployees(org.selectedOrg), getSettings(org.selectedOrg),
+      listMetricPositions(org.selectedOrg), listJobDescriptions(org.selectedOrg),
     ])
-    setMetrics(mx); setEmployees(emps); setEnabled(!!s?.scorecards_enabled)
+    setMetrics(mx); setEmployees(emps); setEnabled(!!s?.scorecards_enabled); setPositions(pos); setJds(jd)
     if (!empId && emps[0]) setEmpId(emps[0].id)
   }
   useEffect(() => { loadBase() }, [org.selectedOrg]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -112,6 +128,13 @@ export default function HrScorecards({ profile }) {
   useEffect(() => { loadEntries() }, [empId, org.selectedOrg]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const curLabel = `${year}-Q${quarter}`
+  useEffect(() => { if (org.selectedOrg) companyAverages(org.selectedOrg, curLabel).then(setAverages) }, [org.selectedOrg, curLabel, entries])
+  const curEmp = employees.find((e) => e.id === empId)
+  const applicable = applicableMetricIds(positions, curEmp?.job_description_id)
+  async function togglePosition(jdId, metricId, on) {
+    await setMetricPosition(org.selectedOrg, jdId, metricId, on)
+    setPositions(await listMetricPositions(org.selectedOrg))
+  }
   const pq = priorQuarter(year, quarter)
   const lastLabel = `${pq.y}-Q${pq.q}`
   const curReview = reviews.find((r) => r.period_label === curLabel) || null
@@ -138,6 +161,7 @@ export default function HrScorecards({ profile }) {
     setSaving(true)
     const date = `${year}-${String((quarter - 1) * 3 + 1).padStart(2, '0')}-01`
     for (const m of metrics) {
+      if (applicable && !applicable.has(m.id)) continue
       const v = draft[m.id]
       if (v === undefined) continue
       await upsertEntry(org.selectedOrg, { employee_id: empId, metric_id: m.id, period_label: curLabel, period_date: date, value: v === '' ? null : Number(v) })
@@ -246,6 +270,28 @@ export default function HrScorecards({ profile }) {
           </table>
 
           <div style={{ marginTop: 20, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Which measures apply to each position</div>
+            <div style={{ fontSize: 12.5, color: 'var(--mist)', marginBottom: 10 }}>Tick the measures that count for each job description. A position with nothing ticked uses every measure. Measures that don't apply are greyed out on that person's scorecard and left out of the count. Set each employee's position on their Employee File.</div>
+            {!jds.length ? <div style={{ fontSize: 13, color: 'var(--mist)' }}>No job descriptions yet — create them on <Link to="/rewards/job-descriptions">Job Descriptions</Link>.</div> : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="data-table" style={{ minWidth: 520 }}>
+                  <thead><tr><th>Measure</th>{jds.map((j) => <th key={j.id} style={{ textAlign: 'center', fontSize: 12 }}>{j.title}</th>)}</tr></thead>
+                  <tbody>
+                    {metrics.map((m) => (
+                      <tr key={m.id}><td>{m.name}</td>
+                        {jds.map((j) => {
+                          const on = positions.some((p) => p.job_description_id === j.id && p.metric_id === m.id)
+                          return <td key={j.id} style={{ textAlign: 'center' }}><input type="checkbox" checked={on} onChange={(e) => togglePosition(j.id, m.id, e.target.checked)} /></td>
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div style={{ marginTop: 20, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>Add from the metric catalog</div>
             <div style={{ fontSize: 12.5, color: 'var(--mist)', marginBottom: 12 }}>
               Tick what you want to track. A <strong style={{ color: '#166534' }}>green</strong> tag means Journey already holds the data to source it for you; a grey tag means you enter the number. (Automatic value-fill for sourced metrics is rolling out — until a metric is wired, enter its value by hand.) Metrics already on your scorecard are greyed out.
@@ -308,15 +354,20 @@ export default function HrScorecards({ profile }) {
         </div>
       ) : (
         <>
-          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>{empName(empId)}</div>
-          <ScorecardTable metrics={metrics} valueOf={valueOf} curLabel={curLabel} lastLabel={lastLabel} editing={editing} draft={draft} onDraft={(id, v) => setDraft((d) => ({ ...d, [id]: v }))} />
-          <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 10 }}>Highlighted cells miss the minimum accepted rating. Every quarter is retained as a permanent record; use the quarter/year selectors to review history.</p>
+          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 2 }}>{empName(empId)}</div>
+          <div style={{ fontSize: 12.5, color: 'var(--mist)', marginBottom: 8 }}>
+            Position: {jds.find((j) => j.id === curEmp?.job_description_id)?.title || <>not set — <Link to={'/rewards/employee-file?emp=' + empId}>set it on the Employee File</Link></>}
+            {applicable ? ' · measures that don\'t apply to this position are greyed out and not counted' : ''}
+          </div>
+          <ScorecardTable metrics={metrics} valueOf={valueOf} curLabel={curLabel} lastLabel={lastLabel} editing={editing} draft={draft} onDraft={(id, v) => setDraft((d) => ({ ...d, [id]: v }))} applicable={applicable} averages={averages} />
+          <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 10 }}>Highlighted cells miss the minimum accepted rating. "Company avg" is the average across all employees for that measure this quarter — the comparison is always to the team average, never to another individual. Every quarter is retained as a permanent record; scorecards show in the employee's own records.</p>
 
           <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 18, marginTop: 18, maxWidth: 820 }}>
             <h3 style={{ margin: '0 0 4px' }}>Manager notes &amp; goals — {curLabel}</h3>
             <div style={{ color: 'var(--mist)', fontSize: 12.5, marginBottom: 12 }}>The written half of the review. The employee sees this on their scorecard. Keep it factual and behavior-based.</div>
             {(() => {
               const recorded = metrics
+                .filter((m) => !applicable || applicable.has(m.id))
                 .map((m) => ({ m, cur: valueOf(m.id, curLabel), last: valueOf(m.id, lastLabel) }))
                 .filter((x) => x.cur != null && x.cur !== '')
                 .map(({ m, cur, last }) => ({ category: m.category, metric: m.name, unit: m.unit, this_quarter: Number(cur), last_quarter: last == null || last === '' ? null : Number(last), minimum: m.minimum, goal_direction: m.direction, missed_minimum: isFail(m, cur) }))

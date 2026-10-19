@@ -1,8 +1,11 @@
 // Rewards-HVAC · Time Off — PTO/sick/vacation policies, balances, accrual & usage.
 import { useState, useEffect } from 'react'
 import { listEmployees } from './hrData'
-import { listPtoPolicies, addPtoPolicy, updatePtoPolicy, listPtoBalances, addPtoTransaction, listPtoTransactions, listPtoRequests, approvePtoRequest, denyPtoRequest } from './r4Data'
+import { listPtoPolicies, addPtoPolicy, updatePtoPolicy, listPtoBalances, addPtoTransaction, listPtoTransactions, listPtoRequests } from './r4Data'
 import { useOrgSelector, OrgBar, EmptyRoster } from './shared'
+import { supabase } from '../../utils/supabase'
+import { can } from '../../utils/permissions'
+import { notifyAgentInbox } from '../../AgentInboxBadge'
 
 const METHOD_LABEL = { per_hour: 'Per hour worked', per_period: 'Per pay period', frontload: 'Front-loaded (annual)' }
 const blankPolicy = { name: '', leave_type: 'pto', accrual_method: 'per_hour', accrual_rate: '', hours_cap: '', carryover_cap: '' }
@@ -32,15 +35,16 @@ export default function TimeOff({ profile }) {
     if (!txForm.policy_id && pol[0]) setTxForm((f) => ({ ...f, policy_id: pol[0].id }))
   }
 
+  // Approving/denying goes through the database, which checks the "Approve time off"
+  // permission and posts the usage + balance in one step.
+  const canApprove = profile?.role === 'super_admin' || profile?.role === 'org_admin' || can(profile, 'approve_time_off')
+  const [decideErr, setDecideErr] = useState('')
   async function decide(req, ok) {
-    setSaving(true)
-    if (ok) {
-      const pol = policies.find((p) => p.id === req.policy_id)
-      await approvePtoRequest(org.selectedOrg, req, profile.id, { cap: pol?.hours_cap ?? null })
-    } else {
-      await denyPtoRequest(req, profile.id, null)
-    }
-    setSaving(false); load()
+    setSaving(true); setDecideErr('')
+    const note = ok ? null : (window.prompt('Reason for denying (optional — the employee sees it):') || null)
+    const { error } = await supabase.rpc('rewards_decide_pto', { p_req: req.id, p_approve: ok, p_note: note })
+    if (error) setDecideErr(error.message)
+    setSaving(false); load(); notifyAgentInbox()
   }
   useEffect(() => { load() }, [org.selectedOrg])
   useEffect(() => { if (empId && org.selectedOrg) listPtoTransactions(org.selectedOrg, empId).then(setTxns) }, [empId, org.selectedOrg])
@@ -128,14 +132,17 @@ export default function TimeOff({ profile }) {
                             : <span style={{ color: '#B0600A', fontWeight: 600 }} title={clashNames.join(', ')}>⚠ {clashNames.length} already off{clashNames.length <= 2 ? ` (${clashNames.join(', ')})` : ''}</span>}
                         </td>
                         <td style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={saving} onClick={() => decide(r, true)}>Approve</button>
-                          <button className="logout-button" disabled={saving} onClick={() => decide(r, false)}>Deny</button>
+                          {canApprove ? (<>
+                            <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={saving} onClick={() => decide(r, true)}>Approve</button>
+                            <button className="logout-button" disabled={saving} onClick={() => decide(r, false)}>Deny</button>
+                          </>) : <span style={{ fontSize: 12, color: 'var(--mist)' }}>Needs an approver</span>}
                         </td>
                       </tr>
                     )})}
                   </tbody>
                 </table>
-                <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 8 }}>Approving posts the hours as usage against the employee's balance automatically.</p>
+                {decideErr && <p style={{ color: '#B42318', fontSize: 13, margin: '8px 0 0' }}>{decideErr}</p>}
+                <p style={{ color: 'var(--mist)', fontSize: 12, marginTop: 8 }}>Approving posts the hours as usage against the employee's balance automatically, and marks the person out on the Dispatch Station and Calendar. People with the "Approve time off" permission also get each new request in their Agent Inbox.</p>
               </div>
             )}
 

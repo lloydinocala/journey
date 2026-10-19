@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import TimeOffNotice from './TimeOffNotice'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
@@ -398,6 +399,7 @@ export default function Calendar({ profile }) {
         )}
       </div>
 
+      <TimeOffNotice orgId={selectedOrg} from={days[0]} to={days[days.length - 1]} />
       {loading ? (
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (

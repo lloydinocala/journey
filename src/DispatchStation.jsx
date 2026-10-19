@@ -5,6 +5,7 @@ import OrgPicker from './OrgPicker'
 import StationShell from './StationShell'
 import { useSignals } from './signals/useSignals'
 import QuincyBrief from './QuincyBrief'
+import TimeOffNotice from './TimeOffNotice'
 
 // The Dispatch Station — the front-of-house domain. Now rendered entirely from
 // the shared signal registry (useSignals), so its tiles and the Train Station
@@ -30,6 +31,7 @@ export default function DispatchStation({ profile }) {
 
   return (
     <div style={{ padding: '22px 24px 70px' }}>
+      <TimeOffNotice orgId={selectedOrg} from={new Date()} to={new Date(Date.now() + 7 * 86400000)} label="Out this week on approved time off" />
       <StationShell
         eyebrow="Dispatch Station"
         officeTitle="Your dispatch board"
