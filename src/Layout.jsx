@@ -14,6 +14,7 @@ import { SUPPLIES_NAV } from './modules/supplies-hvac'
 import { REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV } from './modules/rewards-hvac'
 import { COMMERCIAL_NAV_ITEMS, COMMERCIAL_FEATURE } from './modules/commercial-projects'
 import { hasFeature } from './utils/entitlements'
+import { sectionForPath, isSettingsAdmin, settingsHref, SETTINGS_SECTIONS } from './utils/settingsMap'
 
 // Human page titles for the top-bar "Viewing Organization" pill. Longest-prefix
 // match, with a title-cased fallback so newly-added pages still read cleanly.
@@ -40,7 +41,7 @@ const PAGE_TITLES = {
   '/organizations': 'Organizations', '/entitlements': 'Plans & Entitlements', '/announcements': 'Announcements', '/website-announcement': 'Website Announcement', '/my': 'My Pay & Benefits',
   '/features': 'Feature Directory', '/training': 'Training Manual',
 }
-function pageTitle(pathname) {
+export function pageTitle(pathname) {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]
   const hit = Object.keys(PAGE_TITLES)
     .filter((k) => k !== '/' && pathname.startsWith(k))
@@ -498,9 +499,23 @@ export default function Layout({ profile }) {
             <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>From Surviving to Thriving</span>
           </span>
         </div>
-        <Link to="/features" title="Find any feature in the app" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.14)', color: '#fff', textDecoration: 'none', fontWeight: 700, fontSize: 13, padding: '7px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.28)', whiteSpace: 'nowrap' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+        {(() => {
+          // ⚙ Page settings — jumps to this page's section of the one Settings page.
+          const sec = sectionForPath(location.pathname)
+          const meta = sec && SETTINGS_SECTIONS.find((x) => x.key === sec)
+          if (!meta || (meta.admin && !isSettingsAdmin(profile))) return null
+          const href = settingsHref(sec, location.pathname + location.search, pageTitle(location.pathname))
+          return (
+            <Link to={href} title={`Settings for this page (${meta.label})`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.14)', color: '#fff', textDecoration: 'none', fontWeight: 700, fontSize: 13, padding: '7px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.28)', whiteSpace: 'nowrap' }}>
+              <span aria-hidden="true">⚙</span> Page Settings
+            </Link>
+          )
+        })()}
+        <Link to="/features" title="Find any feature in the app" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.14)', color: '#fff', textDecoration: 'none', fontWeight: 700, fontSize: 13, padding: '7px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.28)', whiteSpace: 'nowrap' }}>
           <span aria-hidden="true">🧭</span> Find a Feature
         </Link>
+        </div>
       </header>
       <nav className="section-tabbar" aria-label="Sections">
         {sectionTabs.map((t) => {

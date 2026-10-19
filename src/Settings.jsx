@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { SETTINGS_SECTIONS, isSettingsAdmin } from './utils/settingsMap'
 import { LANDING_OPTIONS } from './utils/landing'
 import { supabase } from './utils/supabase'
 import QuickBooksSettings from './QuickBooksSettings'
@@ -86,6 +88,26 @@ export default function Settings({ profile }) {
   const [bizSaved, setBizSaved] = useState(false)
 
   const isSuperAdmin = profile.role === 'super_admin'
+  const isAdmin = isSettingsAdmin(profile)
+
+  // Arriving from a page's ⚙ button: ?section=<key>&from=<path>&fromLabel=<name>
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const sectionParam = params.get('section')
+  const fromPath = (params.get('from') || '').startsWith('/') ? params.get('from') : ''
+  const fromLabel = params.get('fromLabel') || ''
+  const [highlight, setHighlight] = useState(null)
+  function jumpTo(key) {
+    const el = document.getElementById('settings-' + key)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setHighlight(key)
+    setTimeout(() => setHighlight((h) => (h === key ? null : h)), 2200)
+  }
+  useEffect(() => {
+    if (!sectionParam) return
+    const t = setTimeout(() => jumpTo(sectionParam), 250)
+    return () => clearTimeout(t)
+  }, [sectionParam])
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -368,7 +390,12 @@ export default function Settings({ profile }) {
   return (
     <div>
       <h2 className="page-title">Settings</h2>
-      <QuickBooksSettings profile={profile} />
+
+      {fromPath && (
+        <div style={{ position: 'sticky', top: 0, zIndex: 5, background: 'var(--bg, #F4F6F9)', padding: '6px 0 10px', marginBottom: 6 }}>
+          <button className="auth-button" style={{ width: 'auto', padding: '8px 16px', margin: 0 }} onClick={() => navigate(fromPath)}>← Back to {fromLabel || 'previous page'}</button>
+        </div>
+      )}
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 20 }}>
@@ -377,6 +404,22 @@ export default function Settings({ profile }) {
         </div>
       )}
 
+      <div className="settings-layout" style={{ display: 'grid', gridTemplateColumns: '210px minmax(0, 1fr)', gap: 24, alignItems: 'start' }}>
+        <nav aria-label="Settings sections" style={{ position: 'sticky', top: fromPath ? 56 : 8, display: 'flex', flexDirection: 'column', gap: 2, background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: 8 }}>
+          {SETTINGS_SECTIONS.map((s) => (
+            <button key={s.key} onClick={() => jumpTo(s.key)} style={{
+              textAlign: 'left', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700,
+              padding: '8px 10px', borderRadius: 8,
+              background: highlight === s.key ? 'rgba(33,95,154,0.10)' : 'transparent',
+              color: s.admin && !isAdmin ? '#9AA6B2' : '#1F2A37',
+            }}>
+              {s.label}{s.admin && !isAdmin ? ' 🔒' : ''}
+            </button>
+          ))}
+        </nav>
+
+        <div style={{ minWidth: 0 }}>
+      <SettingsSection id="me" isAdmin={isAdmin} highlight={highlight}>
       <div className="section-card" style={{ padding: 16, marginBottom: 24, maxWidth: 560 }}>
         <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>Your starting page</h3>
         <p style={{ color: 'var(--mist)', fontSize: 13.5, margin: '0 0 12px' }}>Where the app opens for you when you sign in. This applies only to you — everyone can pick their own.</p>
@@ -388,9 +431,9 @@ export default function Settings({ profile }) {
           {landingSaved && <span style={{ fontSize: 12, color: '#1a7f37', fontWeight: 700 }}>Saved ✓</span>}
         </div>
       </div>
+      </SettingsSection>
 
-      <EmployeePayRates orgId={selectedOrg} />
-
+      <SettingsSection id="company" isAdmin={isAdmin} highlight={highlight}>
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Logo</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 16 }}>
         Shown on your invoices. PNG or JPG works best.
@@ -439,51 +482,6 @@ export default function Settings({ profile }) {
         </button>
         {brandSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
       </form>
-
-     <h3 style={{ fontSize: 16, marginBottom: 12 }}>Payments</h3>
-      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 16 }}>
-        Connect your own Stripe account so customer payments go directly to you — Journey never holds your money.
-      </p>
-     <div style={{ marginBottom: 28 }}>
-        {checkingStripe ? (
-          <p style={{ color: 'var(--mist)' }}>Checking status…</p>
-        ) : stripeChargesEnabled ? (
-          <div>
-            <span className="status-pill status-active">Connected</span>
-            <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 8 }}>Ready to accept payments.</p>
-          </div>
-        ) : stripeAccountId ? (
-          <div>
-            <span className="status-pill status-trial">Setup incomplete</span>
-            <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 8 }}>
-              You started connecting Stripe but Journey hasn't confirmed it's finished yet.
-            </p>
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button
-                className="logout-button"
-                onClick={() => {
-                  setCheckingStripe(true)
-                  supabase.functions.invoke('stripe-check-status', { body: { orgId: selectedOrg } }).then(({ data, error }) => {
-                    setCheckingStripe(false)
-                    if (!error && data) setStripeChargesEnabled(data.chargesEnabled)
-                    if (error) setStripeError(error.message)
-                  })
-                }}
-              >
-                Refresh Status
-              </button>
-              <button className="auth-button" style={{ width: 'auto', padding: '10px 24px' }} onClick={handleConnectStripe} disabled={connectingStripe}>
-                {connectingStripe ? 'Loading…' : 'Continue Stripe Setup'}
-              </button>
-            </div>
-          </div>
-       ) : (
-          <button className="auth-button" style={{ width: 'auto', padding: '10px 24px' }} onClick={handleConnectStripe} disabled={connectingStripe}>
-            {connectingStripe ? 'Loading…' : 'Connect with Stripe'}
-          </button>
-        )}
-        {stripeError && <div className="auth-error" style={{ marginTop: 12 }}>{stripeError}</div>}
-      </div>
 
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Business contact info</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
@@ -563,19 +561,9 @@ export default function Settings({ profile }) {
         </button>
         {tzSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
       </form>
+      </SettingsSection>
 
-      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Business hours</h3>
-      <BusinessHours orgId={selectedOrg} />
-
-      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Online booking rules</h3>
-      <BookingRules orgId={selectedOrg} />
-
-      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Payroll pay period</h3>
-      <PayrollSettings orgId={selectedOrg} />
-
-      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Collections &amp; reminders</h3>
-      <CollectionsSettings orgId={selectedOrg} />
-
+      <SettingsSection id="work" isAdmin={isAdmin} highlight={highlight}>
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Sales tax</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
         What's taxable — labor, parts, or retail items like filters — varies by state. Set the
@@ -604,21 +592,6 @@ export default function Settings({ profile }) {
             Supervisors may approve their own discount requests
           </label>
         </div>
-        <h3 style={{ fontSize: 16, margin: '18px 0 8px' }}>Permits</h3>
-        <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-          <label style={{ marginBottom: 0, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={trackPermits}
-              onChange={(e) => { setTrackPermits(e.target.checked); supabase.from('organizations').update({ track_permits: e.target.checked }).eq('id', selectedOrg) }}
-              style={{ marginRight: 6 }}
-            />
-            Track installation permits
-          </label>
-        </div>
-        <p style={{ fontSize: 12.5, color: 'var(--mist)', margin: '0 0 4px' }}>
-          When on, a Permit section appears on System Estimates and permits show on the Customer Profile. Manage offices under Building Authorities.
-        </p>
         <div className="field">
           <label htmlFor="taxRate">Sales tax rate (%)</label>
           <input id="taxRate" type="number" step="0.001" value={salesTaxRate} onChange={(e) => setSalesTaxRate(e.target.value)} style={{ width: 100 }} />
@@ -710,6 +683,121 @@ export default function Settings({ profile }) {
         </div>
         </div>
       )}
+      </SettingsSection>
+
+      <SettingsSection id="dispatch" isAdmin={isAdmin} highlight={highlight}>
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Business hours</h3>
+      <BusinessHours orgId={selectedOrg} />
+
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Online booking rules</h3>
+      <BookingRules orgId={selectedOrg} />
+      </SettingsSection>
+
+      <SettingsSection id="permitting" isAdmin={isAdmin} highlight={highlight}>
+      <div style={{ marginBottom: 8 }}>
+                <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+          <label style={{ marginBottom: 0, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={trackPermits}
+              onChange={(e) => { setTrackPermits(e.target.checked); supabase.from('organizations').update({ track_permits: e.target.checked }).eq('id', selectedOrg) }}
+              style={{ marginRight: 6 }}
+            />
+            Track installation permits
+          </label>
+        </div>
+        <p style={{ fontSize: 12.5, color: 'var(--mist)', margin: '0 0 4px' }}>
+          When on, a Permit section appears on System Estimates and permits show on the Customer Profile. Manage offices under Building Authorities.
+        </p>
+      </div>
+      </SettingsSection>
+
+      <SettingsSection id="workforce" isAdmin={isAdmin} highlight={highlight}>
+      <EmployeePayRates orgId={selectedOrg} />
+
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Payroll pay period</h3>
+      <PayrollSettings orgId={selectedOrg} />
+      <p style={{ fontSize: 13.5, color: 'var(--mist)', margin: '4px 0 0' }}>Roles, tags and permissions live on <Link to="/roles">Roles &amp; Tags</Link>; team members on <Link to="/team">Team</Link>.</p>
+      </SettingsSection>
+
+      <SettingsSection id="financials" isAdmin={isAdmin} highlight={highlight}>
+     <h3 style={{ fontSize: 16, marginBottom: 12 }}>Payments</h3>
+      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 16 }}>
+        Connect your own Stripe account so customer payments go directly to you — Journey never holds your money.
+      </p>
+     <div style={{ marginBottom: 28 }}>
+        {checkingStripe ? (
+          <p style={{ color: 'var(--mist)' }}>Checking status…</p>
+        ) : stripeChargesEnabled ? (
+          <div>
+            <span className="status-pill status-active">Connected</span>
+            <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 8 }}>Ready to accept payments.</p>
+          </div>
+        ) : stripeAccountId ? (
+          <div>
+            <span className="status-pill status-trial">Setup incomplete</span>
+            <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 8 }}>
+              You started connecting Stripe but Journey hasn't confirmed it's finished yet.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button
+                className="logout-button"
+                onClick={() => {
+                  setCheckingStripe(true)
+                  supabase.functions.invoke('stripe-check-status', { body: { orgId: selectedOrg } }).then(({ data, error }) => {
+                    setCheckingStripe(false)
+                    if (!error && data) setStripeChargesEnabled(data.chargesEnabled)
+                    if (error) setStripeError(error.message)
+                  })
+                }}
+              >
+                Refresh Status
+              </button>
+              <button className="auth-button" style={{ width: 'auto', padding: '10px 24px' }} onClick={handleConnectStripe} disabled={connectingStripe}>
+                {connectingStripe ? 'Loading…' : 'Continue Stripe Setup'}
+              </button>
+            </div>
+          </div>
+       ) : (
+          <button className="auth-button" style={{ width: 'auto', padding: '10px 24px' }} onClick={handleConnectStripe} disabled={connectingStripe}>
+            {connectingStripe ? 'Loading…' : 'Connect with Stripe'}
+          </button>
+        )}
+        {stripeError && <div className="auth-error" style={{ marginTop: 12 }}>{stripeError}</div>}
+      </div>
+
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Collections &amp; reminders</h3>
+      <CollectionsSettings orgId={selectedOrg} />
+
+      <QuickBooksSettings profile={profile} />
+      </SettingsSection>
+
+      <SettingsSection id="inventory" isAdmin={isAdmin} highlight={highlight}>
+      <p style={{ fontSize: 14, margin: 0 }}>Reorder rules, locations, and inventory defaults are on the <Link to="/elements/settings">Inventory Settings</Link> page.</p>
+      </SettingsSection>
+        </div>
+      </div>
     </div>
+  )
+}
+
+// One card per main navigation heading. Admin-only sections show a lock for everyone else.
+function SettingsSection({ id, isAdmin, highlight, children }) {
+  const meta = SETTINGS_SECTIONS.find((s) => s.key === id)
+  const locked = meta.admin && !isAdmin
+  return (
+    <section id={'settings-' + id} className="section-card" style={{
+      padding: 20, marginBottom: 24, scrollMarginTop: 70,
+      outline: highlight === id ? '2px solid #215F9A' : 'none', transition: 'outline-color .3s',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 16 }}>
+        <h2 style={{ margin: 0, fontSize: 19 }}>{meta.label}</h2>
+        {meta.admin && <span style={{ fontSize: 11, fontWeight: 800, color: '#8A6D0B', background: '#FCF6E9', border: '1px solid #EBD9A6', borderRadius: 999, padding: '2px 8px' }}>Admin only</span>}
+        <span style={{ fontSize: 13, color: 'var(--mist)' }}>{meta.desc}</span>
+      </div>
+      {locked
+        ? <p style={{ margin: 0, color: 'var(--mist)', fontSize: 14 }}>🔒 Only an admin can change these settings.</p>
+        : children}
+    </section>
   )
 }
