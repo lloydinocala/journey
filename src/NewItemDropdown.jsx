@@ -17,9 +17,10 @@ const ITEMS = {
   followupEstimate: { label: 'Follow-up Estimate', route: '/new-followup-estimate' },
   systemEstimate: { label: 'New System Estimate', route: '/new-system-estimate' },
   invoice:        { label: 'New Invoice', mode: 'pickInvoiceJob' },
+  filterOrder:    { label: 'New Filter Order', mode: 'filterOrder' },
 }
 
-const DEFAULT_ORDER = ['job', 'task', 'todo', 'continueJob', 'customer', 'property', 'estimate', 'followupEstimate', 'systemEstimate', 'invoice']
+const DEFAULT_ORDER = ['job', 'task', 'todo', 'continueJob', 'customer', 'property', 'estimate', 'followupEstimate', 'systemEstimate', 'invoice', 'filterOrder']
 
 export default function NewItemDropdown({ onSelect, items }) {
   const [open, setOpen] = useState(false)

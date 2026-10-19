@@ -6,6 +6,8 @@ import { useState, useEffect, Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import NewItemDropdown from './NewItemDropdown'
+import QuickAddModal from './QuickAddModal'
 
 const money = (v) => (v == null ? '—' : '$' + Number(v).toFixed(2))
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
@@ -40,19 +42,8 @@ export default function FilterOrders({ profile }) {
   const [orders, setOrders] = useState(null)
   const [tab, setTab] = useState('open') // 'open' | 'delivered' | 'all'
 
-  // order-entry form
-  const [formOpen, setFormOpen] = useState(false)
-  const [custQuery, setCustQuery] = useState('')
-  const [custResults, setCustResults] = useState([])
-  const [cust, setCust] = useState(null)
-  const [props, setProps] = useState([])
-  const [propId, setPropId] = useState('')
-  const [source, setSource] = useState('office')
-  const [lines, setLines] = useState([blankLine()])
-  const [onFile, setOnFile] = useState([])       // property_filters on record
-  const [lastOrder, setLastOrder] = useState(null)
-  const [creating, setCreating] = useState(false)
-  const [formMsg, setFormMsg] = useState('')
+  const [newItemMode, setNewItemMode] = useState(null)
+  const [refundMsg, setRefundMsg] = useState('')
   const [editId, setEditId] = useState(null)     // order being edited inline
   const [editLines, setEditLines] = useState([]) // its line items while editing
   const [savingEdit, setSavingEdit] = useState(false)
@@ -73,7 +64,7 @@ export default function FilterOrders({ profile }) {
   async function loadOrders(orgId) {
     setOrders(null)
     const { data: inv } = await supabase.from('invoices')
-      .select('id, invoice_number, amount_due, total_paid, paid_at, created_at, filter_fulfilled_at, filter_cancelled_at, filter_source, filter_delivery_status, filter_ship_via, bills_to_customer_id, property_id, invoice_line_items!invoice_line_items_invoice_id_fkey(id, description, quantity, unit_price, sort_order)')
+      .select('id, invoice_number, amount_due, total_paid, paid_at, created_at, filter_fulfilled_at, filter_cancelled_at, filter_source, filter_delivery_status, filter_ship_via, filter_notes, refund_status, refund_amount, refund_owed_amount, refunded_at, bills_to_customer_id, property_id, invoice_line_items!invoice_line_items_invoice_id_fkey(id, description, quantity, unit_price, sort_order)')
       .eq('org_id', orgId).eq('is_filter_order', true).eq('is_archived', false).is('deleted_at', null)
       .order('created_at', { ascending: false })
     const rows = inv || []
@@ -124,10 +115,36 @@ export default function FilterOrders({ profile }) {
     setSavingEdit(false); setEditId(null); setEditLines([])
     loadOrders(selectedOrg)
   }
+  // Cancelling a PAID order settles the money: online card payments are refunded
+  // through Stripe automatically; cash/check is flagged "Refund owed" on the dashboard.
   async function toggleCancel(o) {
     const cancel = !o.filter_cancelled_at
-    if (cancel && !window.confirm(`Cancel order ${o.invoice_number}? It stays on record but drops off the open list.`)) return
-    await supabase.from('invoices').update({ filter_cancelled_at: cancel ? new Date().toISOString() : null }).eq('id', o.id)
+    setRefundMsg('')
+    if (!cancel) {
+      if (o.refund_status) { alert('This order was refunded/flagged for refund, so it can\'t be un-cancelled. Place a new order instead.'); return }
+      await supabase.from('invoices').update({ filter_cancelled_at: null }).eq('id', o.id)
+      loadOrders(selectedOrg); return
+    }
+    const paidAmt = Number(o.total_paid) || 0
+    if (paidAmt > 0) {
+      if (!window.confirm(`Cancel order ${o.invoice_number}?\n\n${money(paidAmt)} has been paid. Online card payments will be refunded to the card automatically. Cash or check payments will be flagged "Refund owed" until you hand the money back.`)) return
+      const { data, error } = await supabase.functions.invoke('refund-filter-order', { body: { invoiceId: o.id } })
+      let err = data?.error || null
+      if (error && !err) { try { err = (await error.context?.json())?.error } catch (e) { /* ignore */ } err = err || error.message }
+      if (err) { setRefundMsg(`Not cancelled — ${err}`); return }
+      const parts = []
+      if (data?.refunded > 0) parts.push(`${money(data.refunded)} refunded to the card`)
+      if (data?.owed > 0) parts.push(`${money(data.owed)} cash/check refund owed — flagged on the dashboard`)
+      setRefundMsg(`${o.invoice_number} cancelled${parts.length ? ': ' + parts.join('; ') : ''}.`)
+    } else {
+      if (!window.confirm(`Cancel order ${o.invoice_number}? It stays on record but drops off the open list.`)) return
+      await supabase.from('invoices').update({ filter_cancelled_at: new Date().toISOString() }).eq('id', o.id)
+    }
+    loadOrders(selectedOrg)
+  }
+  async function markRefundHandedBack(o) {
+    if (!window.confirm(`Confirm the ${money(o.refund_owed_amount)} cash/check refund for ${o.invoice_number} was handed back to the customer?`)) return
+    await supabase.from('invoices').update({ refund_status: 'done', refunded_at: new Date().toISOString() }).eq('id', o.id)
     loadOrders(selectedOrg)
   }
   async function deleteOrder(o) {
@@ -136,79 +153,10 @@ export default function FilterOrders({ profile }) {
     loadOrders(selectedOrg)
   }
 
-  // ---- order-entry form ----
-  async function searchCust(v) {
-    setCustQuery(v); setCust(null); setProps([]); setPropId('')
-    if (v.trim().length < 2) { setCustResults([]); return }
-    const { data } = await supabase.from('customers').select('id, display_name, primary_phone')
-      .eq('org_id', selectedOrg).ilike('display_name', `%${v.trim()}%`).order('display_name').limit(8)
-    setCustResults(data || [])
-  }
-  async function pickCust(c) {
-    setCust(c); setCustResults([]); setCustQuery(c.display_name)
-    const { data } = await supabase.from('properties').select('id, street_address, unit, city').eq('customer_id', c.id).order('street_address')
-    setProps(data || []); setPropId(data && data.length === 1 ? data[0].id : '')
-  }
-  const setLine = (i, k, v) => setLines((ls) => ls.map((l, idx) => idx === i ? { ...l, [k]: v } : l))
-  function resetForm() { setCust(null); setCustQuery(''); setCustResults([]); setProps([]); setPropId(''); setSource('office'); setLines([blankLine()]); setOnFile([]); setLastOrder(null); setFormMsg('') }
-
-  // When a property is chosen, pull its filters on file + last order so we can
-  // verify and prefill instead of re-typing sizes.
-  useEffect(() => {
-    if (!propId) { setOnFile([]); setLastOrder(null); return }
-    let cancelled = false
-    ;(async () => {
-      const [{ data: pf }, { data: last }] = await Promise.all([
-        supabase.from('property_filters').select('width, height, thickness, merv, quantity, location').eq('property_id', propId),
-        supabase.from('invoices').select('invoice_number, created_at, invoice_line_items!invoice_line_items_invoice_id_fkey(description, quantity, sort_order)').eq('is_filter_order', true).eq('property_id', propId).is('deleted_at', null).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      ])
-      if (cancelled) return
-      const onf = pf || []
-      setOnFile(onf)
-      setLastOrder(last || null)
-      // Auto-prefill from filters on file, but only if the form is still blank.
-      setLines((cur) => (onf.length && cur.length === 1 && !cur[0].width && !cur[0].height)
-        ? onf.map(fileToLine) : cur)
-    })()
-    return () => { cancelled = true }
-  }, [propId])
-
-  const fileToLine = (f) => ({ width: String(f.width ?? ''), height: String(f.height ?? ''), thickness: String(f.thickness ?? 1), merv: f.merv ? String(f.merv) : '', qty: String(f.quantity || 1) })
-  const sizeText = (f) => `${[f.width, f.height, f.thickness].filter((v) => v != null && v !== '').join('×')}${f.merv ? ` MERV ${f.merv}` : ''}${f.quantity ? ` ×${f.quantity}` : ''}`
-  function useOnFile() { if (onFile.length) setLines(onFile.map(fileToLine)) }
-  function reorderLast() {
-    const its = (lastOrder?.invoice_line_items || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-    const parsed = its.map((li) => {
-      const m = /(\d+)\s*x\s*(\d+)\s*x\s*(\d+)/i.exec(li.description || '')
-      if (!m) return null
-      const mv = /MERV\s*(\d+)/i.exec(li.description || '')
-      return { width: m[1], height: m[2], thickness: m[3], merv: mv ? mv[1] : '', qty: String(li.quantity || 1) }
-    }).filter(Boolean)
-    if (parsed.length) setLines(parsed)
-  }
-
-  async function createOrder() {
-    setFormMsg('')
-    if (!propId) { setFormMsg('Choose the customer and property.'); return }
-    const items = lines.filter((l) => l.width && l.height).map((l) => ({ width: Number(l.width), height: Number(l.height), thickness: Number(l.thickness) || 1, merv: l.merv ? Number(l.merv) : null, qty: Math.max(1, Number(l.qty) || 1) }))
-    if (!items.length) { setFormMsg('Add at least one filter size (width × height).'); return }
-    setCreating(true)
-    const { data, error } = await supabase.functions.invoke('create-filter-invoice', { body: { propertyId: propId, items } })
-    if (error || !data?.invoiced) {
-      setCreating(false)
-      setFormMsg(data?.reason === 'unpriced' ? 'None of those sizes are in the filter pricebook — add them in the pricebook first.' : (data?.error || error?.message || 'Could not create the order.'))
-      return
-    }
-    // Stamp the source + starting delivery status onto the new order.
-    await supabase.from('invoices').update({ filter_source: source, filter_delivery_status: 'ordered' }).eq('id', data.invoiceId)
-    setCreating(false)
-    setFormMsg(`Created ${data.invoiceNumber} · ${money(data.amount)}${data.emailed ? ' · invoice emailed' : ''}${data.unpriced ? ` · ${data.unpriced} size(s) skipped (no price)` : ''}`)
-    resetForm()
-    loadOrders(selectedOrg)
-  }
-
   const isOpen = (o) => !TERMINAL.has(deliveryOf(o)) && !o.filter_cancelled_at
-  const shown = (orders || []).filter((o) => tab === 'all' ? true : tab === 'delivered' ? (TERMINAL.has(deliveryOf(o)) && !o.filter_cancelled_at) : isOpen(o))
+  const refundOwed = (o) => o.refund_status === 'owed' || o.refund_status === 'partial_owed'
+  const shown = (orders || []).filter((o) => tab === 'all' ? true : tab === 'refunds' ? refundOwed(o) : tab === 'delivered' ? (TERMINAL.has(deliveryOf(o)) && !o.filter_cancelled_at) : isOpen(o))
+  const refundCount = (orders || []).filter(refundOwed).length
   const openCount = (orders || []).filter(isOpen).length
 
   const inputStyle = { padding: '7px 9px', border: '1px solid var(--border)', borderRadius: 7, background: '#fff', color: '#0f172a', boxSizing: 'border-box' }
@@ -220,7 +168,7 @@ export default function FilterOrders({ profile }) {
         <h2 style={{ margin: 0 }}>Filter Orders</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => selectedOrg && loadOrders(selectedOrg)} disabled={!selectedOrg} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#176E7A' }}>Refresh</button>
-          <button onClick={() => { setFormOpen((o) => !o); setFormMsg('') }} disabled={!selectedOrg} style={{ border: '1px solid var(--border)', background: formOpen ? '#EAF3F4' : '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#176E7A' }}>+ New order</button>
+          <NewItemDropdown items={['filterOrder', 'job', 'customer', 'property', 'task']} onSelect={setNewItemMode} />
         </div>
       </div>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 760 }}>
@@ -234,86 +182,9 @@ export default function FilterOrders({ profile }) {
         </div>
       )}
 
-      {formOpen && (
-        <div className="section-card" style={{ padding: 16, marginBottom: 18, border: '1px solid var(--border)' }}>
-          <div style={{ fontWeight: 800, marginBottom: 12 }}>Place a filter order</div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ flex: '1 1 260px', position: 'relative' }}>
-              <label style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 4 }}>Customer</label>
-              <input value={custQuery} onChange={(e) => searchCust(e.target.value)} placeholder="Search by name…" style={{ ...inputStyle, width: '100%' }} />
-              {custResults.length > 0 && (
-                <div className="section-card" style={{ position: 'absolute', zIndex: 5, left: 0, right: 0, padding: 6, marginTop: 4, maxHeight: 220, overflowY: 'auto' }}>
-                  {custResults.map((c) => (
-                    <button key={c.id} onClick={() => pickCust(c)} style={{ display: 'block', width: '100%', textAlign: 'left', border: 'none', background: 'none', padding: '6px 8px', cursor: 'pointer' }}>
-                      {c.display_name}{c.primary_phone ? <span style={{ color: 'var(--mist)' }}> · {c.primary_phone}</span> : ''}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div style={{ flex: '1 1 260px' }}>
-              <label style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 4 }}>Property</label>
-              <select value={propId} onChange={(e) => setPropId(e.target.value)} disabled={!cust} style={{ ...inputStyle, width: '100%' }}>
-                <option value="">{cust ? 'Choose property…' : 'Pick a customer first'}</option>
-                {props.map((p) => <option key={p.id} value={p.id}>{[p.street_address, p.unit, p.city].filter(Boolean).join(' ')}</option>)}
-              </select>
-            </div>
-            <div style={{ flex: '0 1 200px' }}>
-              <label style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 4 }}>Order source</label>
-              <select value={source} onChange={(e) => setSource(e.target.value)} style={{ ...inputStyle, width: '100%' }}>
-                {SOURCE_OPTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {propId && (onFile.length > 0 || lastOrder) && (
-            <div style={{ marginTop: 14, padding: '10px 12px', background: '#F5F8FF', border: '1px solid #D8E2F5', borderRadius: 8 }}>
-              {onFile.length > 0 && (
-                <div style={{ marginBottom: lastOrder ? 8 : 0 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: '#2F5DE3' }}>Filters on file:</span>{' '}
-                  <span style={{ fontSize: 13 }}>{onFile.map(sizeText).join('  ·  ')}</span>
-                  <button type="button" onClick={useOnFile} style={{ marginLeft: 8, border: '1px solid #2F5DE3', background: '#fff', color: '#2F5DE3', borderRadius: 6, padding: '3px 10px', fontSize: 12, cursor: 'pointer' }}>Use these</button>
-                </div>
-              )}
-              {lastOrder && (
-                <div>
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: '#2F5DE3' }}>Last order:</span>{' '}
-                  <span style={{ fontSize: 13 }}>{lastOrder.invoice_number} · {fmtDate(lastOrder.created_at)}</span>
-                  <button type="button" onClick={reorderLast} style={{ marginLeft: 8, border: '1px solid #2F5DE3', background: '#fff', color: '#2F5DE3', borderRadius: 6, padding: '3px 10px', fontSize: 12, cursor: 'pointer' }}>Reorder last</button>
-                </div>
-              )}
-              <div style={{ fontSize: 11.5, color: 'var(--mist)', marginTop: 6 }}>Prefilled for you — verify sizes and quantities before creating.</div>
-            </div>
-          )}
-
-          <div style={{ marginTop: 14 }}>
-            <label style={{ display: 'block', fontSize: 12.5, color: 'var(--mist)', marginBottom: 6 }}>Filters (priced from your filter pricebook)</label>
-            {lines.map((l, i) => (
-              <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
-                <input value={l.width} onChange={(e) => setLine(i, 'width', e.target.value)} placeholder="W" style={{ ...inputStyle, width: 60 }} />
-                <span style={{ color: 'var(--mist)' }}>×</span>
-                <input value={l.height} onChange={(e) => setLine(i, 'height', e.target.value)} placeholder="H" style={{ ...inputStyle, width: 60 }} />
-                <span style={{ color: 'var(--mist)' }}>×</span>
-                <input value={l.thickness} onChange={(e) => setLine(i, 'thickness', e.target.value)} placeholder="T" style={{ ...inputStyle, width: 52 }} />
-                <input value={l.merv} onChange={(e) => setLine(i, 'merv', e.target.value)} placeholder="MERV" style={{ ...inputStyle, width: 70 }} />
-                <input value={l.qty} onChange={(e) => setLine(i, 'qty', e.target.value)} placeholder="Qty" style={{ ...inputStyle, width: 56 }} />
-                {lines.length > 1 && <button onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', color: '#B5462F' }}>✕</button>}
-              </div>
-            ))}
-            <button onClick={() => setLines((ls) => [...ls, blankLine()])} style={{ border: 'none', background: 'none', color: '#176E7A', fontSize: 12.5, cursor: 'pointer', padding: 0 }}>+ Add another size</button>
-          </div>
-
-          {formMsg && <div style={{ marginTop: 10, fontSize: 13, color: formMsg.startsWith('Created') ? '#1b7a3d' : '#B5462F' }}>{formMsg}</div>}
-          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-            <button className="auth-button" style={{ width: 'auto', margin: 0 }} disabled={creating} onClick={createOrder}>{creating ? 'Creating…' : 'Create order'}</button>
-            <button onClick={resetForm} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 8, padding: '9px 16px', cursor: 'pointer' }}>Clear</button>
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--mist)', marginTop: 8 }}>Creates an unpaid FLT-#### invoice and emails the customer a pay link (if they have an email on file). Payment is tracked below — it's not required to place or deliver the order.</p>
-        </div>
-      )}
-
+      {refundMsg && <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, fontSize: 13.5, background: refundMsg.startsWith('Not') ? '#FBECE8' : '#EAF3EC', color: refundMsg.startsWith('Not') ? '#B5462F' : '#2E7D52' }}>{refundMsg}</div>}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-        {[['open', `Open${openCount ? ` (${openCount})` : ''}`], ['delivered', 'Delivered'], ['all', 'All']].map(([key, label]) => (
+        {[['open', `Open${openCount ? ` (${openCount})` : ''}`], ['delivered', 'Delivered'], ...(refundCount ? [['refunds', `Refunds owed (${refundCount})`]] : []), ['all', 'All']].map(([key, label]) => (
           <button key={key} className={tab === key ? 'auth-button' : 'logout-button'} style={{ width: 'auto', padding: '6px 16px' }} onClick={() => setTab(key)}>{label}</button>
         ))}
       </div>
@@ -344,9 +215,14 @@ export default function FilterOrders({ profile }) {
                       {o.property && <div style={{ fontSize: 12, color: 'var(--mist)' }}>{[o.property.street_address, o.property.unit].filter(Boolean).join(' ')}</div>}
                     </td>
                     <td style={{ whiteSpace: 'nowrap', fontSize: 12.5 }}>{sourceLabel(o)}</td>
-                    <td style={{ fontSize: 13 }}>{o.items.map((li, i) => <div key={i}>{li.quantity}× {li.description}</div>)}</td>
+                    <td style={{ fontSize: 13 }}>{o.items.map((li, i) => <div key={i}>{li.quantity}× {li.description}</div>)}{o.filter_notes && <div style={{ color: 'var(--mist)', fontSize: 12, marginTop: 3 }}>Note: {o.filter_notes}</div>}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>{money(o.amount_due)}</td>
-                    <td>{cancelled ? <Pill tone="mist">Cancelled</Pill> : <Pill tone={o.paid ? 'green' : 'amber'}>{o.paid ? 'Paid' : 'Unpaid'}</Pill>}</td>
+                    <td>
+                      {cancelled ? <Pill tone="mist">Cancelled</Pill> : <Pill tone={o.paid ? 'green' : 'amber'}>{o.paid ? 'Paid' : 'Unpaid'}</Pill>}
+                      {o.refund_amount > 0 && <div style={{ fontSize: 11.5, color: '#1b7a3d', marginTop: 4 }}>Refunded {money(o.refund_amount)} to card</div>}
+                      {refundOwed(o) && <div style={{ fontSize: 11.5, color: '#B5462F', fontWeight: 700, marginTop: 4 }}>Refund owed {money(o.refund_owed_amount)}<div><button onClick={() => markRefundHandedBack(o)} style={{ border: 'none', background: 'none', color: '#176E7A', cursor: 'pointer', padding: 0, font: 'inherit', fontWeight: 600 }}>Mark handed back</button></div></div>}
+                      {o.refund_status === 'done' && <div style={{ fontSize: 11.5, color: '#1b7a3d', marginTop: 4 }}>Cash/check refund handed back</div>}
+                    </td>
                     <td>
                       {cancelled ? <span style={{ color: 'var(--mist)', fontSize: 13 }}>—</span> : (<>
                         <select value={d} onChange={(e) => setDelivery(o, e.target.value)} style={{ ...inputStyle, width: '100%' }}>
@@ -397,6 +273,9 @@ export default function FilterOrders({ profile }) {
           </table>
           <div style={{ fontSize: 12, color: 'var(--mist)', marginTop: 8 }}>{shown.length} order{shown.length === 1 ? '' : 's'}</div>
         </div>
+      )}
+      {newItemMode && (
+        <QuickAddModal mode={newItemMode} orgId={selectedOrg} profile={profile} onClose={() => setNewItemMode(null)} onCreated={() => loadOrders(selectedOrg)} />
       )}
     </div>
   )

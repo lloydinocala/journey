@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import PlaceFilterOrderModal from './PlaceFilterOrderModal'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import TripChargePicker from './TripChargePicker'
@@ -9,7 +10,13 @@ import NewTaskModal from './NewTaskModal'
 import TimePicker15 from './TimePicker15'
 import { zonedToUtcIso } from './utils/tz'
 
-export default function QuickAddModal({ mode, orgId, profile, onClose, onCreated, prefillCustomerId = '', projectId = null }) {
+// The +New ▾ "New Filter Order" item opens its own form.
+export default function QuickAddModal(props) {
+  if (props.mode === 'filterOrder') return <PlaceFilterOrderModal orgId={props.orgId} onClose={props.onClose} onCreated={props.onCreated} />
+  return <QuickAddModalInner {...props} />
+}
+
+function QuickAddModalInner({ mode, orgId, profile, onClose, onCreated, prefillCustomerId = '', projectId = null }) {
   const navigate = useNavigate()
   const [customerProperties, setCustomerProperties] = useState([])
   const [users, setUsers] = useState([])

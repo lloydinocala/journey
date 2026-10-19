@@ -29,7 +29,10 @@ export default function FilterOrderModal({ propertyId, propertyLabel, customerNa
   const removeRow = (i) => setRows((rs) => rs.filter((_, idx) => idx !== i))
 
   async function place() {
-    const items = rows.filter((r) => r.selected && r.width && r.height).map((r) => ({ width: Number(r.width), height: Number(r.height), thickness: r.thickness !== '' ? Number(r.thickness) : null, merv: r.merv !== '' ? Number(r.merv) : null, qty: Math.max(1, Number(r.qty) || 1) }))
+    // Every field is required on each selected line (width, height, thickness, MERV, qty).
+    const chosen = rows.filter((r) => r.selected)
+    if (chosen.some((r) => !r.width || !r.height || r.thickness === '' || r.merv === '' || !(Number(r.qty) > 0))) { setError('Fill in width, height, thickness, MERV and quantity on every checked line.'); return }
+    const items = chosen.filter((r) => r.width && r.height).map((r) => ({ width: Number(r.width), height: Number(r.height), thickness: r.thickness !== '' ? Number(r.thickness) : null, merv: r.merv !== '' ? Number(r.merv) : null, qty: Math.max(1, Number(r.qty) || 1) }))
     if (!items.length) { setError('Add at least one filter size (width × height).'); return }
     setPlacing(true); setError('')
     const { data, error: err } = await supabase.functions.invoke('create-filter-invoice', { body: { propertyId, items } })

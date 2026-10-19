@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import DispatchSuggest from './DispatchSuggest'
+import NewItemDropdown from './NewItemDropdown'
+import QuickAddModal from './QuickAddModal'
 
 // Geocode server-side (edge function: Census -> OpenStreetMap). Avoids browser CORS.
 async function geocodeAddress(address) {
@@ -88,6 +90,7 @@ export default function DispatchMap({ profile }) {
   const isSuper = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [newItemMode, setNewItemMode] = useState(null)
   const [date, setDate] = useState(() => new URLSearchParams(window.location.search).get('date') || todayLocal())
   const [jobs, setJobs] = useState([])
   const [techs, setTechs] = useState([])
@@ -503,7 +506,10 @@ export default function DispatchMap({ profile }) {
     <div>
       <div className="page-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <h2 style={{ margin: 0 }}>Dispatch Map</h2>
-        <button onClick={() => setManageOpen((o) => !o)} disabled={!selectedOrg} style={{ border: '1px solid var(--border)', background: manageOpen ? '#EAF3F4' : '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#176E7A' }}>Manage territories</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={() => setManageOpen((o) => !o)} disabled={!selectedOrg} style={{ border: '1px solid var(--border)', background: manageOpen ? '#EAF3F4' : '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#176E7A' }}>Manage territories</button>
+          <NewItemDropdown onSelect={setNewItemMode} />
+        </div>
       </div>
       {isSuper && (
         <div style={{ marginBottom: 12, maxWidth: 360 }}>
@@ -643,6 +649,9 @@ export default function DispatchMap({ profile }) {
             <span key={t.id}><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 3, background: t.color, verticalAlign: 'middle', marginRight: 5 }} />{t.name}{(t.tech_user_ids || []).length ? ` — ${(t.tech_user_ids || []).map(userName).join(', ')}` : ''}</span>
           ))}
         </div>
+      )}
+      {newItemMode && (
+        <QuickAddModal mode={newItemMode} orgId={selectedOrg} profile={profile} onClose={() => setNewItemMode(null)} onCreated={() => load()} />
       )}
     </div>
   )
