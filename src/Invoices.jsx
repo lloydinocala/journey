@@ -9,6 +9,8 @@ import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import { exportToCSV } from './utils/csvExport'
 import AiAssist from './AiAssist'
+import PaymentsToConfirm from './PaymentsToConfirm'
+import { listPaymentsToConfirm } from './utils/payments'
 
 const INV_REMINDER_SYS = 'Draft a brief, friendly, professional payment reminder for an HVAC company to send a customer about an unpaid invoice. Reference the invoice number and the outstanding balance. 2 to 3 sentences, courteous and not aggressive. No subject line.'
 
@@ -91,7 +93,13 @@ export default function Invoices({ profile }) {
   }, [])
 
   const [searchParams] = useSearchParams()
-  useEffect(() => { if (searchParams.get('tab') === 'collections') setActiveTab('collections') }, [searchParams])
+  useEffect(() => { const t = searchParams.get('tab'); if (t === 'collections' || t === 'confirm') setActiveTab(t) }, [searchParams])
+  // Payments to Confirm lives here as a tab (it used to be its own page).
+  const [confirmCount, setConfirmCount] = useState(null)
+  useEffect(() => {
+    const org = profile.org_id || selectedOrg
+    if (org) listPaymentsToConfirm(org).then((r) => setConfirmCount(r.length)).catch(() => {})
+  }, [selectedOrg])
   const highlightId = searchParams.get('invoice')
   const highlightRef = useRef(null)
   const didScrollRef = useRef(false)
@@ -113,7 +121,7 @@ export default function Invoices({ profile }) {
       .select(`
         id, org_id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
         discount_amount, discount_type, deposit, amount_due, total_paid, balance,
-        profit, profit_pct, paid_at, sent_at, sent_count, last_sent_to, is_archived
+        profit, profit_pct, profit_cost_source, profit_complete, paid_at, sent_at, sent_count, last_sent_to, is_archived
       `)
       .eq('org_id', orgId)
       .eq('kind', 'invoice')
@@ -199,12 +207,16 @@ export default function Invoices({ profile }) {
     return val === null || val === undefined ? '—' : '$' + Number(val).toFixed(2)
   }
 
+  // Profit = revenue (total less tax) minus parts cost. Blank when no cost data exists;
+  // "(partial)" when some priced lines have no cost, so the figure is overstated.
   function profitDisplay(inv) {
-    return inv.profit === null || inv.profit === undefined ? '—' : '$' + Number(inv.profit).toFixed(2)
+    if (inv.profit === null || inv.profit === undefined) return inv.profit_cost_source === 'none' ? 'No cost data' : '—'
+    return '$' + Number(inv.profit).toFixed(2) + (inv.profit_complete === false ? ' (partial)' : '')
   }
 
   function profitPctDisplay(inv) {
-    return inv.profit_pct === null || inv.profit_pct === undefined ? '—' : Number(inv.profit_pct).toFixed(1) + '%'
+    if (inv.profit_pct === null || inv.profit_pct === undefined) return inv.profit_cost_source === 'none' ? 'No cost data' : '—'
+    return Number(inv.profit_pct).toFixed(1) + '%' + (inv.profit_complete === false ? ' (partial)' : '')
   }
 
   function isPaid(inv) {
@@ -509,7 +521,7 @@ export default function Invoices({ profile }) {
 
       {/* Two tabs on one page: the full invoice list, and the collections-priority view. */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
-        {[['invoices', 'Invoices'], ['collections', 'Collections']].map(([key, label]) => (
+        {[['invoices', 'Invoices'], ['confirm', `Payments to Confirm${confirmCount ? ` (${confirmCount})` : ''}`], ['collections', 'Collections']].map(([key, label]) => (
           <button key={key} type="button" onClick={() => setActiveTab(key)}
             style={{ border: 'none', background: 'none', padding: '9px 18px', fontSize: 14,
               fontWeight: activeTab === key ? 700 : 500,
@@ -520,6 +532,10 @@ export default function Invoices({ profile }) {
           </button>
         ))}
       </div>
+
+      {activeTab === 'confirm' && (
+        <PaymentsToConfirm profile={profile} embedded orgId={profile.org_id || selectedOrg} onCount={setConfirmCount} />
+      )}
 
       {activeTab === 'collections' && (
         loading

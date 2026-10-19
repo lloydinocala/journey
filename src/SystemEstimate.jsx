@@ -49,6 +49,9 @@ export function pickLikelyServiceCall(jobs) {
 }
 export const serviceCallLabel = (j) => `${j.job_number}${j.segment > 1 ? '-' + j.segment : ''} · ${j.job_type || 'Job'} · ${j.job_date || 'no date'} · ${j.status}`
 
+// Sections that are descriptions, never priced.
+const DESC_ONLY = new Set(['INSTALLATION', 'WARRANTY'])
+
 export default function SystemEstimate({ profile }) {
   const { jobId, estimateId } = useParams()
   const [job, setJob] = useState(null)
@@ -58,7 +61,14 @@ export default function SystemEstimate({ profile }) {
   const [users, setUsers] = useState([])
 
   const [systemTypes, setSystemTypes] = useState([])
-  const [orgTemplates, setOrgTemplates] = useState({ install: '', installByType: {}, warranty: '' })
+  const [orgTemplates, setOrgTemplates] = useState({ install: '', installByType: {}, warranty: '', thermostat: '', thermostatPrice: null })
+  // Thermostat (its own priced line) and copper lineset ("Also includes") — both can be
+  // added or edited on their own, without re-picking the equipment.
+  const [includeThermostat, setIncludeThermostat] = useState(true)
+  const [thermostatName, setThermostatName] = useState('')
+  const [thermostatPrice, setThermostatPrice] = useState('')
+  const [extraEdit, setExtraEdit] = useState(null) // { kind: 'lineset'|'thermostat', id, text, price }
+  const [savingExtra, setSavingExtra] = useState(false)
   const [pickSystemType, setPickSystemType] = useState('')
   const [sizeOptions, setSizeOptions] = useState([])
   const [pickSize, setPickSize] = useState('')
@@ -189,7 +199,7 @@ export default function SystemEstimate({ profile }) {
 
     const { data: orgData } = await supabase
       .from('organizations')
-      .select('sales_tax_rate, services_taxable_by_default, system_installation_includes, system_installation_includes_by_type, system_warranty_template')
+      .select('sales_tax_rate, services_taxable_by_default, system_installation_includes, system_installation_includes_by_type, system_warranty_template, system_thermostat_default, system_thermostat_price')
       .eq('id', jobData.org_id)
       .single()
     if (orgData) {
@@ -199,7 +209,11 @@ export default function SystemEstimate({ profile }) {
         install: orgData.system_installation_includes || '',
         installByType: orgData.system_installation_includes_by_type || {},
         warranty: orgData.system_warranty_template || '',
+        thermostat: orgData.system_thermostat_default || '',
+        thermostatPrice: orgData.system_thermostat_price ?? null,
       })
+      setThermostatName(orgData.system_thermostat_default || '')
+      setThermostatPrice(orgData.system_thermostat_price != null ? String(orgData.system_thermostat_price) : '')
     }
 
     setLoading(false)
@@ -276,7 +290,7 @@ export default function SystemEstimate({ profile }) {
     const eq = selectedEquipment
 
     // Re-picking replaces the base system cleanly — clear any existing base sections first.
-    await supabase.from('invoice_line_items').delete().eq('invoice_id', estimate.id).in('category', ['INDOOR_UNIT', 'OUTDOOR_UNIT', 'FURNACE', 'INSTALLATION', 'ALSO_INCLUDES', 'WARRANTY'])
+    await supabase.from('invoice_line_items').delete().eq('invoice_id', estimate.id).in('category', ['INDOOR_UNIT', 'OUTDOOR_UNIT', 'FURNACE', 'INSTALLATION', 'ALSO_INCLUDES', 'THERMOSTAT', 'WARRANTY'])
 
     const clean = (str) => str.replace(/\s+/g, ' ').trim()
 
@@ -317,7 +331,11 @@ export default function SystemEstimate({ profile }) {
       sections.push({ description: furnaceDesc, unit_price: 0, quantity: 1, category: 'FURNACE', sort_order: 25, taxable: false })
     }
     sections.push({ description: installDesc, unit_price: 0, quantity: 1, category: 'INSTALLATION', sort_order: 30, taxable: false })
-    sections.push({ description: warrantyDesc, unit_price: 0, quantity: 1, category: 'WARRANTY', sort_order: 90, taxable: false })
+    if (includeThermostat && thermostatName.trim()) {
+      sections.push({ description: `THERMOSTAT\n\n${thermostatName.trim()}`, unit_price: parseFloat(thermostatPrice) || 0, quantity: 1, category: 'THERMOSTAT', sort_order: 35, taxable: systemTaxable })
+    }
+    // Warranty is description-only and always last (the database pins it to the end).
+    sections.push({ description: warrantyDesc, unit_price: 0, quantity: 1, category: 'WARRANTY', sort_order: 10000, taxable: false })
     const rows = sections.map((r) => ({ ...r, invoice_id: estimate.id, org_id: job.org_id, is_custom: false }))
 
     await supabase.from('invoice_line_items').insert(rows)
@@ -364,7 +382,8 @@ export default function SystemEstimate({ profile }) {
     e.preventDefault()
     if (!customDesc.trim() || !customPrice) return
     setAddingCustom(true)
-    const nextSort = lineItems.length > 0 ? Math.max(...lineItems.map((li) => li.sort_order)) + 1 : 1
+    const before = lineItems.filter((li) => li.category !== 'WARRANTY')
+    const nextSort = before.length > 0 ? Math.max(...before.map((li) => li.sort_order)) + 1 : 1
     await supabase.from('invoice_line_items').insert({
       invoice_id: estimate.id,
       org_id: job.org_id,
@@ -389,6 +408,49 @@ export default function SystemEstimate({ profile }) {
 
   async function updateLineItem(id, field, value) {
     await supabase.from('invoice_line_items').update({ [field]: value }).eq('id', id)
+    loadLineItems(estimate.id)
+  }
+
+  // ---- Lineset & thermostat: add or edit on their own ----
+  const linesetLine = lineItems.find((li) => li.category === 'ALSO_INCLUDES') || null
+  const thermostatLine = lineItems.find((li) => li.category === 'THERMOSTAT') || null
+  const stripHeader = (text, header) => (text || '').replace(new RegExp('^' + header + '\\s*', 'i'), '').trim()
+
+  async function startLinesetEdit() {
+    if (linesetLine) {
+      setExtraEdit({ kind: 'lineset', id: linesetLine.id, text: stripHeader(linesetLine.description, 'Also includes:'), price: String(linesetLine.unit_price ?? '') })
+      return
+    }
+    // New lineset: pre-fill from the chosen equipment's lineset requirements when we can find it.
+    let req = ''
+    const outdoor = lineItems.find((li) => li.category === 'OUTDOOR_UNIT')
+    const model = (outdoor?.description || '').match(/Model #\s*(\S+)/)?.[1]
+    if (model && job) {
+      const { data } = await supabase.from('equipment').select('lineset_requirements').eq('org_id', job.org_id).eq('outdoor_model', model).not('lineset_requirements', 'is', null).limit(1)
+      req = data?.[0]?.lineset_requirements || ''
+    }
+    setExtraEdit({ kind: 'lineset', id: null, text: req || 'New copper refrigerant lineset', price: '' })
+  }
+  function startThermostatEdit() {
+    if (thermostatLine) setExtraEdit({ kind: 'thermostat', id: thermostatLine.id, text: stripHeader(thermostatLine.description, 'THERMOSTAT'), price: String(thermostatLine.unit_price ?? '') })
+    else setExtraEdit({ kind: 'thermostat', id: null, text: orgTemplates.thermostat || '', price: orgTemplates.thermostatPrice != null ? String(orgTemplates.thermostatPrice) : '' })
+  }
+  async function saveExtra() {
+    if (!extraEdit || !extraEdit.text.trim()) return
+    setSavingExtra(true)
+    const isLineset = extraEdit.kind === 'lineset'
+    const description = isLineset ? `Also includes:\n\n${extraEdit.text.trim()}` : `THERMOSTAT\n\n${extraEdit.text.trim()}`
+    const unit_price = parseFloat(extraEdit.price) || 0
+    if (extraEdit.id) {
+      await supabase.from('invoice_line_items').update({ description, unit_price }).eq('id', extraEdit.id)
+    } else {
+      await supabase.from('invoice_line_items').insert({
+        invoice_id: estimate.id, org_id: job.org_id, description, unit_price, quantity: 1,
+        taxable: systemTaxable, is_custom: false,
+        category: isLineset ? 'ALSO_INCLUDES' : 'THERMOSTAT', sort_order: isLineset ? 40 : 35,
+      })
+    }
+    setSavingExtra(false); setExtraEdit(null)
     loadLineItems(estimate.id)
   }
 
@@ -576,6 +638,9 @@ export default function SystemEstimate({ profile }) {
                   {boldEquipmentLines(li.description)}
                   {isPendingCustom(li) && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#B8860B', background: 'rgba(184,134,11,0.12)', padding: '2px 7px', borderRadius: 6 }}>PENDING · tech request</span>}
                 </div>
+                {DESC_ONLY.has(li.category) ? (
+                  <div className="grid-cell" style={{ gridColumn: 'span 4', color: 'var(--mist)', fontSize: 13 }}>Description only — no price</div>
+                ) : (<>
                 <div className="grid-cell">
                   <input
                     type="number"
@@ -594,6 +659,7 @@ export default function SystemEstimate({ profile }) {
                 </div>
                 <div className="grid-cell">${(li.quantity * li.unit_price).toFixed(2)}</div>
                 <div className="grid-cell">{li.taxable ? 'Yes' : 'No'}</div>
+                </>)}
                 <div className="grid-cell grid-actions">
                   {isPendingCustom(li) && isFieldAdmin && (
                     <button className="logout-button" style={{ borderColor: '#1F7A43', color: '#1F7A43' }} disabled={!(Number(li.unit_price) > 0)} title={Number(li.unit_price) > 0 ? 'Approve this custom item' : 'Set a price first'} onClick={() => approveCustom(li)}>Approve</button>
@@ -608,7 +674,10 @@ export default function SystemEstimate({ profile }) {
           </div>
 
           <div className="auth-card" style={{ maxWidth: 560, marginBottom: 24 }}>
-            <h3 style={{ marginTop: 0, fontSize: 15 }}>Add System</h3>
+            <h3 style={{ marginTop: 0, fontSize: 15 }}>Add/Edit System</h3>
+            {lineItems.some((li) => li.category === 'INDOOR_UNIT') && (
+              <p style={{ color: 'var(--mist)', fontSize: 12.5, marginTop: -4 }}>Picking a system here replaces the current equipment. To change only the lineset or thermostat, use the box below.</p>
+            )}
             <div className="field">
               <label>System type</label>
               <select value={pickSystemType} onChange={(e) => { setPickSystemType(e.target.value); setPickSize(''); setPickSeer(''); setPickBrand(''); setSelectedEquipmentId('') }}>
@@ -705,10 +774,60 @@ export default function SystemEstimate({ profile }) {
                 )}
               </>
             )}
+            {selectedEquipment && (
+              <>
+                <label style={{ display: 'block', marginBottom: includeThermostat ? 6 : 12, cursor: 'pointer', fontSize: 14 }}>
+                  <input type="checkbox" checked={includeThermostat} onChange={(e) => setIncludeThermostat(e.target.checked)} style={{ marginRight: 6 }} />
+                  Include thermostat (its own priced line)
+                </label>
+                {includeThermostat && (
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                    <div className="field" style={{ flex: 2, marginBottom: 0 }}>
+                      <label>Thermostat</label>
+                      <input type="text" value={thermostatName} onChange={(e) => setThermostatName(e.target.value)} placeholder="e.g. Honeywell T6 Pro" />
+                    </div>
+                    <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+                      <label>Price</label>
+                      <input type="number" step="0.01" value={thermostatPrice} onChange={(e) => setThermostatPrice(e.target.value)} placeholder="0.00" />
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
             <button className="auth-button" onClick={handleAddSystem} disabled={!selectedEquipment || addingSystem} style={{ width: 'auto', padding: '8px 20px' }}>
               {addingSystem ? 'Adding…' : 'Add to estimate'}
             </button>
           </div>
+
+          {lineItems.some((li) => li.category === 'INDOOR_UNIT') && (
+            <div className="auth-card" style={{ maxWidth: 560, marginBottom: 24 }}>
+              <h3 style={{ marginTop: 0, fontSize: 15 }}>Lineset &amp; Thermostat</h3>
+              <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>Add or change these without touching the equipment.</p>
+              {!extraEdit ? (
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button className="logout-button" onClick={startLinesetEdit}>{linesetLine ? 'Edit Lineset' : '+ Add Lineset'}</button>
+                  <button className="logout-button" onClick={startThermostatEdit}>{thermostatLine ? 'Edit Thermostat' : '+ Add Thermostat'}</button>
+                </div>
+              ) : (
+                <>
+                  <div className="field">
+                    <label>{extraEdit.kind === 'lineset' ? 'Lineset (shown under “Also includes:”)' : 'Thermostat'}</label>
+                    {extraEdit.kind === 'lineset'
+                      ? <textarea rows={3} value={extraEdit.text} onChange={(e) => setExtraEdit({ ...extraEdit, text: e.target.value })} />
+                      : <input type="text" value={extraEdit.text} onChange={(e) => setExtraEdit({ ...extraEdit, text: e.target.value })} />}
+                  </div>
+                  <div className="field" style={{ maxWidth: 200 }}>
+                    <label>Price</label>
+                    <input type="number" step="0.01" value={extraEdit.price} onChange={(e) => setExtraEdit({ ...extraEdit, price: e.target.value })} placeholder="0.00" />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="auth-button" style={{ width: 'auto', padding: '8px 20px' }} disabled={savingExtra || !extraEdit.text.trim()} onClick={saveExtra}>{savingExtra ? 'Saving…' : extraEdit.id ? 'Save' : 'Add to estimate'}</button>
+                    <button className="logout-button" onClick={() => setExtraEdit(null)}>Cancel</button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {specialFeatures.length > 0 && (
             <div className="auth-card" style={{ maxWidth: 500, marginBottom: 24 }}>

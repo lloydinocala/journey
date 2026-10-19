@@ -19,6 +19,8 @@ export default function SystemEstimateSetup({ profile }) {
   const [byType, setByType] = useState({})                        // { [system_type]: text }
   const [equipTypes, setEquipTypes] = useState([])                // distinct types in equipment
   const [warrantyTemplate, setWarrantyTemplate] = useState('')
+  const [thermoDefault, setThermoDefault] = useState('')
+  const [thermoPrice, setThermoPrice] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -37,13 +39,15 @@ export default function SystemEstimateSetup({ profile }) {
     setLoading(true)
     const [{ data: org }, { data: equip }] = await Promise.all([
       supabase.from('organizations')
-        .select('system_installation_includes, system_installation_includes_by_type, system_warranty_template')
+        .select('system_installation_includes, system_installation_includes_by_type, system_warranty_template, system_thermostat_default, system_thermostat_price')
         .eq('id', orgId).single(),
       supabase.from('equipment').select('system_type').eq('org_id', orgId).eq('active', true),
     ])
     setInstallIncludes(org?.system_installation_includes || '')
     setByType(org?.system_installation_includes_by_type || {})
     setWarrantyTemplate(org?.system_warranty_template || '')
+    setThermoDefault(org?.system_thermostat_default || '')
+    setThermoPrice(org?.system_thermostat_price != null ? String(org.system_thermostat_price) : '')
     setEquipTypes([...new Set((equip || []).map((e) => e.system_type))].filter(Boolean))
     setLoading(false)
   }
@@ -67,6 +71,8 @@ export default function SystemEstimateSetup({ profile }) {
       system_installation_includes: installIncludes,
       system_installation_includes_by_type: cleaned,
       system_warranty_template: warrantyTemplate,
+      system_thermostat_default: thermoDefault.trim() || null,
+      system_thermostat_price: thermoPrice === '' ? null : (parseFloat(thermoPrice) || 0),
     }).eq('id', selectedOrg)
     setByType(cleaned)
     setSaving(false); setSaved(true)
@@ -133,6 +139,17 @@ export default function SystemEstimateSetup({ profile }) {
                   </div>
                 )
               })}
+            </div>
+          </div>
+
+          <div>
+            <h3 style={{ margin: '0 0 4px', fontSize: 15 }}>Thermostat — default</h3>
+            <p style={{ color: 'var(--mist)', fontSize: 12.5, marginTop: 0, marginBottom: 8 }}>
+              The thermostat is its own priced line on each System Estimate. This pre-fills it; the estimator can change the model and price on every estimate.
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <input type="text" value={thermoDefault} onChange={(e) => setThermoDefault(e.target.value)} placeholder="e.g. Honeywell T6 Pro Thermostat" style={{ flex: 2, minWidth: 240, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--line, #D5DAE1)' }} />
+              <input type="number" step="0.01" value={thermoPrice} onChange={(e) => setThermoPrice(e.target.value)} placeholder="Default price" style={{ flex: 1, minWidth: 120, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--line, #D5DAE1)' }} />
             </div>
           </div>
 

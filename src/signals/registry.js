@@ -132,7 +132,7 @@ export const REGISTRY = [
   { key: 'unpaid-invoices', station: 'work', hub: 'start', name: 'Unpaid invoices', tone: 'amber', href: '/invoices', cta: 'Open invoices', audience: 'office',
     line: (n) => `${n} sent, still unpaid`,
     count: headCount('invoices', (q) => q.eq('kind', 'invoice').not('is_filter_order', 'is', true).is('deleted_at', null).not('sent_at', 'is', null).is('paid_at', null)) },
-  { key: 'payments-to-confirm', station: 'work', hub: 'start', name: 'Payments to confirm', tone: 'amber', href: '/payments-to-confirm', cta: 'Open payments queue', audience: 'office',
+  { key: 'payments-to-confirm', station: 'work', hub: 'start', name: 'Payments to confirm', tone: 'amber', href: '/invoices?tab=confirm', cta: 'Open Payments to Confirm', audience: 'office',
     line: (n) => `${n} invoice${n === 1 ? '' : 's'} with a chosen method to confirm or mark paid`,
     count: headCount('invoices', (q) => q.eq('kind', 'invoice').not('is_filter_order', 'is', true).is('deleted_at', null).not('payment_method', 'is', null).is('paid_at', null)) },
   { key: 'estimates-to-convert', station: 'work', hub: 'start', name: 'Estimates to convert', tone: 'amber', href: '/estimates', cta: 'Open estimates', audience: 'office',

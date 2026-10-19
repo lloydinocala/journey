@@ -66,7 +66,6 @@ import MaintenanceDue from './MaintenanceDue'
 import MaintenanceDashboard from './MaintenanceDashboard'
 import Invoice from './Invoice'
 import Invoices from './Invoices'
-import PaymentsToConfirm from './PaymentsToConfirm'
 import FinancingOptions from './FinancingOptions'
 import FinancingCentral from './FinancingCentral'
 import FinancingDirectory from './FinancingDirectory'
@@ -397,7 +396,7 @@ function AuthenticatedApp() {
         <Route path="/warranty-registration-links" element={<WarrantyRegistrationLinks profile={profile} />} />
         <Route path="/new-followup-estimate" element={<NewFollowupEstimate profile={profile} />} />
         <Route path="/invoices" element={<Invoices profile={profile} />} />
-        <Route path="/payments-to-confirm" element={<PaymentsToConfirm profile={profile} />} />
+        <Route path="/payments-to-confirm" element={<Navigate to="/invoices?tab=confirm" replace />} />
         <Route path="/financing-options" element={<FinancingOptions profile={profile} />} />
         <Route path="/financing-central" element={<FinancingCentral profile={profile} />} />
         <Route path="/financing-directory" element={<FinancingDirectory profile={profile} />} />

@@ -117,7 +117,6 @@ const WORK_PAGES = [
   { label: 'System Estimates', path: '/system-estimates' },
   { label: 'Invoices', path: '/invoices' },
   { label: 'Projects', path: '/projects' },
-  { label: 'Payments to Confirm', path: '/payments-to-confirm' },
 ]
 const DISPATCH_PAGES = [
   { label: 'Dispatch Station', path: '/dispatch' },

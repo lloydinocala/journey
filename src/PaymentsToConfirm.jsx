@@ -7,10 +7,13 @@ import { listPaymentsToConfirm, confirmPaymentMethod, setFinancingStatus, markIn
 const money = (n) => (n == null || isNaN(n) ? '—' : `$${Number(n).toFixed(2)}`)
 const fmt = (d) => (d ? new Date(d).toLocaleDateString() : '')
 
-export default function PaymentsToConfirm({ profile }) {
-  const isSuper = profile?.role === 'super_admin'
+// Lives as the "Payments to Confirm" tab on the Invoices page (embedded + orgId).
+// The old standalone route redirects there.
+export default function PaymentsToConfirm({ profile, embedded = false, orgId = null, onCount }) {
+  const isSuper = profile?.role === 'super_admin' && !embedded
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [ownOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const selectedOrg = embedded ? (orgId || profile?.org_id || '') : ownOrg
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState('')
@@ -26,7 +29,7 @@ export default function PaymentsToConfirm({ profile }) {
   async function load() {
     if (!selectedOrg) return
     setLoading(true); setErr('')
-    try { setRows(await listPaymentsToConfirm(selectedOrg)) } catch (e) { setErr(e.message || String(e)) }
+    try { const r = await listPaymentsToConfirm(selectedOrg); setRows(r); if (onCount) onCount(r.length) } catch (e) { setErr(e.message || String(e)) }
     setLoading(false)
   }
   useEffect(() => { load() }, [selectedOrg])
@@ -63,14 +66,14 @@ export default function PaymentsToConfirm({ profile }) {
   }
 
   return (
-    <div className="page">
-      <div className="page-header-bar">
+    <div className={embedded ? '' : 'page'}>
+      {!embedded && <div className="page-header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <h2 style={{ margin: 0 }}>Payments to Confirm</h2>
           <span className="badge">{rows.length}</span>
         </div>
         {isSuper && <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />}
-      </div>
+      </div>}
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0, maxWidth: 780 }}>
         Invoices and approved System Estimates where the customer picked how they'll pay but it isn't settled yet. Confirm the method (or approve financing) to release the install for scheduling, and mark invoices paid once collected.
       </p>

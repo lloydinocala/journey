@@ -108,7 +108,7 @@ export default function Estimates({ profile }) {
         .select(`
           id, invoice_number, invoice_date, job_id, subtotal, sales_tax, job_total,
           discount_amount, discount_type, deposit, amount_due, total_paid, balance,
-          profit, profit_pct, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, approved_at, spawned_job_id, converted_to_job_id, is_archived, reference_job_id, estimate_type
+          profit, profit_pct, profit_cost_source, profit_complete, sent_at, sent_count, last_sent_to, paid_at, estimating_technician_id, approval_status, approved_at, spawned_job_id, converted_to_job_id, is_archived, reference_job_id, estimate_type
         `)
         .eq('org_id', orgId)
         .eq('kind', 'estimate')
@@ -203,12 +203,16 @@ export default function Estimates({ profile }) {
     return val === null || val === undefined ? '—' : '$' + Number(val).toFixed(2)
   }
 
+  // Profit = revenue (total less tax) minus parts cost. Blank when no cost data exists;
+  // "(partial)" when some priced lines have no cost, so the figure is overstated.
   function profitDisplay(est) {
-    return est.profit === null || est.profit === undefined ? '—' : '$' + Number(est.profit).toFixed(2)
+    if (est.profit === null || est.profit === undefined) return est.profit_cost_source === 'none' ? 'No cost data' : '—'
+    return '$' + Number(est.profit).toFixed(2) + (est.profit_complete === false ? ' (partial)' : '')
   }
 
   function profitPctDisplay(est) {
-    return est.profit_pct === null || est.profit_pct === undefined ? '—' : Number(est.profit_pct).toFixed(1) + '%'
+    if (est.profit_pct === null || est.profit_pct === undefined) return est.profit_cost_source === 'none' ? 'No cost data' : '—'
+    return Number(est.profit_pct).toFixed(1) + '%' + (est.profit_complete === false ? ' (partial)' : '')
   }
 
   function statusLabel(est) {

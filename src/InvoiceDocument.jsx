@@ -178,9 +178,14 @@ export default function InvoiceDocument({ data, footer }) {
             }}
           >
             <div style={{ flex: 3, minWidth: 0, wordBreak: 'break-word' }}>{boldEquipmentLines(li.description)}</div>
+            {/* Installation-includes and Warranty are descriptions, not priced lines. */}
+            {(li.category === 'INSTALLATION' || li.category === 'WARRANTY') && !(Number(li.unit_price) > 0) ? (
+              <div style={{ flex: 3 }} />
+            ) : (<>
             <div style={{ flex: 1, textAlign: 'right', color: '#64748B' }}>{li.quantity}</div>
             <div style={{ flex: 1, textAlign: 'right', color: '#64748B' }}>${li.unit_price.toFixed(2)}</div>
             <div style={{ flex: 1, textAlign: 'right', fontWeight: 600 }}>${(li.quantity * li.unit_price).toFixed(2)}</div>
+            </>)}
           </div>
         ))}
       </div>
