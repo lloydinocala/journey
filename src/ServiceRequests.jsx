@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { printServiceFlyer } from './utils/serviceFlyer'
+import ServiceRequestReport from './ServiceRequestReport'
+import { isSettingsAdmin } from './utils/settingsMap'
 
 const CAT_LABEL = { repair: 'Repair', tuneup: 'Tune-up', question: 'Question' }
 const URG_COLOR = { emergency: '#DC2626', soon: '#9a6a12', flexible: '#1b7a3d' }
@@ -35,7 +37,10 @@ export default function ServiceRequests({ profile }) {
   const [reqs, setReqs] = useState([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState(null)
-  const [view, setView] = useState('active') // 'active' | 'history'
+  const [view, setView] = useState('active') // 'active' | 'history' | 'report'
+  const [showArchived, setShowArchived] = useState(false)
+  const [editing, setEditing] = useState(null) // { id, reporter_name, reporter_phone, details }
+  const isAdmin = isSettingsAdmin(profile)
   const [history, setHistory] = useState([])
   const [histLoading, setHistLoading] = useState(false)
   // QR tool
@@ -64,20 +69,36 @@ export default function ServiceRequests({ profile }) {
     return () => { clearInterval(id); window.removeEventListener('focus', onFocus) }
   }, [selectedOrg])
 
-  // History: approved (converted → job) requests are kept indefinitely; declined requests
-  // only show for 30 days (and are deleted after 30 days by a nightly cleanup). Newest first.
+  // History: decided requests. Nothing is deleted automatically — finished requests are
+  // ARCHIVED nightly (declined: N days after the decision; approved: N days after the job's
+  // invoice is paid in full; N is set in Settings → Dispatch). Archived requests are hidden
+  // here unless "Show archived" is on, and always count in the Report.
   async function loadHistory() {
     if (!selectedOrg) return
     setHistLoading(true)
-    const cutoff = new Date(Date.now() - 30 * 86400000).toISOString()
-    const { data } = await supabase.from('service_requests')
+    let q = supabase.from('service_requests')
       .select('*, properties(street_address, unit, city, customers!properties_customer_id_fkey(display_name))')
-      .eq('org_id', selectedOrg)
-      .or(`status.eq.converted,and(status.eq.declined,created_at.gte.${cutoff})`)
-      .order('created_at', { ascending: false }).limit(500)
+      .eq('org_id', selectedOrg).in('status', ['converted', 'declined'])
+    if (!showArchived) q = q.is('archived_at', null)
+    const { data } = await q.order('created_at', { ascending: false }).limit(1000)
     setHistory(data || []); setHistLoading(false)
   }
-  useEffect(() => { if (view === 'history') loadHistory() }, [view, selectedOrg])
+  useEffect(() => { if (view === 'history') loadHistory() }, [view, selectedOrg, showArchived])
+
+  async function setArchived(r, on) {
+    await supabase.from('service_requests').update({ archived_at: on ? new Date().toISOString() : null }).eq('id', r.id)
+    loadHistory()
+  }
+  async function saveEdit() {
+    if (!editing) return
+    await supabase.from('service_requests').update({ reporter_name: editing.reporter_name || null, reporter_phone: editing.reporter_phone || null, details: editing.details || null }).eq('id', editing.id)
+    setEditing(null); loadHistory()
+  }
+  async function deleteRequest(r) {
+    if (!window.confirm('Permanently delete this request? It will also drop out of the success report. Archiving keeps the record and only hides it — delete only if it was entered by mistake.')) return
+    await supabase.from('service_requests').delete().eq('id', r.id)
+    loadHistory()
+  }
 
   async function approve(r) {
     setBusyId(r.id)
@@ -227,8 +248,26 @@ export default function ServiceRequests({ profile }) {
           </div>
           <div style={{ fontSize: 12, color: 'var(--mist)' }}>{new Date(r.created_at).toLocaleString()}</div>
         </div>
-        {r.details && <div style={{ margin: '8px 0', fontSize: 14 }}>{r.details}</div>}
-        <div style={{ fontSize: 13, color: 'var(--mist)' }}>Reported by: {r.reporter_name || '—'}{r.reporter_phone ? ` · ${r.reporter_phone}` : ''}</div>
+        {editing?.id === r.id ? (
+          <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+            <input value={editing.reporter_name || ''} onChange={(e) => setEditing({ ...editing, reporter_name: e.target.value })} placeholder="Reported by" style={{ padding: 8, border: '1px solid var(--border)', borderRadius: 8 }} />
+            <input value={editing.reporter_phone || ''} onChange={(e) => setEditing({ ...editing, reporter_phone: e.target.value })} placeholder="Phone" style={{ padding: 8, border: '1px solid var(--border)', borderRadius: 8 }} />
+            <textarea value={editing.details || ''} onChange={(e) => setEditing({ ...editing, details: e.target.value })} rows={2} style={{ padding: 8, border: '1px solid var(--border)', borderRadius: 8 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={saveEdit}>Save</button>
+              <button className="logout-button" onClick={() => setEditing(null)}>Cancel</button>
+            </div>
+          </div>
+        ) : (<>
+          {r.details && <div style={{ margin: '8px 0', fontSize: 14 }}>{r.details}</div>}
+          <div style={{ fontSize: 13, color: 'var(--mist)' }}>Reported by: {r.reporter_name || '—'}{r.reporter_phone ? ` · ${r.reporter_phone}` : ''}</div>
+        </>)}
+        <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 12.5, alignItems: 'center', flexWrap: 'wrap' }}>
+          {r.archived_at && <span style={{ color: 'var(--mist)' }}>Archived {new Date(r.archived_at).toLocaleDateString()}</span>}
+          <button onClick={() => setArchived(r, !r.archived_at)} style={{ border: 'none', background: 'none', color: '#176E7A', cursor: 'pointer', padding: 0, fontWeight: 600 }}>{r.archived_at ? 'Unarchive' : 'Archive'}</button>
+          {isAdmin && editing?.id !== r.id && <button onClick={() => setEditing({ id: r.id, reporter_name: r.reporter_name, reporter_phone: r.reporter_phone, details: r.details })} style={{ border: 'none', background: 'none', color: '#176E7A', cursor: 'pointer', padding: 0, fontWeight: 600 }}>Edit</button>}
+          {isAdmin && <button onClick={() => deleteRequest(r)} style={{ border: 'none', background: 'none', color: '#B5462F', cursor: 'pointer', padding: 0, fontWeight: 700 }}>Delete</button>}
+        </div>
       </div>
     )
   }
@@ -250,6 +289,7 @@ export default function ServiceRequests({ profile }) {
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         {tabBtn('active', 'Active')}
         {tabBtn('history', 'History')}
+        {tabBtn('report', 'Report')}
       </div>
 
       {isSuper && (
@@ -259,15 +299,18 @@ export default function ServiceRequests({ profile }) {
         </div>
       )}
 
-      {view === 'history' ? (
-        histLoading ? <p style={{ color: 'var(--mist)' }}>Loading…</p>
-          : history.length === 0 ? <div className="section-card" style={{ padding: 18 }}><p style={{ margin: 0, color: 'var(--mist)' }}>No approved or declined requests yet.</p></div>
-          : (
-            <>
-              <p style={{ fontSize: 12.5, color: 'var(--mist)', margin: '0 0 10px' }}>Approved requests are kept indefinitely; declined requests drop off after 30 days. Newest first.</p>
-              <div style={{ display: 'grid', gap: 10 }}>{history.map((r) => historyCard(r))}</div>
-            </>
-          )
+      {view === 'report' ? (
+        <ServiceRequestReport profile={profile} orgId={selectedOrg} />
+      ) : view === 'history' ? (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '0 0 10px' }}>
+            <p style={{ fontSize: 12.5, color: 'var(--mist)', margin: 0, maxWidth: 640 }}>Finished requests archive themselves — declined ones after the set number of days, approved ones that many days after the job is paid in full (Settings → Dispatch). Archived requests are hidden, never deleted, and still count in the Report.</p>
+            <label style={{ fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Show archived</label>
+          </div>
+          {histLoading ? <p style={{ color: 'var(--mist)' }}>Loading…</p>
+            : history.length === 0 ? <div className="section-card" style={{ padding: 18 }}><p style={{ margin: 0, color: 'var(--mist)' }}>{showArchived ? 'No approved or declined requests yet.' : 'Nothing in history right now — older requests are archived. Tick "Show archived" to see them.'}</p></div>
+            : <div style={{ display: 'grid', gap: 10 }}>{history.map((r) => historyCard(r))}</div>}
+        </>
       ) : (
       <>
       {loading ? <p style={{ color: 'var(--mist)' }}>Loading…</p>

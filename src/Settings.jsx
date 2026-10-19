@@ -8,6 +8,7 @@ import OrgPicker from './OrgPicker'
 import EmployeePayRates from './EmployeePayRates'
 import BusinessHours from './BusinessHours'
 import BookingRules from './BookingRules'
+import ServiceRequestSettings from './ServiceRequestSettings'
 import PayrollSettings from './PayrollSettings'
 import CollectionsSettings from './CollectionsSettings'
 import { browserTz, setActiveOrgTz, tzShortLabel } from './utils/tz'
@@ -691,6 +692,9 @@ export default function Settings({ profile }) {
 
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Online booking rules</h3>
       <BookingRules orgId={selectedOrg} />
+
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Service requests (QR stickers)</h3>
+      <ServiceRequestSettings orgId={selectedOrg} />
       </SettingsSection>
 
       <SettingsSection id="permitting" isAdmin={isAdmin} highlight={highlight}>

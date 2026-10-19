@@ -8,12 +8,14 @@ import OperationsDashboard from './OperationsDashboard'
 import FinancialsDash from './FinancialsDashboard'
 import { CommandDashboard } from './modules/dashboard-hvac'
 import MaintenanceDashboard from './MaintenanceDashboard'
+import ServiceRequestReport from './ServiceRequestReport'
 
 const TABS = [
   { key: 'today', label: 'Today', name: 'Operations Dashboard', color: '#2E6FB5', Comp: OperationsDashboard },
   { key: 'financials', label: 'Financials', name: 'Financials', color: '#15803D', Comp: FinancialsDash },
   { key: 'kpis', label: 'KPIs', name: 'Performance & KPIs', color: '#6A54C4', Comp: CommandDashboard },
   { key: 'maintenance', label: 'Maintenance', name: 'Maintenance Dashboard', color: '#B45309', Comp: MaintenanceDashboard },
+  { key: 'requests', label: 'Service Requests', name: 'Service Request Success', color: '#176E7A', Comp: ServiceRequestReport },
 ]
 
 export default function CommandCenter({ profile }) {
