@@ -9,6 +9,7 @@ import { listCertifications, listOnboarding, listDocuments, certLabel, signedHrU
 import { listMetrics, listEntries, listReviews, currentQuarter, listMetricPositions, applicableMetricIds, companyAverages } from './scorecardData'
 import { ScorecardTable } from './HrScorecards'
 import MyPayExplainer from './MyPayExplainer'
+import MySignForms, { useSignCount } from './MySignForms'
 import { getLang, setLang, makeT } from './i18n'
 
 const money = (n) => (n == null || isNaN(n) ? '—' : '$' + Number(n).toFixed(2))
@@ -77,14 +78,15 @@ export default function MyPortal({ profile }) {
           listDocuments(profile.org_id, { employeeId: empId }),
         ])
         setScEntries(se); setScReviews(sr); setMyCerts(ce); setMyOnboarding(ob)
-        setMyDocs((dc || []).filter((d) => d.employee_visible !== false))
+        setMyDocs((dc || []).filter((d) => d.employee_visible !== false && d.category !== 'medical'))
         // Records HR shared to this person's file (RLS also limits it to shared ones).
         const [fd, fs, pos] = await Promise.all([
           supabase.from('rewards_discipline').select('*').eq('employee_id', empId).eq('employee_visible', true).neq('status', 'deleted').order('incident_date', { ascending: false }),
           supabase.from('rewards_separations').select('*').eq('employee_id', empId).eq('employee_visible', true).neq('status', 'deleted'),
           listMetricPositions(profile.org_id),
         ])
-        setMyFile({ disc: fd.data || [], seps: fs.data || [] })
+        const { data: recs } = await supabase.from('rewards_recordings').select('id, created_at, summary, transcript').eq('employee_id', empId).eq('employee_visible', true).order('created_at', { ascending: false })
+        setMyFile({ disc: fd.data || [], seps: fs.data || [], recs: recs || [] })
         setScApplicable(applicableMetricIds(pos, emp.data?.job_description_id))
       }
       setLoading(false)
@@ -117,6 +119,7 @@ export default function MyPortal({ profile }) {
   const scCur = scPeriods[0]?.l || currentQuarter().label
   const scLast = scPeriods[1]?.l || '—'
   useEffect(() => { if (profile.org_id && scCur) companyAverages(profile.org_id, scCur).then(setScAverages) }, [profile.org_id, scCur])
+  const signCount = useSignCount(profile.org_id, myEmpId)
   const scValueOf = (mid, label) => (scEntries.find((e) => e.metric_id === mid && e.period_label === label) || {}).value
 
   return (
@@ -131,7 +134,7 @@ export default function MyPortal({ profile }) {
       <div style={{ color: 'var(--mist)', marginBottom: 18 }}>{profile.full_name}</div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-        {[['pay', t('tab_pay')], ['pto', t('tab_pto')], ['w2', t('tab_w2')], ...(scMetrics.length ? [['scorecard', t('tab_scorecard')]] : []), ['certs', t('tab_certs')], ['onboarding', t('tab_onboarding')], ['docs', t('tab_docs')], ['file', t('tab_file')]].map(([k, l]) => (
+        {[['pay', t('tab_pay')], ['pto', t('tab_pto')], ['w2', t('tab_w2')], ...(scMetrics.length ? [['scorecard', t('tab_scorecard')]] : []), ['certs', t('tab_certs')], ['onboarding', t('tab_onboarding')], ['docs', t('tab_docs')], ['file', t('tab_file')], ['sign', t('tab_sign') + (signCount ? ` (${signCount})` : '')]].map(([k, l]) => (
           <button key={k} className="logout-button" style={tab === k ? { background: '#1B3A6B', color: '#fff' } : undefined} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
@@ -293,8 +296,10 @@ export default function MyPortal({ profile }) {
             )
           )}
 
+          {tab === 'sign' && <MySignForms orgId={profile.org_id} empId={myEmpId} employeeName={profile.full_name} />}
+
           {tab === 'file' && (
-            !myFile.disc.length && !myFile.seps.length ? <p style={{ color: 'var(--mist)' }}>{t('file_none')}</p> : (
+            !myFile.disc.length && !myFile.seps.length && !(myFile.recs || []).length ? <p style={{ color: 'var(--mist)' }}>{t('file_none')}</p> : (
               <>
                 <p style={{ color: 'var(--mist)', fontSize: 13 }}>{t('file_intro')}</p>
                 {myFile.disc.length > 0 && (<>
@@ -305,6 +310,15 @@ export default function MyPortal({ profile }) {
                         <td style={{ whiteSpace: 'pre-wrap', fontSize: 13 }}>{[r.incident, r.description, r.improvement_plan && ('Improvement plan: ' + r.improvement_plan)].filter(Boolean).join('\n\n')}</td></tr>
                     ))}
                   </tbody></table>
+                </>)}
+                {(myFile.recs || []).length > 0 && (<>
+                  <h3 style={{ fontSize: 15, margin: '16px 0 6px' }}>Meeting notes</h3>
+                  {myFile.recs.map((r) => (
+                    <div key={r.id} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 8, fontSize: 13.5 }}>
+                      <b>{new Date(r.created_at).toLocaleDateString()}</b>{r.summary ? <div style={{ whiteSpace: 'pre-wrap' }}>{r.summary}</div> : null}
+                      {r.transcript && <details><summary style={{ cursor: 'pointer', color: 'var(--mist)' }}>Transcript</summary><div style={{ whiteSpace: 'pre-wrap' }}>{r.transcript}</div></details>}
+                    </div>
+                  ))}
                 </>)}
                 {myFile.seps.length > 0 && (<>
                   <h3 style={{ fontSize: 15, margin: '16px 0 6px' }}>{t('file_sep')}</h3>

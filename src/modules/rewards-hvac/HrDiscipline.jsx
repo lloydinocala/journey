@@ -5,6 +5,7 @@ import { useOrgSelector, OrgBar } from './shared'
 import AiAssist from '../../AiAssist'
 import { supabase } from '../../utils/supabase'
 import { recordChange, listHistory, ReasonDialog, HistoryList, printHrDocument, orgName } from './hrRecords'
+import MeetingRecorder, { RecordingsList } from './MeetingRecorder'
 
 const TYPE_LABEL = { verbal: 'Verbal warning', written: 'Written warning', final: 'Final warning', suspension: 'Suspension', termination: 'Termination' }
 const blank = { employee_id: '', type: 'verbal', incident_date: '', incident: '', description: '', improvement_plan: '', follow_up_date: '' }
@@ -43,6 +44,8 @@ export default function HrDiscipline({ profile }) {
   const [open, setOpen] = useState(null)
   const [history, setHistory] = useState([])
   const [dialog, setDialog] = useState(null)     // { kind, row }
+  const [recording, setRecording] = useState(null)   // discipline row being recorded
+  const [recKey, setRecKey] = useState(0)
 
   async function load() {
     if (!org.selectedOrg) return
@@ -214,6 +217,7 @@ export default function HrDiscipline({ profile }) {
                       {st !== 'deleted' && <button className="logout-button" style={{ color: '#B42318' }} onClick={() => setDialog({ kind: 'delete', row: r })}>Delete…</button>}
                       {st !== 'active' && <button className="logout-button" onClick={() => setDialog({ kind: 'restore', row: r })}>Restore…</button>}
                     </div>
+                    <RecordingsList key={recKey} disciplineId={r.id} onRecord={() => setRecording(r)} />
                     <div><div style={{ fontSize: 12, fontWeight: 800, color: 'var(--mist)', textTransform: 'uppercase', margin: '6px 0 4px' }}>History</div><HistoryList items={history} people={people} /></div>
                   </div>
                 </td></tr>
@@ -223,6 +227,9 @@ export default function HrDiscipline({ profile }) {
           {shown.length === 0 && <tr><td colSpan="7" style={{ color: 'var(--mist)' }}>No discipline records.</td></tr>}
         </tbody>
       </table>
+
+      {recording && <MeetingRecorder orgId={org.selectedOrg} employee={employees.find((e) => e.id === recording.employee_id)} disciplineId={recording.id} profile={profile}
+        onClose={() => setRecording(null)} onSaved={() => { setRecording(null); setRecKey((k) => k + 1) }} />}
 
       {dialog && (
         <ReasonDialog

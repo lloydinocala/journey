@@ -4,7 +4,7 @@ const DICT = {
   en: {
     title: 'My Records', back: 'Back',
     tab_pay: 'Pay Stubs', tab_pto: 'Time Off', tab_w2: 'W-2',
-    tab_certs: 'Certifications', tab_onboarding: 'Onboarding', tab_docs: 'Documents', tab_file: 'My File', file_none: 'Nothing has been shared to your file.', file_intro: 'Records your employer has shared with you.', file_disc: 'Discipline', file_sep: 'Separation', col_date: 'Date', col_action: 'Action', col_details: 'Details', sc_avg_note: 'Company avg is the average across all employees — your numbers are never compared to another individual.',
+    tab_certs: 'Certifications', tab_onboarding: 'Onboarding', tab_docs: 'Documents', tab_file: 'My File', tab_sign: 'Forms to sign', file_none: 'Nothing has been shared to your file.', file_intro: 'Records your employer has shared with you.', file_disc: 'Discipline', file_sep: 'Separation', col_date: 'Date', col_action: 'Action', col_details: 'Details', sc_avg_note: 'Company avg is the average across all employees — your numbers are never compared to another individual.',
     certs_none: 'No certifications on file.', onb_none: 'No onboarding tasks.', docs_none: 'No documents on file.',
     col_type: 'Type', col_id: 'Identifier', col_expires: 'Expires', col_status: 'Status', col_task: 'Task', col_title: 'Title', col_category: 'Category',
     pay_week: 'Pay week', gross: 'Gross', taxes: 'Taxes', net: 'Net', stub: 'Stub',
@@ -32,7 +32,7 @@ const DICT = {
   es: {
     title: 'Mis Registros', back: 'Atrás',
     tab_pay: 'Talones de Pago', tab_pto: 'Tiempo Libre', tab_w2: 'W-2',
-    tab_certs: 'Certificaciones', tab_onboarding: 'Incorporación', tab_docs: 'Documentos', tab_file: 'Mi expediente', file_none: 'No se ha compartido nada en su expediente.', file_intro: 'Registros que su empleador ha compartido con usted.', file_disc: 'Disciplina', file_sep: 'Separación', col_date: 'Fecha', col_action: 'Acción', col_details: 'Detalles', sc_avg_note: 'El promedio de la empresa es el promedio de todos los empleados — sus números nunca se comparan con otra persona.',
+    tab_certs: 'Certificaciones', tab_onboarding: 'Incorporación', tab_docs: 'Documentos', tab_file: 'Mi expediente', tab_sign: 'Formularios para firmar', file_none: 'No se ha compartido nada en su expediente.', file_intro: 'Registros que su empleador ha compartido con usted.', file_disc: 'Disciplina', file_sep: 'Separación', col_date: 'Fecha', col_action: 'Acción', col_details: 'Detalles', sc_avg_note: 'El promedio de la empresa es el promedio de todos los empleados — sus números nunca se comparan con otra persona.',
     certs_none: 'No hay certificaciones.', onb_none: 'No hay tareas de incorporación.', docs_none: 'No hay documentos.',
     col_type: 'Tipo', col_id: 'Identificador', col_expires: 'Vence', col_status: 'Estado', col_task: 'Tarea', col_title: 'Título', col_category: 'Categoría',
     pay_week: 'Semana de pago', gross: 'Bruto', taxes: 'Impuestos', net: 'Neto', stub: 'Talón',

@@ -9,7 +9,8 @@ import { supabase } from '../../utils/supabase'
 import { listEmployees, updateEmployee, listJobDescriptions, listDiscipline, listSeparations, listCertifications, listDocuments, separationReasonLabel } from './hrData'
 import { listMetrics, listEntries, listMetricPositions, applicableMetricIds, companyAverages, vsAverage, fmtValue, currentQuarter } from './scorecardData'
 import { useOrgSelector, OrgBar } from './shared'
-import { recordChange } from './hrRecords'
+import { recordChange, orgName as getOrgName } from './hrRecords'
+import { listSignedForms, printCertificate } from './signing'
 
 const DISC_LABEL = { verbal: 'Verbal warning', written: 'Written warning', final: 'Final warning', suspension: 'Suspension', termination: 'Termination' }
 const box = { border: '1px solid var(--border)', borderRadius: 12, padding: 16, marginBottom: 16, background: '#fff' }
@@ -52,7 +53,8 @@ export default function HrEmployeeFile({ profile }) {
       listMetrics(org.selectedOrg), listEntries(org.selectedOrg, empId), listMetricPositions(org.selectedOrg),
       companyAverages(org.selectedOrg, period),
     ])
-    setD({ disc: disc.filter((x) => (x.status || 'active') !== 'deleted'), seps: seps.filter((x) => (x.status || 'active') !== 'deleted'), certs, docs, metrics, entries, positions, avgs, period })
+    const [signed, appRes] = await Promise.all([listSignedForms(org.selectedOrg, { employeeId: empId }), supabase.from('rewards_applicants').select('id, name, applied_at').eq('hired_employee_id', empId)])
+    setD({ signed, application: (appRes.data || [])[0] || null, disc: disc.filter((x) => (x.status || 'active') !== 'deleted'), seps: seps.filter((x) => (x.status || 'active') !== 'deleted'), certs, docs: docs.filter((x) => x.category !== 'medical'), metrics, entries, positions, avgs, period })
   }
   useEffect(() => { load() }, [org.selectedOrg, empId])
 
@@ -99,6 +101,15 @@ export default function HrEmployeeFile({ profile }) {
                 </select>
               </label>
               <Link to="/rewards/employees" style={{ fontSize: 13 }}>Employment &amp; tax details →</Link>
+              <label style={{ fontSize: 13, cursor: 'pointer', color: emp.legal_hold ? '#7F1D1D' : undefined, fontWeight: emp.legal_hold ? 700 : 400 }} title={emp.legal_hold_reason || 'Stops automatic deletion of this person\'s records while a claim or charge is pending'}>
+                <input type="checkbox" checked={!!emp.legal_hold} onChange={async (e) => {
+                  const on = e.target.checked
+                  const reason = on ? (window.prompt('Reason for the legal hold:') || '') : null
+                  if (on && !reason) return
+                  await updateEmployee(empId, { legal_hold: on, legal_hold_reason: reason })
+                  setEmployees((l) => l.map((x) => (x.id === empId ? { ...x, legal_hold: on, legal_hold_reason: reason } : x)))
+                }} /> Legal hold{emp.legal_hold && emp.legal_hold_reason ? ` — ${emp.legal_hold_reason}` : ''}
+              </label>
             </div>
           </div>
 
@@ -160,6 +171,20 @@ export default function HrEmployeeFile({ profile }) {
               </tbody></table>
             )}
             <div style={{ fontSize: 12, color: 'var(--mist)', marginTop: 6 }}>Certifications always show in the employee's own records.</div>
+          </div>
+
+          <div style={box}>
+            <h3 style={h3}>Signed forms</h3>
+            {!d.signed.length && !d.application ? <div style={{ fontSize: 13, color: 'var(--mist)' }}>None yet.</div> : (
+              <table className="data-table"><tbody>
+                {d.application && <tr><td>Job application</td><td>{new Date(d.application.applied_at).toLocaleDateString()}</td><td style={{ textAlign: 'right' }}><Link to={'/rewards/hiring?applicant=' + d.application.id}>Open</Link></td></tr>}
+                {d.signed.map((s) => (
+                  <tr key={s.id}><td>{s.form_type === 'w4' ? 'Form W-4' : (s.data?.title || 'Acknowledgment')} <span style={{ fontSize: 11.5, color: 'var(--mist)' }}>{s.form_version}</span></td><td>{new Date(s.signed_at).toLocaleString()}</td>
+                    <td style={{ textAlign: 'right' }}><button className="logout-button" onClick={async () => printCertificate({ orgName: await getOrgName(org.selectedOrg), employeeName: emp.full_name, form: s })}>🖨 Certificate</button></td></tr>
+                ))}
+              </tbody></table>
+            )}
+            <div style={{ fontSize: 12, color: 'var(--mist)', marginTop: 6 }}>Employees always see their own signed forms.</div>
           </div>
 
           <div style={box}>

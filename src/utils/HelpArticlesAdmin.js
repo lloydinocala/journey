@@ -646,6 +646,89 @@ export const HELP_ARTICLES = [
         ]
       }
     ]
+  },
+  {
+    "id": "hr-hiring-docs",
+    "title": "Hiring, Required Documents, Signing & Recording",
+    "area": "Human Resources",
+    "keywords": [
+      "hiring",
+      "application",
+      "apply",
+      "application link",
+      "screening",
+      "interview",
+      "questions",
+      "print",
+      "i-9",
+      "w-4",
+      "e-verify",
+      "new hire report",
+      "florida",
+      "required documents",
+      "retention",
+      "legal hold",
+      "delete",
+      "archive",
+      "policy",
+      "handbook",
+      "acknowledge",
+      "sign",
+      "signature",
+      "record meeting",
+      "recording",
+      "consent",
+      "transcript"
+    ],
+    "purpose": "Hire with job-related forms, keep every required document on file, have employees sign their W-4 and policies in the app, and record discipline meetings — all with the legal guardrails built in.",
+    "sections": [
+      {
+        "h": "Hiring",
+        "items": [
+          "Online application: HR → Hiring shows your company's application link. Copy it to your website, job posts or a text message. Applicants fill it out on their phone — no login — and it lands in Applied with an Agent Inbox notice to people who manage hiring. Turn \"Accepting applications\" off any time.",
+          "The application asks only job-related questions (work authorization, 18+, driver's license, experience, work history, references). It never asks age, date of birth, marital status, religion or other protected information.",
+          "Click an applicant's name to open their record: the application, a Phone Screening form and an Interview Evaluation form (structured questions rated 1–5, with a recommendation). Print any form blank or filled.",
+          "Manage questions (also in Settings → WorkForce): add your own questions to the application, screening or interview — for every position or just one.",
+          "Rejected applicants are kept 1 year after the decision (federal rule), then deleted automatically — unless you tick Legal hold because a claim or charge was filed. Reconsider moves them back to Applied."
+        ]
+      },
+      {
+        "h": "Required documents (HR → Documents)",
+        "items": [
+          "Required documents shows every active employee against every required document — federal plus their work state (Florida now). Click any cell to see what's needed and fix it.",
+          "Form I-9: use the official USCIS form, upload the signed copy, and record the Section 2 inspection (who, when, List A or List B + C). Journey doesn't e-sign I-9s — that needs a specially certified system.",
+          "Form W-4: employees sign it in My Records; it updates the payroll tax profile. A paper W-4 can be uploaded instead.",
+          "Florida: record the E-Verify case number (required at 25+ employees) and the date you filed the Florida New Hire Report (due within 20 days of hire — Journey flags it overdue). Florida has no state withholding form."
+        ]
+      },
+      {
+        "h": "Keeping and deleting records",
+        "items": [
+          "Each document's keep-until date is worked out automatically: the longer of the legal minimum for its category and 3 years after the employee's separation (W-4 and tax records: 4 years). You can set a date yourself instead.",
+          "Documents archive automatically 7 days after a separation, and are permanently deleted (file and record) after their keep-until date. Policy and benefit documents are never deleted automatically.",
+          "Documents due for deletion in the next 30 days are listed at the top of All documents. Put an employee on Legal hold (Documents or their Employee File) and nothing of theirs is deleted while it's on.",
+          "Medical, drug-test and leave records go in the Medical / leave (confidential) category — never shown in the Employee File or to the employee.",
+          "Filter by Current / Archived / All, search by name or title, and archive or unarchive everything shown at once."
+        ]
+      },
+      {
+        "h": "Policies to sign and electronic signatures",
+        "items": [
+          "Documents → Policies to sign: publish your handbook, safety, vehicle and other policies (paste the text and/or attach the PDF). Every active employee sees it in My Records → Forms to sign and acknowledges it.",
+          "Editing the text creates a new version, and everyone is asked to acknowledge it again. You can see who has signed each one.",
+          "Every signature records the typed name, the exact statement agreed to, the time, IP address and device, plus a fingerprint (SHA-256) proving the content didn't change. Print a certificate from Signed forms, the Employee File, or the employee's own records."
+        ]
+      },
+      {
+        "h": "Recording a discipline meeting",
+        "items": [
+          "Open a discipline record → 🎙 Record a meeting. Florida requires everyone present to consent, so list each person and tick that they consent — recording won't start until all have.",
+          "Read the consent statement aloud as soon as recording starts, so the consent is on the recording too. If anyone declines, don't record.",
+          "Chrome and Edge show a live transcript; you can correct it, then ✦ Summarize for the record. The audio is stored privately; tick \"In employee's file\" to share the summary and transcript with the employee.",
+          "Recordings are deleted automatically 3 years after the employee's separation (unless on legal hold)."
+        ]
+      }
+    ]
   }
 ]
 
@@ -661,14 +744,14 @@ export const ROUTE_HELP = {
   "/rewards/employees": "employees",
   "/rewards/employee-file": "hr-records",
   "/rewards/job-descriptions": "hr",
-  "/rewards/hiring": "hr",
+  "/rewards/hiring": "hr-hiring-docs",
   "/rewards/onboarding": "hr",
   "/rewards/discipline": "hr-records",
   "/rewards/separations": "hr-records",
   "/rewards/certifications": "hr",
   "/rewards/skills": "hr-records",
   "/rewards/scorecards": "scorecards",
-  "/rewards/documents": "hr",
+  "/rewards/documents": "hr-hiring-docs",
   "/rewards/time-off": "hr-records",
   "/rewards/settings": "hr",
   "/rewards": "hr",

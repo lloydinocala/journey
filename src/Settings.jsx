@@ -12,6 +12,7 @@ import ServiceRequestSettings from './ServiceRequestSettings'
 import TaskSettings from './TaskSettings'
 import AgentSettings from './AgentSettings'
 import TimeOffSettings from './TimeOffSettings'
+import { HiringQuestionsSettings } from './modules/rewards-hvac/HiringPanels'
 import CallHandlingPrefs from './CallHandlingPrefs'
 import PayrollSettings from './PayrollSettings'
 import CollectionsSettings from './CollectionsSettings'
@@ -733,6 +734,9 @@ export default function Settings({ profile }) {
       <SettingsSection id="workforce" isAdmin={isAdmin} highlight={highlight}>
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Time off</h3>
       <TimeOffSettings orgId={selectedOrg} />
+
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Hiring questions (application, screening, interview)</h3>
+      <HiringQuestionsSettings orgId={selectedOrg} />
 
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Call handling for the team</h3>
       <CallHandlingPrefs profile={profile} orgId={selectedOrg} adminMode />

@@ -57,6 +57,7 @@ import TechChecklistRun from './TechChecklistRun'
 import DiscountCatalog from './DiscountCatalog'
 import OnCallSchedule from './OnCallSchedule'
 import NeedsRescheduling from './NeedsRescheduling'
+import PublicApply from './PublicApply'
 import AgentInbox from './AgentInbox'
 import TeamCommunications from './TeamCommunications'
 import RolesConfig from './RolesConfig'
@@ -473,6 +474,7 @@ export default function App() {
         <Route path="/sms-policy" element={<SmsPolicy />} />
         <Route path="/join-plan/:propertyId" element={<JoinPlan />} />
         <Route path="/r/:token" element={<ServiceHub />} />
+        <Route path="/apply/:token" element={<PublicApply />} />
         <Route path="/a/:token" element={<ServiceApproval />} />
         <Route path="/portal/*" element={<CustomerPortal />} />
         <Route path="/employee/*" element={<EmployeePortal />} />

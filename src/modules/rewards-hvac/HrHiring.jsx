@@ -3,6 +3,10 @@ import { useState, useEffect } from 'react'
 import { listApplicants, addApplicant, updateApplicant, hireApplicant, listJobDescriptions, HIRING_STAGES } from './hrData'
 import { useOrgSelector, OrgBar } from './shared'
 import AiAssist from '../../AiAssist'
+import { supabase } from '../../utils/supabase'
+import { ApplicantDetail, HiringQuestions } from './HiringPanels'
+import { printHiringForm, loadQuestions } from './hiringForms'
+import { orgName as getOrgName } from './hrRecords'
 
 const STAGE_LABEL = { applied: 'Applied', screen: 'Screening', interview: 'Interview', offer: 'Offer', hired: 'Hired', rejected: 'Rejected' }
 const blank = { name: '', email: '', phone: '', source: 'indeed', job_description_id: '' }
@@ -20,13 +24,29 @@ export default function HrHiring({ profile }) {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  const [token, setToken] = useState(null)
+  const [publicOn, setPublicOn] = useState(true)
+  const [openId, setOpenId] = useState(() => new URLSearchParams(window.location.search).get('applicant'))
+  const [showQuestions, setShowQuestions] = useState(false)
 
   async function load() {
     if (!org.selectedOrg) return
-    const [a, j] = await Promise.all([listApplicants(org.selectedOrg), listJobDescriptions(org.selectedOrg)])
-    setApps(a); setJds(j)
+    const [a, j, o] = await Promise.all([listApplicants(org.selectedOrg), listJobDescriptions(org.selectedOrg),
+      supabase.from('organizations').select('hiring_token, hiring_public_enabled').eq('id', org.selectedOrg).maybeSingle()])
+    setApps(a); setJds(j); setToken(o.data?.hiring_token || null); setPublicOn(o.data?.hiring_public_enabled !== false)
   }
   useEffect(() => { load() }, [org.selectedOrg])
+  const link = token ? `${window.location.origin}/apply/${token}` : ''
+  async function copyLink() {
+    try { await navigator.clipboard.writeText(link); setMsg('Application link copied — post it on your website, Indeed, Facebook, or text it to a candidate.') } catch (e) { setMsg(link) }
+  }
+  async function togglePublic(v) {
+    await supabase.from('organizations').update({ hiring_public_enabled: v }).eq('id', org.selectedOrg); setPublicOn(v)
+  }
+  async function printBlank(type) {
+    printHiringForm({ orgName: await getOrgName(org.selectedOrg), formType: type, applicant: null, positionTitle: '', answers: null, questions: await loadQuestions(org.selectedOrg, type, null) })
+  }
+  const opened = apps.find((a) => a.id === openId)
 
   async function submit(e) {
     e.preventDefault()
@@ -56,9 +76,29 @@ export default function HrHiring({ profile }) {
     <div>
       <div className="page-header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}><h2>Hiring</h2><span className="badge">{apps.filter((a) => a.stage !== 'rejected' && a.stage !== 'hired').length} in pipeline</span></div>
-        <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ New Applicant'}</button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="logout-button" onClick={() => setShowQuestions(!showQuestions)}>{showQuestions ? 'Done with questions' : 'Manage questions'}</button>
+          <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ New Applicant'}</button>
+        </div>
       </div>
       <OrgBar {...org} />
+
+      <div className="section-card" style={{ padding: 12, marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <b style={{ fontSize: 13.5 }}>Online application</b>
+        <label style={{ fontSize: 13, cursor: 'pointer' }}><input type="checkbox" checked={publicOn} onChange={(e) => togglePublic(e.target.checked)} /> Accepting applications</label>
+        {publicOn && token && <>
+          <code style={{ fontSize: 12, background: '#F1F5F9', padding: '3px 7px', borderRadius: 6, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{link}</code>
+          <button className="logout-button" onClick={copyLink}>🔗 Copy link</button>
+          <a className="logout-button" href={link} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>Preview</a>
+        </>}
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12.5, color: 'var(--mist)', alignSelf: 'center' }}>Print blank:</span>
+          <button className="logout-button" onClick={() => printBlank('application')}>Application</button>
+          <button className="logout-button" onClick={() => printBlank('screening')}>Screening</button>
+          <button className="logout-button" onClick={() => printBlank('interview')}>Interview</button>
+        </span>
+      </div>
+      {showQuestions && <div className="section-card" style={{ padding: 14, marginBottom: 14 }}><h3 style={{ marginTop: 0 }}>Hiring questions</h3><HiringQuestions orgId={org.selectedOrg} jds={jds} /></div>}
       {msg && <div style={{ marginBottom: 14, color: '#166534' }}>{msg}</div>}
 
       {showForm && (
@@ -89,7 +129,8 @@ export default function HrHiring({ profile }) {
                 const next = HIRING_STAGES[idx + 1]
                 return (
                   <div key={a.id} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 10, padding: 10, marginBottom: 8 }}>
-                    <div style={{ fontWeight: 600 }}>{a.name}</div>
+                    <button onClick={() => setOpenId(a.id)} style={{ background: 'none', border: 'none', padding: 0, fontWeight: 700, color: '#1F3A5F', cursor: 'pointer', textAlign: 'left' }}>{a.name}</button>
+                    {a.source === 'website' && <span style={{ fontSize: 10.5, fontWeight: 800, color: '#166534', background: '#DCFCE7', borderRadius: 999, padding: '1px 6px', marginLeft: 6 }}>Online</span>}
                     <div style={{ fontSize: 12, color: 'var(--mist)' }}>{jdTitle(a.job_description_id) || a.source || ''}</div>
                     <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       {next && next !== 'rejected' && (
@@ -114,10 +155,18 @@ export default function HrHiring({ profile }) {
 
       {apps.some((a) => a.stage === 'rejected') && (
         <details style={{ marginTop: 18 }}>
-          <summary style={{ cursor: 'pointer', color: 'var(--mist)' }}>Rejected ({apps.filter((a) => a.stage === 'rejected').length})</summary>
-          <ul>{apps.filter((a) => a.stage === 'rejected').map((a) => <li key={a.id}>{a.name}</li>)}</ul>
+          <summary style={{ cursor: 'pointer', color: 'var(--mist)' }}>Rejected ({apps.filter((a) => a.stage === 'rejected').length}) — kept 1 year after the decision, then deleted automatically</summary>
+          <table className="data-table" style={{ marginTop: 8 }}><thead><tr><th>Applicant</th><th>Position</th><th>Rejected</th><th>Auto-delete</th><th></th></tr></thead><tbody>
+            {apps.filter((a) => a.stage === 'rejected').map((a) => (
+              <tr key={a.id}><td>{a.name}</td><td>{jdTitle(a.job_description_id) || '—'}</td><td>{a.rejected_at ? new Date(a.rejected_at).toLocaleDateString() : '—'}</td>
+                <td>{a.legal_hold ? <b>Legal hold</b> : a.rejected_at ? new Date(new Date(a.rejected_at).getTime() + 365 * 86400000).toLocaleDateString() : '—'}</td>
+                <td style={{ textAlign: 'right' }}><button className="logout-button" onClick={() => setOpenId(a.id)}>Open</button> <button className="logout-button" onClick={() => advance(a, 'applied')}>Reconsider</button></td></tr>
+            ))}
+          </tbody></table>
         </details>
       )}
+
+      {opened && <ApplicantDetail applicant={opened} positionTitle={jdTitle(opened.job_description_id)} orgId={org.selectedOrg} profile={profile} onClose={() => setOpenId(null)} onChanged={load} />}
     </div>
   )
 }
