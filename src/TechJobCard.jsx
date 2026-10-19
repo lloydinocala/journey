@@ -295,6 +295,7 @@ export default function TechJobCard({ profile }) {
   // Stop / incomplete
   const [showStopModal, setShowStopModal] = useState(false)
   const [incompleteReason, setIncompleteReason] = useState('')
+  const [incompleteNote, setIncompleteNote] = useState('')
   const [savingStop, setSavingStop] = useState(false)
   const [stopError, setStopError] = useState('')
 
@@ -682,7 +683,7 @@ export default function TechJobCard({ profile }) {
   function onStopMyTime() {
     // Ends the job. If everything is clear -> Complete. Otherwise -> Incomplete (reason required).
     if (allClear) { finishJob('completed', null); return }
-    setIncompleteReason(''); setStopError(''); setShowStopModal(true)
+    setIncompleteReason(''); setIncompleteNote(''); setStopError(''); setShowStopModal(true)
   }
   async function finishJob(finalStatus, reason) {
     setSavingStop(true)
@@ -696,8 +697,11 @@ export default function TechJobCard({ profile }) {
     if (error) { setStopError(error.message); setSavingStop(false); return }
     if (finalStatus === 'incomplete' && reason) {
       const { data: existing } = await supabase.from('job_incomplete_records').select('id').eq('job_id', jobId).limit(1)
-      if (existing && existing.length) await supabase.from('job_incomplete_records').update({ reason }).eq('id', existing[0].id)
-      else await supabase.from('job_incomplete_records').insert({ org_id: job.org_id, job_id: jobId, reason })
+      // The reason routes it: parts/estimates → Jobs Management; no access, weather or
+      // scheduling interruptions → Dispatch to reschedule (set by the database).
+      const reason_note = incompleteNote.trim() || null
+      if (existing && existing.length) await supabase.from('job_incomplete_records').update({ reason, reason_note }).eq('id', existing[0].id)
+      else await supabase.from('job_incomplete_records').insert({ org_id: job.org_id, job_id: jobId, reason, reason_note })
     }
     setJob((p) => ({ ...p, status: finalStatus, paused_at: null }))
     setSavingStop(false); setShowStopModal(false)
@@ -1790,10 +1794,13 @@ export default function TechJobCard({ profile }) {
               <option value="">Select a reason…</option>
               {INCOMPLETE_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
+            {incompleteReason === 'Other' && (
+              <textarea value={incompleteNote} onChange={(e) => setIncompleteNote(e.target.value)} rows={2} placeholder="What happened? (required for Other)" style={{ width: '100%', padding: 12, fontSize: 16, borderRadius: 10, border: '1px solid var(--jc-line)', marginBottom: 12, boxSizing: 'border-box' }} />
+            )}
             {stopError && <p style={{ color: 'var(--jc-red)', fontSize: 15, marginBottom: 10 }}>{stopError}</p>}
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="jc-btn ghost" disabled={savingStop} onClick={() => setShowStopModal(false)}>Cancel</button>
-              <button className="jc-btn red wide" disabled={savingStop || !incompleteReason} onClick={() => finishJob('incomplete', incompleteReason)}>{savingStop ? 'Saving…' : 'Stop — Mark Incomplete'}</button>
+              <button className="jc-btn red wide" disabled={savingStop || !incompleteReason || (incompleteReason === 'Other' && !incompleteNote.trim())} onClick={() => finishJob('incomplete', incompleteReason)}>{savingStop ? 'Saving…' : 'Stop — Mark Incomplete'}</button>
             </div>
           </div>
         </div>

@@ -94,7 +94,7 @@ export default function JobsManagement({ profile }) {
             .select(`
               id, job_id, estimate_id, warranty_or_cash, claim_status, customer_communication,
               equipment_brand, equipment_model, equipment_serial, created_at, reason,
-              estimate_approval, new_estimate_amount, availability_date,
+              estimate_approval, new_estimate_amount, availability_date, route, reason_note,
               jobs ( id, job_number, segment, job_date, status, property_id, customer_id, job_type, deleted_at,
                 properties ( street_address, customers!properties_customer_id_fkey ( display_name, primary_phone ) )
               )
@@ -158,7 +158,10 @@ export default function JobsManagement({ profile }) {
 
   useEffect(() => { loadAll(selectedOrg) }, [selectedOrg])
 
+  // Records routed to Dispatch (access / weather / scheduling problems) live on the
+  // Needs Rescheduling page instead; each side can send a record to the other.
   const visibleIncomplete = incompleteRecords
+    .filter((rec) => rec.route !== 'dispatch')
     .map((rec) => {
       const job = rec.jobs
       if (!job) return null
@@ -245,6 +248,13 @@ export default function JobsManagement({ profile }) {
     if (!window.confirm(`Remove ${rec.job.job_number} from Jobs Management? This clears the incomplete-job entry (any parts ordered stay on record). The job itself is not deleted.`)) return
     setBusyRecId(rec.id)
     await supabase.from('job_incomplete_records').delete().eq('id', rec.id)
+    setBusyRecId(null)
+    loadAll(selectedOrg)
+  }
+
+  async function sendToDispatch(rec) {
+    setBusyRecId(rec.id)
+    await supabase.from('job_incomplete_records').update({ route: 'dispatch' }).eq('id', rec.id)
     setBusyRecId(null)
     loadAll(selectedOrg)
   }
@@ -450,6 +460,7 @@ export default function JobsManagement({ profile }) {
                               <>
                                 <button className="auth-button" style={editBtn} onClick={() => startEditRec(rec)}>Edit</button>
                                 <button className="logout-button" onClick={() => startAddPart(rec)}>+ Add Part</button>
+                                <button className="logout-button" disabled={busyRecId === rec.id} title="Not a parts or estimate issue — hand it to Dispatch to reschedule" onClick={() => sendToDispatch(rec)}>→ Dispatch</button>
                                 <button style={deleteBtn} disabled={busyRecId === rec.id} onClick={() => deleteRecord(rec)}>Delete</button>
                               </>
                             )}
@@ -459,7 +470,7 @@ export default function JobsManagement({ profile }) {
                         <td {...frz('jm-c3')}>{rec.job.segment}</td>
                         <td>{rec.job.properties?.customers?.display_name || '—'}</td>
                         <td>{rec.job.properties?.customers?.primary_phone || '—'}</td>
-                        <td style={{ fontSize: 12 }}>{rec.reason || '—'}</td>
+                        <td style={{ fontSize: 12 }}>{rec.reason || '—'}{rec.reason_note && <div style={{ color: 'var(--mist)', marginTop: 3 }}>“{rec.reason_note}”</div>}</td>
                         <td>
                           <button className="auth-button" style={{ width: 88, padding: '10px 6px', margin: 0, whiteSpace: 'normal', lineHeight: 1.15 }} onClick={() => openEstimate(rec)}>Open Estimate</button>
                         </td>

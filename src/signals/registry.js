@@ -65,9 +65,13 @@ async function completedNotInvoiced(org) {
 // hand until the newest segment of its job reaches Complete (mirrors that page's
 // visibleIncomplete filter).
 async function incompleteJobsCount(org) {
+  return openIncompleteCount(org, 'jobs_management')
+}
+// Open incomplete records for one route (jobs_management | dispatch).
+async function openIncompleteCount(org, route) {
   const { data: recs } = await supabase.from('job_incomplete_records')
-    .select('job_id, jobs ( job_number, segment, deleted_at )').eq('org_id', org)
-  const list = (recs || []).filter((r) => r.jobs && !r.jobs.deleted_at)
+    .select('job_id, route, jobs ( job_number, segment, deleted_at )').eq('org_id', org)
+  const list = (recs || []).filter((r) => r.jobs && !r.jobs.deleted_at && (route === 'dispatch' ? r.route === 'dispatch' : r.route !== 'dispatch'))
   if (!list.length) return 0
   const { data: jobs } = await supabase.from('jobs').select('job_number, segment, status').eq('org_id', org).is('deleted_at', null)
   const maxByNum = {}, statusBySeg = {}
@@ -103,6 +107,9 @@ export const REGISTRY = [
   { key: 'needs-dispatch', station: 'dispatch', hub: 'start', name: 'Needs dispatch', tone: 'amber', href: '/dispatch-map', cta: 'Open dispatch map', audience: 'office',
     line: (n) => `${n} scheduled job${n === 1 ? '' : 's'} with no tech assigned`,
     count: (org) => needsDispatch(org) },
+  { key: 'needs-rescheduling', station: 'dispatch', hub: 'start', name: 'Needs rescheduling', tone: 'amber', href: '/needs-rescheduling', cta: 'Open reschedule list', audience: 'office',
+    line: (n) => `${n} incomplete job${n === 1 ? '' : 's'} to reschedule (no access, weather, interruption)`,
+    count: (org) => openIncompleteCount(org, 'dispatch') },
   { key: 'parts-ready-schedule', station: 'dispatch', hub: 'start', name: 'Parts in — schedule return', tone: 'amber', href: '/calendar', cta: 'Open calendar', audience: 'office',
     line: (n) => `${n} staged visit${n === 1 ? '' : 's'} unblocked — the part arrived`,
     count: headCount('jobs', (q) => q.eq('parts_ready', true).eq('date_pending', true).is('deleted_at', null).neq('status', 'completed')) },

@@ -35,6 +35,7 @@ const COLUMNS = [
   { key: 'start_time', label: 'Scheduled Start' },
   { key: 'job_type', label: 'Type' },
   { key: 'service_complaint', label: 'Issue' },
+  { key: 'diagnosis', label: 'Diagnosis' },
   { key: 'gate_code', label: 'Gate Code' },
   { key: 'tenant_1', label: 'Occupant 1' },
   { key: 'tenant_1_phone', label: 'Phone 1' },
@@ -54,6 +55,24 @@ const COLUMNS = [
 ]
 
 const DEFAULT_VISIBLE = COLUMNS.map((c) => c.key)
+
+// Work-type views (tabs above the table). Each is a filtered view of the same jobs,
+// matched on job type, with the columns that matter for that kind of work.
+const VIEW_TYPES = {
+  retrofit: ['RETROFIT', 'INSTALL', 'ELECTRIC SPLIT SYSTEM', 'GAS FURNACE SYSTEM', 'MINI-SPLIT', 'PACKAGED UNIT', 'SIDE-DISCHARGE'],
+  duct: ['DUCT CLEANING'],
+}
+const VIEW_EXTRA_COLUMNS = [
+  { key: 'est_total', label: 'Estimate Total', view: 'retrofit' },
+  { key: 'est_approval', label: 'Approval', view: 'retrofit' },
+  { key: 'payment', label: 'Payment / Financing', view: 'retrofit' },
+  { key: 'permit', label: 'Permit', view: 'retrofit' },
+  { key: 'invoice_total', label: 'Price', view: 'duct' },
+]
+const VIEW_COLUMNS = {
+  retrofit: ['customer', 'street_address', 'city', 'job_type', 'est_total', 'est_approval', 'payment', 'permit', 'technician_1', 'status', 'invoice_sent'],
+  duct: ['customer', 'street_address', 'city', 'start_time', 'invoice_total', 'technician_1', 'technician_2', 'status', 'invoice_sent', 'job_notes'],
+}
 
 const STATUS_OPTIONS = [
   { value: 'unscheduled', label: 'Unscheduled' },
@@ -93,6 +112,8 @@ export default function Jobs({ profile }) {
   const [drillParams] = useSearchParams()
   const [searchText, setSearchText] = useState(() => drillParams.get('tech') || drillParams.get('customer') || '')
   const [drillType, setDrillType] = useState(() => drillParams.get('type') || '')
+  const [view, setView] = useState(() => (['retrofit', 'duct'].includes(drillParams.get('view')) ? drillParams.get('view') : 'all'))
+  const [diagView, setDiagView] = useState(null)
   const [sortField, setSortField] = useState('job_number')
   const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
@@ -101,7 +122,7 @@ export default function Jobs({ profile }) {
     let cols = saved ? JSON.parse(saved) : DEFAULT_VISIBLE
     // Ensure the newly-added Technician 3/4 and Flags columns appear for existing
     // users whose saved preferences predate them.
-    for (const k of ['technician_3', 'technician_4', 'flags']) if (!cols.includes(k)) cols = [...cols, k]
+    for (const k of ['technician_3', 'technician_4', 'flags', 'diagnosis']) if (!cols.includes(k)) cols = [...cols, k]
     return cols
   })
 
@@ -163,7 +184,7 @@ export default function Jobs({ profile }) {
             .from('jobs')
             .select(`
               id, job_number, segment, status, job_date, date_pending, start_time, duration_hours, job_type, service_complaint,
-              property_id, customer_id, trip_charge_price_id, on_my_way_at, arrival_at, completed_at, job_notes, auth_diagnose_only, auth_limit_amount,
+              property_id, customer_id, trip_charge_price_id, on_my_way_at, arrival_at, completed_at, job_notes, auth_diagnose_only, auth_limit_amount, diagnosis_note,
               properties ( street_address, unit, city, state, zip, gate_code, customers!properties_customer_id_fkey ( id, display_name ), property_tenants ( name, phone ) ),
               job_technicians ( sort_order, users ( full_name ) ),
               trip_charge:trip_charge_price_id ( location, access, hours, services ( name ) )
@@ -181,7 +202,7 @@ export default function Jobs({ profile }) {
       if (jobIds.length) {
         const { data: invs } = await supabase
           .from('invoices')
-          .select('id, invoice_number, sent_at, paid_at, job_id')
+          .select('id, invoice_number, sent_at, paid_at, job_id, job_total')
           .eq('kind', 'invoice')
           .is('deleted_at', null)
           .in('job_id', jobIds)
@@ -190,7 +211,30 @@ export default function Jobs({ profile }) {
           if (!cur || (inv.sent_at || '') > (cur.sent_at || '')) invByJob[inv.job_id] = inv
         }
       }
-      setJobs((jobsData || []).map((j) => ({ ...j, invoice: invByJob[j.id] || null })))
+      // Diagnosis lives with the invoice: the tech's diagnosis note on the job, or the
+      // invoice's Diagnosis line when the note is blank. Read live, never copied.
+      const diagByInvoice = {}
+      const invIds = Object.values(invByJob).map((i) => i.id)
+      if (invIds.length) {
+        const { data: dl } = await supabase.from('invoice_line_items').select('invoice_id, description').eq('category', 'DIAGNOSIS').in('invoice_id', invIds)
+        for (const d of dl || []) diagByInvoice[d.invoice_id] = (d.description || '').replace(/^Diagnosis:\s*/i, '').trim()
+      }
+      // Retrofit view: the system estimate that became this job, and its permit.
+      const estByJob = {}, permitByJob = {}
+      if (jobIds.length) {
+        const [{ data: ests }, { data: pmts }] = await Promise.all([
+          supabase.from('invoices').select('spawned_job_id, converted_to_job_id, job_total, approval_status, payment_method, payment_confirmed_at, financing_status, paid_at')
+            .eq('kind', 'estimate').eq('estimate_type', 'system').is('deleted_at', null).eq('org_id', orgId)
+            .or('spawned_job_id.not.is.null,converted_to_job_id.not.is.null'),
+          supabase.from('permits').select('job_id, status, permit_number').not('job_id', 'is', null),  // RLS scopes to the org; matched by job id
+        ])
+        for (const e of ests || []) { const k = e.spawned_job_id || e.converted_to_job_id; if (k) estByJob[k] = e }
+        for (const p of pmts || []) permitByJob[p.job_id] = p
+      }
+      setJobs((jobsData || []).map((j) => {
+        const inv = invByJob[j.id] || null
+        return { ...j, invoice: inv, diagnosis: (j.diagnosis_note || '').trim() || (inv && diagByInvoice[inv.id]) || '', sysEstimate: estByJob[j.id] || null, permit: permitByJob[j.id] || null }
+      }))
       setJobTypes(jobTypesRes.data || [])
     } catch (e) {
       console.error(e)
@@ -582,7 +626,9 @@ export default function Jobs({ profile }) {
     loadData(selectedOrg)
   }
 
+  const inView = (j, v) => v === 'all' || (VIEW_TYPES[v] || []).includes((j.job_type || '').trim().toUpperCase())
   const filtered = jobs.filter((j) => {
+    if (!inView(j, view)) return false
     if (!visibleStatuses.includes(j.status)) return false
     if (drillType && (j.job_type || '') !== drillType) return false
     if (!searchText) return true
@@ -628,14 +674,18 @@ export default function Jobs({ profile }) {
     return 0
   })
 
-  const visibleColumnDefs = COLUMNS.filter((c) => c.required || visibleColumns.includes(c.key))
+  const visibleColumnDefs = view === 'all'
+    ? COLUMNS.filter((c) => c.required || visibleColumns.includes(c.key))
+    : [...COLUMNS, ...VIEW_EXTRA_COLUMNS].filter((c) => c.required || VIEW_COLUMNS[view].includes(c.key))
+        .sort((a, b) => (a.required === b.required ? 0 : a.required ? -1 : 1) || 0)
   const COLUMN_WIDTHS = {
     job_number: 100, segment: 80, job_date: 95, trip_charge: 170, start_time: 100,
     job_type: 110, service_complaint: 160, street_address: 180, unit: 70, city: 120,
     state: 60, zip: 80, flags: 150, gate_code: 90, tenant_1: 120, tenant_1_phone: 110,
     tenant_2: 120, tenant_2_phone: 110, technician_1: 130, technician_2: 130, technician_3: 130, technician_4: 130,
     on_my_way_at: 150, arrival_at: 150, completed_at: 150, status: 100, job_notes: 200,
-    customer: 160, invoice_sent: 120, invoice_number: 110,
+    customer: 160, invoice_sent: 120, invoice_number: 110, diagnosis: 220,
+    est_total: 120, est_approval: 110, payment: 160, permit: 140, invoice_total: 100,
   }
   const ACTIONS_WIDTH = 240
   const gridTemplateColumns = ACTIONS_WIDTH + 'px ' + visibleColumnDefs.map((c) => (COLUMN_WIDTHS[c.key] || 130) + 'px').join(' ')
@@ -759,6 +809,19 @@ export default function Jobs({ profile }) {
     if (key === 'arrival_at') return timeDisplay(j.arrival_at)
     if (key === 'completed_at') return timeDisplay(j.completed_at)
     if (key === 'job_notes') return j.job_notes || '—'
+    if (key === 'diagnosis') return j.diagnosis || '—'
+    if (key === 'est_total') return j.sysEstimate?.job_total != null ? '$' + Number(j.sysEstimate.job_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'
+    if (key === 'est_approval') return j.sysEstimate?.approval_status || '—'
+    if (key === 'payment') {
+      const e = j.sysEstimate
+      if (!e) return '—'
+      if (e.paid_at) return 'Paid'
+      if (e.payment_method === 'financing') return 'Financing — ' + (e.financing_status || 'applied')
+      if (e.payment_confirmed_at) return 'Confirmed' + (e.payment_method ? ' (' + e.payment_method + ')' : '')
+      return e.payment_method ? 'Selected: ' + e.payment_method : 'Awaiting method'
+    }
+    if (key === 'permit') return j.permit ? [j.permit.status, j.permit.permit_number].filter(Boolean).join(' · ') || 'On file' : '—'
+    if (key === 'invoice_total') return j.invoice?.job_total != null ? '$' + Number(j.invoice.job_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'
     if (key === 'invoice_number') return j.invoice?.invoice_number || '—'
     if (key === 'invoice_sent') return invoiceStatusText(j)
     return ''
@@ -796,6 +859,20 @@ export default function Jobs({ profile }) {
       )}
 
       {error && <div className="auth-error">{error}</div>}
+
+      {/* Work-type views: same jobs table, filtered by job type, with columns for that work. */}
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
+        {[['all', 'All Jobs'], ['retrofit', 'Retrofits'], ['duct', 'Duct Cleaning']].map(([key, label]) => {
+          const n = key === 'all' ? null : jobs.filter((j) => inView(j, key) && j.status !== 'completed' && j.status !== 'canceled').length
+          return (
+            <button key={key} type="button" onClick={() => setView(key)}
+              style={{ border: 'none', background: 'none', padding: '9px 18px', fontSize: 14, fontWeight: view === key ? 700 : 500,
+                color: view === key ? '#176E7A' : 'var(--mist)', borderBottom: view === key ? '2px solid #176E7A' : '2px solid transparent', marginBottom: -1, cursor: 'pointer' }}>
+              {label}{n ? ` (${n} open)` : ''}
+            </button>
+          )
+        })}
+      </div>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div style={{ position: 'relative', marginBottom: 0, minWidth: 160 }}>
@@ -1118,6 +1195,10 @@ export default function Jobs({ profile }) {
                         invoiceStatusBadge(j)
                       ) : col.key === 'invoice_number' ? (
                         invoiceNumberCell(j)
+                      ) : col.key === 'diagnosis' ? (
+                        j.diagnosis
+                          ? <button type="button" onClick={() => setDiagView(j)} title="Open the full diagnosis" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', color: '#2E7FC4', fontSize: 12.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontFamily: 'inherit' }}>{j.diagnosis}</button>
+                          : '—'
                       ) : col.key === 'street_address' ? (
                         j.properties?.street_address
                           ? <Link to={'/properties?q=' + encodeURIComponent(j.properties.street_address)} style={{ color: '#2E7FC4', textDecoration: 'underline' }}>{j.properties.street_address}</Link>
@@ -1156,6 +1237,20 @@ export default function Jobs({ profile }) {
           </div>
         )}
         </>
+      )}
+
+      {diagView && (
+        <div onClick={() => setDiagView(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 22, maxWidth: 560, width: '92%', boxShadow: '0 12px 40px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+              <h3 style={{ margin: 0 }}>Diagnosis — Job {diagView.job_number}{diagView.segment > 1 ? `-${diagView.segment}` : ''}</h3>
+              <button className="logout-button" onClick={() => setDiagView(null)}>Close</button>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--mist)', margin: '4px 0 12px' }}>{diagView.properties?.customers?.display_name || ''}{diagView.job_date ? ' · ' + diagView.job_date : ''}</div>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 14.5, lineHeight: 1.5, maxHeight: '55vh', overflowY: 'auto' }}>{diagView.diagnosis}</div>
+            <div style={{ marginTop: 14 }}><Link to={`/invoice/${diagView.id}`} className="logout-button" style={{ textDecoration: 'none' }}>Open invoice</Link></div>
+          </div>
+        </div>
       )}
 
       {newItemMode && (

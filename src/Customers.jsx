@@ -28,6 +28,8 @@ const COLUMNS = [
   { key: 'acquire_date', label: 'Acquired' },
   { key: 'notes', label: 'Notes' },
   { key: 'created_at', label: 'Added' },
+  { key: 'last_job_at', label: 'Last Job' },
+  { key: 'property_count', label: 'Properties' },
 ]
 
 const DEFAULT_VISIBLE = COLUMNS.map((c) => c.key)
@@ -41,12 +43,15 @@ export default function Customers({ profile }) {
   const [searchText, setSearchText] = useState('')
   const [newItemMode, setNewItemMode] = useState(null)
 
-  const [sortField, setSortField] = useState('display_name')
-  const [sortDirection, setSortDirection] = useState('asc')
+  // Default order: most recent job created first, then last name.
+  const [sortField, setSortField] = useState('last_job_at')
+  const [sortDirection, setSortDirection] = useState('desc')
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('customers_visible_columns_v2')
-    return saved ? JSON.parse(saved) : DEFAULT_VISIBLE
+    let cols = saved ? JSON.parse(saved) : DEFAULT_VISIBLE
+    for (const k of ['last_job_at', 'property_count']) if (!cols.includes(k)) cols = [...cols, k]
+    return cols
   })
 
   const [editingId, setEditingId] = useState(null)
@@ -91,7 +96,15 @@ export default function Customers({ profile }) {
           .eq('is_active', !showArchived)
           .order('created_at', { ascending: false })
       )
-      setCustomers(data)
+      // Most recent job created, and how many properties each customer owns/manages.
+      const [jobRows, propRows] = await Promise.all([
+        fetchAllRows(() => supabase.from('jobs').select('customer_id, created_at').eq('org_id', orgId).is('deleted_at', null).not('customer_id', 'is', null)),
+        fetchAllRows(() => supabase.from('properties').select('customer_id').eq('org_id', orgId).eq('is_active', true).not('customer_id', 'is', null)),
+      ])
+      const lastJob = {}, propCount = {}
+      for (const j of jobRows || []) if (!lastJob[j.customer_id] || j.created_at > lastJob[j.customer_id]) lastJob[j.customer_id] = j.created_at
+      for (const p of propRows || []) propCount[p.customer_id] = (propCount[p.customer_id] || 0) + 1
+      setCustomers((data || []).map((c) => ({ ...c, last_job_at: lastJob[c.id] || null, property_count: propCount[c.id] || 0 })))
     } catch (e) {
       console.error(e)
     }
@@ -117,7 +130,7 @@ export default function Customers({ profile }) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
     } else {
       setSortField(field)
-      setSortDirection('asc')
+      setSortDirection(field === 'last_job_at' || field === 'property_count' ? 'desc' : 'asc')
     }
   }
 
@@ -207,7 +220,14 @@ export default function Customers({ profile }) {
     )
   })
 
+  const lastNameKey = (c) => (c.last_name || (c.display_name || '').trim().split(/\s+/).slice(-1)[0] || '').toLowerCase()
   const sorted = [...filtered].sort((a, b) => {
+    if (sortField === 'last_job_at' || sortField === 'property_count') {
+      const av = sortField === 'property_count' ? a.property_count : (a.last_job_at || '')
+      const bv = sortField === 'property_count' ? b.property_count : (b.last_job_at || '')
+      if (av !== bv) return (av < bv ? -1 : 1) * (sortDirection === 'asc' ? 1 : -1)
+      return lastNameKey(a).localeCompare(lastNameKey(b))
+    }
     let aVal = (a[sortField] ?? '').toString().toLowerCase()
     let bVal = (b[sortField] ?? '').toString().toLowerCase()
     if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
@@ -343,6 +363,12 @@ export default function Customers({ profile }) {
                 {visibleColumns.includes('created_at') && (
                   <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('created_at')}>Added{sortArrow('created_at')}</th>
                 )}
+                {visibleColumns.includes('last_job_at') && (
+                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('last_job_at')}>Last Job{sortArrow('last_job_at')}</th>
+                )}
+                {visibleColumns.includes('property_count') && (
+                  <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('property_count')}>Properties{sortArrow('property_count')}</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -407,6 +433,8 @@ export default function Customers({ profile }) {
                       <td><input type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} /></td>
                     )}
                     {visibleColumns.includes('created_at') && <td>{new Date(c.created_at).toLocaleDateString()}</td>}
+                    {visibleColumns.includes('last_job_at') && <td>{c.last_job_at ? new Date(c.last_job_at).toLocaleDateString() : '—'}</td>}
+                    {visibleColumns.includes('property_count') && <td>{c.property_count || '—'}</td>}
                   </tr>
                 ) : (
                   <tr key={c.id}>
@@ -423,7 +451,10 @@ export default function Customers({ profile }) {
                         )
                       )}
                     </td>
-                    <td><Link to={`/customers/${c.id}`}>{c.display_name}</Link></td>
+                    <td>
+                      <Link to={`/customers/${c.id}`}>{c.display_name}</Link>
+                      {c.property_count > 1 && <span title={`Owns or manages ${c.property_count} properties`} style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#5B3FA8', background: '#EFEAFB', padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>Multi-property · {c.property_count}</span>}
+                    </td>
                     {visibleColumns.includes('company') && <td>{c.company || '—'}</td>}
                     {visibleColumns.includes('first_name') && <td>{c.first_name || '—'}</td>}
                     {visibleColumns.includes('last_name') && <td>{c.last_name || '—'}</td>}

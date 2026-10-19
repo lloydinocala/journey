@@ -23,7 +23,7 @@ const ROUTE_SECTIONS = {
   '/invoices': 'work', '/payments-to-confirm': 'work',
   '/dispatch': 'dispatch', '/calendar': 'dispatch', '/dispatch-map': 'dispatch', '/call': 'dispatch',
   '/call-log': 'dispatch', '/service-requests': 'dispatch', '/filter-orders': 'dispatch',
-  '/text-archive': 'dispatch', '/on-call': 'dispatch',
+  '/text-archive': 'dispatch', '/on-call': 'dispatch', '/needs-rescheduling': 'dispatch',
   '/permits': 'permitting', '/building-authorities': 'permitting',
   '/workforce': 'workforce', '/team': 'workforce', '/roles': 'workforce', '/time-clock': 'workforce', '/payroll': 'workforce',
   '/financials': 'financials', '/financing-central': 'financials',
