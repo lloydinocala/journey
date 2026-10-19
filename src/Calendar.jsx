@@ -8,6 +8,7 @@ import CalendarGrid from './CalendarGrid'
 import CalendarMonth from './CalendarMonth'
 import JobDetailModal from './JobDetailModal'
 import CalendarTodoTile from './CalendarTodoTile'
+import UnassignedTasksTile from './UnassignedTasksTile'
 import { loadOrgTz, zonedToUtcIso } from './utils/tz'
 import {
   startOfWeek,
@@ -410,6 +411,7 @@ export default function Calendar({ profile }) {
               isMobile={isMobile}
             />
             <CalendarTodoTile orgId={selectedOrg} profile={profile} isMobile={isMobile} />
+            <UnassignedTasksTile orgId={selectedOrg} isMobile={isMobile} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             {effectiveView === 'month' ? (

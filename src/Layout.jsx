@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
 import { getDeviceId } from './utils/deviceId'
 import AnnouncementBanner from './AnnouncementBanner'
+import CallMessageNotifier from './CallMessageNotifier'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
 import CallbackAlert from './CallbackAlert'
@@ -36,7 +37,7 @@ const PAGE_TITLES = {
   '/rewards': 'Human Resources', '/marketing': 'Marketing', '/permits': 'Permits',
   '/building-authorities': 'Building Authorities', '/warranty-registrations': 'Warranty Registrations',
   '/import': 'Data Station', '/pricebook': 'Res Flat Rate Pricebook', '/pricebook-commercial': 'Comm Flat Rate Pricebook', '/systems-pricebook': 'Res Systems Pricebook', '/time-and-materials': 'Time & Materials', '/filter-pricebook': 'Filter Pricebook',
-  '/needs-rescheduling': 'Needs Rescheduling', '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
+  '/needs-rescheduling': 'Needs Rescheduling', '/team-communications': 'Team Communications', '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
   '/payroll': 'Payroll Capture', '/session-log': 'Sign-In Log',
   '/organizations': 'Organizations', '/entitlements': 'Plans & Entitlements', '/announcements': 'Announcements', '/website-announcement': 'Website Announcement', '/my': 'My Pay & Benefits',
   '/features': 'Feature Directory', '/training': 'Training Manual',
@@ -128,7 +129,6 @@ const DISPATCH_PAGES = [
   { label: 'Calendar', path: '/calendar', highlight: true },
   { label: 'Dispatch Map', path: '/dispatch-map' },
   { label: 'Filter Orders', path: '/filter-orders' },
-  { label: 'Text Archive', path: '/text-archive', perm: 'view_text_archive' },
   { label: 'On-Call Schedule', path: '/on-call' },
 ]
 const MAINT_PAGES = [
@@ -234,6 +234,11 @@ export function buildSections(profile) {
     { label: 'Time Clock', icon: 'clock', path: '/time-clock' },
     { label: 'Payroll Capture', icon: 'money', path: '/payroll' },
     { label: 'Sign-In Log', icon: 'log', path: '/session-log' },
+    // Team Communications: call messages taken for team members + the customer Text Archive.
+    { key: 'team-comms', label: 'Team Communications', icon: 'log', dash: '/team-communications', children: [
+      { label: 'Call Messages', path: '/team-communications' },
+      { label: 'Text Archive', path: '/text-archive', perm: 'view_text_archive' },
+    ] },
   ]
   if (showHR) wfStations.push({ key: 'rewards', label: 'Human Resources', icon: 'idcard', dash: '/rewards', children: REWARDS_HR_NAV.items })
   if (showPayroll) {
@@ -500,6 +505,7 @@ export default function Layout({ profile }) {
           </span>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+        <CallMessageNotifier profile={profile} />
         {(() => {
           // ⚙ Page settings — jumps to this page's section of the one Settings page.
           const sec = sectionForPath(location.pathname)

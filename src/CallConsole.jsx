@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import TakeCallModal from './TakeCallModal'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
@@ -18,6 +19,7 @@ export default function CallConsole({ profile }) {
   const isSuper = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [takingCall, setTakingCall] = useState(false)
   const [phone, setPhone] = useState('')
   const [matches, setMatches] = useState(null)   // null = idle, [] = no match
   const [searching, setSearching] = useState(false)
@@ -198,6 +200,7 @@ export default function CallConsole({ profile }) {
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <div className="page-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0 }}>Call Console</h2>
+        <button className="logout-button" style={{ margin: 0 }} onClick={() => setTakingCall(true)} title="The caller wants a team member — follow that person's call instructions">📞 Call for a team member</button>
         <button
           onClick={toggleReceptionist}
           disabled={!aiRecept.opted_in || aiBusy || !selectedOrg}
@@ -454,6 +457,7 @@ export default function CallConsole({ profile }) {
       {newItemMode && (
         <QuickAddModal mode={newItemMode} orgId={selectedOrg} profile={profile} prefillCustomerId={selected?.id || ''} onClose={() => setNewItemMode(null)} onCreated={() => setNewItemMode(null)} />
       )}
+      {takingCall && <TakeCallModal profile={profile} orgId={selectedOrg} onClose={() => setTakingCall(false)} />}
     </div>
   )
 }

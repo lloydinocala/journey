@@ -9,6 +9,8 @@ import EmployeePayRates from './EmployeePayRates'
 import BusinessHours from './BusinessHours'
 import BookingRules from './BookingRules'
 import ServiceRequestSettings from './ServiceRequestSettings'
+import TaskSettings from './TaskSettings'
+import CallHandlingPrefs from './CallHandlingPrefs'
 import PayrollSettings from './PayrollSettings'
 import CollectionsSettings from './CollectionsSettings'
 import { browserTz, setActiveOrgTz, tzShortLabel } from './utils/tz'
@@ -432,6 +434,9 @@ export default function Settings({ profile }) {
           {landingSaved && <span style={{ fontSize: 12, color: '#1a7f37', fontWeight: 700 }}>Saved ✓</span>}
         </div>
       </div>
+
+      <h3 style={{ fontSize: 16, margin: '20px 0 8px' }}>When a call comes in for me</h3>
+      <CallHandlingPrefs profile={profile} orgId={selectedOrg} />
       </SettingsSection>
 
       <SettingsSection id="company" isAdmin={isAdmin} highlight={highlight}>
@@ -565,6 +570,9 @@ export default function Settings({ profile }) {
       </SettingsSection>
 
       <SettingsSection id="work" isAdmin={isAdmin} highlight={highlight}>
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Tasks</h3>
+      <TaskSettings orgId={selectedOrg} />
+
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Sales tax</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>
         What's taxable — labor, parts, or retail items like filters — varies by state. Set the
@@ -717,6 +725,9 @@ export default function Settings({ profile }) {
       </SettingsSection>
 
       <SettingsSection id="workforce" isAdmin={isAdmin} highlight={highlight}>
+      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Call handling for the team</h3>
+      <CallHandlingPrefs profile={profile} orgId={selectedOrg} adminMode />
+
       <EmployeePayRates orgId={selectedOrg} />
 
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Payroll pay period</h3>

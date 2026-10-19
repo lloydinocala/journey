@@ -50,7 +50,6 @@ export default function NewTaskModal({ orgId, profile, onClose, onCreated }) {
   async function handleSave(e) {
     e.preventDefault()
     setError('')
-    if (!assignedUserId) { setError('Please choose who this task is assigned to.'); return }
     if (!name.trim()) { setError('Task name is required.'); return }
     if (!date || !time) { setError('Date and time are required.'); return }
     const scheduledIso = zonedToUtcIso(date, time)
@@ -59,7 +58,7 @@ export default function NewTaskModal({ orgId, profile, onClose, onCreated }) {
     setSaving(true)
     const { error: err } = await supabase.from('field_tasks').insert({
       org_id: orgId,
-      assigned_user_id: assignedUserId,
+      assigned_user_id: assignedUserId || null,  // unassigned → staged in the Calendar's Unassigned Tasks tray
       destination_name: name.trim(),
       address: address.trim() || null,
       contact_name: contactName.trim() || null,
@@ -84,8 +83,8 @@ export default function NewTaskModal({ orgId, profile, onClose, onCreated }) {
         <form onSubmit={handleSave}>
           <div className="field">
             <label>Assign to</label>
-            <select value={assignedUserId} onChange={(e) => setAssignedUserId(e.target.value)} required>
-              <option value="">Select&hellip;</option>
+            <select value={assignedUserId} onChange={(e) => setAssignedUserId(e.target.value)}>
+              <option value="">Unassigned — stage it on the Calendar</option>
               {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </select>
           </div>

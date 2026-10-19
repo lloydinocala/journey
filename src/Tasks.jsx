@@ -73,6 +73,7 @@ export default function Tasks({ profile }) {
   const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
   const [showDone, setShowDone] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
   const [expandedId, setExpandedId] = useState(null)
   const [showPay, setShowPay] = useState(false)
   const [payFrom, setPayFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10) })
@@ -126,6 +127,8 @@ export default function Tasks({ profile }) {
   function partLabel(p) { return `J-${p.jobs?.job_number || '?'} · ${p.part_description}${p.vendors?.name ? ' (' + p.vendors.name + ')' : ''}${p.delivery_verified ? ' — verified' : ''}` }
 
   function resetForm() { setForm(blankForm); setEditingId(null); setError(''); setShowForm(false) }
+  // Completed tasks are payroll records — locked for everyone (the database enforces it too).
+  const locked = (t) => t.status === 'completed'
 
   function startEdit(t) {
     const zoned = utcToZonedInputs(t.scheduled_at)
@@ -145,7 +148,6 @@ export default function Tasks({ profile }) {
     })
     setEditingId(t.id)
     setError('')
-    setShowForm(true)
   }
 
   // Selecting a parts order fills in the pickup destination from its vendor.
@@ -209,7 +211,6 @@ export default function Tasks({ profile }) {
   async function handleSave(e) {
     e.preventDefault()
     setError('')
-    if (!form.assigned_user_id) { setError('Please choose who this task is assigned to.'); return }
     if (!form.destination_name.trim()) { setError('Destination name is required.'); return }
     if (!form.date || !form.time) { setError('Date and time are required.'); return }
 
@@ -221,7 +222,7 @@ export default function Tasks({ profile }) {
     const endMs = startMs + dur * 60000
 
     setSaving(true)
-    const conflict = await findConflict(form.assigned_user_id, startMs, endMs)
+    const conflict = form.assigned_user_id ? await findConflict(form.assigned_user_id, startMs, endMs) : null
     if (conflict) {
       setSaving(false)
       setError(`${userName(form.assigned_user_id)} already has ${conflict}. Pick a time that doesn't overlap.`)
@@ -230,7 +231,7 @@ export default function Tasks({ profile }) {
 
     const payload = {
       org_id: selectedOrg,
-      assigned_user_id: form.assigned_user_id,
+      assigned_user_id: form.assigned_user_id || null,
       destination_name: form.destination_name.trim(),
       address: form.address.trim() || null,
       description: form.description.trim() || null,
@@ -262,12 +263,13 @@ export default function Tasks({ profile }) {
   }
 
   async function deleteTask(t) {
+    if (locked(t)) return
     if (!window.confirm(`Remove the task "${t.destination_name}" from the list? This cannot be undone.`)) return
     await supabase.from('field_tasks').update({ deleted_at: new Date().toISOString() }).eq('id', t.id)
     loadAll(selectedOrg)
   }
 
-  const visible = tasks.filter((t) => showDone || !['completed', 'canceled'].includes(t.status))
+  const visible = tasks.filter((t) => (showArchived || !t.archived_at) && (showDone || !['completed', 'canceled'].includes(t.status)))
   const openCount = tasks.filter((t) => !['completed', 'canceled'].includes(t.status)).length
   const openIssues = tasks.filter((t) => t.status === 'incomplete').length
 
@@ -300,15 +302,14 @@ export default function Tasks({ profile }) {
           <span className="badge">{openCount.toLocaleString()} open</span>
           {openIssues > 0 && <span className="status-pill status-incomplete">{openIssues} incomplete</span>}
         </div>
-        <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => (showForm ? resetForm() : setShowNewModal(true))}>
-          {showForm ? 'Cancel edit' : '+ New Task'}
-        </button>
+        <button className="auth-button" style={{ width: 'auto', margin: 0 }} onClick={() => setShowNewModal(true)}>+ New Task</button>
       </div>
 
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0, marginBottom: 18 }}>
-        Standalone errands assigned to a field user — destination, address, and time only. They appear as a Job Card
-        on that user's phone (On My Way → Start → Stop) and can't be scheduled over one of their jobs. If a user marks
-        one Incomplete, it turns red here with their reason.
+        Standalone errands for a field user. Create them with <strong>+ New Task</strong>; edit them right in the table row.
+        Assigned tasks appear as a Job Card on that user's phone (On My Way → Start → Stop) and can't be scheduled over one of
+        their jobs. Unassigned tasks wait in the Calendar's <strong>Unassigned Tasks</strong> tray until someone is assigned.
+        Completed tasks are payroll records — they can't be edited or deleted, and they archive automatically (Settings → Jobs &amp; Customers).
       </p>
 
       {isSuperAdmin && (
@@ -327,87 +328,16 @@ export default function Tasks({ profile }) {
         />
       )}
 
-      {showForm && (
-        <form className="inline-form" onSubmit={handleSave} style={{ marginBottom: 20, flexWrap: 'wrap' }}>
-          <div className="field" style={{ minWidth: 180 }}>
-            <label>Assigned To</label>
-            <select value={form.assigned_user_id} onChange={(e) => setForm({ ...form, assigned_user_id: e.target.value })} required>
-              <option value="">Select user…</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
-            </select>
-          </div>
-          <div className="field" style={{ minWidth: 190 }}>
-            <label>Parts House (quick-fill)</label>
-            <select value="" onChange={(e) => chooseVendor(e.target.value)}>
-              <option value="">Pick a parts house…</option>
-              {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-            </select>
-          </div>
-          <div className="field" style={{ minWidth: 200 }}>
-            <label>Destination Name</label>
-            <input type="text" value={form.destination_name} onChange={(e) => setForm({ ...form, destination_name: e.target.value })} placeholder="Pick a parts house above, or type any destination" required />
-          </div>
-          <div className="field" style={{ minWidth: 240 }}>
-            <label>Address</label>
-            <input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Street, City, State ZIP" />
-          </div>
-          <div className="field" style={{ minWidth: 170 }}>
-            <label>Contact Name</label>
-            <input type="text" value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} placeholder="Who to ask for" />
-          </div>
-          <div className="field" style={{ width: 150 }}>
-            <label>Contact Title</label>
-            <input type="text" value={form.contact_title} onChange={(e) => setForm({ ...form, contact_title: e.target.value })} placeholder="e.g. Counter Mgr" />
-          </div>
-          <div className="field" style={{ width: 160 }}>
-            <label>Contact Phone</label>
-            <input type="tel" value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} placeholder="Phone" />
-          </div>
-          <div className="field" style={{ minWidth: 240 }}>
-            <label>Description</label>
-            <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Re: PO # or Job #" />
-          </div>
-          <div className="field" style={{ minWidth: 200 }}>
-            <label>On Completion</label>
-            <select value={form.return_to} onChange={(e) => setForm({ ...form, return_to: e.target.value })}>
-              <option value="">Done — back to Job Cards</option>
-              <option value="shop">Return to Shop</option>
-              <option value="job">Return to Job</option>
-            </select>
-          </div>
-          <div className="field">
-            <label>Date</label>
-            <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
-          </div>
-          <div className="field">
-            <label>Time</label>
-            <TimePicker15 value={form.time} onChange={(v) => setForm({ ...form, time: v })} required />
-          </div>
-          <div className="field" style={{ width: 150 }}>
-            <label>Duration</label>
-            <select value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: e.target.value })}>
-              {DUR_OPTS.map((m) => <option key={m} value={m}>{durLabel(m)}</option>)}
-            </select>
-          </div>
-          <div className="field" style={{ minWidth: 260 }}>
-            <label>Link to Parts Order (optional)</label>
-            <select value={form.parts_order_id} onChange={(e) => choosePart(e.target.value)}>
-              <option value="">None — standalone task</option>
-              {parts.map((p) => <option key={p.id} value={p.id}>{partLabel(p)}</option>)}
-            </select>
-          </div>
-          <button className="auth-button" type="submit" disabled={saving} style={{ width: 'auto' }}>
-            {saving ? 'Saving…' : 'Save changes'}
-          </button>
-          <button type="button" className="logout-button" style={{ width: 'auto' }} onClick={resetForm}>Cancel</button>
-        </form>
-      )}
       {error && <div className="auth-error" style={{ marginBottom: 16 }}>{error}</div>}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
         <label className="nav-link" style={{ cursor: 'pointer' }}>
           <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} style={{ marginRight: 6 }} />
           Show completed / canceled
+        </label>
+        <label className="nav-link" style={{ cursor: 'pointer' }}>
+          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} style={{ marginRight: 6 }} />
+          Show archived
         </label>
         <button className="logout-button" onClick={() => setShowPay((v) => !v)}>{showPay ? 'Hide task pay' : 'Task pay summary'}</button>
       </div>
@@ -473,16 +403,68 @@ export default function Tasks({ profile }) {
               const open = expandedId === t.id
               return (
               <Fragment key={t.id}>
-              <tr style={t.status === 'incomplete' ? { background: 'rgba(255, 107, 107, 0.08)' } : undefined}>
+              {editingId === t.id ? (
+              <tr style={{ background: '#F5F8FF' }}>
+                <td>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'stretch' }}>
+                    <button className="auth-button" style={{ padding: '4px 8px', margin: 0, width: 'auto' }} disabled={saving} onClick={handleSave}>{saving ? 'Saving…' : 'Save'}</button>
+                    <button className="logout-button" style={{ padding: '4px 8px', textAlign: 'center' }} onClick={resetForm}>Cancel</button>
+                  </div>
+                </td>
+                <td>
+                  <select value={form.assigned_user_id} onChange={(e) => setForm({ ...form, assigned_user_id: e.target.value })} style={{ maxWidth: 150 }}>
+                    <option value="">Unassigned</option>
+                    {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                  </select>
+                </td>
+                <td>
+                  <input type="text" value={form.destination_name} onChange={(e) => setForm({ ...form, destination_name: e.target.value })} style={{ minWidth: 140 }} />
+                  <select value="" onChange={(e) => chooseVendor(e.target.value)} style={{ marginTop: 4, fontSize: 11.5, maxWidth: 150 }}>
+                    <option value="">Parts house quick-fill…</option>
+                    {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                  </select>
+                </td>
+                <td><input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} style={{ minWidth: 160 }} /></td>
+                <td>
+                  <input type="text" value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} placeholder="Name" style={{ width: 110 }} />
+                  <input type="tel" value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} placeholder="Phone" style={{ width: 110, marginTop: 4 }} />
+                </td>
+                <td>
+                  <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+                  <div style={{ marginTop: 4 }}><TimePicker15 value={form.time} onChange={(v) => setForm({ ...form, time: v })} /></div>
+                </td>
+                <td>
+                  <select value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: e.target.value })}>
+                    {DUR_OPTS.map((m) => <option key={m} value={m}>{durLabel(m)}</option>)}
+                  </select>
+                </td>
+                <td colSpan={3} style={{ fontSize: 12 }}>
+                  <select value={form.return_to} onChange={(e) => setForm({ ...form, return_to: e.target.value })} style={{ maxWidth: 170 }}>
+                    <option value="">On completion: back to Job Cards</option>
+                    <option value="shop">On completion: Return to Shop</option>
+                    <option value="job">On completion: Return to Job</option>
+                  </select>
+                  <select value={form.parts_order_id} onChange={(e) => choosePart(e.target.value)} style={{ maxWidth: 170, marginTop: 4 }}>
+                    <option value="">No parts order</option>
+                    {parts.map((p) => <option key={p.id} value={p.id}>{partLabel(p)}</option>)}
+                  </select>
+                  <div style={{ color: 'var(--mist)', marginTop: 4 }}>Button times are recorded by the phone.</div>
+                </td>
+                <td><span className={`status-pill status-${t.status}`}>{STATUS_LABEL[t.status] || t.status}</span></td>
+                <td><input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ minWidth: 160 }} /></td>
+              </tr>
+              ) : (
+              <tr style={t.status === 'incomplete' ? { background: 'rgba(255, 107, 107, 0.08)' } : t.archived_at ? { opacity: 0.6 } : undefined}>
                 <td>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'stretch' }}>
                     <button className="logout-button" style={{ padding: '4px 8px', textAlign: 'center' }} onClick={() => setExpandedId(open ? null : t.id)}>{open ? 'Hide' : 'Records'}</button>
-                    <button className="logout-button" style={{ padding: '4px 8px', textAlign: 'center' }} onClick={() => startEdit(t)}>Edit</button>
+                    {!locked(t) && <button className="logout-button" style={{ padding: '4px 8px', textAlign: 'center' }} onClick={() => startEdit(t)}>Edit</button>}
                     {!['completed', 'canceled'].includes(t.status) && <button className="logout-button" style={{ padding: '4px 8px', textAlign: 'center' }} onClick={() => cancelTask(t)}>Cancel</button>}
-                    <button className="logout-button" style={{ padding: '4px 8px', textAlign: 'center' }} onClick={() => deleteTask(t)}>Delete</button>
+                    {!locked(t) && <button className="logout-button" style={{ padding: '4px 8px', textAlign: 'center' }} onClick={() => deleteTask(t)}>Delete</button>}
+                    {locked(t) && <span title="Completed tasks are payroll records" style={{ fontSize: 11, color: 'var(--mist)', textAlign: 'center' }}>🔒 Locked</span>}
                   </div>
                 </td>
-                <td>{userName(t.assigned_user_id)}</td>
+                <td>{t.assigned_user_id ? userName(t.assigned_user_id) : <span className="status-pill status-incomplete">Unassigned</span>}</td>
                 <td>{t.destination_name}{linkedPart && <span className="status-pill status-scheduled" style={{ marginLeft: 6, fontSize: 10 }}>PARTS</span>}{t.return_to && <span className="status-pill status-scheduled" style={{ marginLeft: 6, fontSize: 10 }}>{t.return_to === 'shop' ? '\u21A9 SHOP' : '\u21A9 JOB'}</span>}</td>
                 <td>{t.address || '—'}</td>
                 <td style={{ fontSize: 12 }}>{t.contact_name || '—'}{t.contact_phone ? <div style={{ color: 'var(--mist)' }}><a href={`tel:${t.contact_phone}`}>{t.contact_phone}</a>{' · '}<a href={`sms:${t.contact_phone}`}>text</a></div> : ''}</td>
@@ -494,6 +476,7 @@ export default function Tasks({ profile }) {
                 <td><span className={`status-pill status-${t.status}`}>{STATUS_LABEL[t.status] || t.status}</span></td>
                 <td style={{ maxWidth: 220, fontSize: 12 }}>{t.description || '—'}{t.status === 'incomplete' && t.incomplete_reason ? <span style={{ color: '#C0392B' }}> · {t.incomplete_reason}</span> : ''}</td>
               </tr>
+              )}
               {open && (
                 <tr>
                   <td colSpan="12" style={{ background: 'var(--ink)', padding: '14px 16px' }}>
