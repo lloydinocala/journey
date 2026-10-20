@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { AgentDraftsBanner } from './AgentInboxBadge'
 import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
+import NewTexts, { useNewTextCount } from './NewTexts'
 
 const BLUE = '#215F9A'
 
@@ -58,6 +59,12 @@ export default function TextArchive({ profile }) {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const canView = can(profile, 'view_text_archive')
   const canDelete = can(profile, 'delete_text_archive')
+  // "New texts" = texts to the company's number that aren't part of a job thread.
+  const canNewTexts = can(profile, 'dispatch_messaging_poc')
+  const [tab, setTab] = useState(() => { try { return new URLSearchParams(window.location.search).get('new') ? 'new' : 'jobs' } catch (e) { return 'jobs' } })
+  const initialNew = useNewTextCount(canNewTexts)
+  const [newCount, setNewCount] = useState(null)
+  const newBadge = newCount == null ? initialNew : newCount
 
   useEffect(() => { if (canView) load(); else setLoading(false) }, [])
 
@@ -128,7 +135,7 @@ export default function TextArchive({ profile }) {
 
   const current = filtered.find((t) => t.jobId === selectedJob) || null
 
-  if (!canView) {
+  if (!canView && !canNewTexts) {
     return (
       <div>
         <div className="page-title">Text Archive</div>
@@ -143,6 +150,17 @@ export default function TextArchive({ profile }) {
     <div>
       <div className="page-title">Text Archive</div>
 
+      {canNewTexts && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
+          {[['jobs', 'Job threads'], ['new', 'New texts']].filter(([k]) => k === 'new' || canView).map(([k, label]) => (
+            <button key={k} onClick={() => setTab(k)} style={{ border: 'none', background: 'none', padding: '8px 14px', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, cursor: 'pointer', color: tab === k ? BLUE : 'var(--mist)', borderBottom: tab === k ? `2px solid ${BLUE}` : '2px solid transparent', marginBottom: -1 }}>
+              {label}{k === 'new' && newBadge > 0 && <span style={{ marginLeft: 6, background: '#D92D20', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11.5 }}>{newBadge}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {(tab === 'new' && canNewTexts) || !canView ? <NewTexts profile={profile} onCount={setNewCount} /> : (<>
       <div style={{ display: 'flex', gap: 14, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 20 }}>
         <div className="field" style={{ marginBottom: 0, minWidth: 300 }}>
           <label>Search by customer, tech, or job #</label>
@@ -248,6 +266,7 @@ export default function TextArchive({ profile }) {
           </div>
         </div>
       )}
+      </>)}
     </div>
   )
 }

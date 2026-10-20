@@ -11,6 +11,7 @@ import BookingRules from './BookingRules'
 import ServiceRequestSettings from './ServiceRequestSettings'
 import TaskSettings from './TaskSettings'
 import AgentSettings from './AgentSettings'
+import TextingSettings from './TextingSettings'
 import TimeOffSettings from './TimeOffSettings'
 import { HiringQuestionsSettings } from './modules/rewards-hvac/HiringPanels'
 import CallHandlingPrefs from './CallHandlingPrefs'
@@ -570,6 +571,7 @@ export default function Settings({ profile }) {
         </button>
         {tzSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
       </form>
+      <TextingSettings orgId={selectedOrg} isSuperAdmin={isSuperAdmin} />
       </SettingsSection>
 
       <SettingsSection id="agents" isAdmin={isAdmin} highlight={highlight}>
