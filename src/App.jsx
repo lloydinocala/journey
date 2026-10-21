@@ -73,6 +73,7 @@ import Invoices from './Invoices'
 import FinancingOptions from './FinancingOptions'
 import FinancingCentral from './FinancingCentral'
 import FinancingDirectory from './FinancingDirectory'
+import Payouts from './Payouts'
 import Estimate from './Estimate'
 import NewFollowupEstimate from './NewFollowupEstimate'
 import Estimates from './Estimates'
@@ -406,6 +407,7 @@ function AuthenticatedApp() {
         <Route path="/payments-to-confirm" element={<Navigate to="/invoices?tab=confirm" replace />} />
         <Route path="/financing-options" element={<FinancingOptions profile={profile} />} />
         <Route path="/financing-central" element={<FinancingCentral profile={profile} />} />
+        <Route path="/payouts" element={<Payouts profile={profile} />} />
         <Route path="/financing-directory" element={<FinancingDirectory profile={profile} />} />
        {/* Inventory & Fleet Management — standard for all non-tech users */}
        {profile.role !== 'tech' && [...ELEMENTS_ROUTES, ...ELEMENTS_FLEET_ROUTES, ...REFRIGERANT_ROUTES, ...SUPPLIES_ROUTES].map((r) => (

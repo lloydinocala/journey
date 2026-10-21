@@ -112,6 +112,23 @@ export const HELP_ARTICLES = [
     ]
   },
   {
+    "id": "payouts-financing",
+    "title": "Payouts & Financing",
+    "area": "Admin",
+    "keywords": ["payouts", "deposit", "bank", "stripe", "instant payout", "debit card", "pending", "financing", "loan", "lender", "application", "opportunities"],
+    "purpose": "See card and bank payments on their way to your bank, and offer customers financing from open estimates and upcoming jobs.",
+    "sections": [
+      {
+        "h": "Payouts (Admin → Payouts)",
+        "body": "Shows what's clearing (recent payments not yet available), what's ready for your next payout, and every deposit Stripe has sent — Standard or Instant. Click a deposit to see exactly which payments, fees and refunds make it up, matched to the job and customer. Payout settings shows the bank account, debit card, payout schedule and identity verification on file. Your Stripe account belongs to your company, so changes to the bank, debit card, instant payouts or schedule are made in Stripe (Change in Stripe button) and show up here automatically."
+      },
+      {
+        "h": "Financing opportunities (Admin → Financing Central)",
+        "body": "Opportunities lists open estimates and upcoming jobs that aren't paid or financed yet and whose amount fits at least one of your lenders (their min/max, and whether they take service or system-replacement work — set in Configure lenders). Send application texts and/or emails the customer the lender's application link from your company's number, says plainly that financing is optional, and adds the deal to the pipeline as 'application sent' so you can track approval, install and funding. A lender needs its customer application link entered in Configure lenders before you can send it."
+      }
+    ]
+  },
+  {
     "id": "time-payroll",
     "title": "Time Clock & Payroll",
     "area": "Admin",

@@ -794,6 +794,7 @@ export default function Settings({ profile }) {
           </button>
         )}
         {stripeError && <div className="auth-error" style={{ marginTop: 12 }}>{stripeError}</div>}
+        {stripeChargesEnabled && <div style={{ marginTop: 10, fontSize: 13.5 }}><Link to="/payouts">View payouts &amp; payout settings →</Link></div>}
       </div>
 
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Collections &amp; reminders</h3>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import FinancingOpportunities from './FinancingOpportunities'
 
 const money = (n) => (n == null || isNaN(n) ? '—' : `$${Number(n).toFixed(2)}`)
 const fmt = (d) => (d ? new Date(d).toLocaleDateString() : '')
@@ -17,6 +18,7 @@ const STAGES = [
 ]
 
 const STATUS_STYLE = {
+  sent: ['#E8F0FB', '#1D4ED8'],
   applied: ['#F8EEDD', '#B0600A'],
   approved: ['#E3F1E8', '#166534'],
   denied: ['#FBE7E7', '#B00020'],
@@ -31,6 +33,7 @@ export default function FinancingCentral({ profile }) {
   const [lenders, setLenders] = useState([])
   const [directory, setDirectory] = useState([])
   const [deals, setDeals] = useState([])
+  const [companyPhone, setCompanyPhone] = useState('')
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
   const [msg, setMsg] = useState('')
@@ -47,12 +50,13 @@ export default function FinancingCentral({ profile }) {
   async function load() {
     if (!selectedOrg) return
     setLoading(true); setErr('')
-    const [{ data: l }, { data: d }, { data: dir }] = await Promise.all([
+    const [{ data: l }, { data: d }, { data: dir }, { data: o }] = await Promise.all([
       supabase.from('financing_options').select('*').eq('org_id', selectedOrg).eq('is_active', true).order('sort_order'),
       supabase.from('financing_deals').select('*').eq('org_id', selectedOrg).order('created_at', { ascending: false }),
       supabase.from('financing_lender_directory').select('*').eq('is_active', true).order('sort_order'),
+      supabase.from('organizations').select('business_phone').eq('id', selectedOrg).maybeSingle(),
     ])
-    setLenders(l || []); setDeals(d || []); setDirectory(dir || [])
+    setLenders(l || []); setDeals(d || []); setDirectory(dir || []); setCompanyPhone(o?.business_phone || '')
     setLoading(false)
   }
   useEffect(() => { load() }, [selectedOrg])
@@ -103,7 +107,7 @@ export default function FinancingCentral({ profile }) {
 
   const badge = (status) => {
     const [bg, c] = STATUS_STYLE[status] || STATUS_STYLE.applied
-    return <span className="badge" style={{ background: bg, color: c }}>{status}</span>
+    return <span className="badge" style={{ background: bg, color: c }}>{status === 'sent' ? 'application sent' : status}</span>
   }
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
@@ -151,6 +155,9 @@ export default function FinancingCentral({ profile }) {
             </div>
           )}
 
+          {/* ---- Opportunities ---- */}
+          <FinancingOpportunities orgId={selectedOrg} lenders={lenders} deals={deals} companyPhone={companyPhone} onSent={() => { setMsg('Application sent — tracking it in the pipeline below.'); load() }} />
+
           {/* ---- Pipeline ---- */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <h3 style={{ margin: 0 }}>Financing pipeline <span className="badge">{deals.filter((d) => !['funded', 'cancelled'].includes(d.status)).length} open</span></h3>
@@ -179,7 +186,7 @@ export default function FinancingCentral({ profile }) {
                 <div key={d.id} style={{ border: '1px solid var(--line, #E2E8F0)', borderRadius: 10, padding: 14, opacity: d.status === 'cancelled' ? 0.6 : 1 }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                     <span style={{ fontWeight: 700 }}>{d.customer_name || '—'}</span>
-                    <span style={{ color: 'var(--mist)', fontSize: 13 }}>{d.lender_name || 'no lender'} · {money(d.amount)}</span>
+                    <span style={{ color: 'var(--mist)', fontSize: 13 }}>{d.lender_name || 'no lender'} · {money(d.amount)}{d.source_type && d.source_type !== 'manual' ? ` · from ${d.source_type}` : ''}</span>
                     {badge(d.status)}
                     <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--mist)' }}>opened {fmt(d.created_at)}</span>
                   </div>

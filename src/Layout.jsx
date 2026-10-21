@@ -269,6 +269,7 @@ export function buildSections(profile) {
     children: [
       { label: 'Settings', icon: 'settings', path: '/settings' },
       { label: 'Financing Central', icon: 'financials', path: '/financing-central' },
+      { label: 'Payouts', icon: 'money', path: '/payouts' },
       { label: 'Financing Options', icon: 'money', path: '/financing-options' },
       // Platform / super-admin-only controls, tucked here so subscriber orgs never see them.
       { label: 'Lender Directory', icon: 'directory', path: '/financing-directory', super: true },
