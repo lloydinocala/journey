@@ -17,6 +17,13 @@ const DELIVERY = [
   { v: 'direct_deposit', l: 'Direct deposit' },
   { v: 'export', l: 'Export to accountant' },
 ]
+// Short plain-language summary of the W-4 entries that changed withholding.
+const w4Summary = (w) => w.exempt ? 'Exempt — no federal income tax withheld' : [
+  w.step3_total ? `credits ${money(w.step3_total)}/yr` : null,
+  w.step4a_other_income ? `other income ${money(w.step4a_other_income)}/yr` : null,
+  w.step4b_deductions ? `deductions ${money(w.step4b_deductions)}/yr` : null,
+  w.step4c_extra ? `extra ${money(w.step4c_extra)}/check` : null,
+].filter(Boolean).join(' · ')
 const METHOD_LABEL = { hourly: 'Hourly', performance: 'Performance (task-hrs)', piece: 'Piece rate', salary: 'Salary' }
 
 export default function PreparePayroll({ profile }) {
@@ -60,7 +67,7 @@ export default function PreparePayroll({ profile }) {
       const t = computeTaxes({
         gross: g.gross, taxableFIT: g.gross - pre.pretaxFIT, taxableFICA: g.gross - pre.pretaxFICA,
         ytdBefore: ytdMap[w.user_id] || 0, frequency: freq,
-        filingStatus: filing, step2Checked: prof.step2_checked, sutaRate,
+        filingStatus: filing, step2Checked: prof.step2_checked, sutaRate, w4: prof.w4,
       })
       // State income tax (config-driven; 0 + flag for progressive/engine states)
       const workState = prof.work_state || orgWorkState
@@ -75,7 +82,7 @@ export default function PreparePayroll({ profile }) {
       const net = Math.round((g.gross - empTaxAll - d.total + Number.EPSILON) * 100) / 100
       return {
         week: w, name: userName(w.user_id), user_id: w.user_id, employee_id: prof.employee_id || null,
-        hasBase: !!c.base, hasProfile: !!prof.filing_status, filing, clocked: clockHours[w.user_id],
+        hasBase: !!c.base, hasProfile: !!prof.filing_status, filing, clocked: clockHours[w.user_id], w4: prof.w4 || null, step2: !!prof.step2_checked,
         g, t, stateWH, workState, empTaxAll, d, net, existing: existingCalcs[w.id] || null,
         delivery: deliveryOverride[w.user_id] || existingCalcs[w.id]?.delivery_mode || 'manual',
       }
@@ -95,7 +102,8 @@ export default function PreparePayroll({ profile }) {
       task_hours: g.taskHours, task_bonus: g.taskBonus,
       hourly_base: g.hourlyBase, performance_base: g.performanceBase, chosen_method: g.chosenMethod,
       chosen_base: g.chosenBase, ot_premium: g.otPremium, bonus_total: g.bonusTotal, commission_total: g.commissionTotal,
-      gross_pay: g.gross, filing_status: r.filing, step2_checked: false,
+      gross_pay: g.gross, filing_status: r.filing, step2_checked: r.step2,
+      pto_hours: g.ptoHours, pto_pay: g.ptoPay, w4_detail: r.w4,
       fed_income_wh: t.fed_income_wh, ss_employee: t.ss_employee, ss_employer: t.ss_employer,
       medicare_employee: t.medicare_employee, medicare_employer: t.medicare_employer,
       addl_medicare: t.addl_medicare, futa: t.futa, suta: t.suta,
@@ -104,7 +112,7 @@ export default function PreparePayroll({ profile }) {
       pretax_deductions: r.d.totalPretax, posttax_deductions: r.d.totalPosttax, deductions: r.d.lines,
       net_pay: r.net,
       delivery_mode: r.delivery, status: 'draft',
-      tax_detail: { hourlyBase: g.hourlyBase, performanceBase: g.performanceBase, pieceBase: g.pieceBase },
+      tax_detail: { hourlyBase: g.hourlyBase, performanceBase: g.performanceBase, pieceBase: g.pieceBase, ptoHours: g.ptoHours, ptoPay: g.ptoPay },
     })
     setSavingId(null)
     setMsg(error ? error.message : `Saved ${r.name}.`)
@@ -198,12 +206,14 @@ export default function PreparePayroll({ profile }) {
                             ['Task-hours pay', money(r.g.performanceBase)],
                             ['Chosen', `${METHOD_LABEL[r.g.chosenMethod]} → ${money(r.g.chosenBase)}`],
                             r.g.otPremium ? ['FLSA OT premium', money(r.g.otPremium)] : null,
+                            r.g.ptoHours ? ['Paid time off', r.g.ptoNote ? `${r.g.ptoHours} hrs — ${r.g.ptoNote}` : `${r.g.ptoHours} hrs → ${money(r.g.ptoPay)}`] : null,
                             ['Bonuses', money(r.g.bonusTotal)],
                             ['Commissions', money(r.g.commissionTotal)],
                             ['Gross pay', money(r.g.gross)],
                           ].filter(Boolean)} />
                           <Detail title="Employee taxes" rows={[
                             ['Federal income WH', money(r.t.fed_income_wh)],
+                            r.w4 && (r.w4.exempt || r.w4.step3_total || r.w4.step4a_other_income || r.w4.step4b_deductions || r.w4.step4c_extra) ? ['W-4 used', w4Summary(r.w4)] : null,
                             ['Social Security (6.2%)', money(r.t.ss_employee)],
                             ['Medicare (1.45%)', money(r.t.medicare_employee)],
                             r.t.addl_medicare ? ['Add’l Medicare (0.9%)', money(r.t.addl_medicare)] : null,

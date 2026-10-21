@@ -101,6 +101,15 @@ export async function loadTaxProfiles(orgId) {
       employee_id: e.id,
       filing_status: h.filing_status || null,
       step2_checked: !!(h.w4 && h.w4.step2_checked),
+      // Signed W-4 details (My Records → Forms to sign): Steps 3 and 4 feed withholding.
+      w4: {
+        step3_total: Number(h.w4?.step3_total) || 0,
+        step4a_other_income: Number(h.w4?.step4a_other_income) || 0,
+        step4b_deductions: Number(h.w4?.step4b_deductions) || 0,
+        step4c_extra: Number(h.w4?.step4c_extra) || 0,
+        exempt: !!h.w4?.exempt,
+        signed_at: h.w4?.signed_at || null,
+      },
       worker_type: h.worker_type || 'w2',
       work_state: h.work_state || null,
       state_filing_status: h.state_filing_status || null,
@@ -169,7 +178,11 @@ export async function getYtdGross(orgId, userId, weekStart) {
 
 // ---- The core calculation --------------------------------------------------
 // Assembles greater-of gross, then taxes + net. `frequency` from org settings.
-export function computeGross(base, clockedHours, bonuses, commissions) {
+// ptoHours = approved paid time off in the week. Time off is paid at the hourly rate for
+// hourly and performance pay, kept OUT of hours worked (it never creates overtime) and out of
+// the greater-of comparison. Salary already covers paid days off; piece rate has no hourly
+// rate to pay it at, so it's flagged for the office instead.
+export function computeGross(base, clockedHours, bonuses, commissions, ptoHoursIn) {
   const rate = Number(base?.hourly_rate) || 0
   const payType = base?.pay_type || null
 
@@ -214,18 +227,27 @@ export function computeGross(base, clockedHours, bonuses, commissions) {
     }
   }
 
-  const gross = round2(chosenBase + otPremium + bonusTotal + commissionTotal)
+  const ptoHours = Number(ptoHoursIn != null ? ptoHoursIn : base?.pto_hours) || 0
+  const ptoPayable = payType === 'wages' || payType === 'performance' || (!payType && rate > 0)
+  const ptoPay = ptoPayable ? round2(ptoHours * rate) : 0
+  const ptoNote = ptoHours > 0 && !ptoPayable ? (payType === 'salary' ? 'Covered by salary — count time-off days in Days.' : 'Piece rate has no hourly rate — add time-off pay as a bonus line.') : null
+
+  const gross = round2(chosenBase + otPremium + ptoPay + bonusTotal + commissionTotal)
   return {
     totalHours: round2(totalHours), regHours: round2(regHours), otHours: round2(otHours), rate,
     taskHours, taskBonus, hourlyBase, performanceBase, pieceBase,
-    chosenMethod, chosenBase, otPremium, bonusTotal, commissionTotal, gross,
+    chosenMethod, chosenBase, otPremium, ptoHours, ptoPay, ptoNote, bonusTotal, commissionTotal, gross,
   }
 }
 
-export function computeTaxes({ gross, taxableFIT, taxableFICA, ytdBefore, frequency, filingStatus, step2Checked, sutaRate }) {
+export function computeTaxes({ gross, taxableFIT, taxableFICA, ytdBefore, frequency, filingStatus, step2Checked, sutaRate, w4 }) {
   const fitBase = taxableFIT != null ? taxableFIT : gross    // pre-tax 401(k)/125 reduce this
   const ficaBase = taxableFICA != null ? taxableFICA : gross // only Section-125-type reduce this
-  const fed = computeFederalWithholding({ gross: fitBase, frequency, filingStatus, step2Checked })
+  const fed = computeFederalWithholding({
+    gross: fitBase, frequency, filingStatus, step2Checked,
+    otherIncomeAnnual: w4?.step4a_other_income, deductionsAnnual: w4?.step4b_deductions,
+    creditsAnnual: w4?.step3_total, extraPerPeriod: w4?.step4c_extra, exempt: w4?.exempt,
+  })
   const fica = computeFICA(ficaBase, ytdBefore)
   const futa = computeFUTA(ficaBase, ytdBefore)
   const suta = round2((Number(sutaRate) || 0) * Math.min(ficaBase, Math.max(0, 7000 - ytdBefore)))

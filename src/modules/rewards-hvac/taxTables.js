@@ -88,8 +88,8 @@ function annualTax(adjWage, statusKey, year) {
 }
 
 // ---- Federal income tax withholding (Worksheet 1A) -------------------------
-// opts: { gross, frequency, filingStatus, step2Checked, otherIncomeAnnual,
-//         deductionsAnnual, extraPerPeriod }
+// opts: { gross, frequency, filingStatus, step2Checked, otherIncomeAnnual (W-4 4a),
+//         deductionsAnnual (4b), creditsAnnual (Step 3), extraPerPeriod (4c), exempt }
 export function computeFederalWithholding(opts) {
   const year = opts.year || 2026
   const p = FED_PARAMS[year] || FED_PARAMS[2026]
@@ -102,8 +102,11 @@ export function computeFederalWithholding(opts) {
   const step1g = opts.step2Checked ? 0 : p.step1g[statusKey]
   const adjWage = Math.max(0, withOther - (Number(opts.deductionsAnnual) || 0) - step1g) // adjusted annual wage
 
+  // Employee claimed exemption on the W-4 → no federal income tax withheld at all.
+  if (opts.exempt) return { amount: 0, step2Unsupported: false }
   const annual = annualTax(adjWage, statusKey, year)
-  let perPeriod = annual / periods
+  // Step 3 credits (children/other dependents) reduce the tax, spread over the year, never below 0.
+  let perPeriod = Math.max(0, (annual - (Number(opts.creditsAnnual) || 0)) / periods)
   perPeriod += Number(opts.extraPerPeriod) || 0                  // Step 4(c) extra
   const step2Unsupported = !!opts.step2Checked
   return { amount: round2(Math.max(0, perPeriod)), step2Unsupported }

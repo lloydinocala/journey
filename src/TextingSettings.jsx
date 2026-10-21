@@ -1,12 +1,12 @@
 // Settings → Company → Texting number. Each company texts customers from its own number, so
 // customers see (and can reply or call back) the company — not Journey. Until a company has
-// its own number, texts go out from the shared Journey number and replies still reach the
-// company. The number must match Twilio exactly, so only Journey support can change it.
+// its own registered number the company can't text customers (carrier A2P rules) — emails
+// still go out. The number must match Twilio exactly, so only Journey support can change it.
 import { useEffect, useState } from 'react'
 import { supabase } from './utils/supabase'
 
 const pretty = (p) => { const d = String(p || '').replace(/\D/g, '').slice(-10); return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : (p || '') }
-const STATUS = { platform: 'Using the shared Journey number', pending: 'Own number being set up', own_number: 'Own number — active' }
+const STATUS = { platform: 'Texting is off — no number yet', pending: 'Number being set up', own_number: 'Active' }
 
 export default function TextingSettings({ orgId, isSuperAdmin }) {
   const [org, setOrg] = useState(null)
@@ -47,10 +47,10 @@ export default function TextingSettings({ orgId, isSuperAdmin }) {
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Texting number</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 14, maxWidth: 720 }}>
         The number your customers see when the app texts them (On My Way, invoices, reminders, replies). Replies and texts to this number come into the app: replies from customers with a job land in that job's thread, everything else shows in <b>Text Archive → New texts</b>.
-        {' '}Without your own number, texts go out from the shared Journey number and replies still come to you.
+        {' '}Carrier rules require every company to text from its own registered number, so texting stays off until yours is set up. Emails still go out in the meantime.
       </p>
       <div style={{ fontSize: 14, marginBottom: 12 }}>
-        <b>{org.sms_from_number ? pretty(org.sms_from_number) : 'Shared Journey number'}</b>
+        <b>{org.sms_from_number ? pretty(org.sms_from_number) : 'No texting number yet'}</b>
         <span style={{ color: 'var(--mist)' }}> · {STATUS[org.sms_number_status] || STATUS.platform}</span>
       </div>
       {isSuperAdmin ? (

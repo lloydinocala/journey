@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import PayrollReconcile from './PayrollReconcile'
+import { loadPtoHours, loadTaskHoursFromJobs } from './payrollAssist'
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -45,15 +46,19 @@ function computeBaseDue(b) {
       const daily = annual / 260 // ~52 weeks * 5 days
       return +(daily * days).toFixed(2)
     }
+    // Paid time off (pto_hours) is paid at the hourly rate on top — it's never counted as
+    // hours worked, so it doesn't create overtime.
     case 'wages': {
       const hrs = Number(b.hours_clocked_in) || 0
       const ot = Number(b.overtime_hours) || 0
-      return +((hrs * rate) + (ot * rate * 1.5)).toFixed(2)
+      const pto = Number(b.pto_hours) || 0
+      return +((hrs * rate) + (ot * rate * 1.5) + (pto * rate)).toFixed(2)
     }
     case 'performance': {
       const th = Number(b.task_hours_recorded) || 0
       const tb = Number(b.task_bonus) || 0
-      return +((th * rate) + tb).toFixed(2)
+      const pto = Number(b.pto_hours) || 0
+      return +((th * rate) + tb + (pto * rate)).toFixed(2)
     }
     case 'piece_rate': {
       const jobs = Number(b.piece_rate_jobs) || 0
@@ -94,6 +99,8 @@ export default function PayrollCapture({ profile }) {
   const [weeks, setWeeks] = useState([])          // payroll_weeks for this org+week
   const [components, setComponents] = useState({}) // weekId -> {base, bonuses[], commissions[]}
   const [clockHours, setClockHours] = useState({}) // userId -> total clocked hours this week
+  const [ptoHours, setPtoHours] = useState({})     // userId -> approved time off in the period
+  const [taskJobs, setTaskJobs] = useState({})     // userId -> task hours from completed jobs
   const [expanded, setExpanded] = useState(null)   // weekId currently open for editing
   const [busy, setBusy] = useState(false)
 
@@ -186,6 +193,8 @@ export default function PayrollCapture({ profile }) {
     // round to 2 decimals
     Object.keys(hoursMap).forEach((k) => { hoursMap[k] = +hoursMap[k].toFixed(2) })
     setClockHours(hoursMap)
+    const [pto, tj] = await Promise.all([loadPtoHours(selectedOrg, weekStart, weekEnd), loadTaskHoursFromJobs(selectedOrg, weekStart, weekEnd)])
+    setPtoHours(pto); setTaskJobs(tj)
     setLoading(false)
   }
 
@@ -420,6 +429,8 @@ export default function PayrollCapture({ profile }) {
                     comp={components[week.id] || { base: null, bonuses: [], commissions: [] }}
                     readOnly={week.status === 'archived'}
                     clockHours={clockHours[emp.id]}
+                    pto={ptoHours[emp.id]}
+                    taskJobs={taskJobs[emp.id]}
                     onSetPayType={(pt) => setBasePayType(week.id, pt)}
                     onUpdateBase={updateBaseField}
                     onAddBonus={() => addBonus(week.id)}
@@ -443,7 +454,7 @@ export default function PayrollCapture({ profile }) {
 
 // ---- week editor sub-component ---------------------------------------------
 
-function WeekEditor({ week, comp, readOnly, clockHours, onSetPayType, onUpdateBase, onAddBonus, onUpdateBonus, onRemoveBonus, onAddCommission, onUpdateCommission, onRemoveCommission, live }) {
+function WeekEditor({ week, comp, readOnly, clockHours, pto, taskJobs, onSetPayType, onUpdateBase, onAddBonus, onUpdateBonus, onRemoveBonus, onAddCommission, onUpdateCommission, onRemoveCommission, live }) {
   const base = comp.base
   const numInput = (val, onChange, ph) => (
     <input type="number" step="0.01" defaultValue={val ?? ''} disabled={readOnly}
@@ -468,6 +479,43 @@ function WeekEditor({ week, comp, readOnly, clockHours, onSetPayType, onUpdateBa
           </div>
         )}
 
+        {pto?.hours > 0 && (
+          <div style={{ background: '#F0FAF3', border: '1px solid #BFE3CB', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 13 }}>
+            🌴 <strong>{pto.hours} hrs</strong> of approved paid time off this period ({pto.items.map((i) => i.start === i.end ? i.start : `${i.start} → ${i.end}`).join(', ')}).
+            {' '}{base?.pay_type === 'salary' ? 'Salary covers paid days off — count those days in Days clocked.' : base?.pay_type === 'piece_rate' ? 'Piece rate has no hourly rate — add the time-off pay as a bonus line.' : 'Paid at the hourly rate; it never counts toward overtime.'}
+            {!readOnly && (base?.pay_type === 'wages' || base?.pay_type === 'performance') && Number(base.pto_hours || 0) !== pto.hours && (
+              <button className="logout-button" style={{ marginLeft: 10 }} onClick={() => onUpdateBase(base.id, 'pto_hours', pto.hours)}>Use for time-off hrs</button>
+            )}
+          </div>
+        )}
+
+        {taskJobs?.jobs?.length > 0 && (base?.pay_type === 'performance' || !base?.pay_type) && (
+          <details style={{ background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 13 }}>
+            <summary style={{ cursor: 'pointer' }}>
+              🛠 <strong>{taskJobs.hours} task hrs</strong> from {taskJobs.jobs.length} completed job{taskJobs.jobs.length === 1 ? '' : 's'} (pricebook task hours on each invoice).
+              {!readOnly && base?.pay_type === 'performance' && Number(base.task_hours_recorded || 0) !== taskJobs.hours && (
+                <button className="logout-button" style={{ marginLeft: 10 }} onClick={(e) => { e.preventDefault(); onUpdateBase(base.id, 'task_hours_recorded', taskJobs.hours) }}>Use for task hours</button>
+              )}
+            </summary>
+            <table style={{ marginTop: 8, fontSize: 12.5, borderCollapse: 'collapse' }}>
+              <tbody>
+                {taskJobs.jobs.map((j, i) => (
+                  <tr key={i}>
+                    <td style={{ padding: '2px 10px 2px 0' }}>Job {j.job}</td>
+                    <td style={{ padding: '2px 10px 2px 0', color: 'var(--mist)' }}>{j.date}</td>
+                    <td style={{ padding: '2px 10px 2px 0', fontWeight: 700 }}>{j.hours} hrs</td>
+                    <td style={{ color: 'var(--mist)' }}>
+                      {j.split > 1 ? `split ${j.split} ways` : ''}
+                      {j.noInvoice ? ' · no invoice yet' : ''}
+                      {j.custom ? ` · ${j.custom} custom line${j.custom === 1 ? '' : 's'} (no task hours — check)` : ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+        )}
+
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
           <label>Type:</label>
           <select value={base?.pay_type || ''} disabled={readOnly} onChange={(e) => e.target.value && onSetPayType(e.target.value)}>
@@ -487,6 +535,7 @@ function WeekEditor({ week, comp, readOnly, clockHours, onSetPayType, onUpdateBa
             <label>Hours clocked {numInput(base.hours_clocked_in, (v) => onUpdateBase(base.id, 'hours_clocked_in', v))}</label>
             <label>Overtime hrs {numInput(base.overtime_hours, (v) => onUpdateBase(base.id, 'overtime_hours', v))}</label>
             <label>Hourly rate {numInput(base.hourly_rate, (v) => onUpdateBase(base.id, 'hourly_rate', v))}</label>
+            <label>Time-off hrs {numInput(base.pto_hours, (v) => onUpdateBase(base.id, 'pto_hours', v))}</label>
           </div>
         )}
         {base?.pay_type === 'performance' && (
@@ -494,6 +543,7 @@ function WeekEditor({ week, comp, readOnly, clockHours, onSetPayType, onUpdateBa
             <label>Task hours {numInput(base.task_hours_recorded, (v) => onUpdateBase(base.id, 'task_hours_recorded', v))}</label>
             <label>Task bonus {numInput(base.task_bonus, (v) => onUpdateBase(base.id, 'task_bonus', v))}</label>
             <label>Hourly rate {numInput(base.hourly_rate, (v) => onUpdateBase(base.id, 'hourly_rate', v))}</label>
+            <label>Time-off hrs {numInput(base.pto_hours, (v) => onUpdateBase(base.id, 'pto_hours', v))}</label>
           </div>
         )}
         {base?.pay_type === 'piece_rate' && (

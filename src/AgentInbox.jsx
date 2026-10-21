@@ -163,7 +163,7 @@ function ActionCard({ row, skill, focused, onChanged }) {
         <div style={{ marginTop: 12, background: '#F8FAFC', border: '1px solid var(--border)', borderRadius: 10, padding: 12 }}>
           <div style={{ fontSize: 12.5, color: 'var(--mist)', marginBottom: 6 }}>
             {channel === 'sms' ? '💬 Text' : '✉️ Email'} to <b style={{ color: '#334155' }}>{d.to_name || ''}</b> {channel === 'sms' ? fmtPhone(d.to) : d.to}
-            {d.link && <> · button: “{d.link.label}”</>}
+            {d.links?.length > 1 ? <> · {d.links.length} pay buttons, one per invoice</> : d.link && <> · button: “{d.link.label}”</>}
           </div>
           {channel === 'email' && (editable
             ? <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 6, fontWeight: 700 }} />

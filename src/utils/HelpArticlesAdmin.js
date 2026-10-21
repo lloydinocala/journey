@@ -129,13 +129,22 @@ export const HELP_ARTICLES = [
       "computer",
       "reset device",
       "security",
-      "locked"
+      "locked",
+      "time off",
+      "pto",
+      "task hours",
+      "w-4",
+      "withholding"
     ],
     "purpose": "Time Clock is where staff clock in and out; Payroll Capture pulls those hours together for payroll.",
     "sections": [
       {
         "h": "How to use it",
         "body": "Staff clock in and out on the Time Clock. Payroll Capture gathers the recorded hours so you can run payroll from them. (Sign-In Log is separate — that tracks app access, not work hours.)"
+      },
+      {
+        "h": "Time off, task hours and the W-4 — filled in for you",
+        "body": "When you open an employee's week in Payroll Capture, three things are suggested so you don't have to look them up: (1) hours clocked on the shift clock; (2) approved paid time off from HR → Time Off — paid at the hourly rate for hourly and performance pay, and never counted toward overtime (salary already covers paid days off; for piece rate, add it as a bonus line); (3) for performance pay, task hours from that week's completed jobs — each invoice line's pricebook task hours × quantity, split evenly when several techs worked the job. Open the list to see each job; custom lines have no task hours, so check those. Nothing changes until you click Use. On Prepare Payroll, federal withholding now follows the employee's signed W-4: Step 3 credits, Step 4 other income, deductions and extra withholding, and Exempt. The Detail view shows what the W-4 changed."
       },
       {
         "h": "Device security — one computer + one phone",

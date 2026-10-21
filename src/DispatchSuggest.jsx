@@ -68,7 +68,7 @@ export default function DispatchSuggest({ profile, selectedOrg, date, onAssigned
         setSg((s) => ({ ...s, [jobId]: { error: data?.reason || 'Could not get suggestions right now.' } }))
         return
       }
-      setSg((s) => ({ ...s, [jobId]: { usedMapbox: data.usedMapbox, suggestions: data.suggestions || [] } }))
+      setSg((s) => ({ ...s, [jobId]: { usedMapbox: data.usedMapbox, suggestions: data.suggestions || [], out: data.out || [] } }))
     } catch {
       setSg((s) => ({ ...s, [jobId]: { error: 'Could not reach the suggestion service.' } }))
     }
@@ -144,6 +144,7 @@ export default function DispatchSuggest({ profile, selectedOrg, date, onAssigned
                 {s.suggestions && (
                   <div style={{ marginTop: 10 }}>
                     {s.suggestions.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--mist)' }}>No eligible technicians found.</div>}
+                    {s.out?.length > 0 && <div style={{ fontSize: 12, color: '#8A6D0B', background: '#FCF6E9', border: '1px solid #EBD9A6', borderRadius: 8, padding: '5px 9px', marginBottom: 8 }}>🌴 Not suggested — on approved time off that day: {s.out.join(', ')}</div>}
                     {s.suggestions.slice(0, 4).map((t, i) => (
                       <div key={t.techId} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 10, background: i === 0 ? '#F2F8F8' : 'transparent', border: i === 0 ? '1px solid #D4E6E6' : '1px solid transparent', marginBottom: 6 }}>
                         <span style={{ width: 14, height: 14, borderRadius: '50%', background: t.calendarColor || '#2F5DE3', flex: '0 0 auto', marginTop: 3 }} />
