@@ -101,13 +101,14 @@ export default function FilterOrders({ profile }) {
     setEditLines(o.items.map((li) => ({ id: li.id, description: li.description, unit_price: Number(li.unit_price) || 0, quantity: Number(li.quantity) || 1 })))
   }
   const editQty = (id, v) => setEditLines((ls) => ls.map((l) => l.id === id ? { ...l, quantity: v } : l))
+  const editDesc = (id, v) => setEditLines((ls) => ls.map((l) => l.id === id ? { ...l, description: v } : l))
   const removeEditLine = (id) => setEditLines((ls) => ls.filter((l) => l.id !== id))
   async function saveEdit(o) {
     setSavingEdit(true)
     const keep = editLines.filter((l) => Math.max(0, Number(l.quantity) || 0) > 0)
     const removedIds = o.items.filter((li) => !keep.some((k) => k.id === li.id)).map((li) => li.id)
     // apply quantity changes + removals
-    for (const l of keep) await supabase.from('invoice_line_items').update({ quantity: Math.max(1, Number(l.quantity) || 1) }).eq('id', l.id)
+    for (const l of keep) await supabase.from('invoice_line_items').update({ quantity: Math.max(1, Number(l.quantity) || 1), description: (l.description || '').trim() || o.items.find((li) => li.id === l.id)?.description }).eq('id', l.id)
     if (removedIds.length) await supabase.from('invoice_line_items').delete().in('id', removedIds)
     const subtotal = Number(keep.reduce((s, l) => s + l.unit_price * Math.max(1, Number(l.quantity) || 1), 0).toFixed(2))
     const balance = Number((subtotal - (Number(o.total_paid) || 0)).toFixed(2))
@@ -246,11 +247,11 @@ export default function FilterOrders({ profile }) {
                     <tr>
                       <td colSpan={9} style={{ background: '#F5F8FF' }}>
                         <div style={{ padding: '10px 12px' }}>
-                          <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Edit {o.invoice_number} — adjust quantities or remove lines</div>
+                          <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Edit {o.invoice_number} — edit descriptions, adjust quantities or remove lines</div>
                           {editLines.length === 0 && <div style={{ fontSize: 13, color: '#B5462F', marginBottom: 8 }}>All lines removed — saving will empty the order; cancel or delete it instead if that's the intent.</div>}
                           {editLines.map((l) => (
                             <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
-                              <span style={{ minWidth: 220, fontSize: 13 }}>{l.description}</span>
+                              <input value={l.description} onChange={(e) => editDesc(l.id, e.target.value)} title="Description" style={{ ...inputStyle, minWidth: 260, flex: '1 1 260px', fontSize: 13 }} />
                               <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>{money(l.unit_price)} ea</span>
                               <label style={{ fontSize: 12.5, color: 'var(--mist)' }}>Qty <input value={l.quantity} onChange={(e) => editQty(l.id, e.target.value)} style={{ ...inputStyle, width: 56, marginLeft: 4 }} /></label>
                               <button onClick={() => removeEditLine(l.id)} style={{ ...linkBtn, color: '#B5462F' }}>Remove</button>
