@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import QuincyDock from './QuincyDock'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import EditableDescription from './EditableDescription'
 import { IconChevronLeft, IconReceipt } from './MobileIcons'
 import RoutingSummary from './RoutingSummary'
 import ElementsPartsUsedPanel from './modules/elements-hvac/ElementsPartsUsedPanel'
@@ -376,7 +377,7 @@ export default function TechInvoice({ profile }) {
             {lineItems.map((li) => (
               <div key={li.id} className="line-item-card">
                 <div className="line-item-desc">
-                  {li.description}
+                  <EditableDescription li={li} setLineItems={setLineItems} />
                   {isPendingCustom(li) && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#B8860B', background: 'rgba(184,134,11,0.12)', padding: '2px 7px', borderRadius: 6 }}>PENDING APPROVAL</span>}
                 </div>
                 <div className="line-item-fields">

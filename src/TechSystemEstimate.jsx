@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import QuincyDock from './QuincyDock'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import EditableDescription from './EditableDescription'
 import { IconChevronLeft, IconCalculator } from './MobileIcons'
 import RoutingSummary from './RoutingSummary'
 import AiAssist from './AiAssist'
@@ -404,7 +405,7 @@ export default function TechSystemEstimate({ profile }) {
             {lineItems.map((li) => (
               <div key={li.id} className="line-item-card">
                 <div className="line-item-desc" style={{ whiteSpace: 'pre-line' }}>
-                  {li.description}
+                  <EditableDescription li={li} setLineItems={setLineItems} locked={estimate?.approval_status === 'Approved' || estimate?.approval_status === 'Declined'} />
                   {isPendingCustom(li) && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#B8860B', background: 'rgba(184,134,11,0.12)', padding: '2px 7px', borderRadius: 6 }}>PENDING APPROVAL</span>}
                 </div>
                 {DESC_ONLY.has(li.category) ? (

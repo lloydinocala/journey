@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import EditableDescription from './EditableDescription'
 
 const money = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const r2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100
@@ -208,7 +209,7 @@ export default function DuctCleaningEditor({ jobId: jobIdProp, estimateId, kind,
               return (
                 <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: mobile ? '10px 12px' : '8px 12px', borderTop: idx ? '1px solid #EEF1F6' : 'none', background: qty ? '#F2F8FD' : '#fff' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: qty ? 700 : 500, fontSize: mobile ? 15 : 14 }}>{it.name}</div>
+                    <div style={{ fontWeight: qty ? 700 : 500, fontSize: mobile ? 15 : 14 }}>{ln ? <EditableDescription li={ln} setLineItems={setLines} locked={isEstimate && locked} /> : it.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--mist)' }}>{money(ln ? ln.unit_price : it.price)} each{it.taxable ? ' · taxable' : ''}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -229,7 +230,7 @@ export default function DuctCleaningEditor({ jobId: jobIdProp, estimateId, kind,
         <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase', color: '#7A8290', marginBottom: 6 }}>Other duct cleaning items</div>
         {customLines.map((l) => (
           <div key={l.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '6px 2px', fontSize: 14 }}>
-            <span style={{ flex: 1 }}>{l.description}{l.taxable ? <span style={{ color: 'var(--mist)', fontSize: 12 }}> · taxable</span> : null}</span>
+            <span style={{ flex: 1 }}><EditableDescription li={l} setLineItems={setLines} locked={isEstimate && locked} />{l.taxable ? <span style={{ color: 'var(--mist)', fontSize: 12 }}> · taxable</span> : null}</span>
             <span style={{ color: 'var(--mist)' }}>{l.quantity} × {money(l.unit_price)}</span>
             <b style={{ width: 90, textAlign: 'right' }}>{money(l.quantity * l.unit_price)}</b>
             {!locked && <button className="logout-button" style={{ padding: '2px 8px' }} onClick={() => removeLine(l)}>✕</button>}

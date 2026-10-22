@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import PermitPanel from './PermitPanel'
 import { supabase } from './utils/supabase'
+import EditableDescription from './EditableDescription'
 import RoutingSummary from './RoutingSummary'
 import TierBuilder from './TierBuilder'
 import AiAssist from './AiAssist'
@@ -635,7 +636,7 @@ export default function SystemEstimate({ profile }) {
             {lineItems.map((li) => (
               <>
                 <div className="grid-cell">
-                  {boldEquipmentLines(li.description)}
+                  <EditableDescription li={li} setLineItems={setLineItems} locked={estimate?.approval_status === 'Approved' || estimate?.approval_status === 'Declined'} render={boldEquipmentLines} />
                   {isPendingCustom(li) && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#B8860B', background: 'rgba(184,134,11,0.12)', padding: '2px 7px', borderRadius: 6 }}>PENDING · tech request</span>}
                 </div>
                 {DESC_ONLY.has(li.category) ? (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import EditableDescription from './EditableDescription'
 import { AgentDraftsBanner } from './AgentInboxBadge'
 import AiAssist from './AiAssist'
 import { loadEstimateContext } from './estimateContext'
@@ -432,7 +433,7 @@ export default function Estimate({ profile, estimateId }) {
 
             {lineItems.map((li) => (
               <>
-                <div className="grid-cell">{li.description}</div>
+                <div className="grid-cell"><EditableDescription li={li} setLineItems={setLineItems} locked={estimate?.approval_status === 'Approved' || estimate?.approval_status === 'Declined'} /></div>
                 <div className="grid-cell">
                   <input
                     type="number"

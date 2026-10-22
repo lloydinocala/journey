@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import EditableDescription from './EditableDescription'
 import { can } from './utils/permissions'
 import SignaturePad from './SignaturePad'
 import RoutingSummary from './RoutingSummary'
@@ -615,7 +616,7 @@ async function loadLineItems(invoiceId) {
             {lineItems.map((li) => (
               <>
                 <div className="grid-cell">
-                  {li.description}
+                  <EditableDescription li={li} setLineItems={setLineItems} />
                   {isPendingCustom(li) && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#B8860B', background: 'rgba(184,134,11,0.12)', padding: '2px 7px', borderRadius: 6 }}>PENDING · tech request</span>}
                 </div>
                 <div className="grid-cell">

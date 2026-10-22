@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import QuincyDock from './QuincyDock'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import EditableDescription from './EditableDescription'
 import { loadEstimateContext } from './estimateContext'
 import { IconChevronLeft, IconFile } from './MobileIcons'
 import { can } from './utils/permissions'
@@ -588,7 +589,7 @@ export default function TechEstimate({ profile, estimateId }) {
             {serviceLineItems.length === 0 && <p style={{ color: 'var(--mist)', fontSize: 13, margin: 0 }}>No line items yet — add one below.</p>}
             {serviceLineItems.map((li) => (
               <div key={li.id} className="line-item-card">
-                <div className="line-item-desc">{li.description}</div>
+                <div className="line-item-desc"><EditableDescription li={li} setLineItems={setLineItems} locked={estimate?.approval_status === 'Approved' || estimate?.approval_status === 'Declined'} /></div>
                 <div className="line-item-fields">
                   <div className="mobile-field">
                     <label>Qty</label>
@@ -710,7 +711,7 @@ export default function TechEstimate({ profile, estimateId }) {
             <p style={{ color: 'var(--mist)', fontSize: 12.5, marginTop: 0 }}>Optional upgrades to present for approval — up to 2, pulled from the pricebook.</p>
             {addonItems.map((li) => (
               <div key={li.id} className="line-item-card">
-                <div className="line-item-desc">{li.description}</div>
+                <div className="line-item-desc"><EditableDescription li={li} setLineItems={setLineItems} locked={estimate?.approval_status === 'Approved' || estimate?.approval_status === 'Declined'} /></div>
                 <div className="line-item-fields">
                   <div className="mobile-field">
                     <label>Qty</label>
