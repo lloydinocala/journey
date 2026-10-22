@@ -3,15 +3,17 @@ import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { AgentDraftsBanner } from './AgentInboxBadge'
 import AiAssist from './AiAssist'
+import { loadEstimateContext } from './estimateContext'
 
 const EST_SCOPE_SYS = 'Write a short, customer-facing scope-of-work summary for an HVAC estimate, based only on the line items provided. 2 to 4 plain-language sentences a homeowner understands, describing what the work covers. Do not invent items or prices. Ready to paste into the estimate.'
 
-export default function Estimate({ profile }) {
+export default function Estimate({ profile, estimateId }) {
   const { jobId } = useParams()
   const [searchParams] = useSearchParams()
   // Follow-up / standalone estimate: jobId is only CONTEXT (customer/property/pricing);
   // we operate on this specific estimate, which isn't bound to the job.
-  const followupId = searchParams.get('followup')
+  // estimateId (prop): an estimate written before any job — no job context at all.
+  const followupId = estimateId || searchParams.get('followup')
   const navigate = useNavigate()
   const [job, setJob] = useState(null)
   const [estimate, setEstimate] = useState(null)
@@ -44,11 +46,11 @@ export default function Estimate({ profile }) {
 
   async function loadJobAndEstimate() {
     setLoading(true)
-    const { data: jobData } = await supabase
+    const { data: jobData } = jobId ? await supabase
       .from('jobs')
       .select('id, job_number, job_date, org_id, customer_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
       .eq('id', jobId)
-      .single()
+      .single() : { data: await loadEstimateContext(followupId) }
     setJob(jobData)
 
     if (!jobData) {
@@ -147,7 +149,7 @@ export default function Estimate({ profile }) {
 
   useEffect(() => {
     loadJobAndEstimate()
-  }, [jobId])
+  }, [jobId, followupId])
 
   useEffect(() => {
     if (!pickCategory || !job) {
@@ -371,7 +373,7 @@ export default function Estimate({ profile }) {
           <AgentDraftsBanner subjectId={estimate?.id} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '16px 0 24px' }}>
             <div>
-              <h2 className="page-title" style={{ marginBottom: 4 }}>{estimate.invoice_number} — Job {job.job_number}</h2>
+              <h2 className="page-title" style={{ marginBottom: 4 }}>{estimate.invoice_number} — {job.job_number ? `Job ${job.job_number}` : 'No job yet — one is created when it\'s approved'}</h2>
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.display_name}</p>
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.street_address}</p>
               <p style={{ color: 'var(--mist)', margin: 0 }}>{job.properties?.customers?.primary_phone} · {job.properties?.customers?.email_1}</p>

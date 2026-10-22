@@ -215,10 +215,17 @@ export const HELP_ARTICLES = [
       "profit %",
       "partial",
       "no cost data",
-      "cost"
+      "cost",
+      "new estimate",
+      "without a job",
+      "no job"
     ],
     "purpose": "Job Estimates are the quotes you send for service and repair work tied to a job. This table tracks each one from sent to sold, and turns an approved estimate into schedulable work. (New-system quotes live on the separate System Estimates page.)",
     "sections": [
+      {
+        "h": "Estimates before a job (New Estimate)",
+        "body": "Estimates often come before the job. + New → Estimate (field app: + Estimate) opens one form for every kind — Service / Repair, Duct Cleaning or New System. Start with the customer and property (or add new ones). Connecting a job is optional: pick an open job at that property to make it that job's estimate, or leave it unconnected. Service / repair estimates without a job ask for the trip charge, because prices depend on it; duct cleaning has no trip charge. When an unconnected estimate is approved — by the customer online, in the field, or by the office — the job is created automatically (a DC- job for duct cleaning, a repair job otherwise), marked needs dispatch, and the invoice starts from the estimate."
+      },
       {
         "h": "What it is for",
         "body": "Use this page to manage the repair and service quotes in flight — who they are for, whether they have been sent, where they stand with the customer, and their projected profit. When a customer says yes, this is also where you convert the estimate into a job so it can be scheduled."

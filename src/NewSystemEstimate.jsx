@@ -5,10 +5,20 @@ import OrgPicker from './OrgPicker'
 import CustomerSearchSelect from './CustomerSearchSelect'
 import { loadServiceCallsForProperty, pickLikelyServiceCall, serviceCallLabel } from './SystemEstimate'
 
-// New-system SALE estimate. Property-based (no job, no service call), but you START from the
-// customer — we remember customers by name, not addresses. Existing customer -> pick them, then
-// choose one of their properties (or add a new one). New customer -> create both on the spot.
-export default function NewSystemEstimate({ profile }) {
+// New Estimate — any kind (Service/Repair, Duct Cleaning, System), with or without a job.
+// Estimates often come before the job: start from the customer (we remember customers by
+// name, not addresses), pick or add the property, and optionally connect an existing job.
+// A jobless estimate becomes a job automatically when it's approved.
+// `type` locks the kind (the New System Estimate entry point); `mobile` = field app.
+const TYPES = [['service', 'Service / Repair'], ['duct', 'Duct Cleaning'], ['system', 'New System']]
+const OPEN_JOB = ['scheduled', 'unscheduled', 'in_progress', 'on_my_way', 'incomplete']
+
+export default function NewSystemEstimate({ profile, type, mobile }) {
+  const [estType, setEstType] = useState(type || 'service')
+  const [tripCharges, setTripCharges] = useState([])
+  const [tripId, setTripId] = useState('')
+  const [jobs, setJobs] = useState([])
+  const [jobId, setJobId] = useState('')
   const navigate = useNavigate()
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
@@ -43,6 +53,23 @@ export default function NewSystemEstimate({ profile }) {
   }, [])
 
   useEffect(() => { setExistingCustomerId('') }, [selectedOrg])
+
+  // Trip charges (they set service/repair prices: location, access, hours).
+  useEffect(() => {
+    if (!selectedOrg) return
+    supabase.from('service_prices').select('id, location, access, hours, price, customer_display, services!inner(name, category, org_id)')
+      .eq('services.org_id', selectedOrg).eq('services.category', 'TRIP CHARGES').eq('is_active', true)
+      .then(({ data }) => setTripCharges((data || []).sort((a, b) => String(a.customer_display || '').localeCompare(String(b.customer_display || '')))))
+  }, [selectedOrg])
+
+  // Open jobs at the property, to connect the estimate to (optional).
+  useEffect(() => {
+    setJobId('')
+    if (!propertyId || addNewProperty || estType === 'system') { setJobs([]); return }
+    supabase.from('jobs').select('id, job_number, segment, job_date, job_type, status, service_line')
+      .eq('property_id', propertyId).is('deleted_at', null).in('status', OPEN_JOB).order('job_date', { ascending: false }).limit(25)
+      .then(({ data }) => setJobs((data || []).filter((j) => (estType === 'duct' ? j.service_line === 'duct_cleaning' : j.service_line !== 'duct_cleaning'))))
+  }, [propertyId, addNewProperty, estType])
 
   useEffect(() => {
     if (!existingCustomerId) { setCustomerProperties([]); setPropertyId(''); setAddNewProperty(false); return }
@@ -85,6 +112,7 @@ export default function NewSystemEstimate({ profile }) {
       setErr('Customer name and service address are required.'); return
     }
 
+    if (estType === 'service' && !(jobId && !addNewProperty) && !tripId) { setErr('Pick the trip charge — service prices depend on it.'); return }
     setCreating(true)
     if (mode === 'new') {
       const { data: cust, error } = await supabase.from('customers').insert({
@@ -112,6 +140,33 @@ export default function NewSystemEstimate({ profile }) {
 
     const { count } = await supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('org_id', selectedOrg).eq('kind', 'estimate')
     const num = 'EST-' + String((count || 0) + 1).padStart(4, '0')
+
+    if (estType !== 'system') {
+      const linkJob = (!addNewProperty && propId === propertyId && jobId) ? jobs.find((j) => j.id === jobId) : null
+      if (linkJob) {
+        const { data: has } = await supabase.from('invoices').select('invoice_number').eq('job_id', linkJob.id).eq('kind', 'estimate').neq('estimate_type', 'system').is('deleted_at', null).limit(1).maybeSingle()
+        if (has) { setErr(`Job ${linkJob.job_number} already has estimate ${has.invoice_number} — open it from the job instead.`); setCreating(false); return }
+      }
+      const { data: est, error: eErr } = await supabase.from('invoices').insert({
+        org_id: selectedOrg, invoice_number: num, kind: 'estimate', estimate_type: 'service', approval_status: 'Pending',
+        job_id: linkJob ? linkJob.id : null, property_id: propId, bills_to_customer_id: custId,
+        invoice_date: new Date().toISOString().slice(0, 10), discount_type: 'dollar',
+        ...(estType === 'duct' ? { service_line: 'duct_cleaning' } : { trip_charge_price_id: linkJob ? null : tripId }),
+      }).select('id').single()
+      if (eErr) { setErr(eErr.message); setCreating(false); return }
+      // Service estimates start with the trip charge line (the job's, or the one picked here).
+      if (estType === 'service') {
+        let tcId = tripId
+        if (linkJob) { const { data: jj } = await supabase.from('jobs').select('trip_charge_price_id').eq('id', linkJob.id).maybeSingle(); tcId = jj?.trip_charge_price_id }
+        if (tcId) {
+          const { data: tc } = await supabase.from('service_prices').select('price, customer_display, services(is_tax_exempt)').eq('id', tcId).maybeSingle()
+          if (tc) await supabase.from('invoice_line_items').insert({ invoice_id: est.id, org_id: selectedOrg, description: tc.customer_display, unit_price: tc.price, quantity: 1, taxable: !tc.services?.is_tax_exempt, is_custom: false, sort_order: 1, category: 'TRIP CHARGES' })
+        }
+      }
+      navigate(`${mobile ? '/tech' : ''}/estimate-doc/${est.id}`)
+      return
+    }
+
     const { data: created, error } = await supabase.from('invoices').insert({
       org_id: selectedOrg,
       invoice_number: num,
@@ -125,7 +180,7 @@ export default function NewSystemEstimate({ profile }) {
       discount_type: 'dollar',
     }).select('id').single()
     if (error) { setErr(error.message); setCreating(false); return }
-    navigate(`/system-estimate-p/${created.id}`)
+    navigate(`${mobile ? '/tech' : ''}/system-estimate-p/${created.id}`)
   }
 
   const fieldLabel = { display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 4 }
@@ -147,9 +202,16 @@ export default function NewSystemEstimate({ profile }) {
 
   return (
     <div>
-      <h2 className="page-title">New System Estimate</h2>
-      <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: -8, marginBottom: 20, maxWidth: 620 }}>
-        For a new-system sale — a referral, a purchased lead, or a cold quote. Start with the customer; it&rsquo;s tied to their property, with no service call and no job. When they accept, it becomes a job to schedule.
+      <h2 className="page-title">{type === 'system' ? 'New System Estimate' : 'New Estimate'}</h2>
+      {!type && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          {TYPES.map(([k, l]) => <button key={k} className={estType === k ? 'auth-button' : 'logout-button'} style={{ width: 'auto', padding: '6px 16px', margin: 0 }} onClick={() => setEstType(k)}>{l}</button>)}
+        </div>
+      )}
+      <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: type ? -8 : 0, marginBottom: 20, maxWidth: 620 }}>
+        {estType === 'system'
+          ? <>For a new-system sale — a referral, a purchased lead, or a cold quote. Start with the customer; it&rsquo;s tied to their property, with no service call and no job. When they accept, it becomes a job to schedule.</>
+          : <>Start with the customer. Connecting a job is optional — an estimate written before any job becomes a {estType === 'duct' ? 'duct cleaning (DC-)' : 'repair'} job automatically when it&rsquo;s approved.</>}
       </p>
 
       {isSuperAdmin && (
@@ -191,7 +253,18 @@ export default function NewSystemEstimate({ profile }) {
             </div>
           )}
 
-          {propertyId && !addNewProperty && (
+          {propertyId && !addNewProperty && estType !== 'system' && (
+            <div>
+              <label style={fieldLabel}>Connect to a job (optional)</label>
+              <select style={input} value={jobId} onChange={(e) => setJobId(e.target.value)}>
+                <option value="">No job — create one when it's approved</option>
+                {jobs.map((j) => <option key={j.id} value={j.id}>Job {j.job_number}{j.segment > 1 ? `-${j.segment}` : ''} · {j.job_type || 'Service'} · {j.job_date || 'no date'} · {j.status}</option>)}
+              </select>
+              {!jobs.length && <p style={{ fontSize: 12, color: 'var(--mist)', margin: '4px 0 0' }}>No open {estType === 'duct' ? 'duct cleaning ' : ''}jobs at this property.</p>}
+            </div>
+          )}
+
+          {propertyId && !addNewProperty && estType === 'system' && (
             <div>
               <label style={fieldLabel}>From service call</label>
               <select style={input} value={fromJobId} onChange={(e) => setFromJobId(e.target.value)}>
@@ -224,6 +297,16 @@ export default function NewSystemEstimate({ profile }) {
             <div style={{ flex: 1 }}><label style={fieldLabel}>Email</label><input style={input} value={custEmail} onChange={(e) => setCustEmail(e.target.value)} /></div>
           </div>
           {propertyFields}
+        </div>
+      )}
+
+      {estType === 'service' && !jobId && (
+        <div style={{ maxWidth: 520, marginTop: 14 }}>
+          <label style={fieldLabel}>Trip charge (sets the prices) *</label>
+          <select style={input} value={tripId} onChange={(e) => setTripId(e.target.value)}>
+            <option value="">Select…</option>
+            {tripCharges.map((t) => <option key={t.id} value={t.id}>{t.customer_display || t.services?.name} — {[t.location, t.access, t.hours].filter(Boolean).join(' / ')}{t.price != null ? ` · $${Number(t.price).toFixed(2)}` : ''}</option>)}
+          </select>
         </div>
       )}
 

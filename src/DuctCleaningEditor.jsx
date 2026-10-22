@@ -26,7 +26,7 @@ export function DuctOr({ kind, mobile, profile, children }) {
   return dc ? <DuctCleaningEditor jobId={jobId} kind={kind} mobile={mobile} profile={profile} /> : children
 }
 
-export default function DuctCleaningEditor({ jobId, kind, profile, mobile }) {
+export default function DuctCleaningEditor({ jobId: jobIdProp, estimateId, kind, profile, mobile }) {
   const navigate = useNavigate()
   const isEstimate = kind === 'estimate'
   const [job, setJob] = useState(null)
@@ -41,8 +41,22 @@ export default function DuctCleaningEditor({ jobId, kind, profile, mobile }) {
 
   async function load() {
     setErr('')
-    const { data: j } = await supabase.from('jobs').select('id, org_id, job_number, segment, customer_id, property_id, status, customers ( display_name )').eq('id', jobId).maybeSingle()
-    if (!j) { setErr('Job not found.'); return }
+    // An estimate written before any job: open it by its own id; the job may not exist yet.
+    let byId = null
+    if (estimateId) {
+      const { data } = await supabase.from('invoices').select('*').eq('id', estimateId).maybeSingle()
+      if (!data) { setErr('Estimate not found.'); return }
+      byId = data
+    }
+    const jid = jobIdProp || byId?.job_id
+    let j = null
+    if (jid) {
+      ({ data: j } = await supabase.from('jobs').select('id, org_id, job_number, segment, customer_id, property_id, status, customers ( display_name )').eq('id', jid).maybeSingle())
+      if (!j) { setErr('Job not found.'); return }
+    } else {
+      const { data: c } = byId.bills_to_customer_id ? await supabase.from('customers').select('display_name').eq('id', byId.bills_to_customer_id).maybeSingle() : { data: null }
+      j = { id: null, org_id: byId.org_id, job_number: null, segment: 1, customer_id: byId.bills_to_customer_id, property_id: byId.property_id, customers: c }
+    }
     setJob(j)
     const [{ data: pb }, { data: o }] = await Promise.all([
       supabase.from('duct_pricebook_items').select('*').eq('org_id', j.org_id).eq('is_active', true).order('sort_order').order('name'),
@@ -50,21 +64,24 @@ export default function DuctCleaningEditor({ jobId, kind, profile, mobile }) {
     ])
     setItems(pb || []); setRate(Number(o?.sales_tax_rate) || 0)
 
-    let q = supabase.from('invoices').select('*').eq('job_id', jobId).eq('kind', kind).is('deleted_at', null)
-    if (isEstimate) q = q.neq('estimate_type', 'system')
-    let { data: d } = await q.order('created_at', { ascending: false }).limit(1).maybeSingle()
+    let d = byId
+    if (!d) {
+      let q = supabase.from('invoices').select('*').eq('job_id', jid).eq('kind', kind).is('deleted_at', null)
+      if (isEstimate) q = q.neq('estimate_type', 'system')
+      ;({ data: d } = await q.order('created_at', { ascending: false }).limit(1).maybeSingle())
+    }
     if (!d && !isEstimate) {
       // Start the invoice from the approved estimate when there is one (copies its lines).
-      const { data: est } = await supabase.from('invoices').select('id, approved_by').eq('job_id', jobId).eq('kind', 'estimate').eq('approval_status', 'Approved').is('deleted_at', null).order('approved_at', { ascending: false }).limit(1).maybeSingle()
+      const { data: est } = await supabase.from('invoices').select('id, approved_by').eq('job_id', jid).eq('kind', 'estimate').eq('approval_status', 'Approved').is('deleted_at', null).order('approved_at', { ascending: false }).limit(1).maybeSingle()
       if (est) {
         await supabase.rpc('convert_approved_estimate', { p_estimate_id: est.id, p_approved_by: est.approved_by || profile?.full_name || 'Customer' })
-        ;({ data: d } = await supabase.from('invoices').select('*').eq('job_id', jobId).eq('kind', 'invoice').limit(1).maybeSingle())
+        ;({ data: d } = await supabase.from('invoices').select('*').eq('job_id', jid).eq('kind', 'invoice').limit(1).maybeSingle())
       }
     }
     if (!d) {
       // The database assigns the DC- / EDC- number.
       const { data: created, error } = await supabase.from('invoices').insert({
-        org_id: j.org_id, job_id: jobId, kind, invoice_number: 'DC-NEW', invoice_date: new Date().toISOString().slice(0, 10),
+        org_id: j.org_id, job_id: jid, kind, invoice_number: 'DC-NEW', invoice_date: new Date().toISOString().slice(0, 10),
         bills_to_customer_id: j.customer_id, property_id: j.property_id, discount_type: 'dollar', service_line: 'duct_cleaning',
         ...(isEstimate ? { estimate_type: 'service', approval_status: 'Pending' } : {}),
       }).select('*').single()
@@ -75,7 +92,7 @@ export default function DuctCleaningEditor({ jobId, kind, profile, mobile }) {
     const { data: ls } = await supabase.from('invoice_line_items').select('*').eq('invoice_id', d.id).order('sort_order')
     setLines(ls || [])
   }
-  useEffect(() => { load() }, [jobId, kind]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [jobIdProp, estimateId, kind]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const locked = !!doc && (isEstimate ? doc.approval_status === 'Approved' || doc.approval_status === 'Declined' : !!doc.paid_at)
   const byItem = useMemo(() => Object.fromEntries(lines.filter((l) => l.duct_item_id).map((l) => [l.duct_item_id, l])), [lines])
@@ -145,10 +162,16 @@ export default function DuctCleaningEditor({ jobId, kind, profile, mobile }) {
   async function approveAndInvoice() {
     if (!window.confirm('Mark this estimate approved and start the invoice from it?')) return
     setBusy(true)
-    const { error } = await supabase.rpc('convert_approved_estimate', { p_estimate_id: doc.id, p_approved_by: profile?.full_name || 'Office' })
+    const by = profile?.full_name || 'Office'
+    // Recording the approval creates the job automatically when the estimate has none yet.
+    const { error: aErr } = await supabase.from('invoices').update({ approval_status: 'Approved', approved_at: new Date().toISOString(), approved_by: by }).eq('id', doc.id)
+    if (aErr) { setBusy(false); setErr(aErr.message); return }
+    const { data: fresh } = await supabase.from('invoices').select('job_id').eq('id', doc.id).maybeSingle()
+    if (!fresh?.job_id) { setBusy(false); setErr('Approved, but no job could be created — the estimate needs a customer property.'); return }
+    const { error } = await supabase.rpc('convert_approved_estimate', { p_estimate_id: doc.id, p_approved_by: by })
     setBusy(false)
     if (error) { setErr(error.message); return }
-    navigate(mobile ? `/tech/invoice/${jobId}` : `/invoice/${jobId}`)
+    navigate(mobile ? `/tech/invoice/${fresh.job_id}` : `/invoice/${fresh.job_id}`)
   }
 
   if (err && !doc) return <div className="page"><div className="auth-error">{err}</div></div>
@@ -161,7 +184,10 @@ export default function DuctCleaningEditor({ jobId, kind, profile, mobile }) {
   return (
     <div className={mobile ? '' : 'page'} style={{ padding: pad, paddingBottom: mobile ? 110 : 0, maxWidth: 900 }}>
       <div style={{ marginBottom: 6 }}>
-        <Link to={mobile ? `/tech/${jobId}` : `/jobs?job=${jobId}`} style={{ fontSize: 13 }}>← Job {job.job_number}{job.segment > 1 ? `-${job.segment}` : ''}</Link>
+        {job.id
+          ? <Link to={mobile ? `/tech/${job.id}` : `/jobs?job=${job.id}`} style={{ fontSize: 13 }}>← Job {job.job_number}{job.segment > 1 ? `-${job.segment}` : ''}</Link>
+          : <Link to={mobile ? '/tech' : '/estimates'} style={{ fontSize: 13 }}>← {mobile ? 'Back' : 'Estimates'}</Link>}
+        {!job.id && <span style={{ fontSize: 12.5, color: 'var(--mist)', marginLeft: 10 }}>No job yet — one is created automatically when it's approved.</span>}
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
         <h2 style={{ margin: '4px 0' }}>Duct Cleaning {title}</h2>

@@ -20,6 +20,7 @@ const EXTRA_FEATURES = [
   { feature: 'Home Dashboard', heading: 'Top bar', page: 'Command Center tab', path: '/home', show: isOffice },
   { feature: 'Operations Dashboard', heading: 'Top bar', page: 'Command Center tab → KPIs → Operations', path: '/operations', show: isOffice },
   { feature: 'To-Do List', heading: 'Train Station', page: 'Dispatch Station → Calendar (To-Do tile)', path: '/to-do', show: isOffice },
+  { feature: 'New Estimate (any kind, job optional)', heading: '+New menu', page: 'New Estimate', path: '/new-estimate', show: isOffice },
   { feature: 'New System Estimate', heading: '+New menu', page: 'New System Estimate', path: '/new-system-estimate', show: isOffice },
   { feature: 'Follow-up Estimate', heading: '+New menu', page: 'Follow-up Estimate', path: '/new-followup-estimate', show: isOffice },
   // Data Station importers (cards on the Import Hub)
@@ -39,7 +40,7 @@ const EXTRA_FEATURES = [
   { feature: 'Field Cycle Count', heading: 'Field App', page: 'Supervisor Tools', path: '/tech/cycle-counts', show: isOwner },
   { feature: 'Receiving', heading: 'Field App', page: 'Supervisor Tools', path: '/receiver', show: (p) => isFieldAdmin(p) && can(p, 'access_receiver') },
   { feature: 'Field New Job', heading: 'Field App', page: 'Supervisor Tools', path: '/tech/new-job', show: isOwner },
-  { feature: 'Field Service Estimate', heading: 'Field App', page: 'Supervisor Tools', path: '/tech/new-service-estimate', show: isOwner },
+  { feature: 'Field Estimate (any kind, job optional)', heading: 'Field App', page: 'Supervisor Tools', path: '/tech/new-estimate', show: isOwner },
   { feature: 'Field Follow-up Estimate', heading: 'Field App', page: 'Supervisor Tools', path: '/tech/new-followup-estimate', show: isOwner },
   { feature: 'Field System Estimate', heading: 'Field App', page: 'Supervisor Tools', path: '/tech/new-system-estimate', show: isOwner },
   { feature: 'Chat with Quincy', heading: 'Field App', page: 'Supervisor Tools', path: '/tech/apollo', show: isOwner },

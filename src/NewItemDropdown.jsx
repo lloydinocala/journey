@@ -14,7 +14,7 @@ const ITEMS = {
   continueJob:    { label: 'Add Segment', mode: 'continueJob' },
   customer:       { label: 'New Customer', mode: 'customer' },
   property:       { label: 'New Property', mode: 'property' },
-  estimate:       { label: 'New Estimate', mode: 'pickEstimateJob' },
+  estimate:       { label: 'New Estimate', route: '/new-estimate' },   // any kind, job optional
   followupEstimate: { label: 'Follow-up Estimate', route: '/new-followup-estimate' },
   systemEstimate: { label: 'New System Estimate', route: '/new-system-estimate' },
   invoice:        { label: 'New Invoice', mode: 'pickInvoiceJob' },

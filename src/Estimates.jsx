@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import { estimatePath } from './estimateContext'
 import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
@@ -621,7 +622,7 @@ export default function Estimates({ profile }) {
               return (
               <div key={est.id} style={{ display: 'contents' }}>
                 <div ref={isHighlight ? highlightRef : undefined} className="grid-cell grid-actions" style={actionsCellStyle(rowBg)}>
-                  <Link to={est.job_id ? '/estimate/' + est.job_id : '/estimate/' + est.reference_job_id + '?followup=' + est.id} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
+                  <Link to={estimatePath(est)} className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>
                     Edit
                   </Link>
                   <a href={'/view-invoice/' + est.id} target="_blank" rel="noopener noreferrer" className="logout-button" style={{ textDecoration: 'none', display: 'inline-block' }}>

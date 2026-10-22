@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import QuincyDock from './QuincyDock'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import { loadEstimateContext } from './estimateContext'
 import { IconChevronLeft, IconFile } from './MobileIcons'
 import { can } from './utils/permissions'
 import AiAssist from './AiAssist'
@@ -32,13 +33,14 @@ function buildEquipSummary(list) {
 
 const blankEquip = { system_label: '', install_date: '', outdoor_brand: '', outdoor_model: '', outdoor_serial: '', indoor_brand: '', indoor_model: '', indoor_serial: '', furnace_brand: '', furnace_model: '', furnace_serial: '', info_unavailable_reason: '' }
 
-export default function TechEstimate({ profile }) {
+export default function TechEstimate({ profile, estimateId }) {
   const { jobId } = useParams()
   const [searchParams] = useSearchParams()
   // When present, this is a follow-up/standalone estimate: jobId is only the CONTEXT
   // (customer/property/pricing); we operate on this specific estimate, which isn't bound
   // to the job and doesn't affect its completion.
-  const followupId = searchParams.get('followup')
+  // estimateId (prop): an estimate written before any job — no job context at all.
+  const followupId = estimateId || searchParams.get('followup')
   const navigate = useNavigate()
 
   const [job, setJob] = useState(null)
@@ -82,11 +84,11 @@ export default function TechEstimate({ profile }) {
 
   async function loadJobAndEstimate() {
     setLoading(true)
-    const { data: jobData } = await supabase
+    const { data: jobData } = jobId ? await supabase
       .from('jobs')
       .select('id, job_number, job_date, diagnosis_note, org_id, customer_id, property_id, trip_charge_price_id, properties(street_address, customers!properties_customer_id_fkey(display_name, primary_phone, email_1)), trip_charge:trip_charge_price_id(location, access, hours, price, cost, task_hours, customer_display, services(id, name, is_tax_exempt))')
       .eq('id', jobId)
-      .single()
+      .single() : { data: await loadEstimateContext(followupId) }
     setJob(jobData)
     if (!jobData) { setLoading(false); return }
 
@@ -140,7 +142,7 @@ export default function TechEstimate({ profile }) {
     await syncEquipmentLine(existingEstimate.id, jobData)
 
     // Default the Estimating Technician to the job's first-listed technician (by sort order).
-    if (!existingEstimate.estimating_technician_id) {
+    if (!existingEstimate.estimating_technician_id && jobId) {
       const { data: firstTech } = await supabase
         .from('job_technicians')
         .select('user_id')
@@ -252,7 +254,7 @@ export default function TechEstimate({ profile }) {
     await loadEquipList(job.property_id)
   }
 
-  useEffect(() => { loadJobAndEstimate() }, [jobId])
+  useEffect(() => { loadJobAndEstimate() }, [jobId, followupId])
 
   useEffect(() => { if (job?.property_id) loadEquipList(job.property_id) }, [job?.property_id])
 
@@ -476,7 +478,7 @@ export default function TechEstimate({ profile }) {
       <div className="mobile-header job-detail-header">
         <button className="mobile-back" onClick={() => navigate(-1)}><IconChevronLeft /></button>
         <div className="job-detail-header-text">
-          <div className="job-detail-title">{estimate.invoice_number} — Job {job.job_number}</div>
+          <div className="job-detail-title">{estimate.invoice_number} — {job.job_number ? `Job ${job.job_number}` : 'No job yet'}</div>
           <div className="job-detail-sub">{job.properties?.customers?.display_name}</div>
         </div>
       </div>
@@ -576,7 +578,7 @@ export default function TechEstimate({ profile }) {
                   context={{ estimate: estimate.invoice_number, customer: job.properties?.customers?.display_name, diagnosis: job.diagnosis_note || undefined, line_items: serviceLineItems.map((li) => ({ description: li.description, qty: li.quantity, unit_price: li.unit_price })) }} />
               </div>
             )}
-            {!job.trip_charge && <p style={{ color: '#C0392B', fontSize: 12.5, margin: 0 }}>No trip charge set on this job — set it on the Jobs page for pricebook lookups.</p>}
+            {!job.trip_charge && <p style={{ color: '#C0392B', fontSize: 12.5, margin: 0 }}>{job.jobless ? 'No trip charge on this estimate — prices can\'t be looked up.' : 'No trip charge set on this job — set it on the Jobs page for pricebook lookups.'}</p>}
           </div>
         </div>
 

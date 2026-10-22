@@ -76,6 +76,7 @@ import FinancingDirectory from './FinancingDirectory'
 import Payouts from './Payouts'
 import DuctPricebook from './DuctPricebook'
 import { DuctOr } from './DuctCleaningEditor'
+import EstimateDoc from './EstimateDoc'
 import Estimate from './Estimate'
 import NewFollowupEstimate from './NewFollowupEstimate'
 import Estimates from './Estimates'
@@ -293,6 +294,8 @@ function AuthenticatedApp() {
         <Route path="/tech/new-job" element={<TechNewJob profile={profile} mode="job" />} />
         <Route path="/tech/new-service-estimate" element={<TechNewJob profile={profile} mode="service-estimate" />} />
         <Route path="/tech/new-system-estimate" element={<TechNewJob profile={profile} mode="system-estimate" />} />
+        <Route path="/tech/new-estimate" element={<div style={{ padding: 14 }}><NewSystemEstimate profile={profile} mobile /></div>} />
+        <Route path="/tech/estimate-doc/:estimateId" element={<EstimateDoc profile={profile} mobile />} />
         <Route path="/tech/apollo" element={<TechApollo profile={profile} />} />
         <Route path="/tech/invoice-view/:invoiceId" element={<TechInvoiceView profile={profile} />} />
         <Route path="/tech/messages/:jobId" element={<TechMessages profile={profile} />} />
@@ -396,7 +399,9 @@ function AuthenticatedApp() {
         <Route path="/estimate/:jobId" element={<DuctOr kind="estimate" profile={profile}><Estimate profile={profile} /></DuctOr>} />
         <Route path="/system-estimate/:jobId" element={<SystemEstimate profile={profile} />} />
         <Route path="/system-estimate-p/:estimateId" element={<SystemEstimate profile={profile} />} />
-        <Route path="/new-system-estimate" element={<NewSystemEstimate profile={profile} />} />
+        <Route path="/new-system-estimate" element={<NewSystemEstimate profile={profile} type="system" />} />
+        <Route path="/new-estimate" element={<NewSystemEstimate profile={profile} />} />
+        <Route path="/estimate-doc/:estimateId" element={<EstimateDoc profile={profile} />} />
         <Route path="/estimates" element={<Estimates profile={profile} />} />
         <Route path="/system-estimates" element={<SystemEstimates profile={profile} />} />
         <Route path="/home" element={<CommandCenter profile={profile} />} />
