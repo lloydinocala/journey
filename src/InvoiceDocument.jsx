@@ -38,6 +38,8 @@ export default function InvoiceDocument({ data, footer }) {
   const primary = org?.brand_primary_color || '#2F5DE3'
   const isEstimate = invoice.kind === 'estimate'
   const docLabel = isEstimate ? 'Estimate' : 'Invoice'
+  // Duct cleaning documents: their own section heading, and the estimate an invoice came from.
+  const isDuct = invoice.service_line === 'duct_cleaning'
 
   const hasBusinessAddress = org?.business_street || org?.business_city
   const hasContactBlock = hasBusinessAddress || org?.business_phone || org?.business_email || org?.business_website || org?.license_number
@@ -146,6 +148,10 @@ export default function InvoiceDocument({ data, footer }) {
         {docLabel.toUpperCase()} {invoice.invoice_number}
       </div>
 
+      {!isEstimate && invoice.from_estimate_number && (
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#7A8290', margin: '-8px 0 18px 2px' }}>From Estimate #{invoice.from_estimate_number}</div>
+      )}
+
       {diagText && (
         <div style={{ border: '1px solid #E2E6EA', borderLeft: `4px solid ${primary}`, background: '#FbFcFe', borderRadius: 6, padding: '10px 14px', marginBottom: 20 }}>
           <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: '#7A8290', marginBottom: 4 }}>Diagnosis</div>
@@ -161,7 +167,7 @@ export default function InvoiceDocument({ data, footer }) {
 
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', background: primary, color: 'white', padding: '8px 14px', borderRadius: '6px 6px 0 0', fontSize: 13, fontWeight: 600 }}>
-          <div style={{ flex: 3 }}>Services</div>
+          <div style={{ flex: 3 }}>{isDuct ? 'Duct Cleaning Services' : 'Services'}</div>
           <div style={{ flex: 1, textAlign: 'right' }}>Qty</div>
           <div style={{ flex: 1, textAlign: 'right' }}>Unit Price</div>
           <div style={{ flex: 1, textAlign: 'right' }}>Amount</div>

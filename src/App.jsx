@@ -74,6 +74,8 @@ import FinancingOptions from './FinancingOptions'
 import FinancingCentral from './FinancingCentral'
 import FinancingDirectory from './FinancingDirectory'
 import Payouts from './Payouts'
+import DuctPricebook from './DuctPricebook'
+import { DuctOr } from './DuctCleaningEditor'
 import Estimate from './Estimate'
 import NewFollowupEstimate from './NewFollowupEstimate'
 import Estimates from './Estimates'
@@ -281,8 +283,8 @@ function AuthenticatedApp() {
         ))}
         <Route path="/tech/task/:taskId" element={<TechTaskCard profile={profile} />} />
         <Route path="/tech/:jobId" element={<TechJobCard profile={profile} />} />
-        <Route path="/tech/invoice/:jobId" element={<TechInvoice profile={profile} />} />
-        <Route path="/tech/estimate/:jobId" element={<TechEstimate profile={profile} />} />
+        <Route path="/tech/invoice/:jobId" element={<DuctOr kind="invoice" mobile profile={profile}><TechInvoice profile={profile} /></DuctOr>} />
+        <Route path="/tech/estimate/:jobId" element={<DuctOr kind="estimate" mobile profile={profile}><TechEstimate profile={profile} /></DuctOr>} />
         <Route path="/tech/new-followup-estimate" element={<TechNewEstimate profile={profile} />} />
         <Route path="/tech/system-estimate/:jobId" element={<TechSystemEstimate profile={profile} />} />
         <Route path="/tech/system-estimate-p/:estimateId" element={<TechSystemEstimate profile={profile} />} />
@@ -374,6 +376,7 @@ function AuthenticatedApp() {
         <Route path="/dispatch-map" element={<DispatchMap profile={profile} />} />
         <Route path="/pricebook" element={<Pricebook profile={profile} segment="residential" />} />
         <Route path="/pricebook-commercial" element={<Pricebook profile={profile} segment="commercial" />} />
+        <Route path="/pricebook-duct-cleaning" element={<DuctPricebook profile={profile} />} />
         <Route path="/systems-pricebook" element={<SystemsPricebook profile={profile} />} />
         <Route path="/time-and-materials" element={<TimeMaterials profile={profile} />} />
         <Route path="/filter-pricebook" element={<FilterPricebookImport profile={profile} />} />
@@ -389,8 +392,8 @@ function AuthenticatedApp() {
         <Route path="/maintenance-agreements" element={<MaintenanceAgreements profile={profile} />} />
         <Route path="/maintenance-due" element={<MaintenanceDue profile={profile} />} />
         <Route path="/maintenance-dashboard" element={<MaintenanceDashboard profile={profile} />} />
-        <Route path="/invoice/:jobId" element={<Invoice profile={profile} />} />
-        <Route path="/estimate/:jobId" element={<Estimate profile={profile} />} />
+        <Route path="/invoice/:jobId" element={<DuctOr kind="invoice" profile={profile}><Invoice profile={profile} /></DuctOr>} />
+        <Route path="/estimate/:jobId" element={<DuctOr kind="estimate" profile={profile}><Estimate profile={profile} /></DuctOr>} />
         <Route path="/system-estimate/:jobId" element={<SystemEstimate profile={profile} />} />
         <Route path="/system-estimate-p/:estimateId" element={<SystemEstimate profile={profile} />} />
         <Route path="/new-system-estimate" element={<NewSystemEstimate profile={profile} />} />

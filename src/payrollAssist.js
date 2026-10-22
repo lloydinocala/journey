@@ -50,13 +50,17 @@ export async function loadTaskHoursFromJobs(orgId, periodStart, periodEnd) {
   const invByJob = {}; (invs || []).forEach((i) => { (invByJob[i.job_id] = invByJob[i.job_id] || []).push(i.id) })
   const invIds = (invs || []).map((i) => i.id)
   const { data: lines } = invIds.length
-    ? await supabase.from('invoice_line_items').select('invoice_id, quantity, service_price_id, is_custom').in('invoice_id', invIds)
+    ? await supabase.from('invoice_line_items').select('invoice_id, quantity, service_price_id, duct_item_id, is_custom').in('invoice_id', invIds)
     : { data: [] }
   const priceIds = [...new Set((lines || []).map((l) => l.service_price_id).filter(Boolean))]
   const { data: prices } = priceIds.length
     ? await supabase.from('service_prices').select('id, task_hours').in('id', priceIds)
     : { data: [] }
   const th = {}; (prices || []).forEach((p) => { th[p.id] = Number(p.task_hours) || 0 })
+  // Duct cleaning lines carry task hours from the Duct Cleaning Pricebook.
+  const ductIds = [...new Set((lines || []).map((l) => l.duct_item_id).filter(Boolean))]
+  const { data: ducts } = ductIds.length ? await supabase.from('duct_pricebook_items').select('id, task_hours').in('id', ductIds) : { data: [] }
+  const dth = {}; (ducts || []).forEach((d) => { dth[d.id] = Number(d.task_hours) || 0 })
 
   const byUser = {}
   for (const j of list) {
@@ -65,6 +69,7 @@ export async function loadTaskHoursFromJobs(orgId, periodStart, periodEnd) {
     for (const l of lines || []) {
       if (!ids.has(l.invoice_id)) continue
       if (l.service_price_id) hours += (th[l.service_price_id] || 0) * (Number(l.quantity) || 1)
+      else if (l.duct_item_id) hours += (dth[l.duct_item_id] || 0) * (Number(l.quantity) || 1)
       else custom++
     }
     const techs = [...new Set(j.job_technicians.map((t) => t.user_id))]

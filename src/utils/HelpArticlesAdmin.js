@@ -112,6 +112,27 @@ export const HELP_ARTICLES = [
     ]
   },
   {
+    "id": "duct-cleaning",
+    "title": "Duct Cleaning — pricebook, estimates & invoices",
+    "area": "Admin",
+    "keywords": ["duct cleaning", "duct", "sanitize", "dryer vent", "drier vent", "uv light", "DC-", "EDC-", "pricebook"],
+    "purpose": "Duct cleaning jobs have their own price list, their own job / estimate / invoice numbers, and a quantity-based estimate and invoice.",
+    "sections": [
+      {
+        "h": "How it works",
+        "body": "Any job created with the DUCT CLEANING job type (its estimate format is Duct Cleaning in Settings → Job types) is numbered DC-0001, DC-0002… automatically — from the office, the field app or online booking. Its estimate is numbered EDC-0001…, and its invoice carries the job's number (DC-0112; a second visit is DC-0112-2). Opening the job's estimate or invoice shows the duct cleaning editor instead of the HVAC one: tap + / − next to each pricebook item (for example 11 Residential Supply Ducts), add an 'other' item if needed, and the totals and sales tax fill in. Duct cleaning invoices hold duct cleaning items only."
+      },
+      {
+        "h": "Estimate to invoice",
+        "body": "Send the estimate from the office, or review it with the customer in the field app to approve and sign. Once approved, the invoice starts from it automatically and shows 'From Estimate #EDC-…'. Approved estimates and paid invoices are locked."
+      },
+      {
+        "h": "Duct Cleaning Pricebook (Data Station → Duct Cleaning Pricebook)",
+        "body": "One row per item: category, item, materials cost, price, taxable and task hours. Materials w/ tax uses your sales tax rate; profit and profit % are for the office only and never appear on customer documents. Taxable means sales tax is charged to the customer on that item (UV Light and UV Bulb start as taxable). Task hours feed performance pay. Turn an item off with Active instead of deleting it."
+      }
+    ]
+  },
+  {
     "id": "payouts-financing",
     "title": "Payouts & Financing",
     "area": "Admin",
