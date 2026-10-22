@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { formatDayLabel, isSameDay, timeToPixelY, pixelYToTimeString, getTotalGridHeight, getHourMarkers } from './utils/dateHelpers'
 import { utcToZonedInputs } from './utils/tz'
 
@@ -15,6 +15,12 @@ function localTimeString(isoString, fallback) {
 
 export default function CalendarGrid({ days, jobs, businessStart, businessEnd, onJobClick, onJobDrop }) {
   const [draggingId, setDraggingId] = useState(null)
+  // Where inside the tile it was grabbed — so the tile's TOP lands on the slot you aim for,
+  // not wherever the mouse pointer happens to be. Cards dragged in from the Needs Dispatch
+  // tray have no grab offset (their top follows the pointer).
+  const grabOffset = useRef(0)
+  // Live drop preview: a dashed outline + time label showing exactly where it will land.
+  const [preview, setPreview] = useState(null) // { day, top, height, time }
   const totalHeight = getTotalGridHeight(businessStart, businessEnd)
   const hourMarkers = getHourMarkers(businessStart, businessEnd)
   const today = new Date()
@@ -63,23 +69,54 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
 
   function handleDragStart(e, job) {
     e.dataTransfer.setData('text/plain', job.id)
+    e.dataTransfer.effectAllowed = 'move'
+    const r = e.currentTarget.getBoundingClientRect()
+    grabOffset.current = Math.max(0, e.clientY - r.top)
     setDraggingId(job.id)
   }
 
   function handleDragEnd() {
     setDraggingId(null)
+    setPreview(null)
+    grabOffset.current = 0
+  }
+
+  // The slot the dragged tile's top edge is over, snapped (15-min in business hours).
+  function slotAt(e) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const y = Math.max(0, e.clientY - rect.top - (draggingId ? grabOffset.current : 0))
+    const time = pixelYToTimeString(y, businessStart, businessEnd)
+    return { time, top: timeToPixelY(time, businessStart, businessEnd) }
+  }
+
+  function handleDragOver(e, day) {
+    e.preventDefault()
+    const { time, top } = slotAt(e)
+    const key = toLocalDateStr(day)
+    if (preview && preview.day === key && preview.time === time) return
+    const dragged = draggingId ? jobs.find((j) => j.id === draggingId) : null
+    const [h, m] = time.split(':').map(Number)
+    const endMin = Math.min(24 * 60, h * 60 + m + (dragged?.duration_hours || 1) * 60)
+    const end = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`
+    setPreview({ day: key, time, top, height: Math.max(timeToPixelY(end, businessStart, businessEnd) - top, 16) })
+  }
+
+  function handleDragLeave(e) {
+    if (!e.currentTarget.contains(e.relatedTarget)) setPreview(null)
   }
 
   function handleDrop(e, day) {
     e.preventDefault()
     const jobId = e.dataTransfer.getData('text/plain')
-    if (!jobId || !onJobDrop) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const offsetY = e.clientY - rect.top
-    const newTime = pixelYToTimeString(offsetY, businessStart, businessEnd)
+    if (!jobId || !onJobDrop) { setPreview(null); return }
+    const newTime = slotAt(e).time
     onJobDrop(jobId, toLocalDateStr(day), newTime)
     setDraggingId(null)
+    setPreview(null)
+    grabOffset.current = 0
   }
+
+  const label12 = (t) => { const [h, m] = t.split(':').map(Number); return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}` }
 
   // Lay overlapping jobs into side-by-side lanes (max 3) so none are hidden.
   function laneLayout(dayJobs) {
@@ -154,9 +191,15 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
               key={toLocalDateStr(day)}
               className="calendar-day-col"
               style={{ height: totalHeight }}
-              onDragOver={(e) => e.preventDefault()}
+              onDragOver={(e) => handleDragOver(e, day)}
+              onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, day)}
             >
+              {preview && preview.day === toLocalDateStr(day) && (
+                <div style={{ position: 'absolute', left: 2, right: 2, top: preview.top, height: preview.height, border: '2px dashed #215F9A', background: 'rgba(33,95,154,0.10)', borderRadius: 6, pointerEvents: 'none', zIndex: 5 }}>
+                  <span style={{ position: 'absolute', top: -1, left: -1, background: '#215F9A', color: '#fff', fontSize: 11, fontWeight: 800, padding: '1px 6px', borderRadius: '5px 0 5px 0' }}>{label12(preview.time)}</span>
+                </div>
+              )}
               {hourMarkers.map((m) => (
                 <div key={m.hour} className="calendar-hour-line" style={{ top: m.pixelY }} />
               ))}

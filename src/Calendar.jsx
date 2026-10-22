@@ -304,6 +304,8 @@ export default function Calendar({ profile }) {
     // sending the bare "YYYY-MM-DDTHH:MM:00" string straight to Supabase) makes
     // sure it's stored as a true UTC instant, not silently mislabeled as UTC.
     const newStartTime = zonedToUtcIso(newDateStr, newTimeStr)
+    // Move the tile right away (the save follows), so it never jumps back while saving.
+    setJobs((list) => list.map((j) => (j.id === jobId ? { ...j, job_date: newDateStr, start_time: newStartTime, date_pending: false } : j)))
     // Placing a job on the calendar schedules it: also promote an unscheduled job
     // (e.g. a staged next segment pulled from the tray) to 'scheduled' so its status
     // matches its date. Guarded so a job already further along (on-my-way, in-progress,
