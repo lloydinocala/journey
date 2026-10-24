@@ -99,7 +99,7 @@ export default function YearEnd({ profile }) {
           <div>
             <h3 style={{ marginBottom: 8 }}>1099-NEC — subcontractors {year}</h3>
             <p style={{ color: 'var(--mist)', fontSize: 13, maxWidth: 720 }}>
-              Enter total paid to each non-employee contractor. A 1099-NEC is required for anyone paid <strong>$600+</strong>.
+              Payments logged in <a href="/rewards/payroll/contractor-payments">1099 Payments</a> are totaled here automatically; you can also enter a yearly total by hand. A 1099-NEC is required for anyone paid <strong>$600+</strong>.
               Use the <strong>Worker Classification</strong> checker first to confirm they're truly 1099, not a W-2 employee.
             </p>
             <form className="inline-form" onSubmit={addPayee} style={{ margin: '10px 0 16px', flexWrap: 'wrap', gap: 12 }}>
@@ -118,7 +118,9 @@ export default function YearEnd({ profile }) {
                       <td>{Number(p.amount) >= 600 ? <span style={{ color: '#B8720A', fontWeight: 700 }}>Yes</span> : <span style={{ color: 'var(--mist)' }}>No (under $600)</span>}</td>
                       <td style={{ display: 'flex', gap: 6 }}>
                         <button className="logout-button" onClick={() => print1099(p, year, orgName, settings)}>🖨 1099</button>
-                        <button className="logout-button" onClick={() => { if (confirm('Delete?')) delete1099(p.id).then(load) }}>Delete</button>
+                        {p.from_log
+                          ? <a href="/rewards/payroll/contractor-payments" style={{ fontSize: 12, alignSelf: 'center' }}>from payment log</a>
+                          : <button className="logout-button" onClick={() => { if (confirm('Delete?')) delete1099(p.id).then(load) }}>Delete</button>}
                       </td>
                     </tr>
                   ))}

@@ -8,7 +8,7 @@ import {
 import { useOrgSelector, OrgBar } from './shared'
 import HrOnboardingCompleteness from './HrOnboardingCompleteness'
 
-const blankNew = { full_name: '', role: '', pay_type: 'hourly', hourly_rate: '', annual_salary: '', hire_date: '', user_id: '', manager_id: '', department: '' }
+const blankNew = { full_name: '', role: '', worker_type: 'w2', pay_type: 'hourly', hourly_rate: '', annual_salary: '', hire_date: '', user_id: '', manager_id: '', department: '' }
 const ROLE_LABEL = { super_admin: 'Super Admin', org_admin: 'Owner / Admin', csr: 'Office', tech: 'Field Tech' }
 
 export default function HrEmployees({ profile }) {
@@ -57,6 +57,7 @@ export default function HrEmployees({ profile }) {
     })
     setSaving(false)
     if (err) { setError(err.message); return }
+    await upsertEmployeeHr(org.selectedOrg, emp.id, { worker_type: form.worker_type || 'w2' })
     await seedOnboarding(org.selectedOrg, emp.id)
     setForm(blankNew); setShowForm(false); load()
   }
@@ -173,6 +174,10 @@ export default function HrEmployees({ profile }) {
             <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required /></div>
           <div className="field"><label>Role / title</label>
             <input value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} placeholder="Service Tech" /></div>
+          <div className="field"><label>Worker type</label>
+            <select value={form.worker_type} onChange={(e) => setForm({ ...form, worker_type: e.target.value })}>
+              <option value="w2">W-2 employee</option><option value="1099">1099 contractor</option>
+            </select></div>
           <div className="field"><label>Pay type</label>
             <select value={form.pay_type} onChange={(e) => setForm({ ...form, pay_type: e.target.value })}>
               <option value="hourly">Hourly</option><option value="salary">Salary</option>
@@ -186,6 +191,13 @@ export default function HrEmployees({ profile }) {
           )}
           <div className="field"><label>Hire date</label>
             <input type="date" value={form.hire_date} onChange={(e) => setForm({ ...form, hire_date: e.target.value })} /></div>
+          <div style={{ width: '100%', fontSize: 12.5, color: 'var(--mist)', marginTop: -4 }}>
+            {form.worker_type === '1099'
+              ? '1099 contractors are never run through payroll and nothing is withheld — log what you pay them in Payroll → 1099 Payments.'
+              : form.pay_type === 'hourly'
+                ? <>Hourly pay is figured the company's way — Hourly, or Task hours + hourly — set in <a href="/settings?section=workforce">Settings → Workforce</a>. Task hours and errand hours are paid at this hourly rate, never less than labor law requires.</>
+                : 'Salary is paid per day worked (annual ÷ 260).'}
+          </div>
           <div className="field" style={{ minWidth: 200 }}><label>Login (optional)</label>
             <select value={form.user_id} onChange={(e) => setForm({ ...form, user_id: e.target.value })}>
               <option value="">— none —</option>

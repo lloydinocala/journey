@@ -82,3 +82,44 @@ export async function loadTaskHoursFromJobs(orgId, periodStart, periodEnd) {
   }
   return byUser
 }
+
+// Errand hours in the pay period, per user — for the "task hours + hourly" pay method:
+//   • field tasks (Tasks page): Start → Stop
+//   • jobs whose type is non-customer work (ERRANDS; job types set to "payroll"): Arrived → Completed,
+//     less any paused time. Every tech on the job gets its full time.
+export async function loadErrandHours(orgId, periodStart, periodEnd) {
+  const from = periodStart + 'T00:00:00', to = periodEnd + 'T23:59:59'
+  const [{ data: tasks }, { data: types }] = await Promise.all([
+    supabase.from('field_tasks').select('assigned_user_id, description, destination_name, started_at, stopped_at')
+      .eq('org_id', orgId).is('deleted_at', null).not('started_at', 'is', null).not('stopped_at', 'is', null)
+      .gte('started_at', from).lte('started_at', to),
+    supabase.from('job_types').select('name').eq('org_id', orgId).eq('invoice_behavior', 'payroll'),
+  ])
+  const byUser = {}
+  const add = (uid, hrs, label, date) => {
+    if (!uid || !(hrs > 0)) return
+    const u = byUser[uid] || (byUser[uid] = { hours: 0, items: [] })
+    u.hours = round2(u.hours + hrs)
+    u.items.push({ label, date, hours: round2(hrs) })
+  }
+  for (const t of tasks || []) {
+    add(t.assigned_user_id, (new Date(t.stopped_at) - new Date(t.started_at)) / 3600000, t.destination_name || t.description || 'Errand', t.started_at.slice(0, 10))
+  }
+  const names = (types || []).map((t) => t.name).filter(Boolean)
+  if (names.length) {
+    const { data: jobs } = await supabase.from('jobs').select('job_number, job_type, arrival_at, completed_at, paused_seconds, job_technicians(user_id)')
+      .eq('org_id', orgId).is('deleted_at', null).in('job_type', names).not('arrival_at', 'is', null).not('completed_at', 'is', null)
+      .gte('arrival_at', from).lte('arrival_at', to)
+    for (const j of jobs || []) {
+      const hrs = ((new Date(j.completed_at) - new Date(j.arrival_at)) / 1000 - (Number(j.paused_seconds) || 0)) / 3600
+      for (const t of j.job_technicians || []) add(t.user_id, hrs, `${j.job_type} ${j.job_number}`, j.arrival_at.slice(0, 10))
+    }
+  }
+  return byUser
+}
+
+// The company's hourly pay method (Settings → Workforce): 'hourly' or 'task'.
+export async function loadPayMethod(orgId) {
+  const { data } = await supabase.from('rewards_settings').select('settings').eq('org_id', orgId).maybeSingle()
+  return data?.settings?.hourly_pay_method === 'task' ? 'task' : 'hourly'
+}

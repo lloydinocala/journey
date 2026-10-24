@@ -31,6 +31,7 @@ export default function PreparePayroll({ profile }) {
   const [weekStart, setWeekStart] = useState(mondayOf(new Date()))
   const [frequency, setFrequency] = useState('weekly')
   const [rows, setRows] = useState([])
+  const [contractors, setContractors] = useState([]) // 1099 workers with a payroll week — never withheld
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState(null)
   const [filingOverride, setFilingOverride] = useState({})
@@ -56,7 +57,10 @@ export default function PreparePayroll({ profile }) {
     const ytdMap = {}
     await Promise.all(weeks.map(async (w) => { ytdMap[w.user_id] = await getYtdGross(org.selectedOrg, w.user_id, weekStart) }))
 
-    const built = weeks.map((w) => {
+    // 1099 contractors don't get W-2 withholding — they're paid through the 1099 payment log.
+    const isContractor = (w) => (profiles[w.user_id] || {}).worker_type === '1099'
+    setContractors(weeks.filter(isContractor).map((w) => userName(w.user_id)))
+    const built = weeks.filter((w) => !isContractor(w)).map((w) => {
       const c = comp[w.id] || { base: null, bonuses: [], commissions: [] }
       const g = computeGross(c.base, clockHours[w.user_id], c.bonuses, c.commissions)
       const prof = profiles[w.user_id] || {}
@@ -142,6 +146,11 @@ export default function PreparePayroll({ profile }) {
         </button>
       </div>
       <OrgBar {...org} />
+      {contractors.length > 0 && (
+        <div style={{ background: '#FFF8E6', border: '1px solid #F0DFA8', borderRadius: 8, padding: '8px 12px', margin: '8px 0', fontSize: 13 }}>
+          Not included — 1099 contractor{contractors.length === 1 ? '' : 's'}, so no taxes are withheld: <b>{contractors.join(', ')}</b>. Record what you pay them in <a href="/rewards/payroll/contractor-payments">1099 Payments</a>.
+        </div>
+      )}
 
       {!loading && rows.length > 0 && <PayrollAnomalyCheck rows={rows} />}
 

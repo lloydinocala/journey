@@ -172,13 +172,25 @@ export const HELP_ARTICLES = [
       "pto",
       "task hours",
       "w-4",
-      "withholding"
+      "withholding",
+      "1099",
+      "contractor",
+      "errand",
+      "pay method"
     ],
     "purpose": "Time Clock is where staff clock in and out; Payroll Capture pulls those hours together for payroll.",
     "sections": [
       {
         "h": "How to use it",
         "body": "Staff clock in and out on the Time Clock. Payroll Capture gathers the recorded hours so you can run payroll from them. (Sign-In Log is separate — that tracks app access, not work hours.)"
+      },
+      {
+        "h": "How hourly employees are paid (Settings → Workforce)",
+        "body": "Choose one method for the whole company. Hourly: the hours on the shift clock — errands included — with overtime over 40 hours. Task hours + hourly: task hours earned on completed jobs (pricebook task hours × quantity, split when several techs share a job) plus errand hours (errand tasks on the Tasks page, start → stop, and ERRANDS-type jobs, arrived → completed), all at the employee's hourly rate. Prepare Payroll always applies the labor-law check: the employee is never paid less than clocked hours × hourly rate, and hours over 40 get the overtime premium. When you click Start Week in Payroll Capture, the week is set up the company's way with the hours already filled in; the breakdown lists every job and errand."
+      },
+      {
+        "h": "1099 contractors",
+        "body": "Mark a person as a 1099 contractor when you add them (+ New Employee → Worker type) or on their HR record. Contractors never go through payroll and nothing is withheld — Payroll Capture shows 'Log a payment' instead of Start Week, and Prepare Payroll leaves them out. Record each payment in Payroll → 1099 Payments (outside subs can be typed in too). Year-End Forms totals each payee and prints the 1099-NEC for anyone paid $600 or more."
       },
       {
         "h": "Time off, task hours and the W-4 — filled in for you",

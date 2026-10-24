@@ -12,6 +12,7 @@ import ServiceRequestSettings from './ServiceRequestSettings'
 import TaskSettings from './TaskSettings'
 import AgentSettings from './AgentSettings'
 import TextingSettings from './TextingSettings'
+import PayMethodSettings from './PayMethodSettings'
 import TimeOffSettings from './TimeOffSettings'
 import { HiringQuestionsSettings } from './modules/rewards-hvac/HiringPanels'
 import CallHandlingPrefs from './CallHandlingPrefs'
@@ -744,6 +745,8 @@ export default function Settings({ profile }) {
       <CallHandlingPrefs profile={profile} orgId={selectedOrg} adminMode />
 
       <EmployeePayRates orgId={selectedOrg} />
+
+      <PayMethodSettings orgId={selectedOrg} />
 
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Payroll pay period</h3>
       <PayrollSettings orgId={selectedOrg} />

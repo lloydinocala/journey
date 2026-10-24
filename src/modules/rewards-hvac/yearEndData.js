@@ -88,9 +88,22 @@ export function build940(calcs) {
 }
 
 // ---- 1099-NEC payments -----------------------------------------------------
+// Totals entered by hand here, plus each payee's total from the 1099 payment log
+// (Payroll → 1099 Payments). Log totals show as their own rows (from_log) and can't be
+// deleted here — fix the individual payments instead.
 export async function list1099(orgId, year) {
-  const { data } = await supabase.from('rewards_1099_payments').select('*').eq('org_id', orgId).eq('tax_year', year).order('payee_name')
-  return data || []
+  const [{ data }, { data: log }] = await Promise.all([
+    supabase.from('rewards_1099_payments').select('*').eq('org_id', orgId).eq('tax_year', year).order('payee_name'),
+    supabase.from('rewards_1099_payment_log').select('payee_name, tin_last4, amount').eq('org_id', orgId).gte('paid_on', `${year}-01-01`).lte('paid_on', `${year}-12-31`),
+  ])
+  const m = new Map()
+  for (const r of log || []) {
+    const k = r.payee_name.trim().toLowerCase()
+    const t = m.get(k) || { id: 'log:' + k, payee_name: r.payee_name, tin_last4: null, amount: 0, from_log: true }
+    t.amount = round2(t.amount + Number(r.amount || 0)); if (r.tin_last4) t.tin_last4 = r.tin_last4
+    m.set(k, t)
+  }
+  return [...(data || []), ...m.values()].sort((a, b) => a.payee_name.localeCompare(b.payee_name))
 }
 export async function add1099(orgId, row) { return supabase.from('rewards_1099_payments').insert({ org_id: orgId, ...row }).select().single() }
 export async function delete1099(id) { return supabase.from('rewards_1099_payments').delete().eq('id', id) }

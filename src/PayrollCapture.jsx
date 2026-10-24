@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import PayrollReconcile from './PayrollReconcile'
-import { loadPtoHours, loadTaskHoursFromJobs } from './payrollAssist'
+import { loadPtoHours, loadTaskHoursFromJobs, loadErrandHours, loadPayMethod } from './payrollAssist'
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -101,6 +101,9 @@ export default function PayrollCapture({ profile }) {
   const [clockHours, setClockHours] = useState({}) // userId -> total clocked hours this week
   const [ptoHours, setPtoHours] = useState({})     // userId -> approved time off in the period
   const [taskJobs, setTaskJobs] = useState({})     // userId -> task hours from completed jobs
+  const [errands, setErrands] = useState({})       // userId -> errand hours (errand tasks + ERRANDS jobs)
+  const [payMethod, setPayMethod] = useState('hourly') // company setting: 'hourly' | 'task'
+  const [hrByUser, setHrByUser] = useState({})     // userId -> { pay_type, hourly_rate, annual_salary, worker_type }
   const [expanded, setExpanded] = useState(null)   // weekId currently open for editing
   const [busy, setBusy] = useState(false)
 
@@ -193,8 +196,16 @@ export default function PayrollCapture({ profile }) {
     // round to 2 decimals
     Object.keys(hoursMap).forEach((k) => { hoursMap[k] = +hoursMap[k].toFixed(2) })
     setClockHours(hoursMap)
-    const [pto, tj] = await Promise.all([loadPtoHours(selectedOrg, weekStart, weekEnd), loadTaskHoursFromJobs(selectedOrg, weekStart, weekEnd)])
-    setPtoHours(pto); setTaskJobs(tj)
+    const [pto, tj, er, pm, { data: emps }] = await Promise.all([
+      loadPtoHours(selectedOrg, weekStart, weekEnd), loadTaskHoursFromJobs(selectedOrg, weekStart, weekEnd),
+      loadErrandHours(selectedOrg, weekStart, weekEnd), loadPayMethod(selectedOrg),
+      supabase.from('employees').select('id, user_id, pay_type, hourly_rate, annual_salary').eq('org_id', selectedOrg),
+    ])
+    const ids = (emps || []).map((e) => e.id)
+    const { data: hrs } = ids.length ? await supabase.from('rewards_employee_hr').select('employee_id, worker_type').in('employee_id', ids) : { data: [] }
+    const wt = Object.fromEntries((hrs || []).map((h) => [h.employee_id, h.worker_type]))
+    const hb = {}; (emps || []).forEach((e) => { if (e.user_id) hb[e.user_id] = { ...e, worker_type: wt[e.id] || 'w2' } })
+    setPtoHours(pto); setTaskJobs(tj); setErrands(er); setPayMethod(pm); setHrByUser(hb)
     setLoading(false)
   }
 
@@ -212,8 +223,17 @@ export default function PayrollCapture({ profile }) {
       week_end: weekEnd,
       status: 'draft',
     }).select().single()
+    if (error) { setBusy(false); alert('Could not start week: ' + error.message); return }
+    // Start the base pay the company's way (Settings → Workforce), with the hours filled in.
+    const hr = hrByUser[userId] || {}
+    const rate = hr.hourly_rate != null ? Number(hr.hourly_rate) : null
+    let base
+    if (hr.pay_type === 'salary') base = { pay_type: 'salary', annual_salary: hr.annual_salary ?? null }
+    else if (payMethod === 'task') base = { pay_type: 'performance', hourly_rate: rate, task_hours_recorded: +(((taskJobs[userId]?.hours || 0) + (errands[userId]?.hours || 0)).toFixed(2)) }
+    else base = { pay_type: 'wages', hourly_rate: rate, hours_clocked_in: clockHours[userId] ?? null }
+    if (ptoHours[userId]?.hours && base.pay_type !== 'salary') base.pto_hours = ptoHours[userId].hours
+    await supabase.from('payroll_base_pay').insert({ org_id: selectedOrg, week_id: data.id, ...base })
     setBusy(false)
-    if (error) { alert('Could not start week: ' + error.message); return }
     await loadAll()
     setExpanded(data.id)
   }
@@ -384,7 +404,10 @@ export default function PayrollCapture({ profile }) {
                     <div style={{ fontSize: 12, color: 'var(--mist)' }}>{emp.role}</div>
                   </div>
 
-                  {!week && (
+                  {!week && hrByUser[emp.id]?.worker_type === '1099' && (
+                    <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>1099 contractor — no payroll or withholding. <Link to="/rewards/payroll/contractor-payments">Log a payment →</Link></span>
+                  )}
+                  {!week && hrByUser[emp.id]?.worker_type !== '1099' && (
                     <button className="auth-button" style={{ width: 'auto', padding: '6px 16px', margin: 0 }} disabled={busy} onClick={() => startWeek(emp.id)}>
                       Start Week
                     </button>
@@ -431,6 +454,8 @@ export default function PayrollCapture({ profile }) {
                     clockHours={clockHours[emp.id]}
                     pto={ptoHours[emp.id]}
                     taskJobs={taskJobs[emp.id]}
+                    errands={errands[emp.id]}
+                    payMethod={payMethod}
                     onSetPayType={(pt) => setBasePayType(week.id, pt)}
                     onUpdateBase={updateBaseField}
                     onAddBonus={() => addBonus(week.id)}
@@ -454,7 +479,7 @@ export default function PayrollCapture({ profile }) {
 
 // ---- week editor sub-component ---------------------------------------------
 
-function WeekEditor({ week, comp, readOnly, clockHours, pto, taskJobs, onSetPayType, onUpdateBase, onAddBonus, onUpdateBonus, onRemoveBonus, onAddCommission, onUpdateCommission, onRemoveCommission, live }) {
+function WeekEditor({ week, comp, readOnly, clockHours, pto, taskJobs, errands, payMethod, onSetPayType, onUpdateBase, onAddBonus, onUpdateBonus, onRemoveBonus, onAddCommission, onUpdateCommission, onRemoveCommission, live }) {
   const base = comp.base
   const numInput = (val, onChange, ph) => (
     <input type="number" step="0.01" defaultValue={val ?? ''} disabled={readOnly}
@@ -489,11 +514,28 @@ function WeekEditor({ week, comp, readOnly, clockHours, pto, taskJobs, onSetPayT
           </div>
         )}
 
+        {payMethod === 'task' && base?.pay_type === 'performance' && (
+          <div style={{ fontSize: 12.5, color: 'var(--mist)', marginBottom: 8 }}>
+            Company method: <b>task hours + errand hours</b> at the hourly rate (Settings → Workforce). Task hours to pay: <b>{(+(((taskJobs?.hours || 0) + (errands?.hours || 0)).toFixed(2)))} hrs</b> = {taskJobs?.hours || 0} task + {errands?.hours || 0} errand.
+            {!readOnly && Number(base.task_hours_recorded || 0) !== +(((taskJobs?.hours || 0) + (errands?.hours || 0)).toFixed(2)) && (
+              <button className="logout-button" style={{ marginLeft: 10 }} onClick={() => onUpdateBase(base.id, 'task_hours_recorded', +(((taskJobs?.hours || 0) + (errands?.hours || 0)).toFixed(2)))}>Use task + errand hours</button>
+            )}
+          </div>
+        )}
+        {errands?.items?.length > 0 && payMethod === 'task' && base?.pay_type === 'performance' && (
+          <details style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 13 }}>
+            <summary style={{ cursor: 'pointer' }}>🧾 <strong>{errands.hours} errand hrs</strong> from {errands.items.length} errand{errands.items.length === 1 ? '' : 's'} (errand tasks + ERRANDS jobs, start → stop).</summary>
+            <table style={{ marginTop: 8, fontSize: 12.5, borderCollapse: 'collapse' }}><tbody>
+              {errands.items.map((it, i) => <tr key={i}><td style={{ padding: '2px 10px 2px 0' }}>{it.label}</td><td style={{ padding: '2px 10px 2px 0', color: 'var(--mist)' }}>{it.date}</td><td style={{ fontWeight: 700 }}>{it.hours} hrs</td></tr>)}
+            </tbody></table>
+          </details>
+        )}
+
         {taskJobs?.jobs?.length > 0 && (base?.pay_type === 'performance' || !base?.pay_type) && (
           <details style={{ background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 13 }}>
             <summary style={{ cursor: 'pointer' }}>
               🛠 <strong>{taskJobs.hours} task hrs</strong> from {taskJobs.jobs.length} completed job{taskJobs.jobs.length === 1 ? '' : 's'} (pricebook task hours on each invoice).
-              {!readOnly && base?.pay_type === 'performance' && Number(base.task_hours_recorded || 0) !== taskJobs.hours && (
+              {!readOnly && base?.pay_type === 'performance' && payMethod !== 'task' && Number(base.task_hours_recorded || 0) !== taskJobs.hours && (
                 <button className="logout-button" style={{ marginLeft: 10 }} onClick={(e) => { e.preventDefault(); onUpdateBase(base.id, 'task_hours_recorded', taskJobs.hours) }}>Use for task hours</button>
               )}
             </summary>
