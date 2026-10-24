@@ -351,7 +351,7 @@ export default function Tasks({ profile }) {
           </div>
           <table className="data-table" style={{ maxWidth: 680 }}>
             <thead>
-              <tr><th>Employee</th><th>Tasks</th><th>Worked</th><th>Task rate</th><th>Pay</th></tr>
+              <tr><th>Employee</th><th>Tasks</th><th>Worked</th><th>Hourly rate</th><th>Pay</th></tr>
             </thead>
             <tbody>
               {payRows.length === 0 ? (
