@@ -200,7 +200,7 @@ export const HELP_ARTICLES = [
         "h": "Installation includes (by system type)",
         "items": [
           "Default — the fallback \"what’s included with the install\" text. It is used for any system type you leave blank.",
-          "Per system type — a separate block for each type (Apt CrossOver, Apt Split, CrossOver, Gas, Packaged, Split, Mini-Split, plus any extra type in your equipment). Write the exact inclusions for that type.",
+          "Per system type — a separate block for each type (Apt Side-Discharge, Apt Split, Side-Discharge, Gas, Packaged, Split, Mini-Split, plus any extra type in your equipment). Write the exact inclusions for that type.",
           "On a System Estimate, the block for the chosen system type is inserted automatically; a type with no block of its own uses the default.",
           "\"Start from default\" copies the default text into a blank type so you can tweak rather than retype."
         ]

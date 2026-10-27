@@ -35,6 +35,20 @@ function pick(row, ...keys) {
 // on the model combination itself; if even that's blank, the row can't be
 // reliably matched against anything already on file, so it's always inserted
 // fresh rather than risking a wrong match.
+const optional = (v, fn) => (v === undefined ? undefined : fn(v))
+
+// Older system-type spellings → the industry term "Side-Discharge" (formerly CrossOver).
+const SYS_ALIASES = { 'crossover': 'Side-Discharge', 'cross-over': 'Side-Discharge', 'side discharge': 'Side-Discharge', 'apt crossover': 'Apt Side-Discharge', 'apt cross-over': 'Apt Side-Discharge', 'apt side discharge': 'Apt Side-Discharge' }
+function normFamily(v) {
+  const t = String(v ?? '').trim().toLowerCase()
+  if (t.includes('budget')) return 'Budget Minded'
+  if (t.includes('common')) return 'Commonly Purchased'
+  if (t.includes('trend')) return 'Trending This Year'
+  if (t.includes('premium')) return 'Premium Products'
+  return null
+}
+function normSysType(v) { return v ? SYS_ALIASES[v.toLowerCase()] || v : v }
+
 function matchKey(r) {
   if (r.ahri_ref) return 'ahri:' + normalizeForMatch(r.ahri_ref)
   if (r.outdoor_model || r.indoor_model || r.furnace_model) {
@@ -70,7 +84,7 @@ export default function EquipmentImport({ profile }) {
         AhriRef: '217730630', HomeType: 'Both',
         OutdoorBrand: 'BRYANT', OutdoorSeries: 'D5C Series', OutdoorModel: 'D5CUHAH18AAK', IndoorBrand: 'BRYANT',
         IndoorModel: 'D5MUWAQ18XA3', FurnaceModel: '', SizeTons: '1.5', CoolingCapacity: '18000', EER2: '12.1',
-        SEER2: '19.3', ManufacturedIn: '', SystemType: 'Apt CrossOver', EnergyStar: 'TRUE', FloridaRating: '4.5',
+        SEER2: '19.3', ManufacturedIn: '', SystemType: 'Apt Side-Discharge', EnergyStar: 'TRUE', FloridaRating: '4.5',
         ClientRating: '4.9', LaborWarranty: '2', ManufacturerWarrantyYears: '10',
         LinesetRequirements: '3/4" & 3/8" Copper Lines', Subtotal: '6500', InstallationCosts: '', InstallationPrice: '25000',
         Active: 'TRUE',
@@ -95,7 +109,7 @@ export default function EquipmentImport({ profile }) {
 
     try {
       const text = await readFileSmart(file)
-      const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
+      const parsed = Papa.parse(text, { header: true, skipEmptyLines: true, transformHeader: (h) => String(h || '').trim() })
       if (parsed.errors && parsed.errors.length > 0) {
         throw new Error(`CSV parse error: ${parsed.errors[0].message} (row ${parsed.errors[0].row})`)
       }
@@ -115,7 +129,7 @@ export default function EquipmentImport({ profile }) {
           eer2: normNumber(pick(r, 'EER2', 'EER2')),
           seer2: normNumber(pick(r, 'SEER2', 'SEER2')),
           manufactured_in: normText(pick(r, 'ManufacturedIn', 'Manufactured In')),
-          system_type: normText(pick(r, 'SystemType', 'System Type')),
+          system_type: normSysType(normText(pick(r, 'SystemType', 'System Type'))),
           energy_star: normBool(pick(r, 'EnergyStar', 'Energy Star')),
           florida_rating: normNumber(pick(r, 'FloridaRating', 'FL Rating')),
           client_rating: normNumber(pick(r, 'ClientRating', 'Client Rating')),
@@ -125,6 +139,10 @@ export default function EquipmentImport({ profile }) {
           subtotal: normNumber(pick(r, 'Subtotal', 'Subtotal')),
           installation_costs: normNumber(pick(r, 'InstallationCosts', 'Our Cost')),
           installation_price: normNumber(pick(r, 'InstallationPrice', 'Installation Price')),
+          // Estimate App placement columns — only touched when the file has them.
+          recommended: optional(pick(r, 'Recommended', 'Recommended'), normBool),
+          best_value: optional(pick(r, 'BestValue', 'Best Value'), normBool),
+          brand_family: optional(pick(r, 'BrandFamily', 'Budget Family'), normFamily),
           active: (() => {
             const v = pick(r, 'Active', 'Active')
             return v === undefined || v === '' ? true : normBool(v)

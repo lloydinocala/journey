@@ -5,7 +5,7 @@ import OrgPicker from './OrgPicker'
 // The system types Journey ships with, in the order the office thinks about them.
 // Any additional system_type actually present in the org's equipment is merged in
 // below, so a type that exists in the pricebook always gets its own block here.
-const CANONICAL_TYPES = ['Apt CrossOver', 'Apt Split', 'CrossOver', 'Gas', 'Packaged', 'Split', 'Mini-Split']
+const CANONICAL_TYPES = ['Apt Side-Discharge', 'Apt Split', 'Side-Discharge', 'Gas', 'Packaged', 'Split', 'Mini-Split']
 
 // Org-level templates that appear on every system estimate. The warranty exact-words
 // block is one template (year numbers are pulled from the chosen system at render time).

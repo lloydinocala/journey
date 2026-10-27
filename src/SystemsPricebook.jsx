@@ -5,7 +5,7 @@ import OrgPicker from './OrgPicker'
 import { fetchAllRows, readFileSmart, normPrice } from './utils/csvImport'
 
 const COLUMNS = [
-  { key: 'system_type', label: 'System Type', required: true, width: 100, type: 'text' },
+  { key: 'system_type', label: 'System Type', required: true, width: 100, type: 'text', options: ['Split', 'Side-Discharge', 'Packaged', 'Gas', 'Apt Split', 'Apt Side-Discharge', 'Mini-Split'] },
   { key: 'size_tons', label: 'Size (Tons)', required: true, width: 90, type: 'number' },
   { key: 'outdoor_brand', label: 'Outdoor Brand', width: 110, type: 'text' },
   { key: 'outdoor_series', label: 'Outdoor Series', width: 130, type: 'text' },
@@ -31,7 +31,27 @@ const COLUMNS = [
   { key: 'installation_costs', label: 'Our Cost', width: 90, type: 'number' },
   { key: 'installation_price', label: 'Installation Price', required: true, width: 130, type: 'number' },
   { key: 'active', label: 'Active', required: true, width: 80, type: 'boolean' },
+  // Customer Estimate App placement: which brand group a system shows under, whether its
+  // brand gets the blue "our favorites" border, and the "Best Value" ribbon.
+  { key: 'best_value', label: 'Best Value', width: 90, type: 'boolean' },
+  { key: 'recommended', label: 'Recommended', width: 110, type: 'boolean' },
+  { key: 'brand_family', label: 'Budget Family', width: 150, type: 'text', options: ['Budget Minded', 'Commonly Purchased', 'Trending This Year', 'Premium Products'] },
 ]
+
+// Older spellings of system types, normalized on import. The industry term is now
+// "Side-Discharge" (formerly CrossOver).
+const SYSTEM_TYPE_ALIASES = { 'crossover': 'Side-Discharge', 'cross-over': 'Side-Discharge', 'side discharge': 'Side-Discharge', 'apt crossover': 'Apt Side-Discharge', 'apt cross-over': 'Apt Side-Discharge', 'apt side discharge': 'Apt Side-Discharge' }
+// Estimate App brand groups. Accepts any capitalization and the older labels.
+const normBrandFamily = (v) => {
+  const t = String(v ?? '').trim().toLowerCase()
+  if (!t) return null
+  if (t.includes('budget')) return 'Budget Minded'
+  if (t.includes('common')) return 'Commonly Purchased'
+  if (t.includes('trend')) return 'Trending This Year'
+  if (t.includes('premium')) return 'Premium Products'
+  return null
+}
+const normSystemType = (v) => (v ? SYSTEM_TYPE_ALIASES[String(v).trim().toLowerCase()] || String(v).trim() : v)
 
 const LABEL_TO_KEY = Object.fromEntries(COLUMNS.map((c) => [c.label, c.key]))
 const KEY_TO_TYPE = Object.fromEntries(COLUMNS.map((c) => [c.key, c.type]))
@@ -201,13 +221,13 @@ export default function SystemsPricebook({ profile }) {
 
   function downloadTemplate() {
     const example = {
-      ID: '', 'System Type': 'Apt CrossOver', 'Size (Tons)': '1.5',
+      ID: '', 'System Type': 'Apt Side-Discharge', 'Size (Tons)': '1.5',
       'Outdoor Brand': 'BRYANT', 'Outdoor Series': 'D5C Series', 'Outdoor Model': 'D5CUHAH18AAK', 'Indoor Brand': 'BRYANT',
       'Indoor Model': 'D5MUWAQ18XA3', 'Furnace Model': '', 'AHRI Ref #': '217730630', 'Cooling Cap': '18000',
       EER2: '12.1', SEER2: '19.3', 'Home Type': 'Both', 'Energy Star': 'TRUE', 'FL Rating': '4.5',
       'Client Rating': '4.9', 'Labor Warranty': '2', 'Quality Pledge': 'FALSE', 'Pledge Years': '', 'Pledge Issuer': '',
       Lineset: '3/4" & 3/8" Copper Lines', Subtotal: '6500', 'Our Cost': '', 'Installation Price': '25000',
-      Active: 'TRUE',
+      Active: 'TRUE', 'Best Value': 'FALSE', Recommended: 'TRUE', 'Budget Family': 'Trending This Year',
     }
     const csv = Papa.unparse([example])
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -252,6 +272,7 @@ export default function SystemsPricebook({ profile }) {
     Papa.parse(text, {
       header: true,
       skipEmptyLines: true,
+      transformHeader: (h) => String(h || '').trim(),
       complete: async (results) => {
         let updated = 0
         let inserted = 0
@@ -292,6 +313,8 @@ export default function SystemsPricebook({ profile }) {
             }
           }
           if (!('active' in fields)) fields.active = true
+          if (fields.system_type) fields.system_type = normSystemType(fields.system_type)
+          if ('brand_family' in fields) fields.brand_family = normBrandFamily(fields.brand_family)
           fields.org_id = selectedOrg
 
           // Ignore blank lines (no identifying info at all).
@@ -532,6 +555,11 @@ export default function SystemsPricebook({ profile }) {
                           checked={!!editRow[col.key]}
                           onChange={(ev) => updateEditField(col.key, ev.target.checked)}
                         />
+                      ) : col.options ? (
+                        <select value={editRow[col.key] ?? ''} onChange={(ev) => updateEditField(col.key, ev.target.value || null)}>
+                          <option value="">—</option>
+                          {col.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                        </select>
                       ) : col.type === 'number' ? (
                         <input
                           type="number"
