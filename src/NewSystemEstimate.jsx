@@ -93,7 +93,7 @@ export default function NewSystemEstimate({ profile, type, mobile }) {
     loadServiceCallsForProperty(propertyId, existingCustomerId).then((jobs) => { setServiceCalls(jobs); setFromJobId(pickLikelyServiceCall(jobs)) })
   }, [propertyId, addNewProperty, existingCustomerId])
 
-  async function createEstimate() {
+  async function createEstimate(manual = false) {
     if (creating) return
     setErr('')
     let propId, custId
@@ -180,7 +180,9 @@ export default function NewSystemEstimate({ profile, type, mobile }) {
       discount_type: 'dollar',
     }).select('id').single()
     if (error) { setErr(error.message); setCreating(false); return }
-    navigate(`${mobile ? '/tech' : ''}/system-estimate-p/${created.id}`)
+    // New System estimates open the guided flow (the Estimate App, inside Journey) unless
+    // the user chose to build it manually with the pricebook picker.
+    navigate(`${mobile ? '/tech' : ''}/system-estimate-${manual ? 'p' : 'guided'}/${created.id}`)
   }
 
   const fieldLabel = { display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 4 }
@@ -312,9 +314,15 @@ export default function NewSystemEstimate({ profile, type, mobile }) {
 
       {err && <div className="auth-error" style={{ marginTop: 12, maxWidth: 520 }}>{err}</div>}
 
-      <button className="auth-button" style={{ width: 'auto', padding: '9px 22px', marginTop: 18 }} onClick={createEstimate} disabled={creating}>
-        {creating ? 'Creating…' : 'Create & Start Estimate'}
-      </button>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 18 }}>
+        <button className="auth-button" style={{ width: 'auto', padding: '9px 22px', margin: 0 }} onClick={() => createEstimate(false)} disabled={creating}>
+          {creating ? 'Creating…' : estType === 'system' ? 'Create & Start Guided Estimate' : 'Create & Start Estimate'}
+        </button>
+        {estType === 'system' && (
+          <button className="logout-button" style={{ width: 'auto', padding: '8px 16px', margin: 0 }} onClick={() => createEstimate(true)} disabled={creating}>Create & Build Manually</button>
+        )}
+      </div>
+      {estType === 'system' && <p style={{ fontSize: 12, color: 'var(--mist)', marginTop: 6, maxWidth: 560 }}>Guided walks the customer through home type, system, size, brand families and efficiency levels with real prices — the same flow as the online estimate app.</p>}
     </div>
   )
 }

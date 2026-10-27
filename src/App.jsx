@@ -51,6 +51,8 @@ import FeatureDirectory from './FeatureDirectory'
 import Training from './Training'
 import SpecialFeatures from './SpecialFeatures'
 import SystemEstimateSetup from './SystemEstimateSetup'
+import EstimateAppSetup from './EstimateAppSetup'
+import GuidedSystemEstimate from './guided/GuidedSystemEstimate'
 import PMChecklists from './PMChecklists'
 import TechPMChecklist from './TechPMChecklist'
 import TechChecklistRun from './TechChecklistRun'
@@ -289,6 +291,7 @@ function AuthenticatedApp() {
         <Route path="/tech/new-followup-estimate" element={<TechNewEstimate profile={profile} />} />
         <Route path="/tech/system-estimate/:jobId" element={<TechSystemEstimate profile={profile} />} />
         <Route path="/tech/system-estimate-p/:estimateId" element={<TechSystemEstimate profile={profile} />} />
+        <Route path="/tech/system-estimate-guided/:estimateId" element={<GuidedSystemEstimate profile={profile} mobile />} />
         <Route path="/tech/schedule" element={<TechSchedule profile={profile} />} />
         <Route path="/tech/my-schedule" element={<MySchedule profile={profile} />} />
         <Route path="/tech/new-job" element={<TechNewJob profile={profile} mode="job" />} />
@@ -388,6 +391,7 @@ function AuthenticatedApp() {
         <Route path="/training" element={<Training profile={profile} />} />
         <Route path="/special-features" element={<SpecialFeatures profile={profile} />} />
         <Route path="/system-estimate-setup" element={<SystemEstimateSetup profile={profile} />} />
+        <Route path="/estimate-app-setup" element={<EstimateAppSetup profile={profile} />} />
         <Route path="/pm-checklists" element={<PMChecklists profile={profile} />} />
         <Route path="/discount-catalog" element={<DiscountCatalog profile={profile} />} />
         <Route path="/maintenance-tiers" element={<MaintenanceAgreementTiers profile={profile} />} />
@@ -399,6 +403,7 @@ function AuthenticatedApp() {
         <Route path="/estimate/:jobId" element={<DuctOr kind="estimate" profile={profile}><Estimate profile={profile} /></DuctOr>} />
         <Route path="/system-estimate/:jobId" element={<SystemEstimate profile={profile} />} />
         <Route path="/system-estimate-p/:estimateId" element={<SystemEstimate profile={profile} />} />
+        <Route path="/system-estimate-guided/:estimateId" element={<GuidedSystemEstimate profile={profile} />} />
         <Route path="/new-system-estimate" element={<NewSystemEstimate profile={profile} type="system" />} />
         <Route path="/new-estimate" element={<NewSystemEstimate profile={profile} />} />
         <Route path="/estimate-doc/:estimateId" element={<EstimateDoc profile={profile} />} />

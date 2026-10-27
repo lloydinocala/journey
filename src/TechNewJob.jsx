@@ -264,7 +264,7 @@ export default function TechNewJob({ profile, mode = 'job' }) {
         }).select('id').single()
         if (estErr) { setError(saveErrorText(estErr)); setSaving(false); return }
         setSaving(false)
-        navigate(`/tech/system-estimate-p/${created.id}`)
+        navigate(`/tech/system-estimate-guided/${created.id}`)
         return
       }
 

@@ -674,6 +674,14 @@ export default function SystemEstimate({ profile }) {
             )}
           </div>
 
+          {estimate && estimate.approval_status !== 'Approved' && estimate.approval_status !== 'Declined' && (
+            <div className="auth-card" style={{ maxWidth: 560, marginBottom: 16, borderLeft: '4px solid #00B0F0' }}>
+              <h3 style={{ marginTop: 0, fontSize: 15 }}>Guided estimate</h3>
+              <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: -4 }}>Walk the customer through home type, system, size, brand families and efficiency levels with real prices — then the chosen system fills this estimate{lineItems.some((li) => li.category === 'INDOOR_UNIT') ? ' (replacing the current equipment)' : ''}.</p>
+              <Link to={`/system-estimate-guided/${estimate.id}`} className="auth-button" style={{ display: 'inline-block', width: 'auto', padding: '8px 18px', textDecoration: 'none' }}>Start guided estimate</Link>
+            </div>
+          )}
+
           <div className="auth-card" style={{ maxWidth: 560, marginBottom: 24 }}>
             <h3 style={{ marginTop: 0, fontSize: 15 }}>Add/Edit System</h3>
             {lineItems.some((li) => li.category === 'INDOOR_UNIT') && (

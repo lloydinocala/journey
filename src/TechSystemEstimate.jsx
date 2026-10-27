@@ -434,6 +434,16 @@ export default function TechSystemEstimate({ profile }) {
           </div>
         </div>
 
+        {estimate && estimate.approval_status !== 'Approved' && estimate.approval_status !== 'Declined' && (
+          <div className="section-card" style={{ borderLeft: '4px solid #00B0F0' }}>
+            <div className="section-card-header"><span>Guided estimate</span></div>
+            <div className="section-card-body">
+              <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>Walk the customer through it on this device — home type, system, size, brands and efficiency levels with real prices.{hasSystem ? ' The chosen system replaces the current equipment.' : ''}</p>
+              <button className="action-btn primary" style={{ width: '100%' }} onClick={() => navigate(`/tech/system-estimate-guided/${estimate.id}`)}>Start guided estimate</button>
+            </div>
+          </div>
+        )}
+
         <div className="section-card">
           <div className="section-card-header"><span>Add/Edit System</span></div>
           <div className="section-card-body">

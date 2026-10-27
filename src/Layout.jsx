@@ -160,6 +160,7 @@ const IMPORT_PAGES = [
   { label: 'Discount Catalog', path: '/discount-catalog' },
   { label: 'PM Checklists', path: '/pm-checklists' },
   { label: 'System Estimate Setup', path: '/system-estimate-setup' },
+  { label: 'Estimate App Setup', path: '/estimate-app-setup' },
   { label: 'Checklists', path: '/checklists' },
 ]
 const STOCK_PAGES = [
