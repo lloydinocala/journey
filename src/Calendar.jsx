@@ -45,10 +45,10 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile }) {
   const card = (job) => (
     <div
       key={job.id}
-      draggable={!job.payment_gated}
-      onDragStart={(e) => { if (job.payment_gated) { e.preventDefault(); return } e.dataTransfer.setData('text/plain', job.id) }}
+      draggable
+      onDragStart={(e) => { e.dataTransfer.setData('text/plain', job.id) }}
       onClick={() => onJobClick(job)}
-      style={{ background: '#fff', borderLeft: `4px solid ${job.payment_gated ? '#9CA3AF' : '#DC2626'}`, borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: job.payment_gated ? 'not-allowed' : 'grab', boxShadow: '0 1px 3px rgba(16,42,67,.12)', opacity: job.payment_gated ? 0.9 : 1 }}
+      style={{ background: '#fff', borderLeft: `4px solid ${job.payment_note ? '#D97706' : '#DC2626'}`, borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'grab', boxShadow: '0 1px 3px rgba(16,42,67,.12)' }}
     >
       <div style={{ fontSize: 11, fontWeight: 800, color: '#DC2626', textTransform: 'uppercase', letterSpacing: '.03em' }}>
         {job.requested_window === 'asap' ? '\u26A1 ASAP' : trayWindowLabel(job)}
@@ -59,8 +59,8 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile }) {
       {job.parts_ready && (
         <div style={{ marginTop: 4, display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#0B7A3B', background: '#E7F6EC', borderRadius: 6, padding: '1px 7px' }}>✓ Parts in — ready to schedule</div>
       )}
-      {job.payment_gated && (
-        <div style={{ marginTop: 4, display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#B00020', background: '#FBE7E7', borderRadius: 6, padding: '1px 7px' }}>🔒 Payment not confirmed</div>
+      {job.payment_note && (
+        <div style={{ marginTop: 4, display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#92400E', background: '#FEF3C7', borderRadius: 6, padding: '1px 7px' }}>{job.payment_note}</div>
       )}
     </div>
   )
@@ -225,19 +225,22 @@ export default function Calendar({ profile }) {
       .neq('status', 'cancelled')
       .order('job_date', { ascending: true })
     const rows = data || []
-    // Installs whose source System Estimate isn't payment-confirmed can't be scheduled yet.
-    const gated = new Set()
+    // Approved installs (and ones waiting on financing) can be scheduled right away — an unpaid
+    // deposit or pending financing is shown as a note on the card, not a lock.
+    const notes = new Map()
     const trayIds = rows.map((j) => j.id)
     if (trayIds.length) {
       const { data: ests } = await supabase
         .from('invoices')
-        .select('spawned_job_id, converted_to_job_id, payment_confirmed_at, paid_at')
+        .select('spawned_job_id, converted_to_job_id, payment_confirmed_at, paid_at, approval_status')
         .eq('org_id', selectedOrg).eq('estimate_type', 'system')
         .or(`spawned_job_id.in.(${trayIds.join(',')}),converted_to_job_id.in.(${trayIds.join(',')})`)
       ;(ests || []).forEach((e) => {
-        if (!e.payment_confirmed_at && !e.paid_at) {
-          if (e.spawned_job_id) gated.add(e.spawned_job_id)
-          if (e.converted_to_job_id) gated.add(e.converted_to_job_id)
+        const note = e.approval_status === 'Pending Financing' ? 'Financing pending'
+          : (!e.payment_confirmed_at && !e.paid_at) ? 'Deposit not received' : null
+        if (note) {
+          if (e.spawned_job_id) notes.set(e.spawned_job_id, note)
+          if (e.converted_to_job_id) notes.set(e.converted_to_job_id, note)
         }
       })
     }
@@ -245,7 +248,7 @@ export default function Calendar({ profile }) {
       const techs = (j.job_technicians || []).slice().sort((a, b) => a.sort_order - b.sort_order)
       return {
         ...j,
-        payment_gated: gated.has(j.id),
+        payment_note: notes.get(j.id) || (/PENDING FINANCE APPROVAL/.test(j.service_complaint || '') ? 'Financing pending' : null),
         customer_name: j.properties?.customers?.display_name || 'Unknown',
         customer_id: j.properties?.customers?.id || null,
         address: j.properties?.street_address || '',
