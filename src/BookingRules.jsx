@@ -13,6 +13,8 @@ const DEFAULTS = {
   system_quote: { days: 'mon_fri', lead_hours: 4 },
   pm: { days: 'mon_fri', lead_bdays: 2 },
   duct_cleaning: { days: 'mon_fri', lead_bdays: 3, am_only: true },
+  // Online system installs booked from the customer Estimate App (separate cap).
+  install: { days: 'mon_sat', lead_bdays: 1, daily_cap: 1 },
 }
 const box = { padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14 }
 
@@ -27,6 +29,7 @@ export default function BookingRules({ orgId }) {
       const r = data?.booking_rules || {}
       const merged = { ...DEFAULTS, ...r, daily_cap: r.daily_cap ?? DEFAULTS.daily_cap }
       for (const t of TYPES) merged[t.key] = { ...DEFAULTS[t.key], ...(r[t.key] || {}) }
+      merged.install = { ...DEFAULTS.install, ...(r.install || {}) }
       setRules(merged); setSaved(false)
     })
   }, [orgId])
@@ -89,6 +92,30 @@ export default function BookingRules({ orgId }) {
           })}
         </tbody>
       </table>
+
+      <h4 style={{ margin: '22px 0 4px', fontSize: 15 }}>Online system installs</h4>
+      <p style={{ fontSize: 13, color: 'var(--mist)', margin: '0 0 8px', maxWidth: 620 }}>
+        Install dates customers can pick in the online estimate app. Days you're closed (business hours and holidays) never show,
+        and a day is full once it has this many install jobs on the calendar — including ones the office booked. Each online
+        booking lands in the Calendar's Needs Dispatch tray as a RETROFIT job on the customer's chosen day.
+      </p>
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+        <label style={{ fontSize: 14, fontWeight: 600 }}>Installs per day{' '}
+          <input type="number" min="0" value={rules.install?.daily_cap ?? 1} style={{ ...box, width: 66, marginLeft: 6 }}
+            onChange={(e) => setType('install', 'daily_cap', parseInt(e.target.value || '0', 10))} />
+        </label>
+        <label style={{ fontSize: 14, fontWeight: 600 }}>Days{' '}
+          <select value={rules.install?.days || 'mon_sat'} style={{ ...box, marginLeft: 6 }} onChange={(e) => setType('install', 'days', e.target.value)}>
+            <option value="mon_fri">Mon–Fri</option>
+            <option value="mon_sat">Mon–Sat</option>
+          </select>
+        </label>
+        <label style={{ fontSize: 14, fontWeight: 600 }}>Minimum notice{' '}
+          <input type="number" min="1" value={rules.install?.lead_bdays ?? 1} style={{ ...box, width: 66, marginLeft: 6 }}
+            onChange={(e) => setType('install', 'lead_bdays', Math.max(1, parseInt(e.target.value || '1', 10)))} />
+          <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--mist)', fontWeight: 400 }}>business days</span>
+        </label>
+      </div>
 
       <button className="auth-button" style={{ width: 'auto', marginTop: 16, padding: '8px 20px' }} onClick={save} disabled={saving}>
         {saving ? 'Saving…' : 'Save booking rules'}
