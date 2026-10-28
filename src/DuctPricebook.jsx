@@ -5,10 +5,24 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import PricebookCsvBar from './PricebookCsvBar'
+import { fetchAllRows, normalizeForMatch } from './utils/csvImport'
 
 const money = (n) => (n == null || isNaN(n) ? '—' : '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 const pct = (n) => (n == null || !isFinite(n) ? '—' : Math.round(n * 1000) / 10 + '%')
 const BLANK = { category: '', name: '', materials: '', price: '', taxable: false, task_hours: '' }
+const CSV_COLUMNS = [
+  { key: 'id', label: 'ID', type: 'text' },
+  { key: 'category', label: 'Category', type: 'text', required: true },
+  { key: 'name', label: 'Item', type: 'text', required: true },
+  { key: 'materials', label: 'Materials', type: 'number' },
+  { key: 'price', label: 'Price', type: 'number' },
+  { key: 'taxable', label: 'Taxable', type: 'boolean' },
+  { key: 'task_hours', label: 'Task Hours', type: 'number' },
+  { key: 'sort_order', label: 'Sort Order', type: 'number' },
+  { key: 'is_active', label: 'Active', type: 'boolean' },
+]
+const CSV_EXAMPLE = { id: '', category: 'Supply Ducts', name: 'Clean & sanitize supply run', materials: 4.5, price: 35, taxable: false, task_hours: 0.25, sort_order: 10, is_active: true }
 
 export default function DuctPricebook({ profile }) {
   const isSuper = profile?.role === 'super_admin'
@@ -59,6 +73,34 @@ export default function DuctPricebook({ profile }) {
     setAdding(null); load()
   }
 
+  // CSV: rows with an ID update that item; rows without one match on Category + Item
+  // (ignoring case/spacing) and update it, otherwise they're added as new items.
+  const csvFetchAll = () => fetchAllRows(() => supabase.from('duct_pricebook_items').select('*').eq('org_id', orgId).order('sort_order').order('name'))
+  async function csvImport(list) {
+    const existing = await csvFetchAll()
+    const byId = new Map(existing.map((r) => [r.id, r]))
+    const byKey = new Map(existing.map((r) => [normalizeForMatch(r.category) + '|' + normalizeForMatch(r.name), r]))
+    let maxSort = existing.reduce((m, r) => Math.max(m, r.sort_order || 0), 0)
+    let updated = 0, added = 0, skipped = 0
+    const fails = []
+    for (const [i, r] of list.entries()) {
+      if (!r.category || !r.name) { skipped++; continue }
+      const hit = (r.id && byId.get(r.id)) || byKey.get(normalizeForMatch(r.category) + '|' + normalizeForMatch(r.name))
+      const fields = { category: r.category, name: r.name }
+      for (const k of ['materials', 'price', 'task_hours', 'sort_order', 'taxable', 'is_active']) if (r[k] !== null && r[k] !== undefined) fields[k] = r[k]
+      if (hit) {
+        const { error } = await supabase.from('duct_pricebook_items').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', hit.id)
+        if (error) fails.push(`row ${i + 2}: ${error.message}`); else updated++
+      } else {
+        maxSort += 10
+        const { error } = await supabase.from('duct_pricebook_items').insert({ org_id: orgId, materials: 0, price: 0, taxable: false, is_active: true, sort_order: maxSort, ...fields })
+        if (error) fails.push(`row ${i + 2}: ${error.message}`); else added++
+      }
+    }
+    load()
+    return `Import done — ${updated} updated, ${added} added${skipped ? `, ${skipped} skipped (no category/item)` : ''}${fails.length ? `, ${fails.length} failed (${fails.slice(0, 2).join('; ')})` : ''}.`
+  }
+
   const cats = useMemo(() => [...new Set(rows.map((r) => r.category))], [rows])
   const shown = rows.filter((r) => (showInactive || r.is_active) && (!q.trim() || (r.name + ' ' + r.category).toLowerCase().includes(q.toLowerCase())))
   const num = (row, field, w = 90) => (
@@ -84,6 +126,9 @@ export default function DuctPricebook({ profile }) {
       <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search items…" style={{ minWidth: 240 }} />
         <label style={{ fontSize: 13 }}><input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} /> Show inactive</label>
+        <div style={{ marginLeft: 'auto' }}>
+          <PricebookCsvBar name="Duct Cleaning Pricebook" columns={CSV_COLUMNS} example={CSV_EXAMPLE} fetchAll={csvFetchAll} onImport={csvImport} disabled={!orgId} />
+        </div>
       </div>
       <datalist id="dc-cats">{cats.map((c) => <option key={c} value={c} />)}</datalist>
 

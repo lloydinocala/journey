@@ -1,6 +1,19 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import PricebookCsvBar from './PricebookCsvBar'
+import { fetchAllRows, normalizeForMatch } from './utils/csvImport'
+
+const CSV_COLUMNS = [
+  { key: 'id', label: 'ID', type: 'text' },
+  { key: 'name', label: 'Name', type: 'text', required: true },
+  { key: 'description', label: 'Description', type: 'text' },
+  { key: 'price', label: 'Price', type: 'number' },
+  { key: 'cost', label: 'Our Cost', type: 'number' },
+  { key: 'warranty_text', label: 'Warranty', type: 'text' },
+  { key: 'active', label: 'Active', type: 'boolean' },
+]
+const CSV_EXAMPLE = { id: '', name: 'Whole-home surge protector', description: 'Protects the new system from power surges', price: 295, cost: 85, warranty_text: '5-year manufacturer warranty', active: true }
 
 // The Special Features catalog: add-ons the estimator attaches to a system estimate
 // (air purifiers, surge protectors, UV lights, etc). Each is a repeatable priced line.
@@ -39,6 +52,29 @@ export default function SpecialFeatures({ profile }) {
     setLoading(false)
   }
   useEffect(() => { load(selectedOrg) }, [selectedOrg, showArchived])
+
+  // CSV: rows with an ID update that feature; rows without one match on Name (ignoring
+  // case/spacing) and update it, otherwise they're added.
+  const csvFetchAll = () => fetchAllRows(() => supabase.from('special_features').select('id, name, description, price, cost, warranty_text, active').eq('org_id', selectedOrg).order('name'))
+  async function csvImport(list) {
+    const existing = await csvFetchAll()
+    const byId = new Map(existing.map((r) => [r.id, r]))
+    const byName = new Map(existing.map((r) => [normalizeForMatch(r.name), r]))
+    let updated = 0, added = 0, skipped = 0
+    const fails = []
+    for (const [i, r] of list.entries()) {
+      if (!r.name) { skipped++; continue }
+      const fields = { name: r.name }
+      for (const k of ['description', 'price', 'cost', 'warranty_text', 'active']) if (r[k] !== null && r[k] !== undefined) fields[k] = r[k]
+      const hit = (r.id && byId.get(r.id)) || byName.get(normalizeForMatch(r.name))
+      const { error } = hit
+        ? await supabase.from('special_features').update(fields).eq('id', hit.id)
+        : await supabase.from('special_features').insert({ org_id: selectedOrg, price: 0, cost: 0, ...fields })
+      if (error) fails.push(`row ${i + 2}: ${error.message}`); else if (hit) updated++; else added++
+    }
+    load(selectedOrg)
+    return `Import done — ${updated} updated, ${added} added${skipped ? `, ${skipped} skipped (no name)` : ''}${fails.length ? `, ${fails.length} failed (${fails.slice(0, 2).join('; ')})` : ''}.`
+  }
 
   async function addFeature() {
     setErr('')
@@ -92,6 +128,9 @@ export default function SpecialFeatures({ profile }) {
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: -8, marginBottom: 18, maxWidth: 640 }}>
         Add-ons the estimator can attach to a system estimate — air purifiers, surge protectors, UV lights, and so on. Each carries its own price and warranty, and can be added more than once per estimate.
       </p>
+      <div style={{ marginBottom: 16 }}>
+        <PricebookCsvBar name="Special Features" columns={CSV_COLUMNS} example={CSV_EXAMPLE} fetchAll={csvFetchAll} onImport={csvImport} disabled={!selectedOrg} />
+      </div>
 
       {isSuperAdmin && (
         <div style={{ marginBottom: 16, maxWidth: 420 }}>

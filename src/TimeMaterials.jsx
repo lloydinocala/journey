@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import PricebookCsvBar from './PricebookCsvBar'
+import { fetchAllRows, normalizeForMatch } from './utils/csvImport'
 
 // Time & Materials parts pricebook. Serves both Residential and Commercial jobs
 // off the single shared part_items catalog (same data as the Parts Catalog /
@@ -10,6 +12,17 @@ import OrgPicker from './OrgPicker'
 // falls back to the cheapest vendor the RPC reports.
 const UNIT_OPTS = ['each', 'ft', 'lb', 'gal', 'box', 'roll', 'hour', 'set', 'pair', 'case']
 const PAGE = 100
+const CSV_COLUMNS = [
+  { key: 'id', label: 'ID', type: 'text' },
+  { key: 'generic_name', label: 'Part', type: 'text', required: true },
+  { key: 'model_number', label: 'Model Number', type: 'text' },
+  { key: 'category', label: 'Category', type: 'text' },
+  { key: 'base_unit', label: 'Units', type: 'text' },
+  { key: 'last_cost', label: 'Cost', type: 'number' },
+  { key: 'vendor_name', label: 'Preferred Vendor', type: 'text' },
+  { key: 'is_active', label: 'Active', type: 'boolean' },
+]
+const CSV_EXAMPLE = { id: '', generic_name: '5-ton condenser fan motor', model_number: 'MTR-1/3HP', category: 'Motors', base_unit: 'each', last_cost: 89.5, vendor_name: 'Ferguson', is_active: true }
 
 export default function TimeMaterials({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
@@ -112,6 +125,54 @@ export default function TimeMaterials({ profile }) {
     return r.cheapest_vendor || '—'
   }
 
+  // CSV: rows with an ID update that part; rows without one match on Part + Model Number
+  // (ignoring case/spacing) and update it, otherwise they're added. Preferred Vendor is matched
+  // by name to your Vendors list. Same catalog as Parts Catalog / inventory.
+  async function csvFetchAll() {
+    const [items, { data: vs }] = await Promise.all([
+      fetchAllRows(() => supabase.from('part_items').select('id, generic_name, model_number, category, base_unit, last_cost, preferred_vendor_id, is_active').eq('org_id', selectedOrg).is('deleted_at', null).order('generic_name')),
+      supabase.from('vendors').select('id, name').eq('org_id', selectedOrg),
+    ])
+    const vn = Object.fromEntries((vs || []).map((v) => [v.id, v.name]))
+    return items.map((r) => ({ ...r, vendor_name: vn[r.preferred_vendor_id] || '' }))
+  }
+  async function csvImport(list) {
+    const existing = await csvFetchAll()
+    const { data: vs } = await supabase.from('vendors').select('id, name').eq('org_id', selectedOrg)
+    const vendorId = Object.fromEntries((vs || []).map((v) => [normalizeForMatch(v.name), v.id]))
+    const byId = new Map(existing.map((r) => [r.id, r]))
+    const key = (n, m) => normalizeForMatch(n) + '|' + normalizeForMatch(m)
+    const byKey = new Map(existing.map((r) => [key(r.generic_name, r.model_number), r]))
+    let updated = 0, added = 0, skipped = 0
+    const unknownVendors = new Set(), fails = []
+    const inserts = []
+    for (const [i, r] of list.entries()) {
+      if (!r.generic_name) { skipped++; continue }
+      const fields = { generic_name: r.generic_name }
+      for (const k of ['model_number', 'category', 'base_unit', 'last_cost', 'is_active']) if (r[k] !== null && r[k] !== undefined) fields[k] = r[k]
+      if (r.vendor_name) {
+        const vid = vendorId[normalizeForMatch(r.vendor_name)]
+        if (vid) fields.preferred_vendor_id = vid; else unknownVendors.add(r.vendor_name)
+      }
+      const hit = (r.id && byId.get(r.id)) || byKey.get(key(r.generic_name, r.model_number))
+      if (hit) {
+        const { error } = await supabase.from('part_items').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', hit.id)
+        if (error) fails.push(`row ${i + 2}: ${error.message}`); else updated++
+      } else {
+        inserts.push({ org_id: selectedOrg, base_unit: 'each', ...fields })
+      }
+    }
+    for (let i = 0; i < inserts.length; i += 500) {
+      const chunk = inserts.slice(i, i + 500)
+      const { error } = await supabase.from('part_items').insert(chunk)
+      if (error) fails.push(error.message); else added += chunk.length
+    }
+    load(selectedOrg, false)
+    return `Import done — ${updated} updated, ${added} added${skipped ? `, ${skipped} skipped (no part name)` : ''}`
+      + `${unknownVendors.size ? `; vendor not found (left blank): ${[...unknownVendors].slice(0, 3).join(', ')}${unknownVendors.size > 3 ? '…' : ''}` : ''}`
+      + `${fails.length ? `; ${fails.length} failed (${fails.slice(0, 2).join('; ')})` : ''}.`
+  }
+
   async function handleAdd(e) {
     e.preventDefault()
     setErr('')
@@ -179,6 +240,10 @@ export default function TimeMaterials({ profile }) {
           <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
         </div>
       )}
+
+      <div style={{ marginBottom: 12 }}>
+        <PricebookCsvBar name="Time and Materials" columns={CSV_COLUMNS} example={CSV_EXAMPLE} fetchAll={csvFetchAll} onImport={csvImport} disabled={!selectedOrg} />
+      </div>
 
       <form className="inline-form" onSubmit={handleAdd} style={{ marginBottom: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="field">
