@@ -195,6 +195,12 @@ export default function DuctCleaningEditor({ jobId: jobIdProp, estimateId, kind,
         <span style={{ fontSize: 13, color: 'var(--mist)' }}>{job.customers?.display_name}</span>
       </div>
       {!isEstimate && doc.from_estimate_number && <div style={{ fontSize: 13, color: 'var(--mist)', fontWeight: 600 }}>From Estimate #{doc.from_estimate_number}</div>}
+      {isEstimate && !locked && doc?.id && (
+        <div style={{ background: '#E8F6FD', border: '1px solid #9BD8F2', borderRadius: 8, padding: '8px 12px', margin: '10px 0', fontSize: 13, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span>Walk through it with the customer — rooms, air handler, services — and the quote prices itself.</span>
+          <Link to={`${mobile ? '/tech' : ''}/duct-estimate-guided/${doc.id}`} style={{ fontWeight: 700 }}>Start guided duct quote →</Link>
+        </div>
+      )}
       {locked && <div style={{ background: '#EEF1F6', borderRadius: 8, padding: '8px 12px', margin: '10px 0', fontSize: 13 }}>{isEstimate ? `This estimate is ${String(doc.approval_status).toLowerCase()} — it can't be changed.` : 'This invoice is paid — it can\'t be changed.'}</div>}
       {err && <div className="auth-error" style={{ margin: '10px 0' }}>{err}</div>}
       {msg && <div style={{ background: '#E3F1E8', color: '#166534', borderRadius: 8, padding: '8px 12px', margin: '10px 0', fontSize: 13, fontWeight: 600 }}>{msg}</div>}

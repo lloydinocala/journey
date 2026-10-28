@@ -117,6 +117,16 @@ export default function BookingRules({ orgId }) {
         </label>
       </div>
 
+      <h4 style={{ margin: '22px 0 4px', fontSize: 15 }}>Online duct cleanings</h4>
+      <p style={{ fontSize: 13, color: 'var(--mist)', margin: '0 0 8px', maxWidth: 620 }}>
+        How many duct cleanings customers can book per day in the online duct cleaning quote. Days and minimum notice come from the
+        Duct Cleaning row above; a day is full once it has this many duct cleaning jobs on the calendar (including office-booked ones).
+      </p>
+      <label style={{ fontSize: 14, fontWeight: 600 }}>Duct cleanings per day{' '}
+        <input type="number" min="0" value={rules.duct_cleaning?.online_daily_cap ?? 1} style={{ ...box, width: 66, marginLeft: 6 }}
+          onChange={(e) => setType('duct_cleaning', 'online_daily_cap', parseInt(e.target.value || '0', 10))} />
+      </label>
+      <br />
       <button className="auth-button" style={{ width: 'auto', marginTop: 16, padding: '8px 20px' }} onClick={save} disabled={saving}>
         {saving ? 'Saving…' : 'Save booking rules'}
       </button>

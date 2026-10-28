@@ -163,7 +163,7 @@ export default function NewSystemEstimate({ profile, type, mobile }) {
           if (tc) await supabase.from('invoice_line_items').insert({ invoice_id: est.id, org_id: selectedOrg, description: tc.customer_display, unit_price: tc.price, quantity: 1, taxable: !tc.services?.is_tax_exempt, is_custom: false, sort_order: 1, category: 'TRIP CHARGES' })
         }
       }
-      navigate(`${mobile ? '/tech' : ''}/estimate-doc/${est.id}`)
+      navigate(`${mobile ? '/tech' : ''}/${estType === 'duct' && !manual ? 'duct-estimate-guided' : 'estimate-doc'}/${est.id}`)
       return
     }
 
@@ -316,12 +316,13 @@ export default function NewSystemEstimate({ profile, type, mobile }) {
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 18 }}>
         <button className="auth-button" style={{ width: 'auto', padding: '9px 22px', margin: 0 }} onClick={() => createEstimate(false)} disabled={creating}>
-          {creating ? 'Creating…' : estType === 'system' ? 'Create & Start Guided Estimate' : 'Create & Start Estimate'}
+          {creating ? 'Creating…' : estType === 'system' || estType === 'duct' ? 'Create & Start Guided Estimate' : 'Create & Start Estimate'}
         </button>
-        {estType === 'system' && (
+        {(estType === 'system' || estType === 'duct') && (
           <button className="logout-button" style={{ width: 'auto', padding: '8px 16px', margin: 0 }} onClick={() => createEstimate(true)} disabled={creating}>Create & Build Manually</button>
         )}
       </div>
+      {estType === 'duct' && <p style={{ fontSize: 12, color: 'var(--mist)', marginTop: 6, maxWidth: 560 }}>Guided asks the same questions as the online duct cleaning quote — rooms, vents, air handler, services — and prices it from the Duct Cleaning Pricebook.</p>}
       {estType === 'system' && <p style={{ fontSize: 12, color: 'var(--mist)', marginTop: 6, maxWidth: 560 }}>Guided walks the customer through home type, system, size, brand families and efficiency levels with real prices — the same flow as the online estimate app.</p>}
     </div>
   )

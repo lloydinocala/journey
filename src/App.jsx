@@ -53,6 +53,7 @@ import SpecialFeatures from './SpecialFeatures'
 import SystemEstimateSetup from './SystemEstimateSetup'
 import EstimateAppSetup from './EstimateAppSetup'
 import GuidedSystemEstimate from './guided/GuidedSystemEstimate'
+import GuidedDuctEstimate from './guided/GuidedDuctEstimate'
 import PMChecklists from './PMChecklists'
 import TechPMChecklist from './TechPMChecklist'
 import TechChecklistRun from './TechChecklistRun'
@@ -292,6 +293,7 @@ function AuthenticatedApp() {
         <Route path="/tech/system-estimate/:jobId" element={<TechSystemEstimate profile={profile} />} />
         <Route path="/tech/system-estimate-p/:estimateId" element={<TechSystemEstimate profile={profile} />} />
         <Route path="/tech/system-estimate-guided/:estimateId" element={<GuidedSystemEstimate profile={profile} mobile />} />
+        <Route path="/tech/duct-estimate-guided/:estimateId" element={<GuidedDuctEstimate profile={profile} mobile />} />
         <Route path="/tech/schedule" element={<TechSchedule profile={profile} />} />
         <Route path="/tech/my-schedule" element={<MySchedule profile={profile} />} />
         <Route path="/tech/new-job" element={<TechNewJob profile={profile} mode="job" />} />
@@ -404,6 +406,7 @@ function AuthenticatedApp() {
         <Route path="/system-estimate/:jobId" element={<SystemEstimate profile={profile} />} />
         <Route path="/system-estimate-p/:estimateId" element={<SystemEstimate profile={profile} />} />
         <Route path="/system-estimate-guided/:estimateId" element={<GuidedSystemEstimate profile={profile} />} />
+        <Route path="/duct-estimate-guided/:estimateId" element={<GuidedDuctEstimate profile={profile} />} />
         <Route path="/new-system-estimate" element={<NewSystemEstimate profile={profile} type="system" />} />
         <Route path="/new-estimate" element={<NewSystemEstimate profile={profile} />} />
         <Route path="/estimate-doc/:estimateId" element={<EstimateDoc profile={profile} />} />

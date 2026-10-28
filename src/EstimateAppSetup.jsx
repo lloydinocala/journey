@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import DuctAppSettings from './DuctAppSettings'
 
 // Setup for the customer-facing online Estimate App (and System Estimates):
 //   • "What's included" lists — one per system group. They are the same per-type blocks that
@@ -236,6 +237,15 @@ export default function EstimateAppSetup({ profile }) {
               upstairs air handler, and install location. Used by the online app and the guided estimate alike.
             </p>
             <AddersEditor orgId={selectedOrg} />
+          </section>
+
+          <section>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>Duct Cleaning App</h3>
+            <p style={{ color: 'var(--mist)', fontSize: 12.5, marginTop: 0, marginBottom: 10 }}>
+              The online duct cleaning quote (the Estimate App at <b>/ducts</b>) and the guided duct estimate in Journey both price from the
+              Duct Cleaning Pricebook using these rules. Online bookings land on the calendar as DUCT CLEANING jobs with the invoice filled in.
+            </p>
+            <DuctAppSettings orgId={selectedOrg} />
           </section>
 
           <section>
