@@ -40,8 +40,8 @@ export default function PaymentsToConfirm({ profile, embedded = false, orgId = n
     if (error) { setErr(error.message); return }
     setMsg(okMsg); await load()
   }
-  const confirm = (r) => act(() => confirmPaymentMethod(selectedOrg, r.id), 'Method confirmed — install can be scheduled.')
-  const approve = (r) => act(() => setFinancingStatus(selectedOrg, r.id, 'approved'), 'Financing approved — install can be scheduled.')
+  const confirm = (r) => act(() => confirmPaymentMethod(selectedOrg, r.id), 'Method confirmed — the install is now on the calendar (if it was waiting in Needs Dispatch).')
+  const approve = (r) => act(() => setFinancingStatus(selectedOrg, r.id, 'approved'), 'Financing approved — the install is now on the calendar (if it was waiting in Needs Dispatch).')
   const deny = (r) => act(() => setFinancingStatus(selectedOrg, r.id, 'denied'), 'Marked financing denied.')
   async function paid(r) {
     if (!window.confirm(`Mark invoice ${r.invoice_number || ''} PAID for ${money(r.balance ?? r.amount_due)} (${methodLabel(r.payment_method)})?`)) return

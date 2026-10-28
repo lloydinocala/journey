@@ -31,7 +31,14 @@ function trayDayLabel(dstr) {
 // The "Needs Dispatch" tray: sits on the calendar screen but OFF the time grid,
 // so provisional self-bookings and pending office jobs never crowd the grid.
 // Drag a card onto the grid to schedule + it clears date_pending and lands there.
-function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile }) {
+// Release choices for an install waiting on payment. Picking one records it and the job places
+// itself on the calendar (its date — or the next open install day — at opening time, full day).
+const RELEASE_OPTS = [
+  ['cash', 'Deposit received — Cash'], ['check', 'Deposit received — Check'], ['card', 'Deposit received — Card'],
+  ['financing', 'Financing approved'], ['override', 'Release anyway (no deposit)'],
+]
+
+function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile, onRelease }) {
   const asap = jobs.filter((j) => j.requested_window === 'asap')
   const rest = jobs.filter((j) => j.requested_window !== 'asap')
     .slice().sort((a, b) => (a.job_date || '').localeCompare(b.job_date || ''))
@@ -45,10 +52,10 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile }) {
   const card = (job) => (
     <div
       key={job.id}
-      draggable
-      onDragStart={(e) => { e.dataTransfer.setData('text/plain', job.id) }}
+      draggable={!job.payment_gated}
+      onDragStart={(e) => { if (job.payment_gated) { e.preventDefault(); return } e.dataTransfer.setData('text/plain', job.id) }}
       onClick={() => onJobClick(job)}
-      style={{ background: '#fff', borderLeft: `4px solid ${job.payment_note ? '#D97706' : '#DC2626'}`, borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: 'grab', boxShadow: '0 1px 3px rgba(16,42,67,.12)' }}
+      style={{ background: '#fff', borderLeft: `4px solid ${job.payment_note ? '#D97706' : '#DC2626'}`, borderRadius: 8, padding: '8px 10px', marginBottom: 8, cursor: job.payment_gated ? 'pointer' : 'grab', boxShadow: '0 1px 3px rgba(16,42,67,.12)' }}
     >
       <div style={{ fontSize: 11, fontWeight: 800, color: '#DC2626', textTransform: 'uppercase', letterSpacing: '.03em' }}>
         {job.requested_window === 'asap' ? '\u26A1 ASAP' : trayWindowLabel(job)}
@@ -60,7 +67,14 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile }) {
         <div style={{ marginTop: 4, display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#0B7A3B', background: '#E7F6EC', borderRadius: 6, padding: '1px 7px' }}>✓ Parts in — ready to schedule</div>
       )}
       {job.payment_note && (
-        <div style={{ marginTop: 4, display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#92400E', background: '#FEF3C7', borderRadius: 6, padding: '1px 7px' }}>{job.payment_note}</div>
+        <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 6 }}>
+          <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#92400E', background: '#FEF3C7', borderRadius: 6, padding: '1px 7px', marginBottom: 4 }}>{job.payment_note}</div>
+          <select value="" onChange={(e) => { const m = e.target.value; if (m) onRelease(job, m) }}
+            style={{ width: '100%', fontSize: 12, padding: '4px 6px', borderRadius: 6, border: '1px solid #D97706', background: '#FFFBEB', color: '#92400E', fontWeight: 700 }}>
+            <option value="">Release to calendar…</option>
+            {RELEASE_OPTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+        </div>
       )}
     </div>
   )
@@ -228,6 +242,7 @@ export default function Calendar({ profile }) {
     // Approved installs (and ones waiting on financing) can be scheduled right away — an unpaid
     // deposit or pending financing is shown as a note on the card, not a lock.
     const notes = new Map()
+    const gated = new Set()
     const trayIds = rows.map((j) => j.id)
     if (trayIds.length) {
       const { data: ests } = await supabase
@@ -242,13 +257,21 @@ export default function Calendar({ profile }) {
           if (e.spawned_job_id) notes.set(e.spawned_job_id, note)
           if (e.converted_to_job_id) notes.set(e.converted_to_job_id, note)
         }
+        if (!e.payment_confirmed_at && !e.paid_at) {
+          if (e.spawned_job_id) gated.add(e.spawned_job_id)
+          if (e.converted_to_job_id) gated.add(e.converted_to_job_id)
+        }
       })
     }
     setTrayJobs(rows.map((j) => {
       const techs = (j.job_technicians || []).slice().sort((a, b) => a.sort_order - b.sort_order)
       return {
         ...j,
-        payment_note: notes.get(j.id) || (/PENDING FINANCE APPROVAL/.test(j.service_complaint || '') ? 'Financing pending' : null),
+        payment_gated: gated.has(j.id),
+        // Online-app bookings carry their payment state in the job notes.
+        payment_note: notes.get(j.id)
+          || (/PENDING FINANCE APPROVAL|financing \(pending\)/i.test(j.service_complaint || '') ? 'Financing pending'
+            : /deposit_processing/.test(j.service_complaint || '') ? 'ACH deposit clearing' : null),
         customer_name: j.properties?.customers?.display_name || 'Unknown',
         customer_id: j.properties?.customers?.id || null,
         address: j.properties?.street_address || '',
@@ -299,7 +322,7 @@ export default function Calendar({ profile }) {
 
   async function handleGridDrop(jobId, newDateStr, newTimeStr) {
     if (await installPaymentBlocked(jobId)) {
-      setBlockMsg("This install can't be scheduled yet — its payment isn't confirmed. Confirm the method (Cash / Check / Card / approved financing) in Payments to Confirm first.")
+      setBlockMsg("This install is waiting on payment. Use \"Release to calendar…\" on its card (deposit received or financing approved) and it will place itself on the calendar.")
       loadTray(); return
     }
     // newTimeStr is where on the grid the job was dropped — a local wall-clock
@@ -320,6 +343,17 @@ export default function Calendar({ profile }) {
     loadJobs(); loadTray()
   }
 
+  async function releaseInstall(job, mode) {
+    const label = (RELEASE_OPTS.find((o) => o[0] === mode) || [mode, mode])[1]
+    const note = mode === 'financing' ? window.prompt(`${job.customer_name}: Financing approved.\nLender / approval # (optional):`, '') : null
+    if (mode === 'financing' && note === null) return
+    if (mode !== 'financing' && !window.confirm(`${job.customer_name} — ${label}?\n\nThe install goes onto the calendar on its date (or the next open install day) at opening time. You can drag it afterward.`)) return
+    const { data, error } = await supabase.rpc('release_install_job', { p_job_id: job.id, p_mode: mode, p_note: note || null })
+    if (error) { setBlockMsg(error.message); return }
+    setBlockMsg(data ? `Released — ${job.customer_name} is on the calendar for ${new Date(data + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}.` : 'Released.')
+    loadJobs(); loadTray()
+  }
+
   function handleDayClick(day) {
     setCurrentDate(day)
     setViewMode('day')
@@ -327,7 +361,7 @@ export default function Calendar({ profile }) {
 
   async function handleMonthDrop(jobId, newDateStr) {
     if (await installPaymentBlocked(jobId)) {
-      setBlockMsg("This install can't be scheduled yet — its payment isn't confirmed. Confirm the method (Cash / Check / Card / approved financing) in Payments to Confirm first.")
+      setBlockMsg("This install is waiting on payment. Use \"Release to calendar…\" on its card (deposit received or financing approved) and it will place itself on the calendar.")
       loadTray(); return
     }
     const { data: cur } = await supabase.from('jobs').select('status').eq('id', jobId).single()
@@ -416,6 +450,7 @@ export default function Calendar({ profile }) {
               collapsed={trayCollapsed}
               onToggle={() => setTrayCollapsed((c) => !c)}
               isMobile={isMobile}
+              onRelease={releaseInstall}
             />
             <CalendarTodoTile orgId={selectedOrg} profile={profile} isMobile={isMobile} />
             <UnassignedTasksTile orgId={selectedOrg} isMobile={isMobile} />

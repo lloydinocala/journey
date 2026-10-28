@@ -514,7 +514,8 @@ export default function Jobs({ profile }) {
         duration_hours: editDuration ? parseFloat(editDuration) : null,
         job_type: editJobType,
         service_complaint: editComplaint.trim() || null,
-        status: editStatus,
+        // Giving an unscheduled job a date and time schedules it (same as dropping it on the calendar).
+        status: editStatus === 'unscheduled' && editJobDate && startTimestamp ? 'scheduled' : editStatus,
         job_notes: editJobNotes.trim() || null,
         on_my_way_at: fromLocalDateTimeInput(editOnMyWay),
         arrival_at: fromLocalDateTimeInput(editArrival),
