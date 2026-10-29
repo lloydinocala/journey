@@ -43,13 +43,13 @@ export const DUCT_SERVICES = [
 ]
 
 const FALLBACK_NAMES = {
-  supply_ceiling: 'Residential Supply Ducts', supply_floor: 'Residential Supply Ducts',
+  supply_ceiling: 'Residential Supply Ducts', supply_floor: 'Mobile Home Supply Ducts (in Floor)',
   return_closet: 'Closet Return', return_remote: 'Remote Returns',
   blower: 'Pull & Clean Blower Assembly', coil: 'Clean Coil in Place', uv: 'UV Light',
   dryer_ground: 'Drier Vent Ground Floor', dryer_multi: 'Drier Vent Multi-Floor',
 }
 export const DUCT_ITEM_SLOTS = [
-  ['supply_ceiling', 'Supply vent — in the ceiling'], ['supply_floor', 'Supply vent — in the floor'],
+  ['supply_ceiling', 'Supply vent — ceiling, or ceiling & floor mixed'], ['supply_floor', 'Supply vent — floor vents only'],
   ['return_closet', 'Return — air handler in a closet (1 per system)'], ['return_remote', 'Return — any other location (2 per system)'],
   ['blower', 'Clean blower motor & wheel'], ['coil', 'Clean evaporator coil'], ['uv', 'Install UV light'],
   ['dryer_ground', 'Dryer vent — single-story home'], ['dryer_multi', 'Dryer vent — multi-story home'],
@@ -106,14 +106,9 @@ export function buildDuctQuote(answers, items, settingsRaw, taxRate, lang = 'en'
   const returnsPer = isClosetAhu(answers.ahu) ? 1 : 2
   const returns = returnsPer * systems
   if (sel.has('ducts')) {
-    if (answers.vents === 'both') {
-      const ceil = Math.ceil(supply / 2)
-      add(ductItem(items, st, 'supply_ceiling'), ceil, es ? `${ceil} Rejillas de Suministro Limpiadas (techo)` : `${ceil} Supply Vents Cleaned (ceiling)`, 'ducts')
-      add(ductItem(items, st, 'supply_floor'), supply - ceil, es ? `${supply - ceil} Rejillas de Suministro Limpiadas (piso)` : `${supply - ceil} Supply Vents Cleaned (floor)`, 'ducts')
-    } else {
-      const slot = answers.vents === 'floor' ? 'supply_floor' : 'supply_ceiling'
-      add(ductItem(items, st, slot), supply, es ? `${supply} Rejillas de Suministro Limpiadas` : `${supply} Supply Vents Cleaned`, 'ducts')
-    }
+    // Floor vents only → the floor item (Mobile Home Supply Ducts); ceiling, or a mix → Residential.
+    const slot = answers.vents === 'floor' ? 'supply_floor' : 'supply_ceiling'
+    add(ductItem(items, st, slot) || ductItem(items, st, 'supply_ceiling'), supply, es ? `${supply} Rejillas de Suministro Limpiadas` : `${supply} Supply Vents Cleaned`, 'ducts')
     add(ductItem(items, st, isClosetAhu(answers.ahu) ? 'return_closet' : 'return_remote'), returns, es ? `${returns} Rejilla${returns > 1 ? 's' : ''} de Retorno Limpiada${returns > 1 ? 's' : ''}` : `${returns} Return Vent${returns > 1 ? 's' : ''} Cleaned`, 'ducts')
   }
   if (sel.has('sanitize')) {
