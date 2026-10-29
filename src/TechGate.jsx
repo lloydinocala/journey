@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
+import LockedFeature from './LockedFeature'
+import { lockedPackageFor, logPackageOpen } from './utils/packages'
 import TechLocationReporter from './TechLocationReporter'
 import { supabase } from './utils/supabase'
 import { TERMS_VERSION, TERMS } from './techTerms'
@@ -9,6 +11,10 @@ import { TERMS_VERSION, TERMS } from './techTerms'
 // before any jobs load. Declining blocks all job access. Versioned re-consent.
 export default function TechGate({ profile }) {
   const [state, setState] = useState('loading') // loading | need | ok | declined
+  const location = useLocation()
+  // Subscription packages apply in the Field App too.
+  const lockedPkg = lockedPackageFor(profile, location.pathname)
+  useEffect(() => { logPackageOpen(supabase, profile, location.pathname) }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
   const [agree, setAgree] = useState(false)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -53,7 +59,7 @@ export default function TechGate({ profile }) {
       </div>
     )
   }
-  if (state === 'ok') return (<><TechLocationReporter profile={profile} /><Outlet /></>)
+  if (state === 'ok') return (<><TechLocationReporter profile={profile} />{lockedPkg ? <LockedFeature profile={profile} featureKey={lockedPkg} mobile /> : <Outlet />}</>)
 
   return (
     <div className="mobile-shell job-card-v2 consent-shell">

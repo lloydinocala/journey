@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { hasFeature } from './utils/entitlements'
 import CustomerSearchSelect from './CustomerSearchSelect'
 import { loadServiceCallsForProperty, pickLikelyServiceCall, serviceCallLabel } from './SystemEstimate'
 
@@ -207,7 +208,7 @@ export default function NewSystemEstimate({ profile, type, mobile }) {
       <h2 className="page-title">{type === 'system' ? 'New System Estimate' : 'New Estimate'}</h2>
       {!type && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-          {TYPES.map(([k, l]) => <button key={k} className={estType === k ? 'auth-button' : 'logout-button'} style={{ width: 'auto', padding: '6px 16px', margin: 0 }} onClick={() => setEstType(k)}>{l}</button>)}
+          {TYPES.filter(([k]) => k === 'service' || hasFeature(profile, k === 'duct' ? 'duct_cleaning' : 'system_sales')).map(([k, l]) => <button key={k} className={estType === k ? 'auth-button' : 'logout-button'} style={{ width: 'auto', padding: '6px 16px', margin: 0 }} onClick={() => setEstType(k)}>{l}</button>)}
         </div>
       )}
       <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: type ? -8 : 0, marginBottom: 20, maxWidth: 620 }}>

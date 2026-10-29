@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import QuincyProposals from './QuincyProposals'
+import { SuggestFeature } from './LockedFeature'
 import { HELP_ARTICLES, ROUTE_HELP } from './utils/HelpArticles'
 // Namespace import so a missing/renamed export in the Fleet help file can never
 // hard-fail the whole build (Rollup errors on an unresolved *named* import).
@@ -215,6 +216,7 @@ export default function HelpDrawer({ profile }) {
                         style={{ textAlign: 'left', background: '#F7F9FB', border: '1px solid #E7EBF0', borderRadius: 10, padding: '10px 12px', fontSize: 13, color: '#1F2A37', cursor: 'pointer' }}>{ex}</button>
                     ))}
                   </div>
+                  <div style={{ marginTop: 18 }}><SuggestFeature profile={profile} compact /></div>
                 </div>
               )}
             </div>

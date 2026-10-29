@@ -16,6 +16,8 @@ import { SUPPLIES_NAV } from './modules/supplies-hvac'
 import { REWARDS_HR_NAV, REWARDS_PAYROLL_NAV, REWARDS_CERT_NAV } from './modules/rewards-hvac'
 import { COMMERCIAL_NAV_ITEMS, COMMERCIAL_FEATURE } from './modules/commercial-projects'
 import { hasFeature } from './utils/entitlements'
+import { pruneNav, pathAllowed, lockedPackageFor, logPackageOpen } from './utils/packages'
+import LockedFeature, { TrialBanner } from './LockedFeature'
 import { sectionForPath, isSettingsAdmin, settingsHref, SETTINGS_SECTIONS } from './utils/settingsMap'
 
 // Human page titles for the top-bar "Viewing Organization" pill. Longest-prefix
@@ -289,7 +291,8 @@ export function buildSections(profile) {
   sections.push(financials)
   sections.push(admin)
   sections.push({ key: 'training', label: 'Training Manual', icon: 'help', path: '/training' })
-  return sections
+  // Subscription packages: hide what this org's subscription doesn't include.
+  return pruneNav(profile, sections)
 }
 
 // Every navigable target (leaf paths + group dashboards) with the drill-stack
@@ -383,7 +386,7 @@ export default function Layout({ profile }) {
     const tabs = [
       { key: 'command', label: 'Command Center', to: '/home', color: '#2E6FB5' },
       { key: 'work', label: 'Jobs & Customers', to: '/jobs-dash', color: '#0E7C66' },
-      { key: 'dispatch', label: 'Dispatch', to: '/dispatch', color: '#B45309' },
+      { key: 'dispatch', label: 'Dispatch', to: pathAllowed(profile, '/dispatch') ? '/dispatch' : '/calendar', color: '#B45309' },
     ]
     if (has('inventory-central')) tabs.push({ key: 'inventory-central', label: 'Inventory Central', to: '/inventory-central', color: '#6A54C4' })
     if (has('workforce')) tabs.push({ key: 'workforce', label: 'WorkForce', to: '/workforce', color: '#15803D' })
@@ -411,6 +414,11 @@ export default function Layout({ profile }) {
   function goHome() {
     setOpenStack([])
   }
+
+  // Subscription packages: a page outside this org's subscription shows the "not in your
+  // subscription" page instead; each package's first open of the day is counted for the office.
+  const lockedPkg = lockedPackageFor(profile, location.pathname)
+  useEffect(() => { logPackageOpen(supabase, profile, location.pathname) }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const visible = (item) => (item.super ? isSuperAdmin : (!item.perm || isSuperAdmin || can(profile, item.perm)))
 
@@ -641,7 +649,8 @@ export default function Layout({ profile }) {
         )}
 
         <div className="main-content-area">
-          <Outlet />
+          <TrialBanner profile={profile} />
+          {lockedPkg ? <LockedFeature profile={profile} featureKey={lockedPkg} /> : <Outlet />}
         </div>
         <HelpDrawer profile={profile} />
       </div>

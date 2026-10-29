@@ -249,20 +249,21 @@ function AuthenticatedApp() {
         // organization's zone, not the viewer's device zone. Super-admins have
         // no org of their own; their per-page org pickers set it instead.
         if (userRes.data.org_id) loadOrgTz(userRes.data.org_id)
+        const ents = Array.isArray(entRes?.data) ? entRes.data : []
         setProfile({
           ...userRes.data,
           permissions: (permsRes.data || []).map((p) => p.permission_key),
           permKeys: effPerms.keys,   // resolved effective permissions (tags + live on-call elevation)
           onCall: effPerms.onCall,   // { until, as } while on-call now, else null
-          elementsEntitled: !!elemRes?.data?.entitled,   // Elements-HVAC subscription gate
-          // HR and Payroll are two separately-sold modules. Payroll is the smaller
-          // standalone offering; HR is the fuller module and implies payroll access.
-          // Fall back to the legacy `entitled` flag if the split columns are null.
-          hrEntitled: !!(rewardsRes?.data?.hr_entitled ?? rewardsRes?.data?.entitled),
-          payrollEntitled: !!(rewardsRes?.data?.payroll_entitled ?? rewardsRes?.data?.entitled),
-          marketingEntitled: !!mktRes?.data?.entitled,   // Marketing-HVAC subscription gate
-          toolsEntitled: !!toolsRes?.data?.enabled,      // Tools Management module gate (optional)
-          entitlements: entRes?.data || [],             // unified feature keys for hasFeature(profile, key)
+          // Module gates now come from subscription packages (Admin → Plans & Entitlements),
+          // so one switch per package controls menus, pages and the Field App. The old
+          // per-module settings flags were carried over into packages and are no longer read.
+          elementsEntitled: ents.includes('inventory_fleet'),
+          hrEntitled: ents.includes('workforce'),
+          payrollEntitled: ents.includes('workforce'),
+          marketingEntitled: ents.includes('marketing'),
+          toolsEntitled: ents.includes('inventory_fleet'),
+          entitlements: ents,                            // unified feature keys for hasFeature(profile, key)
         })
       })
   }, [session])
