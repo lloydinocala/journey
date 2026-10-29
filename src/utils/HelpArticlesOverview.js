@@ -158,13 +158,14 @@ export const HELP_ARTICLES = [
         "h": "Using it",
         "items": [
           "Open it from the \"🧭 Find a Feature\" button at the top-right of any office page.",
+          "Pages reached from inside other pages are listed too — guided system and duct cleaning estimates, Payments to Confirm, Estimate App Setup, online booking rules, Stripe and QuickBooks settings.",
           "Type in the search box to filter by feature name, the navigation heading, or the page — e.g. \"invoice\", \"payroll\", \"fleet\".",
           "Each row shows the Feature, its Navigation heading and page (how to reach it from Home), and an open → link that takes you straight there."
         ]
       },
       {
         "h": "Good to know",
-        "body": "The directory only lists features your role and your organization's modules include, so what you see is what you can actually open. It is reporting on navigation — it changes nothing."
+        "body": "The directory only lists features your role and your Journey subscription include, so what you see is what you can actually open. Below the list, \"More in Journey\" shows the packages your subscription does not include yet — open one to see what it does and ask the Journey team about a free trial. Have an idea Journey doesn't cover? Use \"Suggest a feature\" in the Help drawer."
       }
     ]
   }
