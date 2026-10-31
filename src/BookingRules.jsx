@@ -77,10 +77,14 @@ export default function BookingRules({ orgId }) {
               <tr key={t.key} style={{ borderTop: '1px solid var(--border)' }}>
                 <td style={{ padding: '10px 8px', fontWeight: 600 }}>{t.label}</td>
                 <td style={{ padding: '10px 8px' }}>
+                  {t.key === 'duct_cleaning' ? (
+                    <a href="/estimate-app-setup" style={{ fontSize: 13 }} title="Pick the exact weekdays and arrival times for duct cleanings">Set in Estimate App Setup → Duct Cleaning</a>
+                  ) : (
                   <select value={r.days || 'mon_fri'} style={box} onChange={(e) => setType(t.key, 'days', e.target.value)}>
                     <option value="mon_fri">Mon–Fri</option>
                     <option value="mon_sat">Mon–Sat</option>
                   </select>
+                  )}
                 </td>
                 <td style={{ padding: '10px 8px' }}>
                   <input type="number" min="0" value={val} style={{ ...box, width: 66 }}

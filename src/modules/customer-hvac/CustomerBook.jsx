@@ -7,7 +7,7 @@ import { supabase } from '../../utils/supabase'
 const META = {
   repair:        { title: 'Service Call',           lead: 'Tell us what’s going on, then pick a time.', note: 'Weekdays. For weekend or after-hours emergencies, we’re available 24/7 by phone — please call the office.' },
   pm:            { title: 'Preventive Maintenance', lead: 'Pick a day and window for your tune-up.',     note: 'Weekdays, with at least 2 business days’ notice.' },
-  duct_cleaning: { title: 'Duct Cleaning',          lead: 'Pick a day for your duct cleaning.',          note: 'Weekdays. Duct cleanings begin at 9:00 AM.' },
+  duct_cleaning: { title: 'Duct Cleaning',          lead: 'Pick a day for your duct cleaning.',          note: '' },
   system_quote:  { title: 'Free Estimate',          lead: 'Pick a time for your free estimate.',         note: 'Weekdays, with about 4 hours’ notice.' },
 }
 
@@ -38,6 +38,15 @@ export default function CustomerBook({ properties, activePropertyId }) {
     : type
   const meta = META[effectiveType] || { title: 'Schedule a Visit', lead: 'Pick a day and window.', note: '' }
   const amOnly = effectiveType === 'duct_cleaning'
+  // Duct cleaning start time is set by the company (Estimate App Setup → Duct Cleaning).
+  const [ductStart, setDuctStart] = useState('9:00 AM')
+  useEffect(() => {
+    if (!amOnly) return
+    supabase.rpc('portal_duct_start').then(({ data }) => {
+      const m = /^(\d{1,2}):(\d{2})$/.exec(String(data || ''))
+      if (m) { const h = Number(m[1]); setDuctStart(`${h % 12 || 12}:${m[2]} ${h < 12 ? 'AM' : 'PM'}`) }
+    })
+  }, [amOnly])
 
   const [propId, setPropId] = useState(activePropertyId || properties[0]?.id || '')
   const [avail, setAvail] = useState(null)
@@ -99,7 +108,7 @@ export default function CustomerBook({ properties, activePropertyId }) {
         <h2 className="cp-h2">You’re booked</h2>
         <p className="cp-lead" style={{ maxWidth: 360 }}>
           {meta.title} on <b>{fmtLong(done.date)}</b>
-          {amOnly ? <> at <b>9:00 AM</b>.</>
+          {amOnly ? <> at <b>{ductStart}</b>.</>
             : done.win === 'asap' ? <> — <b>as soon as possible</b>.</>
             : <>, <b>{WLABEL[done.win]}</b>.</>}
           {' '}We’ve sent a confirmation by text and email, and we’ll call you if we need to adjust the date or time.
@@ -163,8 +172,8 @@ export default function CustomerBook({ properties, activePropertyId }) {
         <>
           {amOnly ? (
             <div className="cp-fixednote">
-              <b>Morning appointment — 9:00 AM.</b><br />
-              Duct cleanings begin at 9:00 AM. Our office will confirm the exact date and time with you.
+              <b>Morning appointment — {ductStart}.</b><br />
+              Duct cleanings begin at {ductStart}. Our office will confirm the exact date and time with you.
             </div>
           ) : (
             <>
