@@ -107,7 +107,7 @@ export default function CustomerBook({ properties }) {
         <p className="cp-lead" style={{ maxWidth: 360 }}>
           {meta.title} on <b>{fmtLong(done.date)}</b>
           {amOnly ? <> at <b>9:00 AM</b>.</> : <>, {done.win === 'am' ? 'morning' : 'afternoon'}.</>}
-          {' '}Our office will confirm the exact date and time with you.
+          {' '}We’ve sent a confirmation by text and email, and we’ll call you if we need to adjust the date or time.
         </p>
         <button className="cp-btn" style={{ maxWidth: 260 }} onClick={() => nav('/portal')}>Back to home</button>
       </div>
