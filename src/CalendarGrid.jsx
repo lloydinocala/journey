@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { formatDayLabel, isSameDay, timeToPixelY, pixelYToTimeString, getTotalGridHeight, getHourMarkers } from './utils/dateHelpers'
+import { SOURCE_SHORT, fmtReceived, isNewUnassigned } from './utils/bookingSource'
 import { utcToZonedInputs } from './utils/tz'
 
 // Convert a stored UTC timestamp to an "HH:MM" string in the browser's LOCAL
@@ -226,6 +227,7 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
                   onClick={() => onJobClick(job)}
                 >
                  <div className="job-block-label">
+                    {isNewUnassigned(job) && <span style={{ fontSize: 9.5, fontWeight: 800, color: '#fff', background: '#2563EB', borderRadius: 4, padding: '0 4px', marginRight: 4 }}>NEW</span>}
                     {job.date_pending ? '⏳ ' : ''}<strong>{formatTimeLabel(job)}</strong>
                     {job.customer_name}
                   </div>
@@ -233,6 +235,7 @@ export default function CalendarGrid({ days, jobs, businessStart, businessEnd, o
                     <strong>{job.customer_name}</strong>
                     {formatTimeLabel(job)} · {job.job_type}<br />
                     {job.technician_names}<br />
+                    {job.received_at && <span>📥 {SOURCE_SHORT[job.booking_source] || 'Online'} · received {fmtReceived(job.received_at)}<br /></span>}
                     {job.date_pending && <span style={{ color: '#F59E0B', fontWeight: 700 }}>⏳ Pending — needs scheduling<br /></span>}
                     <span className={`status-pill status-${job.status}`} style={{ marginTop: 4 }}>{job.status}</span>
                   </div>

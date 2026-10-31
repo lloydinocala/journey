@@ -1,3 +1,4 @@
+import { isNewUnassigned } from './utils/bookingSource'
 import { useState } from 'react'
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 function toLocalDateStr(d) {
@@ -73,7 +74,7 @@ export default function CalendarMonth({ monthDate, gridDays, jobs, onJobClick, o
                 onDragEnd={() => setDraggingId(null)}
                 onClick={() => onJobClick(job)}
               >
-                {job.date_pending ? '⏳ ' : ''}{formatJobTime(job)} {job.customer_name}
+                {isNewUnassigned(job) ? '🆕 ' : ''}{job.date_pending ? '⏳ ' : ''}{formatJobTime(job)} {job.customer_name}
               </div>
             ))}
             {extraCount > 0 && (

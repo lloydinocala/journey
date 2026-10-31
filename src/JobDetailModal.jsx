@@ -1,3 +1,4 @@
+import { SOURCE_LABEL, fmtReceived, receivedAgo } from './utils/bookingSource'
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
@@ -54,6 +55,13 @@ export default function JobDetailModal({ job, onClose }) {
           <span className="label">Date &amp; time</span>
           {job.job_date} at {formatTime(job.start_time)} ({job.duration_hours || 1} hr{job.duration_hours !== 1 ? 's' : ''})
         </div>
+
+        {job.received_at && (
+          <div className="modal-row">
+            <span className="label">Received</span>
+            {fmtReceived(job.received_at)} via {SOURCE_LABEL[job.booking_source] || 'online booking'} ({receivedAgo(job.received_at)})
+          </div>
+        )}
 
         <div className="modal-row">
           <span className="label">Type</span>

@@ -11,6 +11,7 @@ import JobDetailModal from './JobDetailModal'
 import CalendarTodoTile from './CalendarTodoTile'
 import UnassignedTasksTile from './UnassignedTasksTile'
 import { loadOrgTz, zonedToUtcIso } from './utils/tz'
+import { SOURCE_LABEL, SOURCE_SHORT, fmtReceived, receivedAgo, isNewUnassigned } from './utils/bookingSource'
 import {
   startOfWeek,
   addDays,
@@ -40,8 +41,9 @@ const RELEASE_OPTS = [
 
 function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile, onRelease }) {
   const asap = jobs.filter((j) => j.requested_window === 'asap')
+    .slice().sort((a, b) => (a.received_at || '9').localeCompare(b.received_at || '9'))
   const rest = jobs.filter((j) => j.requested_window !== 'asap')
-    .slice().sort((a, b) => (a.job_date || '').localeCompare(b.job_date || ''))
+    .slice().sort((a, b) => (a.job_date || '').localeCompare(b.job_date || '') || (a.received_at || '9').localeCompare(b.received_at || '9'))
   const groups = []
   let cur = null
   for (const j of rest) {
@@ -63,6 +65,12 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile, onRelea
       <div style={{ fontWeight: 700, fontSize: 14 }}>{job.customer_name}</div>
       {job.job_type && <div style={{ fontSize: 12.5, color: 'var(--mist)' }}>{job.job_type}</div>}
       {job.address && <div style={{ fontSize: 12, color: 'var(--mist)' }}>{job.address}</div>}
+      {job.received_at && (
+        <div title={`Received ${fmtReceived(job.received_at)} via ${SOURCE_LABEL[job.booking_source] || 'online'}`} style={{ fontSize: 11.5, color: '#1E3A5F', marginTop: 3 }}>
+          📥 {SOURCE_SHORT[job.booking_source] || 'Online'} · {fmtReceived(job.received_at)} <span style={{ color: 'var(--mist)' }}>({receivedAgo(job.received_at)})</span>
+        </div>
+      )}
+      {isNewUnassigned(job) && <div style={{ marginTop: 4, display: 'inline-block', fontSize: 10.5, fontWeight: 800, color: '#fff', background: '#2563EB', borderRadius: 6, padding: '1px 7px' }}>NEW · no tech</div>}
       {job.parts_ready && (
         <div style={{ marginTop: 4, display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#0B7A3B', background: '#E7F6EC', borderRadius: 6, padding: '1px 7px' }}>✓ Parts in — ready to schedule</div>
       )}
@@ -128,6 +136,8 @@ export default function Calendar({ profile }) {
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState(null)
   const [trayCollapsed, setTrayCollapsed] = useState(false)
+  const [newBookings, setNewBookings] = useState([])
+  const [newOpen, setNewOpen] = useState(false)
   const [newItemMode, setNewItemMode] = useState(null)
 
   const isSuperAdmin = profile.role === 'super_admin'
@@ -194,7 +204,7 @@ export default function Calendar({ profile }) {
     const { data } = await supabase
       .from('jobs')
       .select(
-        'id, job_number, job_date, date_pending, requested_window, self_booked, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(id, display_name, is_banned))'
+        'id, job_number, job_date, date_pending, requested_window, self_booked, booking_source, received_at, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(id, display_name, is_banned))'
       )
       .eq('org_id', selectedOrg)
       .is('deleted_at', null)
@@ -231,7 +241,7 @@ export default function Calendar({ profile }) {
     const { data } = await supabase
       .from('jobs')
       .select(
-        'id, job_number, job_date, date_pending, parts_ready, requested_window, self_booked, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(id, display_name, is_banned))'
+        'id, job_number, job_date, date_pending, parts_ready, requested_window, self_booked, booking_source, received_at, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(sort_order, users(full_name, calendar_color)), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(id, display_name, is_banned))'
       )
       .eq('org_id', selectedOrg)
       .is('deleted_at', null)
@@ -289,6 +299,46 @@ export default function Calendar({ profile }) {
   useEffect(() => {
     loadTray()
   }, [selectedOrg])
+
+  // New outside bookings (estimate apps, portal, QR service requests) with no technician yet.
+  // Refreshes every minute and when the window regains focus, so a booking that lands while the
+  // calendar is open shows up without a reload. Clears itself once a tech is assigned.
+  async function loadNewBookings() {
+    if (!selectedOrg) return
+    const today = toLocalDateStr(new Date())
+    const { data } = await supabase
+      .from('jobs')
+      .select('id, job_number, job_date, date_pending, requested_window, booking_source, received_at, start_time, duration_hours, status, job_type, service_complaint, property_id, job_technicians(id), properties(street_address, unit, city, state, zip, customers!properties_customer_id_fkey(id, display_name, is_banned))')
+      .eq('org_id', selectedOrg)
+      .is('deleted_at', null)
+      .not('booking_source', 'is', null)
+      .not('status', 'in', '(cancelled,completed,incomplete)')
+      .or(`date_pending.eq.true,job_date.gte.${today}`)
+      .order('received_at', { ascending: true })
+      .limit(100)
+    setNewBookings((data || []).filter(isNewUnassigned).map((j) => ({
+      ...j,
+      customer_name: j.properties?.customers?.display_name || 'Unknown',
+      customer_id: j.properties?.customers?.id || null,
+      address: j.properties?.street_address || '',
+      is_banned: j.properties?.customers?.is_banned || false,
+      technician_names: 'Unassigned',
+    })))
+  }
+  useEffect(() => {
+    loadNewBookings()
+    const t = setInterval(loadNewBookings, 60000)
+    const onFocus = () => { loadNewBookings(); loadTray() }
+    window.addEventListener('focus', onFocus)
+    return () => { clearInterval(t); window.removeEventListener('focus', onFocus) }
+  }, [selectedOrg])
+  useEffect(() => { loadNewBookings() }, [jobs, trayJobs])
+
+  function showNewBooking(j) {
+    if (j.date_pending || !j.job_date) { setTrayCollapsed(false); setSelectedJob(j); return }
+    setCurrentDate(new Date(j.job_date + 'T00:00:00'))
+    setViewMode('day')
+  }
 
   function goToday() {
     setCurrentDate(new Date())
@@ -437,6 +487,38 @@ export default function Calendar({ profile }) {
           </div>
         )}
       </div>
+
+      {newBookings.length > 0 && (
+        <div style={{ background: '#EAF2FF', border: '1px solid #93B4F0', borderLeft: '5px solid #2563EB', borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}>
+          <div onClick={() => setNewOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 18 }}>🔔</span>
+            <strong style={{ color: '#1E3A8A', fontSize: 14.5 }}>
+              {newBookings.length} new booking{newBookings.length === 1 ? '' : 's'} with no technician assigned
+            </strong>
+            <span style={{ fontSize: 12.5, color: '#1E3A8A' }}>
+              oldest received {receivedAgo(newBookings[0].received_at) || '—'}
+            </span>
+            <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#2563EB', fontWeight: 700 }}>{newOpen ? 'Hide ▴' : 'Show ▾'}</span>
+          </div>
+          {newOpen && (
+            <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+              {newBookings.map((j) => (
+                <div key={j.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: '#fff', borderRadius: 8, padding: '7px 10px', fontSize: 13 }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 800, color: '#fff', background: '#2563EB', borderRadius: 6, padding: '1px 7px', whiteSpace: 'nowrap' }}>{SOURCE_SHORT[j.booking_source] || 'Online'}</span>
+                  <strong>{j.customer_name}</strong>
+                  <span style={{ color: 'var(--mist)' }}>{j.job_type}</span>
+                  <span>{j.date_pending ? 'Needs Dispatch' : trayDayLabel(j.job_date)}{j.requested_window === 'asap' ? ' · ⚡ ASAP' : ''}</span>
+                  <span style={{ color: '#1E3A5F' }} title={fmtReceived(j.received_at)}>📥 {fmtReceived(j.received_at)} ({receivedAgo(j.received_at)})</span>
+                  <button type="button" onClick={() => showNewBooking(j)} style={{ marginLeft: 'auto', border: '1px solid #2563EB', background: '#fff', color: '#2563EB', borderRadius: 6, padding: '3px 10px', fontWeight: 700, cursor: 'pointer' }}>
+                    {j.date_pending || !j.job_date ? 'Open' : 'Go to day'}
+                  </button>
+                </div>
+              ))}
+              <div style={{ fontSize: 11.5, color: '#1E3A8A' }}>Oldest first. A booking drops off this list once a technician is assigned.</div>
+            </div>
+          )}
+        </div>
+      )}
 
       <TimeOffNotice orgId={selectedOrg} from={days[0]} to={days[days.length - 1]} />
       {loading ? (
