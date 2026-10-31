@@ -35,6 +35,7 @@ export default function DuctAppSettings({ orgId }) {
       guarantee_days: Math.min(90, Math.max(1, parseInt(st.guarantee_days, 10) || 14)),
       job_hours: Math.max(0.5, Number(st.job_hours) || 3),
       start_time: /^\d{1,2}:\d{2}$/.test(String(st.start_time || '')) ? st.start_time : '09:00',
+      afternoon_time: /^\d{1,2}:\d{2}$/.test(String(st.afternoon_time || '')) ? st.afternoon_time : '13:00',
       vents_per_room: Object.fromEntries(Object.entries(st.vents_per_room).map(([k, v]) => [k, Math.max(0, parseInt(v, 10) || 0)])),
     }
     const { error } = await supabase.from('organizations').update({ duct_app_settings: clean }).eq('id', orgId)
@@ -87,8 +88,11 @@ export default function DuctAppSettings({ orgId }) {
           <label style={{ fontSize: 14, fontWeight: 600 }}>Minimum charge ${' '}
             <input type="number" min="0" step="1" style={{ ...box, width: 86 }} value={st.min_charge} onChange={(e) => set('min_charge', e.target.value)} />
           </label>
-          <label style={{ fontSize: 14, fontWeight: 600 }}>Arrival time{' '}
+          <label style={{ fontSize: 14, fontWeight: 600 }}>Morning arrival{' '}
             <input type="time" style={box} value={st.start_time || '09:00'} onChange={(e) => set('start_time', e.target.value)} />
+          </label>
+          <label style={{ fontSize: 14, fontWeight: 600 }}>Early afternoon arrival{' '}
+            <input type="time" style={box} value={st.afternoon_time || '13:00'} onChange={(e) => set('afternoon_time', e.target.value)} />
           </label>
           <label style={{ fontSize: 14, fontWeight: 600 }}>Job length{' '}
             <input type="number" min="0.5" step="0.5" style={{ ...box, width: 66 }} value={st.job_hours ?? 3} onChange={(e) => set('job_hours', e.target.value)} /> hours
@@ -100,7 +104,7 @@ export default function DuctAppSettings({ orgId }) {
         <label style={{ fontSize: 14, fontWeight: 600 }}>Note under sanitizing
           <textarea rows={2} style={{ ...box, width: '100%', marginTop: 4 }} value={st.sanitize_note || ''} onChange={(e) => set('sanitize_note', e.target.value)} />
         </label>
-        <div style={{ fontSize: 12, color: 'var(--mist)' }}>How many online duct cleanings per day, and which days, is set in Settings → Booking Rules → Online duct cleanings.</div>
+        <div style={{ fontSize: 12, color: 'var(--mist)' }}>Customers pick a day, then Morning or Early Afternoon. How many online duct cleanings per window, which windows are offered, and which days are set in Settings → Booking Rules → Online duct cleanings.</div>
       </div>
       <div>
         <button className="auth-button" style={{ width: 'auto', padding: '8px 22px', margin: 0 }} disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save duct cleaning settings'}</button>

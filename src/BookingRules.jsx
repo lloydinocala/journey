@@ -119,13 +119,26 @@ export default function BookingRules({ orgId }) {
 
       <h4 style={{ margin: '22px 0 4px', fontSize: 15 }}>Online duct cleanings</h4>
       <p style={{ fontSize: 13, color: 'var(--mist)', margin: '0 0 8px', maxWidth: 620 }}>
-        How many duct cleanings customers can book per day in the online duct cleaning quote. Days and minimum notice come from the
-        Duct Cleaning row above; a day is full once it has this many duct cleaning jobs on the calendar (including office-booked ones).
+        In the online duct cleaning quote, customers pick a day and then Morning or Early Afternoon. Days and minimum notice come from the
+        Duct Cleaning row above. Each window fills once it has this many duct cleaning jobs on the calendar (including office-booked ones).
+        Arrival times are set in Estimate App Setup → Duct Cleaning App.
       </p>
-      <label style={{ fontSize: 14, fontWeight: 600 }}>Duct cleanings per day{' '}
-        <input type="number" min="0" value={rules.duct_cleaning?.online_daily_cap ?? 1} style={{ ...box, width: 66, marginLeft: 6 }}
-          onChange={(e) => setType('duct_cleaning', 'online_daily_cap', parseInt(e.target.value || '0', 10))} />
-      </label>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <label style={{ fontSize: 14, fontWeight: 600 }}>Duct cleanings per window{' '}
+          <input type="number" min="0" value={rules.duct_cleaning?.online_daily_cap ?? 1} style={{ ...box, width: 66, marginLeft: 6 }}
+            onChange={(e) => setType('duct_cleaning', 'online_daily_cap', parseInt(e.target.value || '0', 10))} />
+        </label>
+        {[['am', 'Offer Morning'], ['pm', 'Offer Early Afternoon']].map(([w, label]) => {
+          const wins = rules.duct_cleaning?.online_windows || ['am', 'pm']
+          return (
+            <label key={w} style={{ fontSize: 14, fontWeight: 600, display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+              <input type="checkbox" checked={wins.includes(w)}
+                onChange={(e) => setType('duct_cleaning', 'online_windows', e.target.checked ? [...new Set([...wins, w])] : wins.filter((x) => x !== w))} />
+              {label}
+            </label>
+          )
+        })}
+      </div>
       <br />
       <button className="auth-button" style={{ width: 'auto', marginTop: 16, padding: '8px 20px' }} onClick={save} disabled={saving}>
         {saving ? 'Saving…' : 'Save booking rules'}
