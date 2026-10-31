@@ -86,6 +86,8 @@ export default function Settings({ profile }) {
   const [bizState, setBizState] = useState('')
   const [bizZip, setBizZip] = useState('')
   const [bizPhone, setBizPhone] = useState('')
+  const [dbaName, setDbaName] = useState('')
+  const [legalName, setLegalName] = useState('')
   const [callbackPhone, setCallbackPhone] = useState('')
   const [bizEmail, setBizEmail] = useState('')
   const [bizWebsite, setBizWebsite] = useState('')
@@ -144,7 +146,7 @@ export default function Settings({ profile }) {
     if (!orgId) return
     const { data } = await supabase
       .from('organizations')
-    .select('business_hours_start, business_hours_end, timezone, services_taxable_by_default, discount_self_approve, track_permits, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, callback_phone, business_email, business_website, google_review_url, license_number, payment_terms_days, logo_url, app_icon_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
+    .select('name, dba_name, business_hours_start, business_hours_end, timezone, services_taxable_by_default, discount_self_approve, track_permits, sales_tax_rate, business_street, business_city, business_state, business_zip, business_phone, callback_phone, business_email, business_website, google_review_url, license_number, payment_terms_days, logo_url, app_icon_url, brand_primary_color, brand_accent_color, stripe_account_id, stripe_charges_enabled')
       .eq('id', orgId)
       .single()
     if (data) {
@@ -160,6 +162,8 @@ export default function Settings({ profile }) {
       setBizState(data.business_state || '')
       setBizZip(data.business_zip || '')
       setBizPhone(data.business_phone || '')
+      setDbaName(data.dba_name || '')
+      setLegalName(data.name || '')
       setCallbackPhone(data.callback_phone || '')
       setBizEmail(data.business_email || '')
       setBizWebsite(data.business_website || '')
@@ -261,6 +265,7 @@ export default function Settings({ profile }) {
         business_state: bizState.trim() || null,
         business_zip: bizZip.trim() || null,
         business_phone: bizPhone.trim() || null,
+        dba_name: dbaName.trim() || null,
         callback_phone: callbackPhone.trim() || null,
         business_email: bizEmail.trim() || null,
         business_website: bizWebsite.trim() || null,
@@ -499,6 +504,13 @@ export default function Settings({ profile }) {
         This appears on your invoices — separate from your customer's info.
       </p>
       <form className="inline-form" onSubmit={saveBusinessInfo} style={{ marginBottom: 28, flexWrap: 'wrap' }}>
+        <div className="field" style={{ flexBasis: '100%' }}>
+          <label htmlFor="dbaName">Name customers see (DBA)</label>
+          <input id="dbaName" type="text" value={dbaName} onChange={(e) => setDbaName(e.target.value)} placeholder={legalName} style={{ maxWidth: 360 }} />
+          <div style={{ fontSize: 12.5, color: 'var(--mist)', marginTop: 4 }}>
+            Used on customer texts, emails and booking confirmations. Leave blank to use your legal name{legalName ? <> (<b>{legalName}</b>)</> : ''}.
+          </div>
+        </div>
         <div className="field">
           <label htmlFor="bizStreet">Street</label>
           <input id="bizStreet" type="text" value={bizStreet} onChange={(e) => setBizStreet(e.target.value)} />
