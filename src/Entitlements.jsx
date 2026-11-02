@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './utils/supabase'
+import { JourneyBillingPanel } from './JourneyBilling'
 
 // Journey office only (super admin): every subscriber's custom subscription.
 //   Subscribers  — Basic + packages per account: on / trial with end date / comp / house, price,
@@ -103,6 +104,7 @@ function monthlyTotal(orgId, packages, addons, basicPlan) {
 function Subscribers({ orgs, packages, basic, basicPlan, addons, usage, reload, setMsg }) {
   const [sel, setSel] = useState(orgs[0]?.id || '')
   const [texts, setTexts] = useState(null)
+  const [billKey, setBillKey] = useState(0)
   const org = orgs.find((o) => o.id === sel)
   useEffect(() => {
     if (!sel) return
@@ -134,6 +136,8 @@ function Subscribers({ orgs, packages, basic, basicPlan, addons, usage, reload, 
     }
     await upsert(pkg, patch)
     await reload()
+    // Keep a paying subscriber's Stripe subscription matching the packages switched on here.
+    supabase.functions.invoke('platform-billing', { body: { action: 'sync', org_id: sel } }).then(() => setBillKey((k) => k + 1), () => {})
   }
   async function upsert(pkg, patch, quiet) {
     const cur = rowFor(pkg.key)
@@ -175,6 +179,10 @@ function Subscribers({ orgs, packages, basic, basicPlan, addons, usage, reload, 
           <div style={{ fontSize: 12.5, color: 'var(--mist)', margin: '4px 0 12px' }}>
             Basic always on: {basic.map((b) => b.name).join(', ')}.
             {texts && <> · Texts this month: <b>{texts.count}</b> ({texts.segments} segments{texts.billed ? `, ${money(texts.billed)} billed` : ''}).</>}
+          </div>
+          <div className="section-card" style={{ padding: 14, marginBottom: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--mist)', marginBottom: 8 }}>Billing</div>
+            <JourneyBillingPanel key={sel + ':' + billKey} orgId={sel} office />
           </div>
           {cats.map((c) => (
             <div key={c} style={{ marginBottom: 14 }}>
