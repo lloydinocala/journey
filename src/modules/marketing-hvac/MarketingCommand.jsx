@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../utils/supabase'
 import QuincyBrief from '../../QuincyBrief'
+import EstimateAppFunnel from './EstimateAppFunnel'
 import './marketing.css'
 
 export default function MarketingCommand({ profile }) {
@@ -99,6 +100,8 @@ export default function MarketingCommand({ profile }) {
               </div>
             ))}
           </div>
+
+          <EstimateAppFunnel orgId={orgId} />
 
           <div className="card">
             <div className="card-head"><h3>Revenue attribution</h3><span className="sub">channel → lead → job → paid invoice</span></div>
