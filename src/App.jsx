@@ -134,7 +134,7 @@ import FieldAdd from './field/FieldAdd'
 import FieldCalendar from './field/FieldCalendar'
 import FieldJobs from './field/FieldJobs'
 import FieldJobData from './field/FieldJobData'
-import FieldSoon from './field/FieldSoon'
+import FieldAdmin, { FieldJobsSummary, FieldJobProfit, FieldPeriodProfit, FieldPayroll, FieldYtd, FieldPayrollSend, FieldPricebook, FieldCompany, FieldFeedback } from './field/FieldAdmin'
 import FieldExpenses from './field/FieldExpenses'
 import FieldWorkforce, { FieldTeam, FieldHours, FieldHoursPerson } from './field/FieldWorkforce'
 import { isFieldAdmin } from './MobileNav'
@@ -310,7 +310,16 @@ function AuthenticatedApp() {
         <Route path="/tech/field/team" element={<FieldTeam profile={profile} />} />
         <Route path="/tech/field/hours" element={<FieldHours profile={profile} />} />
         <Route path="/tech/field/hours/:userId" element={<FieldHoursPerson profile={profile} />} />
-        <Route path="/tech/field/admin" element={<FieldSoon profile={profile} title="Admin" />} />
+        <Route path="/tech/field/admin" element={<FieldAdmin profile={profile} />} />
+        <Route path="/tech/field/admin/jobs-summary" element={<FieldJobsSummary profile={profile} />} />
+        <Route path="/tech/field/admin/job-profit" element={<FieldJobProfit profile={profile} />} />
+        <Route path="/tech/field/admin/period-profit" element={<FieldPeriodProfit profile={profile} />} />
+        <Route path="/tech/field/admin/payroll" element={<FieldPayroll profile={profile} />} />
+        <Route path="/tech/field/admin/ytd" element={<FieldYtd profile={profile} />} />
+        <Route path="/tech/field/admin/payroll-send" element={<FieldPayrollSend profile={profile} />} />
+        <Route path="/tech/field/admin/pricebook" element={<FieldPricebook profile={profile} />} />
+        <Route path="/tech/field/admin/company" element={<FieldCompany profile={profile} />} />
+        <Route path="/tech/field/admin/feedback" element={<FieldFeedback profile={profile} />} />
         <Route path="/tech/tower" element={<TheTower profile={profile} />} />
         <Route path="/tech/cycle-counts" element={<TechCycleCounts profile={profile} />} />
         <Route path="/tech/manual" element={<TechManual profile={profile} />} />

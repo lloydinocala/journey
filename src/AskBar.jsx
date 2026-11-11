@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 // supervisor screens). Typing or speaking sends the question to Quincy; the face / "?" opens Quincy.
 const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null
 
-export default function AskBar({ placeholder = 'Ask Anything …', onHelp }) {
+export default function AskBar({ placeholder = 'Ask Anything …', onHelp, onAsk }) {
   const navigate = useNavigate()
   const [text, setText] = useState('')
   const [listening, setListening] = useState(false)
@@ -13,6 +13,7 @@ export default function AskBar({ placeholder = 'Ask Anything …', onHelp }) {
 
   function ask(q) {
     const v = String(q || '').trim()
+    if (onAsk) { if (v) { onAsk(v); setText('') } return }
     navigate('/tech/apollo', v ? { state: { ask: v } } : undefined)
   }
   function mic() {

@@ -23,7 +23,7 @@ export default function FieldCallLogs({ profile }) {
     await supabase.from('call_logs').update(p).eq('id', r.id)
   }
   return (
-    <FieldShell profile={profile} title="Call Logs" onBack={() => navigate('/tech/field/calls')}>
+    <FieldShell profile={profile} title="Call Logs" onBack={() => navigate(-1)}>
       <div className="fa-panel">
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontWeight: 800, fontSize: 18 }}>Today&apos;s Call Logs</div>

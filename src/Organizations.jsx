@@ -104,7 +104,7 @@ export default function Organizations() {
     setLoading(true)
     const { data, error } = await supabase
       .from('organizations')
-      .select('id, name, slug, billing_status, created_at, frozen_reason, canceled_reason')
+      .select('id, name, slug, billing_status, created_at, frozen_reason, canceled_reason, field_pricebook')
       .order('created_at', { ascending: false })
     if (!error) setOrgs(data)
     const { data: es } = await supabase.from('elements_settings').select('org_id, entitled')
@@ -499,6 +499,20 @@ export default function Organizations() {
                     >
                       {payrollEntitled[org.id] ? 'Payroll ✓' : 'Payroll'}
                     </button>
+                    <select
+                      title="Field App → Admin → Edit Pricebook works on this one pricebook"
+                      value={org.field_pricebook || 'res_flat_rate'}
+                      onChange={async (e) => {
+                        const v = e.target.value
+                        setOrgs((os) => os.map((x) => (x.id === org.id ? { ...x, field_pricebook: v } : x)))
+                        await supabase.from('organizations').update({ field_pricebook: v }).eq('id', org.id)
+                      }}
+                      style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 12.5 }}
+                    >
+                      <option value="res_flat_rate">Field pricebook: Res Flat Rate</option>
+                      <option value="duct_cleaning">Field pricebook: Duct Cleaning</option>
+                      <option value="time_materials">Field pricebook: Time &amp; Materials</option>
+                    </select>
                     <button
                       className="logout-button"
                       onClick={() => toggleTools(org)}

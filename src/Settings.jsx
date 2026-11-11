@@ -1,3 +1,4 @@
+import EmailSenderSetting from './EmailSenderSetting'
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { SETTINGS_SECTIONS, isSettingsAdmin } from './utils/settingsMap'
@@ -499,6 +500,8 @@ export default function Settings({ profile }) {
         </button>
         {brandSaved && <span style={{ color: '#4CD97B', fontSize: 14 }}>Saved</span>}
       </form>
+
+      <EmailSenderSetting orgId={selectedOrg} canEdit={profile.role === 'org_admin' || profile.role === 'super_admin'} superAdmin={profile.role === 'super_admin'} />
 
       <h3 style={{ fontSize: 16, marginBottom: 12 }}>Business contact info</h3>
       <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: -6, marginBottom: 20 }}>

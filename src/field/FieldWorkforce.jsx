@@ -150,11 +150,11 @@ export function FieldTeam({ profile }) {
 }
 
 // ---------- Hours ----------
-function mondayOf(iso) { const d = new Date(iso + 'T12:00:00'); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); return d.toISOString().slice(0, 10) }
+export function mondayOf(iso) { const d = new Date(iso + 'T12:00:00'); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); return d.toISOString().slice(0, 10) }
 const fmtShort = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 const DAYS = ['Mon', 'Tues', 'Weds', 'Thurs', 'Fri', 'Sat', 'Sun']
 
-function useWeek(orgId, weekStart) {
+export function useWeek(orgId, weekStart) {
   const [rows, setRows] = useState(null)
   const [people, setPeople] = useState([])
   const [err, setErr] = useState('')
