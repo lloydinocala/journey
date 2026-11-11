@@ -5,11 +5,18 @@ import { lockedPackageFor, logPackageOpen } from './utils/packages'
 import TechLocationReporter from './TechLocationReporter'
 import { supabase } from './utils/supabase'
 import { TERMS_VERSION, TERMS } from './techTerms'
+import DeviceFrame, { shouldFrame } from './DeviceFrame'
 
 // Consent gate wrapping every mobile job view. Any signed-in employee who opens
 // the field app must accept the current terms (message archiving + always-on GPS)
 // before any jobs load. Declining blocks all job access. Versioned re-consent.
 export default function TechGate({ profile }) {
+  // On a desktop computer the Field App shows inside a phone/tablet-sized screen.
+  const [framed] = useState(shouldFrame)
+  return framed ? <DeviceFrame><TechGateInner profile={profile} /></DeviceFrame> : <TechGateInner profile={profile} />
+}
+
+function TechGateInner({ profile }) {
   const [state, setState] = useState('loading') // loading | need | ok | declined
   const location = useLocation()
   // Subscription packages apply in the Field App too.
