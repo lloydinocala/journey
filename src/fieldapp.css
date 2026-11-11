@@ -1,0 +1,73 @@
+/* Journey Field App — the 2026-11 mockup look (light sky background, navy header bar,
+   white rounded panels with a cyan edge, navy pill buttons, Ask Anything bar at the bottom). */
+:root {
+  --fa-sky: #CBEDFC;
+  --fa-navy: #0C2E44;
+  --fa-cyan: #00B0F0;
+  --fa-green: #00A34A;
+  --fa-red: #E11D2E;
+  --fa-amber: #D4C800;
+  --fa-ink: #0C2E44;
+  --fa-muted: #5A6B7B;
+}
+.fa-shell { min-height: 100vh; min-height: 100dvh; background: var(--fa-sky); color: var(--fa-ink); display: flex; flex-direction: column; }
+.fa-header { position: relative; background: var(--fa-navy); color: #fff; text-align: center; padding: 16px 52px 14px; padding-top: calc(16px + env(safe-area-inset-top, 0px)); flex-shrink: 0; }
+.fa-header-title { font-size: 20px; font-weight: 600; line-height: 1.25; }
+.fa-header-sub { font-size: 17px; font-weight: 500; opacity: .95; margin-top: 2px; }
+.fa-menu-btn { position: absolute; right: 10px; top: calc(12px + env(safe-area-inset-top, 0px)); background: none; border: none; color: #fff; font-size: 24px; width: 40px; height: 40px; cursor: pointer; }
+.fa-back-btn { position: absolute; left: 8px; top: calc(12px + env(safe-area-inset-top, 0px)); background: none; border: none; color: #fff; font-size: 28px; width: 40px; height: 40px; cursor: pointer; line-height: 1; }
+.fa-menu-scrim { position: fixed; inset: 0; z-index: 40; }
+.fa-menu { position: absolute; right: 10px; top: calc(54px + env(safe-area-inset-top, 0px)); z-index: 41; background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(12,46,68,.25); overflow: hidden; min-width: 190px; text-align: left; }
+.fa-menu button { display: block; width: 100%; border: none; background: #fff; padding: 13px 16px; font-size: 16px; font-weight: 600; color: var(--fa-ink); text-align: left; border-bottom: 1px solid #EEF3F7; cursor: pointer; font-family: inherit; }
+.fa-menu button:last-child { border-bottom: none; color: var(--fa-red); }
+.fa-body { flex: 1; padding: 12px 12px 96px; }
+.fa-panel { background: #fff; border: 1.5px solid var(--fa-cyan); border-radius: 22px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.fa-empty { color: var(--fa-muted); text-align: center; padding: 26px 8px; margin: 0; font-size: 15px; }
+.fa-datebar { display: flex; align-items: center; gap: 6px; margin: 10px 0 12px; }
+.fa-datebar button { background: #fff; border: 1.5px solid var(--fa-cyan); color: var(--fa-navy); border-radius: 10px; height: 38px; min-width: 40px; font-size: 20px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.fa-datebar .fa-today { font-size: 14px; padding: 0 12px; }
+.fa-datebar input { flex: 1; height: 38px; border-radius: 10px; border: 1.5px solid var(--fa-cyan); padding: 0 10px; font-size: 15px; background: #fff; color: var(--fa-ink); font-family: inherit; }
+.fa-locked-msg { background: #E3F1E8; color: #166534; border: 1px solid #9BD3B0; border-radius: 10px; padding: 10px 12px; font-weight: 700; font-size: 14px; margin-bottom: 10px; text-align: center; }
+
+/* Job / estimate / task cards: green = complete, red = incomplete, amber + red border = late */
+.fa-card { border-radius: 14px; padding: 12px 14px; background: #fff; border: 2.5px solid var(--fa-red); cursor: pointer; }
+.fa-card.complete { border-color: var(--fa-green); }
+.fa-card.late { background: var(--fa-amber); border-color: var(--fa-red); }
+.fa-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.fa-card-num { font-weight: 800; font-size: 15px; color: var(--fa-ink); }
+.fa-card-status { font-size: 11.5px; font-weight: 800; letter-spacing: .6px; border-radius: 6px; padding: 3px 8px; color: #fff; background: var(--fa-red); }
+.fa-card-status.complete { background: var(--fa-green); }
+.fa-card-status.late { background: var(--fa-red); }
+.fa-card-name { font-size: 18px; font-weight: 800; margin-top: 4px; color: var(--fa-ink); }
+.fa-card-sub { font-size: 14px; color: #33475B; margin-top: 2px; }
+.fa-card.late .fa-card-sub, .fa-card.late .fa-card-addr { color: #1F2A37; }
+.fa-card-addr { font-size: 14px; color: var(--fa-muted); margin-top: 2px; }
+
+/* Ask Anything bar */
+.ask-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: center; gap: 8px; padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--fa-sky); }
+.ask-bar-field { flex: 1; display: flex; align-items: center; gap: 6px; background: #fff; border: 1.5px solid var(--fa-cyan); border-radius: 14px; padding: 4px 10px 4px 6px; min-width: 0; }
+.ask-bar-field input { flex: 1; border: none; outline: none; font-size: 16px; padding: 9px 2px; background: transparent; color: var(--fa-ink); min-width: 0; font-family: inherit; }
+.ask-bar-field input::placeholder { color: #8A96A3; font-weight: 600; }
+.ask-bar-mic { background: none; border: none; color: #7A8794; padding: 4px; display: flex; cursor: pointer; }
+.ask-bar-mic.on { color: var(--fa-red); }
+.ask-bar-quincy { position: relative; width: 58px; height: 50px; border: none; background: none; padding: 0; cursor: pointer; flex: 0 0 auto; }
+.ask-bar-quincy img { position: absolute; left: 0; bottom: 0; height: 50px; width: auto; transform: scaleX(-1); }
+.ask-bar-quincy span { position: absolute; right: 0; top: -2px; font-size: 30px; font-weight: 900; color: var(--fa-navy); line-height: 1; }
+
+/* Mobile sign-in */
+.fa-signin { min-height: 100vh; min-height: 100dvh; background: var(--fa-sky); display: flex; flex-direction: column; align-items: center; padding: 48px 20px 28px; padding-top: calc(48px + env(safe-area-inset-top, 0px)); color: var(--fa-ink); text-align: center; }
+.fa-signin-brand { font-family: Georgia, 'Times New Roman', serif; font-size: 46px; font-weight: 700; color: var(--fa-cyan); line-height: 1; }
+.fa-signin-tag { font-size: 17px; font-weight: 700; color: #111; margin-top: 6px; }
+.fa-signin-face { width: 210px; max-width: 60vw; margin: 26px auto 0; transform: scaleX(-1); display: block; }
+.fa-signin-ai { font-size: 14px; font-weight: 800; color: #1F2A37; margin-top: 2px; letter-spacing: .3px; }
+.fa-signin-org { font-size: 24px; font-weight: 700; margin: 26px 0 10px; color: var(--fa-ink); }
+.fa-signin-form { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.fa-signin-form input { height: 50px; border-radius: 14px; border: 1.5px solid var(--fa-cyan); padding: 0 14px; font-size: 17px; background: #fff; color: var(--fa-ink); font-family: inherit; width: 100%; box-sizing: border-box; }
+.fa-signin-form .password-input-wrap input { width: 100%; }
+.fa-btn { width: 100%; max-width: 380px; height: 56px; border-radius: 16px; border: 2px solid var(--fa-cyan); background: var(--fa-navy); color: #fff; font-size: 19px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.fa-btn:disabled { opacity: .6; }
+.fa-btn.ghost { background: #fff; color: var(--fa-navy); border-color: var(--fa-navy); font-size: 15px; font-weight: 600; height: auto; padding: 14px 12px; }
+.fa-btn.ghost a, .fa-link { color: #1667C9; font-weight: 700; font-style: italic; text-decoration: underline; background: none; border: none; cursor: pointer; font-size: inherit; font-family: inherit; padding: 0; }
+.fa-signin-err { background: #FDECEC; color: #9B1C1C; border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 600; width: 100%; max-width: 380px; box-sizing: border-box; }
+.fa-signin-ok { background: #E3F1E8; color: #166534; border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 600; width: 100%; max-width: 380px; box-sizing: border-box; }
+.fa-signin-note { font-size: 11.5px; color: var(--fa-muted); margin-top: 14px; max-width: 360px; }

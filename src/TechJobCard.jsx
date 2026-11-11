@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import QuincyDock from './QuincyDock'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import FilterOrderModal from './FilterOrderModal'
+import { isFieldAdmin } from './MobileNav'
 import { supabase } from './utils/supabase'
 import SignaturePad from './SignaturePad'
 import RelationshipSelect from './RelationshipSelect'
@@ -199,6 +200,7 @@ export default function TechJobCard({ profile }) {
   const [invoiceItems, setInvoiceItems] = useState(0)
   const [serviceEstimate, setServiceEstimate] = useState(null)
   const [serviceEstItems, setServiceEstItems] = useState(0)
+  const [ductEst, setDuctEst] = useState(null) // duct cleaning: the estimate the job is built on
   const [pmInstances, setPmInstances] = useState([])
 
   const [approvals, setApprovals] = useState([])
@@ -253,7 +255,7 @@ export default function TechJobCard({ profile }) {
   const [histData, setHistData] = useState({})
 
   // Collapsible section state — info sections + maintenance open by default; tasks collapsed.
-  const [openMap, setOpenMap] = useState({ customer: true, schedule: true, maintenance: true })
+  const [openMap, setOpenMap] = useState({ customer: true, schedule: true, maintenance: true, job_details: true, invoice: true, viewsend: true, duct_build: true, duct_est_send: true })
   const isOpen = (k) => !!openMap[k]
   const toggle = (k) => setOpenMap((m) => ({ ...m, [k]: !m[k] }))
   const setOpen = (k, v) => setOpenMap((m) => ({ ...m, [k]: v }))
@@ -310,7 +312,7 @@ export default function TechJobCard({ profile }) {
   useEffect(() => { supabase.auth.getUser().then(({ data }) => setUid(data?.user?.id || null)) }, [])
 
   useEffect(() => {
-    loadJob(); loadPhotos(); loadInvoice(); loadServiceEstimate(); loadApprovals(); loadBanners(); loadPmInstances()
+    loadJob(); loadPhotos(); loadInvoice(); loadServiceEstimate(); loadDuctEstimate(); loadApprovals(); loadBanners(); loadPmInstances()
   }, [jobId])
 
   useEffect(() => {
@@ -360,6 +362,17 @@ export default function TechJobCard({ profile }) {
   async function loadPmInstances() {
     const { data } = await supabase.from('pm_checklist_instances').select('id, template_name, status, equipment_id').eq('job_id', jobId).order('created_at')
     setPmInstances(data || [])
+  }
+  // Duct cleaning: the estimate this job is built on (approved first, else the newest), with a
+  // one-line summary of what was promised, e.g. "7 Ceiling Vents, 2 Returns, Clean Blower".
+  async function loadDuctEstimate() {
+    const { data: ests } = await supabase.from('invoices').select('id, invoice_number, approval_status, sent_at, created_at')
+      .eq('job_id', jobId).eq('kind', 'estimate').is('deleted_at', null).neq('estimate_type', 'system').order('created_at', { ascending: false })
+    const est = (ests || []).find((e) => e.approval_status === 'Approved') || (ests || [])[0]
+    if (!est) { setDuctEst(null); return }
+    const { data: li } = await supabase.from('invoice_line_items').select('description, quantity').eq('invoice_id', est.id).order('sort_order')
+    const parts = (li || []).map((l) => { const q = Number(l.quantity) || 0; return q > 1 ? `${q} ${l.description}` : l.description })
+    setDuctEst({ ...est, lineCount: (li || []).length, summary: parts.join(', ') })
   }
   async function loadServiceEstimate() {
     const { data } = await supabase.from('invoices').select('id, sent_at').eq('job_id', jobId).eq('kind', 'estimate').eq('estimate_type', 'service').maybeSingle()
@@ -527,7 +540,13 @@ export default function TechJobCard({ profile }) {
 
   // Required tasks that drive the status pill. Warning banners do NOT count.
   const requiredDone = equipDone && preWorkPhotosDone && middleGateDone && (showServiceEstimate ? serviceEstDone : true) && invoiceDone && viewSendDone && verifyDone && (showEstimateGroup ? maintDone : true)
-  const allClear = noCharge || (requiredDone && !exceedsLimit)
+  // Duct cleaning jobs: done when the invoice (built from the estimate) has been sent or paid.
+  // Duct estimate visits: done when the estimate has lines and has been sent, approved or declined.
+  const isDuct = job?.service_line === 'duct_cleaning'
+  const isDuctVisit = isDuct && /estimate/i.test(job?.job_type || '')
+  const ductEstDone = !!ductEst && ductEst.lineCount > 0 && (!!ductEst.sent_at || ['Approved', 'Declined'].includes(ductEst.approval_status))
+  const ductDone = isDuctVisit ? ductEstDone : (invoiceDone && (viewSendDone || !!invoice?.paid_at))
+  const allClear = noCharge || (isDuct ? ductDone : (requiredDone && !exceedsLimit))
   const status = job?.status
 
   // Group completion (all subsections blue) → auto-close the group; next opens manually.
@@ -1109,6 +1128,85 @@ export default function TechJobCard({ profile }) {
     return <div className="jc-task" style={{ margin: '-4px 0 8px', padding: '6px 12px', fontSize: 14, color: 'var(--jc-muted)', display: 'flex', alignItems: 'center', gap: 6 }}><span>🔒</span><span>{text}</span></div>
   }
 
+  // Duct cleaning jobs: one "Collect Payment" group (invoice from the estimate → view, send, collect).
+  // Duct estimate visits: the same layout with "Build Estimate" in its place.
+  const ductPaymentGroup = isDuct ? (
+    <div className={`jc-group ${ductDone ? 'blue' : 'red'}`}>
+      <GroupHead g="dpay" label={isDuctVisit ? 'Build Estimate' : 'Collect Payment'} done={ductDone} />
+      {openGroup === 'dpay' && (<div className="jc-group-body">
+        {isDuctVisit ? (<>
+          <div className="jc-task">
+            <TaskHead k="duct_build" title="Estimate Builder" icon={<IconFile />} done={!!ductEst && ductEst.lineCount > 0} />
+            {isOpen('duct_build') && (
+              <div className="jc-task-body">
+                <Link to={`/tech/estimate/${jobId}`} className="jc-action-link"><IconFile /><span>{ductEst?.lineCount ? `Open Estimate ${ductEst.invoice_number}` : 'Build the Estimate'}</span><span className="jc-chev">›</span></Link>
+                {ductEst?.lineCount > 0 && <p className="jc-done-line">{ductEst.lineCount} line item{ductEst.lineCount === 1 ? '' : 's'} on the estimate.</p>}
+              </div>
+            )}
+          </div>
+          <div className="jc-task">
+            <TaskHead k="duct_est_send" title="View, Sign & Send Estimate" icon={<IconFile />} done={ductEstDone} />
+            {isOpen('duct_est_send') && (
+              <div className="jc-task-body">
+                {ductEst?.lineCount > 0
+                  ? <button className="jc-btn wide" onClick={() => navigate(`/tech/invoice-view/${ductEst.id}`)}>View, Sign &amp; Send Estimate</button>
+                  : <p className="jc-muted-note">Build the estimate first.</p>}
+                {ductEst?.approval_status && ductEst.approval_status !== 'Pending' && <p className="jc-done-line">Estimate {String(ductEst.approval_status).toLowerCase()}.</p>}
+              </div>
+            )}
+          </div>
+        </>) : (<>
+          <div className="jc-task">
+            <TaskHead k="invoice" title="Invoice" icon={<IconReceipt />} done={invoiceDone} />
+            {isOpen('invoice') && (
+              <div className="jc-task-body">
+                <p className="jc-muted-note" style={{ marginBottom: 8 }}>The invoice starts from the estimate{ductEst?.invoice_number ? ` (${ductEst.invoice_number})` : ''}. You can add or remove pricebook lines; prices can't be changed here.</p>
+                <Link to={`/tech/invoice/${jobId}`} className="jc-action-link"><IconReceipt /><span>{invoice ? `Open Invoice ${invoice.invoice_number}` : 'Start the Invoice from the Estimate'}</span><span className="jc-chev">›</span></Link>
+                {invoiceDone && <p className="jc-done-line">{invoiceItems} line item{invoiceItems === 1 ? '' : 's'} · ${Number(invoiceTotal).toFixed(2)}</p>}
+              </div>
+            )}
+          </div>
+          <div className="jc-task">
+            <TaskHead k="viewsend" title="View, Send & Collect" icon={<IconReceipt />} done={viewSendDone || !!invoice?.paid_at} />
+            {isOpen('viewsend') && (
+              <div className="jc-task-body">
+                {!invoice ? <p className="jc-muted-note">Start the invoice first.</p> : (
+                  <>
+                    <div className="jc-kv"><span>Total Due</span><strong>${Number(invoiceTotal).toFixed(2)}</strong></div>
+                    <div className="jc-kv"><span>Status</span><strong>{invoice.paid_at ? 'Paid' : 'Unpaid'}{invoice.sent_at ? ' · Sent' : ''}</strong></div>
+                    {invoiceItems > 0
+                      ? <button className="jc-btn wide" style={{ marginTop: 10 }} onClick={() => navigate(`/tech/invoice-view/${invoice.id}`)}>View, Send &amp; Collect Payment</button>
+                      : <p className="jc-plan-none" style={{ padding: '10px 0 2px' }}>Add at least one line to the invoice first.</p>}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </>)}
+      </div>)}
+    </div>
+  ) : null
+
+  // Technicians can't go back into a finished job (supervisors and admins can).
+  if (job && job.status === 'completed' && !isFieldAdmin(profile) && profile?.role !== 'super_admin') {
+    return (
+      <div className="mobile-shell job-card-v2">
+        <div className="jc-header is-complete">
+          <button className="jc-back" onClick={() => navigate('/tech')}><IconChevronLeft /></button>
+          <div className="jc-header-text">
+            <div className="jc-title">{job.job_number}{job.segment > 1 ? `-${job.segment}` : ''} — {job.customers?.display_name}</div>
+            <div className="jc-sub">Complete</div>
+          </div>
+        </div>
+        <div className="jc-body">
+          <p style={{ fontSize: 17, fontWeight: 700, margin: '18px 4px 8px' }}>This job is complete and can&apos;t be reopened.</p>
+          <p className="jc-muted-note">If something needs to change, ask your supervisor.</p>
+          <button className="jc-btn wide" style={{ marginTop: 14 }} onClick={() => navigate('/tech')}>Back to My Jobs</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={`mobile-shell job-card-v2${dark ? ' jc-dark' : ''}`}>
       <div className={`jc-header${allClear ? ' is-complete' : ''}`}>
@@ -1255,13 +1353,31 @@ export default function TechJobCard({ profile }) {
             <div className="jc-task-body">
               <div className="jc-kv"><span>Date &amp; Time</span><strong>{date}, {time}</strong></div>
               {job.duration_hours && <div className="jc-kv"><span>Planned Duration</span><strong>{job.duration_hours} hr</strong></div>}
-              {job.service_complaint && <div className="jc-kv"><span>Issue</span><strong>{job.service_complaint}</strong></div>}
-              {job.trip_charge && (
+              {!isDuct && job.service_complaint && <div className="jc-kv"><span>Issue</span><strong>{job.service_complaint}</strong></div>}
+              {job.trip_charge ? (
                 <div className="jc-kv"><span>Trip Charge</span><strong>{job.trip_charge.services?.name}</strong></div>
-              )}
+              ) : isDuct ? <div className="jc-kv"><span>Trip Charge</span><strong>No Trip Charge</strong></div> : null}
             </div>
           )}
         </div>
+
+        {/* Duct cleaning: Job Details — the job type and what the estimate promised, with the estimate itself one tap away */}
+        {isDuct && (
+          <div className="jc-task jc-duct-details">
+            <TaskHead k="job_details" title="Job Details" icon={<IconList />} done forceColor="blue" />
+            {isOpen('job_details') && (
+              <div className="jc-task-body">
+                <div style={{ textAlign: 'right', fontSize: 15, color: 'var(--jc-ink, #0B3041)' }}>{isDuctVisit ? 'Duct Cleaning Estimate' : 'Duct Cleaning'}</div>
+                <div style={{ fontSize: 15, margin: '6px 0 10px', lineHeight: 1.4 }}>
+                  {ductEst?.summary || (isDuctVisit ? 'No estimate lines yet — build the estimate with the customer.' : 'No estimate found for this job.')}
+                </div>
+                {ductEst?.id && (
+                  <button className="jc-btn wide" onClick={() => navigate(`/tech/invoice-view/${ductEst.id}`)}>View Job Estimate</button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Hidden photo inputs (shared by pre- and post-repair capture) */}
         <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" multiple style={{ display: 'none' }} onChange={handlePhotoSelect} />
@@ -1269,9 +1385,9 @@ export default function TechJobCard({ profile }) {
 
         {/* ========== WORKFLOW SPINE — forced order: Equipment -> Diagnosis -> Service Estimate ========== */}
 
-        <div className={`jc-group ${startGroupDone ? 'blue' : 'red'}`}>
-        <GroupHead g="start" label="Start Here" done={startGroupDone} />
-        {openGroup === 'start' && (<div className="jc-group-body">
+        <div className={isDuct ? 'jc-duct-tasks' : `jc-group ${startGroupDone ? 'blue' : 'red'}`}>
+        {!isDuct && <GroupHead g="start" label="Start Here" done={startGroupDone} />}
+        {(isDuct || openGroup === 'start') && (<div className={isDuct ? '' : 'jc-group-body'}>
         {/* Equipment on File — nameplates / systems on record (start-of-work group) */}
         <div className="jc-task">
           <TaskHead k="equipment" title="Equipment on File" icon={<IconShield />} done={equipDone}
@@ -1333,7 +1449,7 @@ export default function TechJobCard({ profile }) {
         </div>
 
         {/* Diagnosis (Repair-style) — locked until Equipment is done; unlocks the Service Estimate */}
-        {showLinkedChecklist && (
+        {!isDuct && showLinkedChecklist && (
           <div className="jc-task">
             <div className="jc-task-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <span style={{ fontWeight: 700 }}>Checklist — {linkedChecklist.name}</span>
@@ -1348,7 +1464,7 @@ export default function TechJobCard({ profile }) {
           </div>
         )}
 
-        {showDiagnosis && <>
+        {!isDuct && showDiagnosis && <>
         {diagnosisLocked && <LockNote text={lockReason.diagnosis} />}
         <div className="jc-task">
           <TaskHead k="diagnosis" title="Diagnosis" icon={<IconFile />} done={diagnosisDone} locked={diagnosisLocked} />
@@ -1372,7 +1488,7 @@ export default function TechJobCard({ profile }) {
         </>}
 
         {/* Checklist (Maintenance) — replaces Diagnosis; uses the plan-tier checklist, or Basic */}
-        {showChecklist && <>
+        {!isDuct && showChecklist && <>
         {checklistLocked && <LockNote text={lockReason.checklist} />}
         <div className="jc-task">
           <TaskHead k="checklist" title={`Checklist — ${maintChecklistName}`} icon={<IconList />} done={checklistComplete} locked={checklistLocked} />
@@ -1400,6 +1516,7 @@ export default function TechJobCard({ profile }) {
         </div>
         </>}
 
+        {!isDuct && <>
         {/* Pre-Work Photos — third of the start-of-work group; starting-condition photos or a logged reason */}
         <div className="jc-task">
           <TaskHead k="prework_photos" title="Pre-Work Photos" icon={<IconCamera />} done={preWorkPhotosDone}
@@ -1439,6 +1556,7 @@ export default function TechJobCard({ profile }) {
             </div>
           )}
         </div>
+        </>}
 
         {/* Air Filters — the home's filter sizes / MERV / locations. Feeds the customer filter-ordering option. */}
         <div className="jc-task">
@@ -1489,7 +1607,7 @@ export default function TechJobCard({ profile }) {
 
         </div>)}
         </div>
-        {showEstimateGroup && (<div className={`jc-group ${estimateGroupDone ? 'blue' : 'red'}`}>
+        {showEstimateGroup && !isDuct && (<div className={`jc-group ${estimateGroupDone ? 'blue' : 'red'}`}>
         <GroupHead g="estimate" label="Create Services Estimate" done={estimateGroupDone} locked={!startGroupDone} />
         {openGroup === 'estimate' && (<div className="jc-group-body">
 
@@ -1558,7 +1676,7 @@ export default function TechJobCard({ profile }) {
 
         </div>)}
         </div>)}
-        <div className={`jc-group ${paymentGroupDone ? 'blue' : 'red'}`}>
+        {!isDuct && (<div className={`jc-group ${paymentGroupDone ? 'blue' : 'red'}`}>
         <GroupHead g="payment" label="Collect Payment" done={paymentGroupDone} />
         {openGroup === 'payment' && (<div className="jc-group-body">
         {/* No charge — callbacks / warranty / courtesy visits close at $0 with no invoice or payment */}
@@ -1646,7 +1764,8 @@ export default function TechJobCard({ profile }) {
         </div>
 
         </div>)}
-        </div>
+        </div>)}
+        {isDuct && ductPaymentGroup}
         {/* Post-work Signatures removed — approval is signed at estimate approval; post-work photos verify the work. */}
         {false && (<>
         {/* Signatures (required) */}

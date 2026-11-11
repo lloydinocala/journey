@@ -250,6 +250,12 @@ function AuthenticatedApp() {
         // organization's zone, not the viewer's device zone. Super-admins have
         // no org of their own; their per-page org pickers set it instead.
         if (userRes.data.org_id) loadOrgTz(userRes.data.org_id)
+        // Remember this phone's company for the Field App sign-in page.
+        if (userRes.data.org_id) {
+          supabase.from('organizations').select('name, dba_name').eq('id', userRes.data.org_id).maybeSingle().then(({ data: o }) => {
+            try { localStorage.setItem('journey_last_org', JSON.stringify({ id: userRes.data.org_id, name: o?.dba_name || o?.name || '' })) } catch { /* private mode */ }
+          })
+        }
         const ents = Array.isArray(entRes?.data) ? entRes.data : []
         setProfile({
           ...userRes.data,

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import EditableDescription from './EditableDescription'
+import { isFieldAdmin } from './MobileNav'
 
 const money = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const r2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100
@@ -96,6 +97,9 @@ export default function DuctCleaningEditor({ jobId: jobIdProp, estimateId, kind,
   useEffect(() => { load() }, [jobIdProp, estimateId, kind]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const locked = !!doc && (isEstimate ? doc.approval_status === 'Approved' || doc.approval_status === 'Declined' : !!doc.paid_at)
+  // Techs on the field app may add or remove pricebook lines on a duct invoice, but not set prices
+  // (so no free-priced "other" items). Supervisors and the office can.
+  const noPricing = mobile && !isEstimate && !isFieldAdmin(profile) && profile?.role !== 'super_admin'
   const byItem = useMemo(() => Object.fromEntries(lines.filter((l) => l.duct_item_id).map((l) => [l.duct_item_id, l])), [lines])
   const customLines = lines.filter((l) => !l.duct_item_id)
   const cats = useMemo(() => [...new Set(items.map((i) => i.category))], [items])
@@ -242,7 +246,7 @@ export default function DuctCleaningEditor({ jobId: jobIdProp, estimateId, kind,
             {!locked && <button className="logout-button" style={{ padding: '2px 8px' }} onClick={() => removeLine(l)}>✕</button>}
           </div>
         ))}
-        {!locked && (custom ? (
+        {!locked && !noPricing && (custom ? (
           <form onSubmit={addCustom} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <input value={custom.description} onChange={(e) => setCustom({ ...custom, description: e.target.value })} placeholder="Description" style={{ flex: '1 1 200px' }} autoFocus />
             <input type="number" min="1" value={custom.quantity} onChange={(e) => setCustom({ ...custom, quantity: e.target.value })} style={{ width: 60 }} title="Qty" />

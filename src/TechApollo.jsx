@@ -1,6 +1,6 @@
 import QuincyBadge from './QuincyBadge'
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { IconChevronLeft, IconSparkles, IconPhone } from './MobileIcons'
 import MobileNav from './MobileNav'
@@ -28,6 +28,17 @@ export default function TechApollo({ profile }) {
   useEffect(() => {
     loadHistory()
   }, [])
+
+  // A question typed or spoken into the Ask Anything bar arrives here and is sent once history loads.
+  const location = useLocation()
+  const askedRef = useRef(false)
+  useEffect(() => {
+    const ask = location.state?.ask
+    if (loadingHistory || askedRef.current || !ask) return
+    askedRef.current = true
+    navigate(location.pathname, { replace: true, state: null })
+    send(ask)
+  }, [loadingHistory]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })

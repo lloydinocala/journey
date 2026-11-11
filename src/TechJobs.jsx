@@ -2,20 +2,13 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { signOutMobile } from './utils/mobileSessionLog'
-import MobileNav, { isFieldAdmin } from './MobileNav'
+import { isFieldAdmin } from './MobileNav'
+import AskBar from './AskBar'
+import './fieldapp.css'
 import ClockWidget from './ClockWidget'
 import { formatTimeInZone, loadOrgTz } from './utils/tz'
 import { can } from './utils/permissions'
 import { hasFeature } from './utils/entitlements'
-
-const STATUS_LABEL = {
-  scheduled: 'Scheduled',
-  on_my_way: 'On My Way',
-  in_progress: 'In Progress',
-  incomplete: 'Incomplete',
-  completed: 'Completed',
-  canceled: 'Canceled',
-}
 
 function todayISO() {
   const d = new Date()
@@ -48,6 +41,11 @@ export default function TechJobs({ profile }) {
   const [effUid, setEffUid] = useState(null)
   const [effOrgId, setEffOrgId] = useState(null)
   const [onCallInfo, setOnCallInfo] = useState(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [lockedMsg, setLockedMsg] = useState('')
+  // Re-check lateness every minute while the list is open.
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(t) }, [])
 
   useEffect(() => {
     const uid = profile?.id
@@ -155,7 +153,7 @@ export default function TechJobs({ profile }) {
       let jobQuery = supabase
         .from('jobs')
         .select(`
-          id, job_number, segment, status, job_date, start_time, job_type, service_complaint,
+          id, job_number, segment, status, job_date, start_time, arrival_at, job_type, service_complaint,
           properties ( street_address, unit, city, state, zip ),
           customers ( display_name )
         `)
@@ -164,11 +162,11 @@ export default function TechJobs({ profile }) {
         .is('deleted_at', null)
       if (!seeAll) jobQuery = jobQuery.in('id', jobIds)
       const { data } = await jobQuery
-      jobRows = data || []
+      jobRows = (data || []).filter((j) => j.status !== 'canceled' && j.status !== 'cancelled')
     }
 
     const jobItems = jobRows.map((j) => ({ kind: 'job', sortKey: j.start_time || '', data: j }))
-    const taskItems = (taskRows || []).map((t) => ({ kind: 'task', sortKey: t.scheduled_at || '', data: t }))
+    const taskItems = (taskRows || []).filter((t) => t.status !== 'canceled' && t.status !== 'cancelled').map((t) => ({ kind: 'task', sortKey: t.scheduled_at || '', data: t }))
     const all = [...jobItems, ...taskItems].sort((a, b) => (a.sortKey || '').localeCompare(b.sortKey || ''))
     setItems(all)
     setLoading(false)
@@ -178,29 +176,62 @@ export default function TechJobs({ profile }) {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
   })
 
+  // Card colour: green = complete, red = not complete yet, amber + red border = late
+  // (the scheduled arrival time has been reached and the tech hasn't arrived).
+  function cardState(it) {
+    const d = it.data
+    const st = it.kind === 'task' ? d.status : d.status
+    if (st === 'completed') return 'complete'
+    const t = it.kind === 'task' ? d.scheduled_at : d.start_time
+    const notArrived = it.kind === 'task' ? (st === 'scheduled' || st === 'pending' || !st) : (!d.arrival_at && (st === 'scheduled' || st === 'on_my_way'))
+    if (t && notArrived && new Date(t).getTime() <= now) return 'late'
+    return 'incomplete'
+  }
+  function openItem(it) {
+    if (it.data.status === 'completed' && !isFieldAdmin(profile) && !isSuperAdmin) {
+      setLockedMsg(`${it.kind === 'task' ? 'This task' : `Job ${it.data.job_number}`} is complete — it can't be reopened.`)
+      setTimeout(() => setLockedMsg(''), 3200)
+      return
+    }
+    navigate(it.kind === 'task' ? `/tech/task/${it.data.id}` : `/tech/${it.data.id}`)
+  }
+  const firstName = (profile?.full_name || '').trim()
+  const menu = [
+    ['My Schedule', () => navigate('/tech/my-schedule')],
+    ['My Records', () => navigate('/my')],
+    ['Field Manual', () => navigate('/tech/manual')],
+    ['Cycle Count', () => navigate('/tech/cycle-counts')],
+    ['Settings', () => navigate('/tech/settings')],
+    ...(isFieldAdmin(profile) ? [['Desktop', () => navigate('/home')]] : []),
+    ['Sign Out', () => signOutMobile(profile)],
+  ]
+
   return (
-    <div className="mobile-shell">
-      <div className="mobile-header">
-        <div className="mobile-header-top-row">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src="/brand/journey-icon.png" alt="Journey HVAC" style={{ height: 34, width: 34, borderRadius: 8, flex: '0 0 auto' }} />
-            <div>
-              <div className="mobile-header-date">{dateDisplay}</div>
-              <div className="mobile-header-title">My Job Cards</div>
+    <div className="fa-shell">
+      <div className="fa-header">
+        <div className="fa-header-title">My Jobs{firstName ? ` - ${firstName}` : ''}</div>
+        <div className="fa-header-sub">{dateDisplay}</div>
+        <button type="button" className="fa-menu-btn" aria-label="Menu" onClick={() => setMenuOpen((v) => !v)}>☰</button>
+        {menuOpen && (
+          <>
+            <div className="fa-menu-scrim" onClick={() => setMenuOpen(false)} />
+            <div className="fa-menu">
+              {menu.map(([label, fn]) => <button key={label} type="button" onClick={() => { setMenuOpen(false); fn() }}>{label}</button>)}
             </div>
-          </div>
-          <div className="mobile-header-actions">
-            {isFieldAdmin(profile) && (
-              <button className="mobile-header-action-btn" onClick={() => navigate('/home')}>Desktop</button>
-            )}
-            <button className="mobile-header-action-btn" onClick={() => navigate('/my')}>My Records</button>
-            <button className="mobile-header-action-btn" onClick={() => navigate('/tech/settings')}>Settings</button>
-            <button className="mobile-header-action-btn" onClick={() => signOutMobile(profile)}>Sign Out</button>
-          </div>
-        </div>
+          </>
+        )}
       </div>
 
-      <div className="mobile-body">
+      <div className="fa-body">
+        {effUid && effOrgId && (
+          <ClockWidget userId={effUid} orgId={effOrgId} variant="mobile" />
+        )}
+        <div className="fa-datebar">
+          <button type="button" onClick={() => setDate(shiftDate(date, -1))} aria-label="Previous day">&lsaquo;</button>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value || todayISO())} />
+          <button type="button" onClick={() => setDate(shiftDate(date, 1))} aria-label="Next day">&rsaquo;</button>
+          {date !== todayISO() && <button type="button" className="fa-today" onClick={() => setDate(todayISO())}>Today</button>}
+        </div>
         {onCallInfo && (onCallInfo.current || onCallInfo.next) && (() => {
           const p = onCallInfo.current || onCallInfo.next
           const role = p.supervisor_user_id === onCallInfo.uid ? 'On-Call Supervisor' : 'On-Call Tech'
@@ -212,27 +243,16 @@ export default function TechJobs({ profile }) {
               border: isNow ? '1px solid #0B6E2E' : '1px solid #d9a441',
             }}>
               <div style={{ fontWeight: 600, color: isNow ? '#0B6E2E' : '#8a5a00' }}>
-                {isNow ? `\u25CF On call now \u2014 ${role}` : `Next on-call turn \u2014 ${role}`}
+                {isNow ? `● On call now — ${role}` : `Next on-call turn — ${role}`}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--mist)', marginTop: 2 }}>
+              <div style={{ fontSize: 13, color: '#5A6B7B', marginTop: 2 }}>
                 {isNow
-                  ? `Until ${fmtOnCall(p.period_end)} \u00B7 supervisor access active this window`
-                  : `${fmtOnCall(p.period_start)} \u2192 ${fmtOnCall(p.period_end)}`}
+                  ? `Until ${fmtOnCall(p.period_end)} · supervisor access active this window`
+                  : `${fmtOnCall(p.period_start)} → ${fmtOnCall(p.period_end)}`}
               </div>
             </div>
           )
         })()}
-        {seeAll && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-            <button type="button" className="mobile-header-action-btn" onClick={() => setDate(shiftDate(date, -1))}>&lsaquo;</button>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ flex: 1 }} />
-            <button type="button" className="mobile-header-action-btn" onClick={() => setDate(shiftDate(date, 1))}>&rsaquo;</button>
-            <button type="button" className="mobile-header-action-btn" onClick={() => setDate(todayISO())}>Today</button>
-          </div>
-        )}
-        {effUid && effOrgId && (
-          <ClockWidget userId={effUid} orgId={effOrgId} variant="mobile" />
-        )}
         {isSuperAdmin && (
           <div className="preview-banner">
             <div className="preview-banner-label">Super Admin Preview</div>
@@ -253,7 +273,6 @@ export default function TechJobs({ profile }) {
             <div className="supervisor-tools-label">Supervisor Tools</div>
             <div className="supervisor-tools-row">
               <button onClick={() => navigate('/tech/tower')}>The Tower</button>
-              <button onClick={() => navigate('/tech/cycle-counts')}>Cycle Count</button>
               {can(profile, 'access_receiver') && <button onClick={() => navigate('/receiver')}>Receiving</button>}
               <button onClick={() => navigate('/tech/schedule')}>Everyone's Schedule</button>
               {hasFeature(profile, 'commercial_projects') && <button onClick={() => navigate('/tech/projects')}>Commercial Projects</button>}
@@ -261,57 +280,43 @@ export default function TechJobs({ profile }) {
               <button onClick={() => navigate('/tech/new-estimate')}>+ Estimate</button>
               <button onClick={() => navigate('/tech/new-followup-estimate')}>+ Follow-up Estimate</button>
               <button onClick={() => navigate('/tech/new-system-estimate')}>+ System Estimate</button>
-              <button onClick={() => navigate('/tech/apollo')}>Chat with Quincy</button>
-              <button onClick={() => navigate('/tech/manual')}>Field Manual</button>
             </div>
           </div>
         )}
 
-        {loading ? (
-          <p style={{ color: 'var(--mist)', padding: '4px 2px' }}>Loading…</p>
-        ) : items.length === 0 ? (
-          <p style={{ color: 'var(--mist)', padding: '4px 2px' }}>
-            {isFieldAdmin(profile)
-              ? "You have nothing of your own today — use Supervisor Tools above to check the team's schedule or create a job."
-              : 'Nothing scheduled for this day.'}
-          </p>
-        ) : (
-          <div className="mobile-card-grid">{items.map((it) => it.kind === 'task' ? (
-            <div key={`t-${it.data.id}`} className="job-card-item job-card-item-task" onClick={() => navigate(`/tech/task/${it.data.id}`)}>
-              <div className="job-card-item-top">
-                <span className="job-card-number">TASK</span>
-                <span className={`status-pill status-${it.data.status}`}>{STATUS_LABEL[it.data.status] || it.data.status}</span>
+        {lockedMsg && <div className="fa-locked-msg">{lockedMsg}</div>}
+
+        <div className="fa-panel">
+          {loading ? (
+            <p className="fa-empty">Loading…</p>
+          ) : items.length === 0 ? (
+            <p className="fa-empty">Nothing scheduled for this day.</p>
+          ) : items.map((it) => {
+            const st = cardState(it)
+            const d = it.data
+            const label = st === 'complete' ? 'COMPLETE' : st === 'late' ? 'LATE' : 'INCOMPLETE'
+            return it.kind === 'task' ? (
+              <div key={`t-${d.id}`} className={`fa-card ${st}`} role="button" tabIndex={0} onClick={() => openItem(it)}>
+                <div className="fa-card-top"><span className="fa-card-num">TASK</span><span className={`fa-card-status ${st}`}>{label}</span></div>
+                <div className="fa-card-name">{d.destination_name}</div>
+                <div className="fa-card-sub">{timeLabel(d.scheduled_at)}{timeLabel(d.scheduled_at) && ' · '}Task{seeAll && d.assigned?.full_name ? ` · ${d.assigned.full_name}` : ''}</div>
+                {d.address && <div className="fa-card-addr">{d.address}</div>}
               </div>
-              <div className="job-card-customer">{it.data.destination_name}</div>
-              <div className="job-card-sub">
-                {timeLabel(it.data.scheduled_at)}{timeLabel(it.data.scheduled_at) && ' · '}Task
-                {seeAll && it.data.assigned?.full_name && <> · for {it.data.assigned.full_name}</>}
+            ) : (
+              <div key={`j-${d.id}`} className={`fa-card ${st}`} role="button" tabIndex={0} onClick={() => openItem(it)}>
+                <div className="fa-card-top"><span className="fa-card-num">{d.job_number}{d.segment > 1 ? `-${d.segment}` : ''}</span><span className={`fa-card-status ${st}`}>{label}</span></div>
+                <div className="fa-card-name">{d.customers?.display_name || 'Unknown Customer'}</div>
+                <div className="fa-card-sub">{timeLabel(d.start_time)}{timeLabel(d.start_time) && ' · '}{d.job_type || 'Job'}</div>
+                {d.properties?.street_address && (
+                  <div className="fa-card-addr">{d.properties.street_address}{d.properties.unit ? ` #${d.properties.unit}` : ''}, {d.properties.city}</div>
+                )}
               </div>
-              {it.data.address && (
-                <div className="job-card-address">{it.data.address}</div>
-              )}
-            </div>
-          ) : (
-            <div key={`j-${it.data.id}`} className="job-card-item" onClick={() => navigate(`/tech/${it.data.id}`)}>
-              <div className="job-card-item-top">
-                <span className="job-card-number">{it.data.job_number}{it.data.segment > 1 ? `-${it.data.segment}` : ''}</span>
-                <span className={`status-pill status-${it.data.status}`}>{STATUS_LABEL[it.data.status] || it.data.status}</span>
-              </div>
-              <div className="job-card-customer">{it.data.customers?.display_name || 'Unknown Customer'}</div>
-              <div className="job-card-sub">
-                {timeLabel(it.data.start_time)}{timeLabel(it.data.start_time) && ' · '}{it.data.job_type || 'Job'}
-              </div>
-              {it.data.properties?.street_address && (
-                <div className="job-card-address">
-                  {it.data.properties.street_address}{it.data.properties.unit ? ` #${it.data.properties.unit}` : ''}, {it.data.properties.city}
-                </div>
-              )}
-            </div>
-          ))}</div>
-        )}
+            )
+          })}
+        </div>
       </div>
 
-      <MobileNav profile={profile} />
+      <AskBar />
     </div>
   )
 }

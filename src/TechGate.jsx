@@ -54,7 +54,7 @@ export default function TechGate({ profile }) {
   if (state === 'loading') {
     return (
       <div className="mobile-shell job-card-v2">
-        <div className="jc-header"><div className="jc-header-text"><div className="jc-title">Air-Care Field App</div></div></div>
+        <div className="jc-header"><div className="jc-header-text"><div className="jc-title">Journey Field App</div></div></div>
         <div className="jc-body"><p className="jc-muted-note">Loading…</p></div>
       </div>
     )
@@ -65,7 +65,7 @@ export default function TechGate({ profile }) {
     <div className="mobile-shell job-card-v2 consent-shell">
       <div className="jc-header">
         <div className="jc-header-text">
-          <div className="jc-title">Before You Start</div>
+          <div className="jc-title">App Use Terms</div>
           <div className="jc-sub">Field app terms — required to receive work</div>
         </div>
       </div>
@@ -80,7 +80,7 @@ export default function TechGate({ profile }) {
         ) : (
           <>
             <div className="consent-intro">
-              Please review and accept these conditions for using the Air-Care field app on this device.
+              Please review and accept these App Use Terms for the Journey field app on this device.
               Acceptance is <strong>required</strong> before you can view or work jobs.
             </div>
             {TERMS.map((t, i) => (
