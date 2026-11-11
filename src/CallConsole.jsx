@@ -17,12 +17,13 @@ const CATEGORY_LABEL = { salesman: 'Salesman', friends_family: 'Friends & Family
 
 // field: the Field App (supervisor) version — same lookup and logging, phone-sized, no desktop-only
 // links; onAdd(mode, customer) opens the Field App's +ADD screen with the caller pre-filled.
-export default function CallConsole({ profile, field = false, onAdd }) {
+export default function CallConsole({ profile, field = false, onAdd, initialPhone = '' }) {
   const isSuper = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
   const [takingCall, setTakingCall] = useState(false)
-  const [phone, setPhone] = useState('')
+  const [phone, setPhone] = useState(initialPhone || '')
+  const [ringing, setRinging] = useState(null)   // a call ringing on a team phone right now (store app)
   const [matches, setMatches] = useState(null)   // null = idle, [] = no match
   const [searching, setSearching] = useState(false)
   const [selected, setSelected] = useState(null)
@@ -69,6 +70,22 @@ export default function CallConsole({ profile, field = false, onAdd }) {
     supabase.from('users').select('id, full_name, phone, role').eq('org_id', selectedOrg).eq('is_active', true).then(({ data }) => setUsers(data || []))
     supabase.from('known_contacts').select('id, name, company, phone, phone_alt, category, default_assignee').eq('org_id', selectedOrg).eq('is_active', true).then(({ data }) => setKnownContacts(data || []))
   }, [selectedOrg])
+
+  // Calls ringing on team phones (Journey store app on Android) pop up here live.
+  useEffect(() => {
+    if (!selectedOrg) return
+    const since = new Date(Date.now() - 90 * 1000).toISOString()
+    supabase.from('phone_call_events').select('id, phone, caller_name, caller_type, occurred_at').eq('org_id', selectedOrg).eq('event', 'ringing').gte('occurred_at', since)
+      .order('occurred_at', { ascending: false }).limit(1).then(({ data }) => { if (data?.[0]) setRinging(data[0]) })
+    const ch = supabase.channel(`calls-${selectedOrg}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_call_events', filter: `org_id=eq.${selectedOrg}` }, (p) => {
+        if (p.new?.event === 'ringing') setRinging(p.new)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [selectedOrg])
+  useEffect(() => { if (!ringing) return; const t = setTimeout(() => setRinging(null), 3 * 60 * 1000); return () => clearTimeout(t) }, [ringing])
+  const ringLast10 = ringing ? String(ringing.phone || '').replace(/\D/g, '').slice(-10) : ''
 
   async function toggleReceptionist() {
     if (!aiRecept.opted_in || aiBusy || !selectedOrg) return
@@ -200,6 +217,17 @@ export default function CallConsole({ profile, field = false, onAdd }) {
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
+      {ringing && ringLast10 && ringLast10 !== phone.replace(/\D/g, '').slice(-10) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: '#E8F5EC', border: '1.5px solid #2E7D32', borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+          <span style={{ fontSize: 20 }}>📞</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800 }}>Ringing now: {ringing.caller_name || `(${ringLast10.slice(0, 3)}) ${ringLast10.slice(3, 6)}-${ringLast10.slice(6)}`}</div>
+            <div style={{ fontSize: 12.5, color: '#3D5A47' }}>{{ customer: 'Customer', vendor: 'Vendor', employee: 'Employee', known_other: 'Known contact' }[ringing.caller_type] || 'Not in Journey yet'} · {new Date(ringing.occurred_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>
+          </div>
+          <button type="button" className="auth-button" style={{ width: 'auto', margin: 0, padding: '8px 14px' }} onClick={() => { setPhone(ringLast10); setRinging(null) }}>Load caller</button>
+          <button type="button" className="logout-button" style={{ margin: 0, padding: '8px 10px' }} onClick={() => setRinging(null)}>✕</button>
+        </div>
+      )}
       {!field && <div className="page-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0 }}>Call Console</h2>
         <button className="logout-button" style={{ margin: 0 }} onClick={() => setTakingCall(true)} title="The caller wants a team member — follow that person's call instructions">📞 Call for a team member</button>

@@ -6,6 +6,7 @@ import { isFieldAdmin } from './MobileNav'
 import AskBar from './AskBar'
 import './fieldapp.css'
 import ClockWidget from './ClockWidget'
+import { isNative } from './native/native'
 import { formatTimeInZone, loadOrgTz } from './utils/tz'
 
 function todayISO() {
@@ -211,6 +212,7 @@ export default function TechJobs({ profile }) {
     ['My Records', () => navigate('/my')],
     ['Field Manual', () => navigate('/tech/manual')],
     ['Cycle Count', () => navigate('/tech/cycle-counts')],
+    ...(isNative() ? [['Phone Setup', () => navigate('/tech/field/phone-setup')]] : []),
     ['Settings', () => navigate('/tech/settings')],
     ...(isFieldAdmin(profile) ? [['Desktop', () => navigate('/home')]] : []),
     ['Sign Out', () => signOutMobile(profile)],

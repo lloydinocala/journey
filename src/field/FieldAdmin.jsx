@@ -5,6 +5,7 @@ import { supabase } from '../utils/supabase'
 import { useWeek, mondayOf } from './FieldWorkforce'
 import AskBar from '../AskBar'
 import { useSolo } from './FieldHome'
+import ContactImport from '../ContactImport'
 
 // ADMIN — the Field App's back office: call logs, reports, payroll, pricebook, company profile, feedback.
 const PR_TAX = 0.0765
@@ -60,6 +61,7 @@ export default function FieldAdmin({ profile }) {
     ['Business Hours', '/tech/field/admin/hours'],
     ['Job Types', '/tech/field/admin/job-types'],
     ['Company Profile', '/tech/field/admin/company'],
+    ['Import Phone Contacts', '/tech/field/admin/contacts'],
     ...(solo ? [['Add a Team Member', '/tech/field/team']] : []),
     ['Feedback', '/tech/field/admin/feedback'],
   ]
@@ -594,6 +596,16 @@ export function FieldCompany({ profile }) {
           {admin ? <button type="button" className="fa-navbtn" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save'}</button> : <p className="fa-muted" style={{ textAlign: 'center' }}>Only company admins can change the profile.</p>}
         </>)}
       </div>
+    </FieldShell>
+  )
+}
+
+// ---------- Import phone contacts ----------
+export function FieldContactImport({ profile }) {
+  const navigate = useNavigate()
+  return (
+    <FieldShell profile={profile} title="Admin" onBack={back(navigate)}>
+      {profile?.org_id && <ContactImport field orgId={profile.org_id} profile={profile} />}
     </FieldShell>
   )
 }

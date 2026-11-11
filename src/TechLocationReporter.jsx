@@ -17,7 +17,8 @@ function meters(aLat, aLng, bLat, bLng) {
 export default function TechLocationReporter({ profile }) {
   const last = useRef({ t: 0, lat: null, lng: null })
   useEffect(() => {
-    if (!profile?.user_id || !profile?.org_id || !('geolocation' in navigator)) return
+    const uid = profile?.id || profile?.user_id
+    if (!uid || !profile?.org_id || !('geolocation' in navigator)) return
     let cancelled = false
 
     async function write(pos) {
@@ -29,7 +30,7 @@ export default function TechLocationReporter({ profile }) {
       if (now - last.current.t < 30000 && moved < 40) return
       last.current = { t: now, lat: latitude, lng: longitude }
       await supabase.from('tech_locations').upsert({
-        user_id: profile.user_id,
+        user_id: uid,
         org_id: profile.org_id,
         latitude,
         longitude,
@@ -44,6 +45,6 @@ export default function TechLocationReporter({ profile }) {
       { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
     )
     return () => { cancelled = true; navigator.geolocation.clearWatch(watchId) }
-  }, [profile?.user_id, profile?.org_id])
+  }, [profile?.id, profile?.user_id, profile?.org_id])
   return null
 }

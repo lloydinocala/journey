@@ -6,6 +6,7 @@ import { signOutMobile } from '../utils/mobileSessionLog'
 import { supabase } from '../utils/supabase'
 import PushToggle from '../push/PushToggle'
 import { inboxNewCount } from './FieldInbox'
+import { isNative } from '../native/native'
 
 // One-person company: only one active user. Team/payroll screens step aside and the time clock is optional.
 export function useSolo(orgId) {
@@ -56,6 +57,7 @@ export default function FieldHome({ profile }) {
             <button type="button" onClick={() => navigate('/tech/my-schedule')}>My Schedule</button>
             <button type="button" onClick={() => navigate('/my')}>My Records</button>
             <button type="button" onClick={() => navigate('/tech/manual')}>Field Manual</button>
+            {isNative() && <button type="button" onClick={() => navigate('/tech/field/phone-setup')}>Phone Setup</button>}
             <button type="button" onClick={() => navigate('/tech/settings')}>Settings</button>
             <button type="button" onClick={() => signOutMobile(profile)}>Sign Out</button>
           </div>

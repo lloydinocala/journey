@@ -134,7 +134,7 @@ import FieldAdd from './field/FieldAdd'
 import FieldCalendar from './field/FieldCalendar'
 import FieldJobs from './field/FieldJobs'
 import FieldJobData from './field/FieldJobData'
-import FieldAdmin, { FieldJobsSummary, FieldJobProfit, FieldPeriodProfit, FieldPayroll, FieldYtd, FieldPayrollSend, FieldPricebook, FieldCompany, FieldFeedback } from './field/FieldAdmin'
+import FieldAdmin, { FieldJobsSummary, FieldJobProfit, FieldPeriodProfit, FieldPayroll, FieldYtd, FieldPayrollSend, FieldPricebook, FieldCompany, FieldFeedback, FieldContactImport } from './field/FieldAdmin'
 import FieldExpenses from './field/FieldExpenses'
 import FieldWorkforce, { FieldTeam, FieldHours, FieldHoursPerson } from './field/FieldWorkforce'
 import FieldMoney from './field/FieldMoney'
@@ -143,6 +143,7 @@ import FieldInbox from './field/FieldInbox'
 import FieldEstimates from './field/FieldEstimates'
 import FieldSetup, { FieldBusinessHours, FieldJobTypes } from './field/FieldSetup'
 import FieldMileage from './field/FieldMileage'
+import FieldPhoneSetup from './field/FieldPhoneSetup'
 import { isFieldAdmin } from './MobileNav'
 import TechNewJob from './TechNewJob'
 import TechApollo from './TechApollo'
@@ -326,6 +327,8 @@ function AuthenticatedApp() {
         <Route path="/tech/field/admin/pricebook" element={<FieldPricebook profile={profile} />} />
         <Route path="/tech/field/admin/company" element={<FieldCompany profile={profile} />} />
         <Route path="/tech/field/admin/feedback" element={<FieldFeedback profile={profile} />} />
+        <Route path="/tech/field/admin/contacts" element={<FieldContactImport profile={profile} />} />
+        <Route path="/tech/field/phone-setup" element={<FieldPhoneSetup profile={profile} />} />
         <Route path="/tech/field/money" element={<FieldMoney profile={profile} />} />
         <Route path="/tech/field/customers" element={<FieldCustomers profile={profile} />} />
         <Route path="/tech/field/customer/:customerId" element={<FieldCustomer profile={profile} />} />

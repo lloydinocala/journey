@@ -1,0 +1,26 @@
+{
+  "appId": "com.ventexiq.journey",
+  "appName": "Journey",
+  "webDir": "native-shell",
+  "server": {
+    "url": "https://journey-hvac.app/tech",
+    "errorPath": "offline.html",
+    "androidScheme": "https"
+  },
+  "android": {
+    "appendUserAgent": "JourneyApp/1",
+    "useLegacyBridge": true
+  },
+  "ios": {
+    "appendUserAgent": "JourneyApp/1"
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
+  }
+}

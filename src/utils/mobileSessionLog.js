@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { nativeSignOut } from '../native/native'
 
 // Mirrors Layout.jsx's handleLogout on desktop. Awaited deliberately — an earlier
 // desktop version of this shipped without awaiting the insert and it silently
@@ -13,5 +14,6 @@ export async function signOutMobile(profile) {
       source: 'mobile',
     })
   }
+  await nativeSignOut().catch(() => {})
   await supabase.auth.signOut()
 }

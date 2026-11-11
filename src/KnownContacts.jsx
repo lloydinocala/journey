@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { Link } from 'react-router-dom'
+import ContactImport from './ContactImport'
 
 // "Known Others" — everyone who isn't a Customer, Vendor, or Employee:
 // salesmen, friends & family, and any other named contact we want on file.
@@ -32,6 +33,7 @@ export default function KnownContacts({ profile }) {
   const [err, setErr] = useState('')
   const [matching, setMatching] = useState(false)
   const [matches, setMatches] = useState(null) // null = not run; [] = ran, none
+  const [importing, setImporting] = useState(false)
 
   useEffect(() => { if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || [])) }, [isSuper])
   useEffect(() => {
@@ -127,6 +129,7 @@ export default function KnownContacts({ profile }) {
         <h2 style={{ margin: 0 }}>Known Others</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="logout-button" style={{ padding: '9px 14px' }} onClick={findMatches} disabled={!selectedOrg || matching || loading}>{matching ? 'Checking…' : 'Check for customer matches'}</button>
+          <button className="logout-button" style={{ padding: '9px 14px' }} onClick={() => setImporting((v) => !v)} disabled={!selectedOrg}>{importing ? 'Close import' : 'Import phone contacts'}</button>
           <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '9px 16px' }} onClick={openAdd} disabled={!selectedOrg}>+ Add contact</button>
         </div>
       </div>
@@ -136,6 +139,7 @@ export default function KnownContacts({ profile }) {
           <OrgPicker orgs={orgs} value={selectedOrg} onChange={setSelectedOrg} />
         </div>
       )}
+      {importing && selectedOrg && <div style={{ marginBottom: 14 }}><ContactImport orgId={selectedOrg} profile={profile} onDone={() => load()} onCancel={() => setImporting(false)} /></div>}
       <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--mist)' }}>Everyone who isn't a customer, vendor, or employee — salesmen, friends &amp; family, and any other contact worth keeping. These are the people the Call Console can recognize by phone number.</p>
 
       {matches != null && (

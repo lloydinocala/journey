@@ -6,6 +6,9 @@ import TechLocationReporter from './TechLocationReporter'
 import { supabase } from './utils/supabase'
 import { TERMS_VERSION, TERMS } from './techTerms'
 import DeviceFrame, { shouldFrame } from './DeviceFrame'
+import NativeBoot from './native/NativeBoot'
+import OfflineBanner from './native/OfflineBanner'
+import { isNative } from './native/native'
 
 // Consent gate wrapping every mobile job view. Any signed-in employee who opens
 // the field app must accept the current terms (message archiving + always-on GPS)
@@ -66,7 +69,7 @@ function TechGateInner({ profile }) {
       </div>
     )
   }
-  if (state === 'ok') return (<><TechLocationReporter profile={profile} />{lockedPkg ? <LockedFeature profile={profile} featureKey={lockedPkg} mobile /> : <Outlet />}</>)
+  if (state === 'ok') return (<><OfflineBanner />{isNative() ? <NativeBoot profile={profile} /> : <TechLocationReporter profile={profile} />}{lockedPkg ? <LockedFeature profile={profile} featureKey={lockedPkg} mobile /> : <Outlet />}</>)
 
   return (
     <div className="mobile-shell job-card-v2 consent-shell">
