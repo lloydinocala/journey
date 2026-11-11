@@ -135,6 +135,8 @@ import FieldCalendar from './field/FieldCalendar'
 import FieldJobs from './field/FieldJobs'
 import FieldJobData from './field/FieldJobData'
 import FieldSoon from './field/FieldSoon'
+import FieldExpenses from './field/FieldExpenses'
+import FieldWorkforce, { FieldTeam, FieldHours, FieldHoursPerson } from './field/FieldWorkforce'
 import { isFieldAdmin } from './MobileNav'
 import TechNewJob from './TechNewJob'
 import TechApollo from './TechApollo'
@@ -303,8 +305,11 @@ function AuthenticatedApp() {
         <Route path="/tech/field/calendar" element={<FieldCalendar profile={profile} />} />
         <Route path="/tech/field/jobs" element={<FieldJobs profile={profile} />} />
         <Route path="/tech/field/job/:jobId" element={<FieldJobData profile={profile} />} />
-        <Route path="/tech/field/expenses" element={<FieldSoon profile={profile} title="Credits & Expenses" />} />
-        <Route path="/tech/field/workforce" element={<FieldSoon profile={profile} title="WorkForce" />} />
+        <Route path="/tech/field/expenses" element={<FieldExpenses profile={profile} />} />
+        <Route path="/tech/field/workforce" element={<FieldWorkforce profile={profile} />} />
+        <Route path="/tech/field/team" element={<FieldTeam profile={profile} />} />
+        <Route path="/tech/field/hours" element={<FieldHours profile={profile} />} />
+        <Route path="/tech/field/hours/:userId" element={<FieldHoursPerson profile={profile} />} />
         <Route path="/tech/field/admin" element={<FieldSoon profile={profile} title="Admin" />} />
         <Route path="/tech/tower" element={<TheTower profile={profile} />} />
         <Route path="/tech/cycle-counts" element={<TechCycleCounts profile={profile} />} />
