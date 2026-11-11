@@ -127,6 +127,15 @@ import TechEstimate from './TechEstimate'
 import TechNewEstimate from './TechNewEstimate'
 import TechSystemEstimate from './TechSystemEstimate'
 import TechSchedule from './TechSchedule'
+import FieldHome from './field/FieldHome'
+import FieldCallConsole from './field/FieldCallConsole'
+import FieldCallLogs from './field/FieldCallLogs'
+import FieldAdd from './field/FieldAdd'
+import FieldCalendar from './field/FieldCalendar'
+import FieldJobs from './field/FieldJobs'
+import FieldJobData from './field/FieldJobData'
+import FieldSoon from './field/FieldSoon'
+import { isFieldAdmin } from './MobileNav'
 import TechNewJob from './TechNewJob'
 import TechApollo from './TechApollo'
 import TechInvoiceView from './TechInvoiceView'
@@ -286,6 +295,17 @@ function AuthenticatedApp() {
       {/* All mobile field views sit behind the terms consent gate. */}
       <Route element={<TechGate profile={profile} />}>
         <Route path="/tech" element={<TechJobs profile={profile} />} />
+        {/* Field Management — the Field App for supervisors (2026-11 design) */}
+        <Route path="/tech/field" element={<FieldHome profile={profile} />} />
+        <Route path="/tech/field/calls" element={<FieldCallConsole profile={profile} />} />
+        <Route path="/tech/field/call-logs" element={<FieldCallLogs profile={profile} />} />
+        <Route path="/tech/field/add" element={<FieldAdd profile={profile} />} />
+        <Route path="/tech/field/calendar" element={<FieldCalendar profile={profile} />} />
+        <Route path="/tech/field/jobs" element={<FieldJobs profile={profile} />} />
+        <Route path="/tech/field/job/:jobId" element={<FieldJobData profile={profile} />} />
+        <Route path="/tech/field/expenses" element={<FieldSoon profile={profile} title="Credits & Expenses" />} />
+        <Route path="/tech/field/workforce" element={<FieldSoon profile={profile} title="WorkForce" />} />
+        <Route path="/tech/field/admin" element={<FieldSoon profile={profile} title="Admin" />} />
         <Route path="/tech/tower" element={<TheTower profile={profile} />} />
         <Route path="/tech/cycle-counts" element={<TechCycleCounts profile={profile} />} />
         <Route path="/tech/manual" element={<TechManual profile={profile} />} />
@@ -334,7 +354,9 @@ function AuthenticatedApp() {
      // reliably show the field app without depending on a reinstall, and it's
      // independent of any desktop session. The platform super-admin (no org, no field
      // app) is excluded; techs already route to /tech.
-     (profile.role === 'tech' || (deviceKind() === 'mobile' && profile.role !== 'super_admin')) ? <Navigate to="/tech" replace />
+     // Field Supervisors on a phone land on Field Management; everyone else in the field on My Jobs.
+     (deviceKind() === 'mobile' && profile.role !== 'super_admin' && isFieldAdmin(profile)) ? <Navigate to="/tech/field" replace />
+       : (profile.role === 'tech' || (deviceKind() === 'mobile' && profile.role !== 'super_admin')) ? <Navigate to="/tech" replace />
        : (profile.default_landing && LANDING_PATHS.has(profile.default_landing)) ? <Navigate to={profile.default_landing} replace />
        : <CommandCenter profile={profile} />
    } />

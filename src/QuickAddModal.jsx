@@ -17,7 +17,7 @@ export default function QuickAddModal(props) {
   return <QuickAddModalInner {...props} />
 }
 
-function QuickAddModalInner({ mode, orgId, profile, onClose, onCreated, prefillCustomerId = '', projectId = null }) {
+function QuickAddModalInner({ mode, orgId, profile, onClose, onCreated, prefillCustomerId = '', projectId = null, field = false }) {
   const navigate = useNavigate()
   const [customerProperties, setCustomerProperties] = useState([])
   const [users, setUsers] = useState([])
@@ -470,7 +470,7 @@ function QuickAddModalInner({ mode, orgId, profile, onClose, onCreated, prefillC
           {continueMatches.map((j) => (
             <div
               key={j.id}
-              onClick={() => { navigate(`/${target}/${j.id}`); onClose() }}
+              onClick={() => { navigate(field ? `/tech/${target}/${j.id}` : `/${target}/${j.id}`); onClose() }}
               style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: 14 }}
             >
               <strong>{jobNumberDisplay(j)}</strong> — {j.properties?.street_address} — <span className={`status-pill status-${j.status}`} style={{ marginLeft: 4 }}>{j.status}</span>

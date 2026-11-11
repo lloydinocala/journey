@@ -7,8 +7,6 @@ import AskBar from './AskBar'
 import './fieldapp.css'
 import ClockWidget from './ClockWidget'
 import { formatTimeInZone, loadOrgTz } from './utils/tz'
-import { can } from './utils/permissions'
-import { hasFeature } from './utils/entitlements'
 
 function todayISO() {
   const d = new Date()
@@ -33,7 +31,8 @@ function timeLabel(startTime) {
 export default function TechJobs({ profile }) {
   const navigate = useNavigate()
   const isSuperAdmin = profile?.role === 'super_admin'
-  const seeAll = isSuperAdmin || isFieldAdmin(profile) || can(profile, 'view_all_jobs')
+  // My Jobs is the person's own work. Supervisors see everyone's in Field Management → Jobs & Job Cards.
+  const seeAll = isSuperAdmin
 
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -42,6 +41,16 @@ export default function TechJobs({ profile }) {
   const [effOrgId, setEffOrgId] = useState(null)
   const [onCallInfo, setOnCallInfo] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  // Supervisors opening the Field App (home-screen icon starts at /tech) land on Field Management
+  // once per session; My Jobs stays one tap away in its menu.
+  useEffect(() => {
+    if (!isFieldAdmin(profile) || isSuperAdmin) return
+    try {
+      if (sessionStorage.getItem('fa_home_seen')) return
+      sessionStorage.setItem('fa_home_seen', '1')
+    } catch { return }
+    navigate('/tech/field', { replace: true })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [lockedMsg, setLockedMsg] = useState('')
   // Re-check lateness every minute while the list is open.
   const [now, setNow] = useState(Date.now())
@@ -197,6 +206,7 @@ export default function TechJobs({ profile }) {
   }
   const firstName = (profile?.full_name || '').trim()
   const menu = [
+    ...(isFieldAdmin(profile) ? [['Field Management', () => navigate('/tech/field')]] : []),
     ['My Schedule', () => navigate('/tech/my-schedule')],
     ['My Records', () => navigate('/my')],
     ['Field Manual', () => navigate('/tech/manual')],
@@ -224,7 +234,7 @@ export default function TechJobs({ profile }) {
 
       <div className="fa-body">
         {effUid && effOrgId && (
-          <ClockWidget userId={effUid} orgId={effOrgId} variant="mobile" />
+          <div style={{ marginBottom: 4 }}><ClockWidget userId={effUid} orgId={effOrgId} variant="field" /></div>
         )}
         <div className="fa-datebar">
           <button type="button" onClick={() => setDate(shiftDate(date, -1))} aria-label="Previous day">&lsaquo;</button>
@@ -268,21 +278,6 @@ export default function TechJobs({ profile }) {
           </div>
         )}
 
-        {isFieldAdmin(profile) && (
-          <div className="supervisor-tools">
-            <div className="supervisor-tools-label">Supervisor Tools</div>
-            <div className="supervisor-tools-row">
-              <button onClick={() => navigate('/tech/tower')}>The Tower</button>
-              {can(profile, 'access_receiver') && <button onClick={() => navigate('/receiver')}>Receiving</button>}
-              <button onClick={() => navigate('/tech/schedule')}>Everyone's Schedule</button>
-              {hasFeature(profile, 'commercial_projects') && <button onClick={() => navigate('/tech/projects')}>Commercial Projects</button>}
-              <button onClick={() => navigate('/tech/new-job')}>+ New Job</button>
-              <button onClick={() => navigate('/tech/new-estimate')}>+ Estimate</button>
-              <button onClick={() => navigate('/tech/new-followup-estimate')}>+ Follow-up Estimate</button>
-              <button onClick={() => navigate('/tech/new-system-estimate')}>+ System Estimate</button>
-            </div>
-          </div>
-        )}
 
         {lockedMsg && <div className="fa-locked-msg">{lockedMsg}</div>}
 

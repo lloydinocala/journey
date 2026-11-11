@@ -230,7 +230,9 @@ export default function Team({ profile }) {
     const { data: sessionData } = await supabase.auth.getSession()
     const token = sessionData.session.access_token
 
-    const derivedRole = addDept === 'Admin' ? 'org_admin' : 'tech'
+    // Admin → admin; Field → tech; office departments (Front Office, Back Office, Shop) → office (csr),
+    // so office staff get the desktop menus (Inventory, WorkForce, Marketing) that techs don't.
+    const derivedRole = addDept === 'Admin' ? 'org_admin' : addDept === 'Field' ? 'tech' : 'csr'
     const { data, error } = await supabase.functions.invoke('create-team-member', {
       body: {
         action: 'invite',
@@ -290,9 +292,11 @@ export default function Team({ profile }) {
       ? 'super_admin'
       : editDept === 'Admin'
         ? 'org_admin'
-        : editDept
+        : editDept === 'Field'
           ? 'tech'
-          : member.role
+          : editDept
+            ? 'csr'
+            : member.role
     const grantSup = inheritedKeys(editTags).has('view_all_jobs')
     await supabase
       .from('users')

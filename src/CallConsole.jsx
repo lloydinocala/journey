@@ -15,7 +15,9 @@ const money = (v) => '$' + (Number(v) || 0).toFixed(2)
 const fmtDate = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
 const CATEGORY_LABEL = { salesman: 'Salesman', friends_family: 'Friends & Family', other: 'Known contact' }
 
-export default function CallConsole({ profile }) {
+// field: the Field App (supervisor) version — same lookup and logging, phone-sized, no desktop-only
+// links; onAdd(mode, customer) opens the Field App's +ADD screen with the caller pre-filled.
+export default function CallConsole({ profile, field = false, onAdd }) {
   const isSuper = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
@@ -198,7 +200,7 @@ export default function CallConsole({ profile }) {
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <div className="page-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      {!field && <div className="page-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0 }}>Call Console</h2>
         <button className="logout-button" style={{ margin: 0 }} onClick={() => setTakingCall(true)} title="The caller wants a team member — follow that person's call instructions">📞 Call for a team member</button>
         <button
@@ -216,10 +218,10 @@ export default function CallConsole({ profile }) {
             ? (aiBusy ? 'Saving…' : (aiRecept.active ? '🟢 AI Receptionist: On — tap to turn off' : '⚪ AI Receptionist: Off — tap to turn on'))
             : 'AI Receptionist (add-on not enabled)'}
         </button>
-      </div>
-      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 640 }}>
+      </div>}
+      {!field && <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 4, marginBottom: 16, maxWidth: 640 }}>
         When a call comes in, type or paste the number to pull up the caller instantly — their history, equipment, plan, and balance — then open their record to book or answer questions.
-      </p>
+      </p>}
 
       {isSuper && (
         <div style={{ marginBottom: 16, maxWidth: 340 }}>
@@ -228,19 +230,26 @@ export default function CallConsole({ profile }) {
         </div>
       )}
 
+      {field ? (
+        <div>
+          <div className="fa-section-label" style={{ marginLeft: 14 }}>Caller&apos;s Phone Number</div>
+          <input className="fa-input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(352) 555-1234" />
+        </div>
+      ) : (
       <div className="field" style={{ maxWidth: 380 }}>
         <label>Caller's phone number</label>
         <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(352) 555-1234" autoFocus
           style={{ fontSize: 20, letterSpacing: '0.5px', padding: '12px 14px' }} />
       </div>
+      )}
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+      {!field && <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
         <NewItemDropdown onSelect={setNewItemMode} />
         <button className="logout-button" onClick={() => { setNoteOpen(true); setNoteSaved(false); setNoteBody(selected ? `Call re: ${selected.display_name}${selected.primary_phone ? ` (${selected.primary_phone})` : ''} — ` : '') }}>📝 New Note</button>
         {selected && detail?.properties?.length > 0 && <button className="logout-button" onClick={() => setFilterModal(true)}>🪟 Order filters</button>}
         {selected && <span style={{ fontSize: 12.5, color: 'var(--mist)' }}>New Job pre-fills {selected.display_name}</span>}
         {noteSaved && <span style={{ color: '#1a7f37', fontSize: 14 }}>Saved to Operations Dashboard ✓</span>}
-      </div>
+      </div>}
 
       {noteOpen && (
         <div className="section-card" style={{ padding: 14, marginTop: 10, maxWidth: 520 }}>
@@ -261,7 +270,9 @@ export default function CallConsole({ profile }) {
             <div className="section-card" style={{ padding: 18 }}>
               <p style={{ margin: '0 0 12px', fontWeight: 600 }}>No match for that number — who is calling?</p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Link className="auth-button" style={{ width: 'auto', display: 'inline-block', textDecoration: 'none', padding: '9px 18px' }} to="/customers">+ New customer</Link>
+                {field
+                  ? <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '9px 18px' }} onClick={() => onAdd && onAdd('customer', null, phone)}>+ New customer</button>
+                  : <Link className="auth-button" style={{ width: 'auto', display: 'inline-block', textDecoration: 'none', padding: '9px 18px' }} to="/customers">+ New customer</Link>}
                 <button className="logout-button" style={{ margin: 0, padding: '9px 18px' }} onClick={() => setAddContactOpen((v) => !v)}>+ Add a contact (salesman, friend, other…)</button>
               </div>
               {addContactOpen && (
@@ -326,7 +337,9 @@ export default function CallConsole({ profile }) {
                     {selected.email_1 && <div>✉️ {selected.email_1}</div>}
                   </div>
                 </div>
-                <Link className="auth-button" style={{ width: 'auto', textDecoration: 'none', padding: '10px 20px', flex: 'none' }} to={`/customers/${selected.id}`}>Open full record →</Link>
+                {field
+                  ? <button className="fa-small-btn" style={{ flex: 'none' }} onClick={() => onAdd && onAdd(null, selected, phone)}>+Add</button>
+                  : <Link className="auth-button" style={{ width: 'auto', textDecoration: 'none', padding: '10px 20px', flex: 'none' }} to={`/customers/${selected.id}`}>Open full record →</Link>}
               </div>
 
               {detail && (
@@ -341,7 +354,7 @@ export default function CallConsole({ profile }) {
                     <span className="status-pill" style={{ background: 'rgba(120,130,140,0.14)', color: 'var(--mist)' }}>{detail.equipCount} system{detail.equipCount === 1 ? '' : 's'} on file</span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: field ? '1fr' : '1fr 1fr', gap: field ? 12 : 20 }}>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--mist)', marginBottom: 6 }}>Address{detail.properties.length > 1 ? 'es' : ''}</div>
                       {detail.properties.length === 0 && <div style={{ color: 'var(--mist)', fontSize: 14 }}>None on file</div>}
@@ -373,7 +386,7 @@ export default function CallConsole({ profile }) {
                   <div style={{ fontSize: 22, fontWeight: 800 }}>{vendorMatch.name}</div>
                   {vendorMatch.phone && <div style={{ marginTop: 4, fontSize: 14.5 }}>📞 {vendorMatch.phone}</div>}
                 </div>
-                <Link className="auth-button" style={{ width: 'auto', textDecoration: 'none', padding: '10px 20px', flex: 'none' }} to={`/vendors/${vendorMatch.id}`}>Open vendor →</Link>
+                {!field && <Link className="auth-button" style={{ width: 'auto', textDecoration: 'none', padding: '10px 20px', flex: 'none' }} to={`/vendors/${vendorMatch.id}`}>Open vendor →</Link>}
               </div>
             </div>
           )}
@@ -386,7 +399,7 @@ export default function CallConsole({ profile }) {
                   {employeeMatch.role && <div style={{ color: 'var(--mist)', fontSize: 13, textTransform: 'capitalize' }}>{String(employeeMatch.role).replace(/_/g, ' ')}</div>}
                   {employeeMatch.phone && <div style={{ marginTop: 4, fontSize: 14.5 }}>📞 {employeeMatch.phone}</div>}
                 </div>
-                <Link className="auth-button" style={{ width: 'auto', textDecoration: 'none', padding: '10px 20px', flex: 'none' }} to="/team">Open in Team →</Link>
+                {!field && <Link className="auth-button" style={{ width: 'auto', textDecoration: 'none', padding: '10px 20px', flex: 'none' }} to="/team">Open in Team →</Link>}
               </div>
             </div>
           )}
@@ -413,7 +426,7 @@ export default function CallConsole({ profile }) {
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Call purpose…" style={{ flex: 1, minWidth: 220, padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8 }} />
+                <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Call purpose…" style={{ flex: 1, minWidth: field ? 0 : 220, width: field ? '100%' : undefined, padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8 }} />
                 <select value={routeTo} onChange={(e) => setRouteTo(e.target.value)} title="Route this message to" style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8 }}>
                   <option value="">Route to…</option>
                   <option value="Dispatch">Dispatch</option>

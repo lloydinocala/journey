@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import TimePicker15 from './TimePicker15'
 import TripChargePicker from './TripChargePicker'
@@ -23,6 +23,8 @@ const MODES = {
 export default function TechNewJob({ profile, mode = 'job' }) {
   const navigate = useNavigate()
   const modeConfig = MODES[mode] || MODES.job
+  // Field App +ADD / Call Console hand-off: { customer: {id, display_name, is_banned}, phone, jobTypeLike }
+  const handoff = useLocation().state || {}
 
   const [jobTypes, setJobTypes] = useState([])
   const [users, setUsers] = useState([])
@@ -30,10 +32,10 @@ export default function TechNewJob({ profile, mode = 'job' }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const [customerMode, setCustomerMode] = useState('existing')
+  const [customerMode, setCustomerMode] = useState(handoff.customer?.id || !handoff.phone ? 'existing' : 'new')
 
-  const [existingCustomerId, setExistingCustomerId] = useState('')
-  const [existingCustomerBanned, setExistingCustomerBanned] = useState(false)
+  const [existingCustomerId, setExistingCustomerId] = useState(handoff.customer?.id || '')
+  const [existingCustomerBanned, setExistingCustomerBanned] = useState(!!handoff.customer?.is_banned)
   const [customerProperties, setCustomerProperties] = useState([])
   const [propertyId, setPropertyId] = useState('')
   const [qrStatus, setQrStatus] = useState(null) // { token, printed_at, org_name, org_logo_url, org_phone, address }
@@ -45,7 +47,7 @@ export default function TechNewJob({ profile, mode = 'job' }) {
   const [tenant2Phone, setTenant2Phone] = useState('')
 
   const [newCustomerName, setNewCustomerName] = useState('')
-  const [newCustomerPhone, setNewCustomerPhone] = useState('')
+  const [newCustomerPhone, setNewCustomerPhone] = useState(handoff.phone || '')
   const [newCustomerEmail, setNewCustomerEmail] = useState('')
   const [newStreet, setNewStreet] = useState('')
   const [newUnit, setNewUnit] = useState('')
@@ -73,7 +75,11 @@ export default function TechNewJob({ profile, mode = 'job' }) {
     ]).then(([typesRes, usersRes]) => {
       setJobTypes(typesRes.data || [])
       setUsers(usersRes.data || [])
-      if (typesRes.data && typesRes.data.length > 0) setJobType(typesRes.data[0].name)
+      // jobTypeLike: words that must all appear in the type name, e.g. "duct estimate" → DUCT ESTIMATES
+      const words = String(handoff.jobTypeLike || '').toLowerCase().split(/\s+/).filter(Boolean)
+      const want = words.length ? (typesRes.data || []).find((t) => words.every((w) => t.name.toLowerCase().includes(w))) : null
+      if (want) setJobType(want.name)
+      else if (typesRes.data && typesRes.data.length > 0) setJobType(typesRes.data[0].name)
       setLoading(false)
     })
   }, [profile?.org_id])

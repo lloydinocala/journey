@@ -71,3 +71,58 @@
 .fa-signin-err { background: #FDECEC; color: #9B1C1C; border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 600; width: 100%; max-width: 380px; box-sizing: border-box; }
 .fa-signin-ok { background: #E3F1E8; color: #166534; border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 600; width: 100%; max-width: 380px; box-sizing: border-box; }
 .fa-signin-note { font-size: 11.5px; color: var(--fa-muted); margin-top: 14px; max-width: 360px; }
+
+/* Field Management (supervisor) */
+.fa-clock { display: block; width: 100%; border: 2.5px solid #0C2E44; border-radius: 14px; background: #fff; color: var(--fa-navy); font-size: 22px; font-weight: 800; padding: 10px 12px; text-align: center; cursor: pointer; font-family: inherit; box-sizing: border-box; }
+.fa-clock.on { background: var(--fa-green); color: #fff; border-color: #1E5631; cursor: default; }
+.fa-clock.on.lunch { background: #E0A100; border-color: #8A6300; }
+.fa-clock-row { display: flex; gap: 8px; margin-top: 6px; }
+.fa-clock-row button { flex: 1; border: 1.5px solid var(--fa-navy); background: #fff; color: var(--fa-navy); border-radius: 10px; padding: 7px 8px; font-weight: 700; font-size: 14px; cursor: pointer; font-family: inherit; }
+.fa-datepill { display: inline-block; min-width: 150px; background: #F2F2F2; border: 1.5px solid var(--fa-cyan); border-radius: 12px; padding: 3px 14px; font-size: 14px; font-weight: 700; color: var(--fa-navy); margin: 0 0 8px 6px; }
+.fa-menu-list { display: flex; flex-direction: column; gap: 8px; }
+.fa-navbtn { display: block; width: 100%; background: var(--fa-navy); color: #fff; border: 2px solid var(--fa-cyan); border-radius: 12px; padding: 13px 10px; font-size: 18px; font-weight: 700; text-align: center; cursor: pointer; font-family: inherit; box-shadow: 0 2px 4px rgba(12,46,68,.25); }
+.fa-navbtn.ghost { background: #fff; color: var(--fa-navy); border-color: #1E5631; }
+.fa-navbtn:disabled { opacity: .55; }
+.fa-section-label { font-size: 13.5px; font-weight: 700; color: var(--fa-ink); margin: 0 0 4px 4px; }
+.fa-input { width: 100%; box-sizing: border-box; height: 46px; border-radius: 12px; border: 1.5px solid var(--fa-cyan); padding: 0 14px; font-size: 18px; background: #fff; color: var(--fa-ink); font-family: inherit; }
+.fa-textarea { width: 100%; box-sizing: border-box; min-height: 74px; border-radius: 12px; border: 1.5px solid var(--fa-cyan); padding: 10px 12px; font-size: 15px; background: #fff; color: var(--fa-ink); font-family: inherit; }
+.fa-select { width: 100%; height: 48px; border-radius: 12px; border: 2px solid var(--fa-cyan); background: var(--fa-navy); color: #fff; font-size: 18px; font-weight: 700; padding: 0 14px; font-family: inherit; text-align: center; }
+.fa-info { border: 1.5px solid var(--fa-cyan); border-radius: 14px; padding: 12px; background: #fff; }
+.fa-info-name { font-size: 19px; font-weight: 900; letter-spacing: .3px; color: #222; }
+.fa-info-line { font-size: 14px; color: #33475B; margin-top: 2px; }
+.fa-chip { display: inline-block; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 3px 9px; margin: 6px 6px 0 0; background: #EEF1F5; color: #5A6B7B; }
+.fa-chip.green { background: #E3F1E8; color: #1B7A3D; }
+.fa-chip.red { background: #FDECEC; color: #B0342F; }
+.fa-small-btn { border: 2px solid var(--fa-cyan); background: var(--fa-navy); color: #fff; border-radius: 12px; padding: 9px 16px; font-weight: 700; font-size: 16px; cursor: pointer; font-family: inherit; }
+.fa-msg { border-radius: 10px; padding: 9px 12px; font-size: 14px; font-weight: 700; }
+.fa-msg.ok { background: #E3F1E8; color: #166534; }
+.fa-msg.err { background: #FDECEC; color: #9B1C1C; }
+.fa-muted { color: var(--fa-muted); font-size: 14px; }
+
+/* Jobs & Job Cards (supervisor list) — grey + green bar = complete, white + red border/bar = not complete, amber = late */
+.fa-jcard { position: relative; border-radius: 14px; padding: 10px 12px; border: 2px solid var(--fa-red); background: #fff; cursor: pointer; }
+.fa-jcard.complete { background: #E4E6E8; border-color: var(--fa-cyan); }
+.fa-jcard.late { background: var(--fa-amber); border-color: var(--fa-red); }
+.fa-jcard-bar { position: absolute; right: 12px; top: 10px; width: 42%; height: 15px; border-radius: 8px; background: var(--fa-red); color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .5px; text-align: center; line-height: 15px; }
+.fa-jcard.complete .fa-jcard-bar { background: var(--fa-green); }
+.fa-jcard-num { font-size: 13px; color: var(--fa-ink); }
+.fa-jcard-name { font-size: 17px; font-weight: 800; color: var(--fa-ink); }
+.fa-jcard-line { font-size: 13px; font-weight: 600; color: #1F2A37; }
+.fa-jcard-icons { position: absolute; right: 12px; bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+.fa-jcard-icons a, .fa-jcard-icons button { width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--fa-navy); background: #fff; color: var(--fa-navy); display: flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none; font-size: 15px; }
+
+/* Calendar day grid */
+.fa-cal { background: #fff; border: 1.5px solid var(--fa-cyan); border-radius: 22px; overflow: hidden; }
+.fa-cal-head { background: var(--fa-navy); color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; font-weight: 700; font-size: 17px; }
+.fa-cal-head button { background: none; border: none; color: #fff; font-size: 24px; width: 36px; cursor: pointer; }
+.fa-cal-grid { position: relative; }
+.fa-cal-hour { display: flex; height: 64px; border-top: 1px solid #C9D6E2; }
+.fa-cal-hour:nth-child(odd) .fa-cal-slot { background: #F3F5F7; }
+.fa-cal-label { width: 58px; flex: 0 0 58px; font-size: 13px; font-weight: 700; color: var(--fa-navy); padding: 4px 6px; border-right: 1px solid #C9D6E2; }
+.fa-cal-slot { flex: 1; }
+.fa-cal-ev { position: absolute; border-radius: 7px; color: #fff; font-size: 11.5px; font-weight: 700; padding: 3px 6px; overflow: hidden; cursor: pointer; box-sizing: border-box; line-height: 1.25; border: 2px solid transparent; }
+.fa-cal-ev.late { border-color: var(--fa-red); box-shadow: 0 0 0 2px var(--fa-amber) inset; }
+.fa-cal-ev.done { opacity: .55; }
+.fa-cal-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 8px 10px; font-size: 12.5px; color: var(--fa-ink); border-top: 1px solid #E1E8EE; }
+.fa-cal-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.fa-cal-legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }

@@ -155,6 +155,21 @@ export default function ClockWidget({ userId, orgId, variant = 'mobile', onChang
     )
   }
 
+  // Field App (2026-11 design): one wide bar — "Clock In", or green "Clocked In" with lunch / clock-out under it.
+  if (variant === 'field') {
+    if (!openShift) return <button type="button" className="fa-clock" disabled={busy} onClick={clockIn}>Clock In</button>
+    return (
+      <div>
+        <div className={`fa-clock on${openBreak ? ' lunch' : ''}`}>{openBreak ? `On Lunch · ${elapsed(openBreak.break_start)}` : `Clocked In · ${elapsed(openShift.clock_in)}`}{longOpen ? ' ⚠' : ''}</div>
+        <div className="fa-clock-row">
+          {openBreak
+            ? <button type="button" disabled={busy} onClick={() => endBreak(false)}>End Lunch</button>
+            : <button type="button" disabled={busy} onClick={startBreak}>Start Lunch</button>}
+          <button type="button" disabled={busy} onClick={clockOut}>Clock Out</button>
+        </div>
+      </div>
+    )
+  }
   if (!openShift) {
     return (
       <div style={{ padding: '0 14px', marginBottom: 12 }}>
