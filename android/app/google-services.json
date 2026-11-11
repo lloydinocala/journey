@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1048527168496",
+    "project_id": "journey-faec4",
+    "storage_bucket": "journey-faec4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1048527168496:android:4711e1395e4dc2d4fef335",
+        "android_client_info": {
+          "package_name": "com.ventexiq.journey"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyChPIAhUp7xxYhq4J47LjYYh7lxpO8roS0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

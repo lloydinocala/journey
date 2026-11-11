@@ -136,6 +136,30 @@ export async function callStatus() {
   try { return await JourneyCalls.status() } catch { return null }
 }
 
+// ---------- app notifications (Firebase) ----------
+let pushReady = false
+export async function pushStatus() {
+  if (!isNative()) return null
+  try { const { PushNotifications } = await import('@capacitor/push-notifications'); return (await PushNotifications.checkPermissions()).receive } catch { return null }
+}
+// Registers this phone for Journey notifications. ask=false only registers when already allowed.
+export async function setupPush(profile, openUrl, ask = true) {
+  if (!isNative()) return null
+  const key = await deviceKey(profile)
+  if (!key) return null
+  const { PushNotifications } = await import('@capacitor/push-notifications')
+  let perm = await PushNotifications.checkPermissions()
+  if (perm.receive === 'prompt' && ask) perm = await PushNotifications.requestPermissions()
+  if (perm.receive !== 'granted') return perm.receive
+  if (!pushReady) {
+    pushReady = true
+    await PushNotifications.addListener('registration', (t) => { rpcWithKey('set_field_device_push', { p_key: key, p_token: t.value }).catch(() => {}) })
+    await PushNotifications.addListener('pushNotificationActionPerformed', (a) => { const u = a?.notification?.data?.url; if (u && openUrl) openUrl(u) })
+  }
+  await PushNotifications.register()
+  return 'granted'
+}
+
 // ---------- sign-out ----------
 export async function nativeSignOut() {
   if (!isNative()) return

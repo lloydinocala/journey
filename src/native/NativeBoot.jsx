@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { isNative, startGps, setupCalls, syncCallLog } from './native'
+import { isNative, startGps, setupCalls, syncCallLog, setupPush } from './native'
 import { flush } from './offline'
 
 // Starts the store app's native features once a field user is signed in and past the terms:
@@ -12,15 +12,16 @@ export default function NativeBoot({ profile }) {
     let live = true
     const subs = []
     ;(async () => {
-      startGps(profile)
-      setupCalls(profile)
-      const { App } = await import('@capacitor/app')
       const go = (url) => {
         try {
-          const u = new URL(url)
+          const u = new URL(url, 'https://journey-hvac.app')
           if (u.pathname.startsWith('/tech')) navigate(u.pathname + u.search)
         } catch { /* not a Journey link */ }
       }
+      startGps(profile)
+      setupCalls(profile)
+      setupPush(profile, go, true).catch(() => {})
+      const { App } = await import('@capacitor/app')
       const launch = await App.getLaunchUrl().catch(() => null)
       if (live && launch?.url) go(launch.url)
       subs.push(await App.addListener('appUrlOpen', (e) => go(e.url)))
