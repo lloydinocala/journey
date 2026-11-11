@@ -137,6 +137,12 @@ import FieldJobData from './field/FieldJobData'
 import FieldAdmin, { FieldJobsSummary, FieldJobProfit, FieldPeriodProfit, FieldPayroll, FieldYtd, FieldPayrollSend, FieldPricebook, FieldCompany, FieldFeedback } from './field/FieldAdmin'
 import FieldExpenses from './field/FieldExpenses'
 import FieldWorkforce, { FieldTeam, FieldHours, FieldHoursPerson } from './field/FieldWorkforce'
+import FieldMoney from './field/FieldMoney'
+import FieldCustomers, { FieldCustomer } from './field/FieldCustomers'
+import FieldInbox from './field/FieldInbox'
+import FieldEstimates from './field/FieldEstimates'
+import FieldSetup, { FieldBusinessHours, FieldJobTypes } from './field/FieldSetup'
+import FieldMileage from './field/FieldMileage'
 import { isFieldAdmin } from './MobileNav'
 import TechNewJob from './TechNewJob'
 import TechApollo from './TechApollo'
@@ -320,6 +326,15 @@ function AuthenticatedApp() {
         <Route path="/tech/field/admin/pricebook" element={<FieldPricebook profile={profile} />} />
         <Route path="/tech/field/admin/company" element={<FieldCompany profile={profile} />} />
         <Route path="/tech/field/admin/feedback" element={<FieldFeedback profile={profile} />} />
+        <Route path="/tech/field/money" element={<FieldMoney profile={profile} />} />
+        <Route path="/tech/field/customers" element={<FieldCustomers profile={profile} />} />
+        <Route path="/tech/field/customer/:customerId" element={<FieldCustomer profile={profile} />} />
+        <Route path="/tech/field/inbox" element={<FieldInbox profile={profile} />} />
+        <Route path="/tech/field/estimates" element={<FieldEstimates profile={profile} />} />
+        <Route path="/tech/field/admin/setup" element={<FieldSetup profile={profile} />} />
+        <Route path="/tech/field/admin/hours" element={<FieldBusinessHours profile={profile} />} />
+        <Route path="/tech/field/admin/job-types" element={<FieldJobTypes profile={profile} />} />
+        <Route path="/tech/field/admin/mileage" element={<FieldMileage profile={profile} />} />
         <Route path="/tech/tower" element={<TheTower profile={profile} />} />
         <Route path="/tech/cycle-counts" element={<TechCycleCounts profile={profile} />} />
         <Route path="/tech/manual" element={<TechManual profile={profile} />} />

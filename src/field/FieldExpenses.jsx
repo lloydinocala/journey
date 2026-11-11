@@ -34,6 +34,10 @@ export default function FieldExpenses({ profile }) {
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
   const [saved, setSaved] = useState(null)
+  const [editId, setEditId] = useState(null)   // editing an earlier entry
+  const [hist, setHist] = useState(null)       // the month's entries
+  const [showHist, setShowHist] = useState(false)
+  const [histMonth, setHistMonth] = useState(() => todayISO().slice(0, 7))
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }))
 
   useEffect(() => {
@@ -70,7 +74,31 @@ export default function FieldExpenses({ profile }) {
     }
     setBusy('')
   }
-  function removeDoc() { setDoc(null); setScanned(null); setLocked(false); setF(blank()) }
+  function removeDoc() { setDoc(null); setScanned(null); setLocked(false); if (!editId) setF(blank()) }
+  function resetAll() { setDoc(null); setScanned(null); setLocked(false); setF(blank()); setEditId(null) }
+
+  async function loadHist(month = histMonth) {
+    setHist(null); setShowHist(true)
+    const start = month + '-01'
+    const d = new Date(start + 'T12:00:00')
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10)
+    const { data } = await supabase.from('expenses').select('id, expense_date, vendor, account_id, amount, payment_method, notes, document_path, job_id, jobs ( job_number )')
+      .eq('org_id', orgId).is('deleted_at', null).gte('expense_date', start).lte('expense_date', end).order('expense_date', { ascending: false }).order('created_at', { ascending: false })
+    setHist(data || [])
+  }
+  function openEntry(x) {
+    setEditId(x.id); setDoc(x.document_path ? { path: x.document_path, name: 'Saved document' } : null); setScanned(null); setLocked(false); setErr('')
+    setF({ jobNumber: x.jobs?.job_number || '', date: x.expense_date, vendor: x.vendor || '', accountId: x.account_id || '', amount: String(Math.abs(Number(x.amount))), credit: Number(x.amount) < 0, paid: x.payment_method || '', notes: x.notes || '' })
+    setShowHist(false)
+  }
+  async function deleteEntry() {
+    if (!editId) return
+    setBusy('delete')
+    const { error } = await supabase.from('expenses').update({ deleted_at: new Date().toISOString() }).eq('id', editId)
+    setBusy('')
+    if (error) { setErr(error.message); return }
+    resetAll(); loadHist()
+  }
 
   async function save() {
     setErr('')
@@ -84,22 +112,24 @@ export default function FieldExpenses({ profile }) {
       if (!j) { setBusy(''); setErr(`Job ${f.jobNumber.trim()} wasn't found — check the number or leave it blank.`); return }
       jobId = j.id
     }
-    const id = crypto.randomUUID()
-    let path = null
+    const id = editId || crypto.randomUUID()
+    let path = doc?.path || null
     if (doc?.file) {
       const ext = doc.file.type.includes('pdf') ? 'pdf' : 'jpg'
-      path = `${orgId}/${id}.${ext}`
+      path = editId ? `${orgId}/${id}-${Date.now()}.${ext}` : `${orgId}/${id}.${ext}`
       const { error: upErr } = await supabase.storage.from('expense-docs').upload(path, doc.file, { contentType: doc.file.type })
       if (upErr) { setBusy(''); setErr('Could not save the document: ' + upErr.message); return }
     }
-    const { error } = await supabase.from('expenses').insert({
-      id, org_id: orgId, job_id: jobId, expense_date: f.date, vendor: f.vendor.trim() || null, account_id: f.accountId,
-      amount: f.credit ? -amt : amt, payment_method: f.paid || null, notes: f.notes.trim() || null,
-      document_path: path, extracted: scanned, created_by: profile?.id || null,
-    })
+    const row = {
+      job_id: jobId, expense_date: f.date, vendor: f.vendor.trim() || null, account_id: f.accountId,
+      amount: f.credit ? -amt : amt, payment_method: f.paid || null, notes: f.notes.trim() || null, document_path: path,
+    }
+    const { error } = editId
+      ? await supabase.from('expenses').update({ ...row, ...(scanned ? { extracted: scanned } : {}), updated_at: new Date().toISOString() }).eq('id', editId)
+      : await supabase.from('expenses').insert({ id, org_id: orgId, ...row, extracted: scanned, created_by: profile?.id || null })
     setBusy('')
     if (error) { setErr(error.message); return }
-    setSaved({ job: jobId ? f.jobNumber.trim().toUpperCase() : null, credit: f.credit })
+    setSaved({ job: jobId ? f.jobNumber.trim().toUpperCase() : null, credit: f.credit, updated: !!editId })
   }
 
   if (saved) {
@@ -107,10 +137,35 @@ export default function FieldExpenses({ profile }) {
       <FieldShell profile={profile} title="Credits & Expenses" onBack={() => navigate('/tech/field')}>
         <div className="fa-panel" style={{ minHeight: 260, justifyContent: 'center' }}>
           <div className="fa-info" style={{ textAlign: 'center', padding: '40px 14px', fontSize: 21, fontWeight: 700 }}>
-            {saved.job ? <>Saved to Job # {saved.job}<br />{saved.credit ? 'Credits' : 'Expenses'}</> : <>Saved to Company<br />{saved.credit ? 'Credits' : 'Expenses'}</>}
+            {saved.updated ? <>Changes saved</> : saved.job ? <>Saved to Job # {saved.job}<br />{saved.credit ? 'Credits' : 'Expenses'}</> : <>Saved to Company<br />{saved.credit ? 'Credits' : 'Expenses'}</>}
           </div>
-          <button type="button" className="fa-navbtn" onClick={() => { setSaved(null); removeDoc() }}>Add Another</button>
+          <button type="button" className="fa-navbtn" onClick={() => { setSaved(null); resetAll() }}>Add Another</button>
           <button type="button" className="fa-navbtn ghost" onClick={() => navigate('/tech/field')}>Done</button>
+        </div>
+      </FieldShell>
+    )
+  }
+
+  if (showHist) {
+    const acctName = Object.fromEntries(accounts.map((a) => [a.id, a.name]))
+    const total = (hist || []).reduce((a, x) => a + Number(x.amount || 0), 0)
+    const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
+    return (
+      <FieldShell profile={profile} title="Credits & Expenses" onBack={() => setShowHist(false)}>
+        <div className="fa-panel">
+          <select className="fa-select" value={histMonth} onChange={(e) => { setHistMonth(e.target.value); loadHist(e.target.value) }}>
+            {months.map((m) => <option key={m} value={m}>{new Date(m + '-01T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</option>)}
+          </select>
+          {hist && <div className="fa-info" style={{ textAlign: 'center' }}><div className="fa-muted" style={{ fontSize: 12.5 }}>Total spent (credits subtracted)</div><div style={{ fontWeight: 900, fontSize: 22 }}>${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>}
+          {!hist ? <p className="fa-empty">Loading…</p> : !hist.length ? <p className="fa-empty">Nothing entered this month.</p> : hist.map((x) => (
+            <div key={x.id} className="fa-info" role="button" tabIndex={0} style={{ cursor: 'pointer', padding: '9px 12px', display: 'flex', justifyContent: 'space-between', gap: 8 }} onClick={() => openEntry(x)}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 800 }}>{x.vendor || 'No vendor'}{x.document_path ? ' 📎' : ''}</div>
+                <div className="fa-muted" style={{ fontSize: 12.5 }}>{new Date(x.expense_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {acctName[x.account_id] || '—'}{x.jobs?.job_number ? ` · Job ${x.jobs.job_number}` : ''}</div>
+              </div>
+              <div style={{ fontWeight: 900, whiteSpace: 'nowrap', color: Number(x.amount) < 0 ? '#1B7A3D' : undefined }}>{Number(x.amount) < 0 ? '−' : ''}${Math.abs(Number(x.amount)).toFixed(2)}</div>
+            </div>
+          ))}
         </div>
       </FieldShell>
     )
@@ -158,7 +213,13 @@ export default function FieldExpenses({ profile }) {
           <button type="button" className="fa-navbtn ghost" style={{ flex: 1, fontSize: 16, padding: '8px', borderColor: 'var(--fa-red)', color: 'var(--fa-red)' }} disabled={!doc && !f.vendor && !f.amount} onClick={removeDoc}>Remove</button>
         </div>
         {err && <div className="fa-msg err">{err}</div>}
-        <button type="button" className="fa-navbtn" style={{ fontSize: 17 }} disabled={!!busy} onClick={save}>{busy === 'save' ? 'Saving…' : 'Save Document'}</button>
+        <button type="button" className="fa-navbtn" style={{ fontSize: 17 }} disabled={!!busy} onClick={save}>{busy === 'save' ? 'Saving…' : editId ? 'Save Changes' : 'Save Document'}</button>
+        {editId
+          ? <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="fa-navbtn ghost" style={{ flex: 1, fontSize: 16 }} disabled={!!busy} onClick={() => { resetAll(); loadHist() }}>Back to List</button>
+              <button type="button" className="fa-navbtn ghost" style={{ flex: 1, fontSize: 16, borderColor: 'var(--fa-red)', color: 'var(--fa-red)' }} disabled={!!busy} onClick={deleteEntry}>{busy === 'delete' ? 'Deleting…' : 'Delete Entry'}</button>
+            </div>
+          : <button type="button" className="fa-navbtn ghost" style={{ fontSize: 16, borderColor: 'var(--fa-cyan)' }} onClick={() => loadHist()}>This Month&apos;s Entries</button>}
       </div>
     </FieldShell>
   )

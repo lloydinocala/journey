@@ -38,7 +38,13 @@ async function forceUpdate() {
   try {
     if ('serviceWorker' in navigator) {
       const rs = await navigator.serviceWorker.getRegistrations()
-      await Promise.all(rs.map((r) => r.unregister()))
+      // A worker holding a phone-notification subscription is updated, not removed —
+      // unregistering it would silently switch that phone's notifications off.
+      await Promise.all(rs.map(async (r) => {
+        let sub = null
+        try { sub = await r.pushManager?.getSubscription() } catch (e) { /* ignore */ }
+        return sub ? r.update() : r.unregister()
+      }))
     }
     if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))) }
   } catch (e) { /* ignore */ }

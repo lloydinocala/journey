@@ -4,6 +4,7 @@ import FieldShell, { todayISO, shiftISO } from './FieldShell'
 import { supabase } from '../utils/supabase'
 import { useWeek, mondayOf } from './FieldWorkforce'
 import AskBar from '../AskBar'
+import { useSolo } from './FieldHome'
 
 // ADMIN — the Field App's back office: call logs, reports, payroll, pricebook, company profile, feedback.
 const PR_TAX = 0.0765
@@ -46,15 +47,20 @@ const pickStyle = { width: '100%', height: 44, borderRadius: 12, border: '2px so
 // ---------- menu ----------
 export default function FieldAdmin({ profile }) {
   const navigate = useNavigate()
+  const solo = useSolo(profile?.org_id)
   const items = [
+    ['Setup Checklist', '/tech/field/admin/setup'],
     ['Call Logs', '/tech/field/call-logs?from=admin'],
     ['Jobs Summary', '/tech/field/admin/jobs-summary'],
     ['Jobs Profitability', '/tech/field/admin/job-profit'],
     ['Period Profitability', '/tech/field/admin/period-profit'],
-    ['Prepare Payroll', '/tech/field/admin/payroll'],
-    ['Y-T-D Payroll', '/tech/field/admin/ytd'],
+    ...(solo ? [] : [['Prepare Payroll', '/tech/field/admin/payroll'], ['Y-T-D Payroll', '/tech/field/admin/ytd']]),
+    ['Mileage', '/tech/field/admin/mileage'],
     ['Edit Pricebook', '/tech/field/admin/pricebook'],
+    ['Business Hours', '/tech/field/admin/hours'],
+    ['Job Types', '/tech/field/admin/job-types'],
     ['Company Profile', '/tech/field/admin/company'],
+    ...(solo ? [['Add a Team Member', '/tech/field/team']] : []),
     ['Feedback', '/tech/field/admin/feedback'],
   ]
   return (
@@ -432,12 +438,47 @@ export function FieldPricebook({ profile }) {
     if (error) { setMsg({ ok: false, t: error.message }); return }
     setMsg({ ok: true, t: 'Saved.' }); setEdit(null); load(book)
   }
+  const [adding, setAdding] = useState(null)
+  async function addItem() {
+    setMsg(null)
+    const name = adding.name.trim()
+    const group = adding.group.trim() || (book === 'time_materials' ? 'Parts' : 'General')
+    const price = Number(String(adding.price).replace(/[$,\s]/g, ''))
+    if (!name) { setMsg({ ok: false, t: 'Enter a name.' }); return }
+    if (!(price >= 0) || adding.price === '') { setMsg({ ok: false, t: 'Enter a valid price.' }); return }
+    let error
+    if (book === 'duct_cleaning') {
+      ({ error } = await supabase.from('duct_pricebook_items').insert({ org_id: orgId, category: group, name, price, is_active: true, sort_order: 999 }))
+    } else if (book === 'time_materials') {
+      ({ error } = await supabase.from('part_items').insert({ org_id: orgId, category: group, generic_name: name, last_cost: price, is_active: true }))
+    } else {
+      const { data: svc, error: e1 } = await supabase.from('services').insert({ org_id: orgId, category: group, name, segment: 'residential', is_active: true }).select('id').single()
+      error = e1
+      if (!error) ({ error } = await supabase.from('service_prices').insert({ org_id: orgId, service_id: svc.id, customer_display: name, price, is_active: true }))
+    }
+    if (error) { setMsg({ ok: false, t: error.message }); return }
+    setMsg({ ok: true, t: `Added ${name}.` }); setAdding(null); load(book)
+  }
+  const groups = [...new Set((items || []).map((i) => i.group).filter(Boolean))].sort()
   const shown = (items || []).filter((i) => !q.trim() || i.name.toLowerCase().includes(q.trim().toLowerCase()) || String(i.group || '').toLowerCase().includes(q.trim().toLowerCase()))
   return (
     <FieldShell profile={profile} title="Admin" onBack={back(navigate)}>
       <div className="fa-panel">
         <Title sub={book ? BOOK_LABEL[book] : ''}>Edit Pricebook</Title>
-        {edit ? (<>
+        {adding ? (<>
+          <div className="fa-section-label">Category</div>
+          <input className="fa-input" list="fa-pb-groups" value={adding.group} onChange={(e) => setAdding({ ...adding, group: e.target.value })} placeholder={book === 'time_materials' ? 'Parts' : 'e.g. Maintenance'} />
+          <datalist id="fa-pb-groups">{groups.map((g) => <option key={g} value={g} />)}</datalist>
+          <div className="fa-section-label">Name</div>
+          <input className="fa-input" value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })} />
+          <div className="fa-section-label">{book === 'time_materials' ? 'Your cost' : 'Price'}</div>
+          <input className="fa-input" inputMode="decimal" value={adding.price} onChange={(e) => setAdding({ ...adding, price: e.target.value })} placeholder="$ 0.00" />
+          {msg && <div className={`fa-msg ${msg.ok ? 'ok' : 'err'}`}>{msg.t}</div>}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="fa-navbtn" style={{ flex: 1 }} onClick={addItem}>Add</button>
+            <button type="button" className="fa-navbtn ghost" style={{ flex: 1 }} onClick={() => { setAdding(null); setMsg(null) }}>Cancel</button>
+          </div>
+        </>) : edit ? (<>
           {edit.table === 'service_prices'
             ? <><div className="fa-section-label">Service name</div><input className="fa-input" value={edit.svcName ?? edit.serviceName} onChange={(e) => setEdit({ ...edit, svcName: e.target.value })} /><div className="fa-muted">{edit.name.replace(edit.serviceName, '').replace(/^ — /, '') || 'Standard'}</div></>
             : <><div className="fa-section-label">Name</div><input className="fa-input" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></>}
@@ -450,6 +491,7 @@ export function FieldPricebook({ profile }) {
           </div>
         </>) : (<>
           <input className="fa-input" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
+          {admin && book && <button type="button" className="fa-navbtn ghost" style={{ borderColor: 'var(--fa-cyan)' }} onClick={() => { setMsg(null); setAdding({ group: '', name: '', price: '' }) }}>+ Add Item</button>}
           {msg && <div className={`fa-msg ${msg.ok ? 'ok' : 'err'}`}>{msg.t}</div>}
           {!items ? <p className="fa-empty">Loading…</p> : shown.length === 0 ? <p className="fa-empty">Nothing found.</p> : shown.slice(0, 200).map((i) => (
             <div key={i.key} className="fa-info" role="button" tabIndex={0} style={{ cursor: admin ? 'pointer' : 'default', display: 'flex', justifyContent: 'space-between', gap: 8, padding: '9px 12px' }}

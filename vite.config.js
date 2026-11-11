@@ -33,6 +33,7 @@ export default defineConfig({
           },
         ],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        importScripts: ['/push-sw.js'],
         // No caching of Supabase API/functions — data stays live.
       },
       devOptions: { enabled: false },
