@@ -14,7 +14,7 @@ export default function NativeBoot({ profile }) {
     ;(async () => {
       const go = (url) => {
         try {
-          const u = new URL(url, 'https://journey-hvac.app')
+          const u = new URL(url, 'https://www.journey-hvac.app')
           if (u.pathname.startsWith('/tech')) navigate(u.pathname + u.search)
         } catch { /* not a Journey link */ }
       }

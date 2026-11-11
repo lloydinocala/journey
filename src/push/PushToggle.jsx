@@ -11,7 +11,7 @@ function NativePushToggle({ profile }) {
   useEffect(() => { pushStatus().then(setSt) }, [])
   async function on() {
     setBusy(true)
-    const r = await setupPush(profile, (u) => { try { const x = new URL(u, 'https://journey-hvac.app'); navigate(x.pathname + x.search) } catch { /* ignore */ } }).catch(() => null)
+    const r = await setupPush(profile, (u) => { try { const x = new URL(u, 'https://www.journey-hvac.app'); navigate(x.pathname + x.search) } catch { /* ignore */ } }).catch(() => null)
     setSt(r || await pushStatus()); setBusy(false)
   }
   const row = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }

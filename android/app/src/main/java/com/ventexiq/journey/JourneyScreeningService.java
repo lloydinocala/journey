@@ -58,7 +58,7 @@ public class JourneyScreeningService extends CallScreeningService {
                 : "Not in Journey yet · tap to open the Call Console";
         Intent open = new Intent(c, MainActivity.class);
         open.setAction(Intent.ACTION_VIEW);
-        open.setData(Uri.parse("https://journey-hvac.app/tech/field/calls?phone=" + d));
+        open.setData(Uri.parse("https://www.journey-hvac.app/tech/field/calls?phone=" + d));
         open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent pi = PendingIntent.getActivity(c, d.hashCode(), open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder b = new NotificationCompat.Builder(c, CHANNEL)

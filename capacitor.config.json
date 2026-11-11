@@ -3,9 +3,13 @@
   "appName": "Journey",
   "webDir": "native-shell",
   "server": {
-    "url": "https://journey-hvac.app/tech",
+    "url": "https://www.journey-hvac.app/tech",
     "errorPath": "offline.html",
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "allowNavigation": [
+      "journey-hvac.app",
+      "www.journey-hvac.app"
+    ]
   },
   "android": {
     "appendUserAgent": "JourneyApp/1",
