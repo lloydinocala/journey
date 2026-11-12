@@ -51,7 +51,9 @@ function MobileSignIn() {
     let detail = data?.error
     if (!detail && fnErr?.context?.json) { try { detail = (await fnErr.context.json()).error } catch { /* keep generic */ } }
     if (detail || fnErr) { setError(detail || 'Could not reach your supervisor — please call them.'); return }
-    setOk('Your supervisor has been notified by text and email.'); setMode('start')
+    if (data?.note) { setError(data.note); return }
+    const how = data?.texts && data?.emails ? 'by text and email' : data?.texts ? 'by text' : data?.emails ? 'by email' : ''
+    setOk(`Your supervisor has been notified${how ? ' ' + how : ''}.`); setMode('start')
   }
 
   return (

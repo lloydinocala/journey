@@ -1,3 +1,5 @@
+// Must load first: lets the mic buttons use Android's voice input inside the store app.
+import './native/speechPolyfill'
 import './index.css'
 import React from 'react'
 import ReactDOM from 'react-dom/client'

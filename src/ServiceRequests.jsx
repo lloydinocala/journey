@@ -211,6 +211,11 @@ export default function ServiceRequests({ profile }) {
         </div>
         {r.details && <div style={{ margin: '8px 0', fontSize: 14 }}>{r.details}</div>}
         <div style={{ fontSize: 13, color: 'var(--mist)' }}>Reported by: {r.reporter_name || '—'}{r.reporter_phone ? ` · ${r.reporter_phone}` : ''}</div>
+        {kind === 'awaiting' && r.owner_notice_error && (
+          <div style={{ marginTop: 8, fontSize: 13, color: '#9C6A12', background: '#FFF8E6', border: '1px solid #F2D9A0', borderRadius: 8, padding: '6px 10px' }}>
+            The account holder wasn’t emailed for approval: {r.owner_notice_error} Please call them.
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           {kind === 'awaiting' ? (
             <>

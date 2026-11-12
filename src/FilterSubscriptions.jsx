@@ -49,7 +49,7 @@ export default function FilterSubscriptions({ profile }) {
     const { data, error } = await supabase.functions.invoke('generate-subscription-order', { body: { subscription_id: sub.id } })
     setBusyId(null)
     if (error || data?.error) { setMsg(`${sub.customer?.display_name || 'Order'}: ${data?.error || error?.message || 'failed'}`); return }
-    setMsg(`${sub.customer?.display_name || 'Customer'}: ${data.invoiceNumber} for $${data.amountDue.toFixed(2)} — ${data.emailed ? 'emailed' : 'created'}. Next ship ${fmt(data.nextShip)}.`)
+    setMsg(`${sub.customer?.display_name || 'Customer'}: ${data.invoiceNumber} for $${data.amountDue.toFixed(2)} — ${data.emailed ? 'emailed' : 'created'}. Next ship ${fmt(data.nextShip)}.${!data.emailed && data.emailNote ? ' ' + data.emailNote : ''}`)
     load()
   }
   async function setStatus(id, status) { await supabase.from('filter_subscriptions').update({ status }).eq('id', id); load() }

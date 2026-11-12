@@ -110,7 +110,7 @@ export default function PlaceFilterOrderModal({ orgId, onClose, onCreated }) {
         {done ? (
           <div style={{ padding: 20 }}>
             <div style={{ color: '#1a7f37', fontWeight: 700, fontSize: 15, marginBottom: 6 }}>✓ Created {done.invoiceNumber} · {money(done.amount)}</div>
-            <div style={{ fontSize: 14 }}>It&rsquo;s in Filter Orders.{done.emailed ? ' The invoice was emailed to the customer.' : ''}{done.unpriced ? ` ${done.unpriced} size(s) weren't priced and were left off.` : ''}</div>
+            <div style={{ fontSize: 14 }}>It&rsquo;s in Filter Orders.{done.emailed ? ' The invoice was emailed to the customer.' : done.emailNote ? ' ' + done.emailNote : ''}{done.unpriced ? ` ${done.unpriced} size(s) weren't priced and were left off.` : ''}</div>
             <button className="auth-button" style={{ width: 'auto', margin: '16px 0 0', padding: '9px 20px' }} onClick={onClose}>Done</button>
           </div>
         ) : (<>

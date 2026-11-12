@@ -57,6 +57,7 @@ export default function FilterOrderModal({ propertyId, propertyLabel, customerNa
             <div>
               <div style={{ color: '#1a7f37', fontWeight: 700, fontSize: 15, marginBottom: 6 }}>✓ Filter order placed — {result.invoiceNumber}</div>
               <div style={{ fontSize: 14 }}>Invoice for {money(result.amount)} created and added to Filter Orders.{result.emailed ? ' Emailed to the customer.' : ''}</div>
+              {!result.emailed && result.emailNote && <div style={{ fontSize: 12.5, color: '#9C6A12', marginTop: 6 }}>{result.emailNote}</div>}
               {result.unpriced > 0 && <div style={{ fontSize: 12.5, color: '#9C6A12', marginTop: 6 }}>{result.unpriced} size(s) weren't priced and were left off.</div>}
               <button className="auth-button" style={{ width: 'auto', margin: '16px 0 0', padding: '9px 20px' }} onClick={onClose}>Done</button>
             </div>
