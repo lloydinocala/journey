@@ -6,12 +6,16 @@ export const SOURCE_LABEL = {
   duct_app: 'Duct Cleaning App',
   portal: 'Customer Portal',
   service_request: 'Service Request',
+  ai_receptionist: 'AI Receptionist (booked by phone)',
+  ai_request: 'AI Receptionist (couldn’t book a time — call to schedule)',
 }
 export const SOURCE_SHORT = {
   systems_app: 'Systems App',
   duct_app: 'Duct App',
   portal: 'Portal',
   service_request: 'Service Req.',
+  ai_receptionist: 'AI Phone',
+  ai_request: 'AI Phone – call back',
 }
 
 export function fmtReceived(ts) {

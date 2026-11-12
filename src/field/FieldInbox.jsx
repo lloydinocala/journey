@@ -7,7 +7,7 @@ import { usd, fmtPhone, shortWhen, callFn } from './fieldUtil'
 // INBOX — everything that came in while you were on a roof: customer texts, online bookings,
 // service requests, approved estimates and payments. Newest first; new since your last look in bold.
 const SEEN_KEY = 'fa_inbox_seen'
-const SOURCE = { duct_app: 'Duct Cleaning app', systems_app: 'Systems app', portal: 'Customer Portal', service_request: 'Service request' }
+const SOURCE = { duct_app: 'Duct Cleaning app', systems_app: 'Systems app', portal: 'Customer Portal', service_request: 'Service request', ai_receptionist: 'AI Receptionist', ai_request: 'AI Receptionist — couldn\u2019t book a time, call to schedule' }
 const last10 = (p) => String(p || '').replace(/\D/g, '').slice(-10)
 
 export function useInboxSeen() {
@@ -55,7 +55,7 @@ export default function FieldInbox({ profile }) {
       const out = [
         ...(jt.data || []).map((t) => ({ key: 'jt' + t.id, kind: 'text', at: t.created_at, title: t.jobs?.customers?.display_name || t.recipient_name || fmtPhone(t.to_phone), sub: `Job #${t.jobs?.job_number || ''}`, body: t.body, go: `/tech/messages/${t.job_id}` })),
         ...[...byPhone.values()].map((g) => ({ key: 'un' + g.id, kind: 'newtext', at: g.received_at, title: g.customers?.display_name || fmtPhone(g.from_phone), sub: g.customers ? 'Text — no open job' : 'Text from a new number', body: g.bodies.join('\n'), phone: g.from_phone, ids: g.ids })),
-        ...(bk.data || []).map((j) => ({ key: 'bk' + j.id, kind: 'booking', at: j.received_at || j.created_at, title: j.customers?.display_name || 'New booking', sub: `Booked online${j.booking_source ? ` — ${SOURCE[j.booking_source] || j.booking_source}` : ''}`, body: `${j.job_type || 'Job'} · ${j.job_date ? new Date(j.job_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'date to be set'}`, go: `/tech/field/job/${j.id}` })),
+        ...(bk.data || []).map((j) => ({ key: 'bk' + j.id, kind: 'booking', at: j.received_at || j.created_at, title: j.customers?.display_name || 'New booking', sub: `${['ai_receptionist', 'ai_request'].includes(j.booking_source) ? 'By phone' : 'Booked online'}${j.booking_source ? ` — ${SOURCE[j.booking_source] || j.booking_source}` : ''}`, body: `${j.job_type || 'Job'} · ${j.job_date ? new Date(j.job_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'date to be set'}`, go: `/tech/field/job/${j.id}` })),
         ...(sr.data || []).map((r) => ({ key: 'sr' + r.id, kind: 'request', at: r.created_at, title: r.reporter_name || fmtPhone(r.reporter_phone) || 'Service request', sub: `Service request${r.urgency ? ` · ${r.urgency}` : ''}${r.status === 'awaiting_owner' ? ' · waiting on owner' : ''}`, body: [r.category, r.details].filter(Boolean).join(' — '), req: r })),
         ...(est.data || []).map((e) => ({ key: 'es' + e.id, kind: 'approved', at: e.approved_at, title: `Estimate #${e.invoice_number} approved`, sub: e.approved_by || '', body: usd(e.job_total), go: (e.spawned_job_id || e.converted_to_job_id || e.job_id) ? `/tech/field/job/${e.spawned_job_id || e.converted_to_job_id || e.job_id}` : null })),
         ...(pay.data || []).map((p) => ({ key: 'py' + p.id, kind: 'payment', at: p.recorded_at, title: `Payment ${usd(p.amount)}`, sub: `Invoice #${p.invoices?.invoice_number || ''} · ${p.method || ''}`, body: '', go: p.invoices?.job_id ? `/tech/field/job/${p.invoices.job_id}` : '/tech/field/money' })),
