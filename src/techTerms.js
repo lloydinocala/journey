@@ -1,7 +1,7 @@
 // Field-app terms (App Use Terms) shown on the mobile consent gate. Bump TERMS_VERSION whenever
 // the wording changes — everyone will be prompted to re-accept, and each
 // acceptance is recorded separately for the audit trail.
-export const TERMS_VERSION = '2026-11-11'
+export const TERMS_VERSION = '2026-11-11.2'
 
 export const TERMS = [
   {
@@ -37,7 +37,7 @@ export const TERMS = [
     body: "Don't share your password or let anyone else use the app as you. Tell your supervisor right away if your phone is lost.",
   },
   {
-    title: 'Safety first',
-    body: "Don't use the app while driving.",
+    title: 'Safety recommendation',
+    body: 'We recommend not using the app while driving. If you need it for navigation or to reach a customer, set it up before you pull out, use hands-free or voice features, or pull over somewhere safe first — and always follow traffic laws.',
   },
 ]
