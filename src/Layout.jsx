@@ -6,6 +6,7 @@ import { getDeviceId } from './utils/deviceId'
 import AnnouncementBanner from './AnnouncementBanner'
 import CallMessageNotifier from './CallMessageNotifier'
 import AgentInboxBadge from './AgentInboxBadge'
+import MailBadge from './MailBadge'
 import ClockWidget from './ClockWidget'
 import ClockInPrompt from './ClockInPrompt'
 import CallbackAlert from './CallbackAlert'
@@ -40,7 +41,7 @@ const PAGE_TITLES = {
   '/rewards': 'Human Resources', '/marketing': 'Marketing', '/permits': 'Permits',
   '/building-authorities': 'Building Authorities', '/warranty-registrations': 'Warranty Registrations',
   '/import': 'Data Station', '/pricebook': 'Res Flat Rate Pricebook', '/pricebook-commercial': 'Comm Flat Rate Pricebook', '/pricebook-duct-cleaning': 'Duct Cleaning Pricebook', '/systems-pricebook': 'Res Systems Pricebook', '/time-and-materials': 'Time & Materials', '/filter-pricebook': 'Filter Pricebook',
-  '/needs-rescheduling': 'Needs Rescheduling', '/agent-inbox': 'Agent Inbox', '/team-communications': 'Team Communications', '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
+  '/needs-rescheduling': 'Needs Rescheduling', '/agent-inbox': 'Agent Inbox', '/mail': 'Inbox', '/team-communications': 'Team Communications', '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
   '/payroll': 'Payroll Capture', '/session-log': 'Sign-In Log',
   '/organizations': 'Organizations', '/entitlements': 'Plans & Entitlements', '/announcements': 'Announcements', '/website-announcement': 'Website Announcement', '/my': 'My Pay & Benefits',
   '/features': 'Feature Directory', '/training': 'Training Manual',
@@ -519,6 +520,7 @@ export default function Layout({ profile }) {
           </span>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+        <MailBadge profile={profile} />
         <AgentInboxBadge profile={profile} />
         <CallMessageNotifier profile={profile} />
         {(() => {

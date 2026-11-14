@@ -9,6 +9,7 @@ import FinancialsDash from './FinancialsDashboard'
 import { CommandDashboard } from './modules/dashboard-hvac'
 import MaintenanceDashboard from './MaintenanceDashboard'
 import ServiceRequestReport from './ServiceRequestReport'
+import { MailCard } from './MailBadge'
 
 const TABS = [
   { key: 'today', label: 'Today', name: 'Operations Dashboard', color: '#2E6FB5', Comp: OperationsDashboard },
@@ -39,6 +40,8 @@ export default function CommandCenter({ profile }) {
           and then the tabs. Dashboards that title with .page-title are hidden here; Financials
           uses its embedded flag. */}
       <style>{`.cc-pane .page-title{display:none!important}`}</style>
+
+      <MailCard profile={profile} />
 
       <h2 className="page-title" style={{ marginBottom: 10 }}>{current.name}</h2>
 

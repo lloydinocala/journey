@@ -62,6 +62,7 @@ import OnCallSchedule from './OnCallSchedule'
 import NeedsRescheduling from './NeedsRescheduling'
 import PublicApply from './PublicApply'
 import AgentInbox from './AgentInbox'
+import MailInbox from './MailInbox'
 import TeamCommunications from './TeamCommunications'
 import RolesConfig from './RolesConfig'
 import Entitlements from './Entitlements'
@@ -424,6 +425,7 @@ function AuthenticatedApp() {
         <Route path="/on-call" element={<OnCallSchedule profile={profile} />} />
         <Route path="/needs-rescheduling" element={<NeedsRescheduling profile={profile} />} />
         <Route path="/agent-inbox" element={<AgentInbox profile={profile} />} />
+        <Route path="/mail" element={<MailInbox profile={profile} />} />
         <Route path="/team-communications" element={<TeamCommunications profile={profile} />} />
         <Route path="/roles" element={<RolesConfig profile={profile} />} />
         <Route path="/entitlements" element={<Entitlements profile={profile} />} />
