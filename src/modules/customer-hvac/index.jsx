@@ -16,6 +16,7 @@ import CustomerFilters from './CustomerFilters'
 import CustomerProfile from './CustomerProfile'
 import CustomerQuincy from './CustomerQuincy'
 import CustomerServiceRequests from './CustomerServiceRequests'
+import { displayBrandName, rememberBrand } from './brand'
 
 // Self-contained customer app. Mounted at /portal/* in App.jsx, OUTSIDE the
 // staff AuthenticatedApp — its own auth context, its own data boundary (RLS).
@@ -48,7 +49,7 @@ export default function CustomerPortal() {
     }
     // Brand the installable portal to the customer's OWN contractor (their org),
     // so each subscriber's customers install THAT contractor's name/icon/colors.
-    const brandName = org?.name || 'Customer Portal'
+    const brandName = displayBrandName(org?.name) || 'Customer Portal'
     const brandColor = org?.brand_primary_color || '#4E95D9'
     const iconSrc = org?.app_icon_url || org?.logo_url || '/portal-icon.png'
     const manifest = {
@@ -101,7 +102,9 @@ export default function CustomerPortal() {
       if (!live) return
       setProperties(props || [])
       setCustomer(cust)
-      setOrg(Array.isArray(brand) ? (brand[0] || null) : (brand || null))
+      const b = Array.isArray(brand) ? (brand[0] || null) : (brand || null)
+      setOrg(b)
+      rememberBrand(b) // so this device's sign-in screen shows their contractor next time
     })()
     return () => { live = false }
   }, [session])
@@ -140,7 +143,7 @@ export default function CustomerPortal() {
     <div className="cp-app">
       <div className="cp-scroll">
         <Routes>
-          <Route index element={<CustomerHome customer={customer} properties={properties} activePropertyId={activePropertyId} setActivePropertyId={setActivePropertyId} />} />
+          <Route index element={<CustomerHome customer={customer} org={org} properties={properties} activePropertyId={activePropertyId} setActivePropertyId={setActivePropertyId} />} />
           <Route path="records" element={<CustomerRecords customer={customer} properties={properties} />} />
           <Route path="reports" element={<CustomerReports />} />
           <Route path="report/:runId" element={<CustomerReportView />} />

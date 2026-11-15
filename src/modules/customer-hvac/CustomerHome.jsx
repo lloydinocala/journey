@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
+import { displayBrandName } from './brand'
 
 function Ic({ d }) {
   return (
@@ -24,7 +25,7 @@ const I = {
 // Home = the customer's OWN home photo, their ID card, then the feature menu.
 // "This is about you." Street View fills the hero automatically once a Google
 // Maps key is set (VITE_GOOGLE_MAPS_KEY); until then it falls back to the sky.
-export default function CustomerHome({ customer, properties, activePropertyId, setActivePropertyId }) {
+export default function CustomerHome({ customer, org, properties, activePropertyId, setActivePropertyId }) {
   const nav = useNavigate()
   const prop = properties.find((p) => p.id === activePropertyId) || properties[0]
   const [pendingReq, setPendingReq] = useState(0)
@@ -52,7 +53,11 @@ export default function CustomerHome({ customer, properties, activePropertyId, s
     <>
       <div className="cp-hero">
         <div className="cp-heroimg" style={{ backgroundImage: heroBg }} />
-        <div className="cp-brandtag">AIR-CARE CONNECT</div>
+        {/* The customer's OWN contractor — every company's customers see that company's name. */}
+        <div className="cp-brandtag">
+          {org?.logo_url && <img src={org.logo_url} alt="" style={{ height: 22, width: 'auto', verticalAlign: 'middle', marginRight: 8, borderRadius: 4 }} />}
+          {(displayBrandName(org?.name) || 'Your Home').toUpperCase()}
+        </div>
         <button className="cp-hero-signout" onClick={() => supabase.auth.signOut()}>Sign Out</button>
         <div className="cp-yourhome">YOUR HOME</div>
       </div>

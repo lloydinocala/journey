@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { supabase } from '../../utils/supabase'
+import { savedBrand } from './brand'
 
 // Passwordless sign-in with a 6-digit CODE (not a link). The customer types the
 // code into the app, so the session is created in the app itself — it works even
 // when the email is on another device, and it never bounces out to a browser.
 export default function CustomerLogin() {
+  // First time on a device: neutral. After a customer has signed in once, show their contractor.
+  const brand = savedBrand()
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [step, setStep] = useState('email') // 'email' | 'code'
@@ -34,7 +37,7 @@ export default function CustomerLogin() {
 
   return (
     <div className="cp-login">
-      <div className="cp-apptitle">Your Air-Care Connection</div>
+      <div className="cp-apptitle">{brand?.name ? brand.name : 'Your Home Comfort Connection'}</div>
 
       <img className="cp-hero-img" src="/portal-hero.png" alt=""
         onError={(e) => { e.currentTarget.style.display = 'none' }} />
