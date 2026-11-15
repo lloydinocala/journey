@@ -1,0 +1,13 @@
+{
+  "appId": "com.ventexiq.homecomfort",
+  "appName": "Home Comfort Connect",
+  "webDir": "shell",
+  "server": {
+    "url": "https://portal.journey-hvac.app/portal",
+    "errorPath": "offline.html",
+    "androidScheme": "https",
+    "allowNavigation": ["portal.journey-hvac.app"]
+  },
+  "android": { "appendUserAgent": "HomeComfortApp/1" },
+  "ios": { "appendUserAgent": "HomeComfortApp/1" }
+}

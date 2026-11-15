@@ -11,6 +11,9 @@ export default function CustomerProfile({ customer, properties }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [delStep, setDelStep] = useState(0) // 0 closed · 1 asking to confirm
+  const [delBusy, setDelBusy] = useState(false)
+  const [delErr, setDelErr] = useState('')
 
   useEffect(() => {
     let live = true
@@ -35,6 +38,15 @@ export default function CustomerProfile({ customer, properties }) {
     setBusy(false)
     if (err) { setError(err.message); return }
     setSaved(true)
+  }
+
+  // App-store requirement: customers can delete the sign-in they created, from inside the app.
+  async function deleteAccount() {
+    setDelBusy(true); setDelErr('')
+    const { error: err } = await supabase.rpc('delete_my_customer_account')
+    if (err) { setDelBusy(false); setDelErr(err.message); return }
+    try { localStorage.removeItem('cp_brand'); localStorage.removeItem('cp_active_property') } catch (_) {}
+    await supabase.auth.signOut()
   }
 
   if (!form) return <div className="cp-wrap"><div className="cp-empty">Loading your info…</div></div>
@@ -87,6 +99,29 @@ export default function CustomerProfile({ customer, properties }) {
       <p className="cp-note">
         Heads up: your email is also how you sign in. If you change it, use the new address next time you log in.
       </p>
+
+      <div className="cp-card" style={{ marginTop: 28, borderLeft: '4px solid var(--danger)' }}>
+        <div className="cp-label" style={{ marginTop: 0 }}>Delete my account</div>
+        {delStep === 0 ? (
+          <>
+            <p className="cp-note" style={{ marginTop: 4 }}>
+              Removes your sign-in for this app. Your service history stays with your service company,
+              as part of their business records.
+            </p>
+            <button className="cp-btn ghost" style={{ color: 'var(--danger)' }} onClick={() => setDelStep(1)}>Delete my account</button>
+          </>
+        ) : (
+          <>
+            <p className="cp-note" style={{ marginTop: 4 }}><b>Are you sure?</b> You'll be signed out, and this can't be undone.</p>
+            {delErr && <div className="cp-err">{delErr}</div>}
+            <button className="cp-btn" style={{ background: 'var(--danger)' }} onClick={deleteAccount} disabled={delBusy}>
+              {delBusy ? 'Deleting…' : 'Yes, delete my account'}
+            </button>
+            <div style={{ height: 8 }} />
+            <button className="cp-btn ghost" onClick={() => { setDelStep(0); setDelErr('') }} disabled={delBusy}>Cancel</button>
+          </>
+        )}
+      </div>
     </div>
   )
 }

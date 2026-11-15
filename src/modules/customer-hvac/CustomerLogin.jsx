@@ -5,6 +5,10 @@ import { savedBrand } from './brand'
 // Passwordless sign-in with a 6-digit CODE (not a link). The customer types the
 // code into the app, so the session is created in the app itself — it works even
 // when the email is on another device, and it never bounces out to a browser.
+// App-store reviewers can't receive an emailed code, so this one demo login uses a password.
+// It is a customer of the "Sunshine Comfort (Demo)" company only — no real customer data.
+const REVIEW_EMAIL = 'app.review@journey-hvac.app'
+
 export default function CustomerLogin() {
   // First time on a device: neutral. After a customer has signed in once, show their contractor.
   const brand = savedBrand()
@@ -13,10 +17,20 @@ export default function CustomerLogin() {
   const [step, setStep] = useState('email') // 'email' | 'code'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [password, setPassword] = useState('')
+  const isReview = email.trim().toLowerCase() === REVIEW_EMAIL
 
   async function sendCode() {
     const e = email.trim().toLowerCase()
     if (!e) return
+    if (e === REVIEW_EMAIL) {
+      if (!password) return
+      setBusy(true); setError('')
+      const { error: err } = await supabase.auth.signInWithPassword({ email: e, password })
+      setBusy(false)
+      if (err) setError(err.message)
+      return
+    }
     setBusy(true); setError('')
     const { error: err } = await supabase.auth.signInWithOtp({ email: e, options: { shouldCreateUser: true } })
     setBusy(false)
@@ -78,10 +92,17 @@ export default function CustomerLogin() {
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && sendCode()}
             />
+            {isReview && (
+              <input
+                className="cp-input" type="password" autoComplete="current-password" placeholder="Password"
+                value={password} onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendCode()} style={{ marginTop: 10 }}
+              />
+            )}
             {error && <div className="cp-err">{error}</div>}
             <div style={{ height: 14 }} />
             <button className="cp-btn" onClick={sendCode} disabled={busy}>
-              {busy ? 'Sending…' : 'Email me a code'}
+              {isReview ? (busy ? 'Signing in…' : 'Sign in') : (busy ? 'Sending…' : 'Email me a code')}
             </button>
             <p className="cp-note">
               First time here? Use the same email you gave us for service and we'll connect you to

@@ -1,0 +1,13 @@
+{
+  "name": "home-comfort-connect",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Customer app shared by every Journey company. Opens the customer portal; shows each customer's own contractor after sign-in.",
+  "scripts": { "sync": "cap sync android" },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0"
+  },
+  "devDependencies": { "@capacitor/cli": "^8.6.0" }
+}
