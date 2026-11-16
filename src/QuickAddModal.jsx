@@ -397,11 +397,15 @@ function QuickAddModalInner({ mode, orgId, profile, onClose, onCreated, prefillC
 
       if (!jobDate) throw new Error('Job date is required.')
 
-      const { count } = await supabase.from('jobs').select('id', { count: 'exact', head: true }).eq('org_id', orgId)
-      const jobNumber = `J-${String((count || 0) + 1).padStart(4, '0')}`
       const startTimestamp = startTime ? zonedToUtcIso(jobDate, startTime) : null
 
-      const { data: newJob, error: jobErr } = await supabase
+      // Next free job number = highest existing + 1 (the database works it out). If someone
+      // else grabs the same number in the same instant, take the next one and try again.
+      let newJob = null, jobErr = null
+      for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: jobNumber, error: numErr } = await supabase.rpc('next_job_number', { p_org: orgId })
+      if (numErr) throw numErr
+      ;({ data: newJob, error: jobErr } = await supabase
         .from('jobs')
         .insert({
           org_id: orgId,
@@ -422,7 +426,9 @@ function QuickAddModalInner({ mode, orgId, profile, onClose, onCreated, prefillC
           internal_notes: privateNotes.trim() || null,
         })
         .select()
-        .single()
+        .single())
+      if (!jobErr || !String(jobErr.message || '').includes('jobs_number_segment_unique')) break
+      }
       if (jobErr) throw jobErr
 
       const techIds = [technicianId, technician2Id, technician3Id, technician4Id].filter(Boolean)
