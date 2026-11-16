@@ -169,6 +169,8 @@ import { hasFeature } from './utils/entitlements'
 import { SUPPLIES_ROUTES } from './modules/supplies-hvac'
 import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES, MyPortal, HrEmployees } from './modules/rewards-hvac'
 import { MARKETING_ROUTES } from './modules/marketing-hvac'
+import ShowMode from './ShowMode'
+import SalesLeads from './SalesLeads'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
 
 async function logSignIn(userId) {
@@ -378,6 +380,8 @@ function AuthenticatedApp() {
       </Route>
       {/* Rewards-HVAC · employee self-service portal — any logged-in employee, own data only (RLS) */}
       <Route path="/my" element={<MyPortal profile={profile} />} />
+      {/* Trade-show screen: full screen, no menus (super admin) */}
+      {profile.role === 'super_admin' && <Route path="/show" element={<ShowMode profile={profile} />} />}
       <Route element={<Layout profile={profile} />}>
         {/* <Route path="/rewards-hvac" element={<PayrollDashboard />} /> */}  {/* TODO: re-enable with the import above when Payroll module is finished */}
            <Route path="/" element={
@@ -526,6 +530,9 @@ function AuthenticatedApp() {
         )}
         {profile.role === 'super_admin' && (
           <Route path="/organizations" element={<Organizations />} />
+        )}
+        {profile.role === 'super_admin' && (
+          <Route path="/sales-leads" element={<SalesLeads profile={profile} />} />
         )}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
