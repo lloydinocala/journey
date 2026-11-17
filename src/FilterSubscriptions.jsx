@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 const num = (v) => (v == null ? '' : String(v).replace(/\.0+$/, ''))
 const fmt = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
@@ -9,7 +10,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10)
 export default function FilterSubscriptions({ profile }) {
   const isSuper = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [subs, setSubs] = useState([])
   const [loading, setLoading] = useState(true)
   const [discount, setDiscount] = useState(10)

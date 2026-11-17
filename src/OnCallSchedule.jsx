@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import OnCallOptimizer from './OnCallOptimizer'
+import { viewingOrg } from './utils/viewingOrg'
 
 // datetime <-> <input type="datetime-local"> (local time, no seconds)
 function toLocalInput(d) {
@@ -57,7 +58,7 @@ function coversDay(p, d) {
 export default function OnCallSchedule({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [periods, setPeriods] = useState([])
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)

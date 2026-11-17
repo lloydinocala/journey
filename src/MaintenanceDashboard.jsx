@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
 import OrgPicker from './OrgPicker'
 import QuincyBrief from './QuincyBrief'
+import { viewingOrg } from './utils/viewingOrg'
 
 const BUCKETS = [
   { key: 'active', label: 'Active', tone: '#1F7A43' },
@@ -24,7 +25,7 @@ export default function MaintenanceDashboard({ profile }) {
   const allowed = profile?.role === 'super_admin' || can(profile, 'view_maintenance_dashboard')
   const isSuperAdmin = profile?.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
   const [rows, setRows] = useState([])
   const [mrr, setMrr] = useState(0)
   const [recentNoPlan, setRecentNoPlan] = useState([])

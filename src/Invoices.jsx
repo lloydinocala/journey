@@ -11,6 +11,7 @@ import { exportToCSV } from './utils/csvExport'
 import AiAssist from './AiAssist'
 import PaymentsToConfirm from './PaymentsToConfirm'
 import { listPaymentsToConfirm } from './utils/payments'
+import { viewingOrg } from './utils/viewingOrg'
 
 const INV_REMINDER_SYS = 'Draft a brief, friendly, professional payment reminder for an HVAC company to send a customer about an unpaid invoice. Reference the invoice number and the outstanding balance. 2 to 3 sentences, courteous and not aggressive. No subject line.'
 
@@ -54,7 +55,7 @@ const DEFAULT_VISIBLE = COLUMNS.map((c) => c.key)
 
 export default function Invoices({ profile }) {
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [invoices, setInvoices] = useState([])
   const [editDiagInv, setEditDiagInv] = useState(null)
   const [activeTab, setActiveTab] = useState('invoices')  // 'invoices' | 'collections'

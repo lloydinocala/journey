@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import DuctAppSettings from './DuctAppSettings'
+import { viewingOrg } from './utils/viewingOrg'
 
 // Setup for the customer-facing online Estimate App (and System Estimates):
 //   • "What's included" lists — one per system group. They are the same per-type blocks that
@@ -117,7 +118,7 @@ function LogoRow({ brand, url, orgId, onSaved }) {
 export default function EstimateAppSetup({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [lists, setLists] = useState({ split: [], package: [], gas: [] })
   const [byType, setByType] = useState({})
   const [thermo, setThermo] = useState('')

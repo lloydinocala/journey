@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { listPaymentsToConfirm, confirmPaymentMethod, setFinancingStatus, markInvoicePaid, methodLabel, setPaymentMethodOffice } from './utils/payments'
+import { viewingOrg } from './utils/viewingOrg'
 
 const money = (n) => (n == null || isNaN(n) ? '—' : `$${Number(n).toFixed(2)}`)
 const fmt = (d) => (d ? new Date(d).toLocaleDateString() : '')
@@ -12,7 +13,7 @@ const fmt = (d) => (d ? new Date(d).toLocaleDateString() : '')
 export default function PaymentsToConfirm({ profile, embedded = false, orgId = null, onCount }) {
   const isSuper = profile?.role === 'super_admin' && !embedded
   const [orgs, setOrgs] = useState([])
-  const [ownOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [ownOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
   const selectedOrg = embedded ? (orgId || profile?.org_id || '') : ownOrg
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)

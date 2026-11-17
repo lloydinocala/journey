@@ -21,6 +21,7 @@ import {
   formatMonthLabel,
   getMonthGridDays,
 } from './utils/dateHelpers'
+import { viewingOrg } from './utils/viewingOrg'
 
 const TRAY_W = { '8_11': '8\u201311 AM', '10_1': '10 AM\u20131 PM', '12_3': '12\u20133 PM', '2_5': '2\u20135 PM', 'asap': 'ASAP' }
 function trayWindowLabel(job) { return TRAY_W[job.requested_window] || 'Needs scheduling' }
@@ -132,7 +133,7 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile, onRelea
 
 export default function Calendar({ profile }) {
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const nav = useNavigate()
   const [currentDate, setCurrentDate] = useState(() => { const d = new URLSearchParams(window.location.search).get('date'); return d ? new Date(d + 'T00:00:00') : new Date() })
   const [viewMode, setViewMode] = useState('week')

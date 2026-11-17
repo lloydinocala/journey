@@ -3,6 +3,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import PricebookCsvBar from './PricebookCsvBar'
 import { fetchAllRows, normalizeForMatch } from './utils/csvImport'
+import { viewingOrg } from './utils/viewingOrg'
 
 const CSV_COLUMNS = [
   { key: 'id', label: 'ID', type: 'text' },
@@ -20,7 +21,7 @@ const CSV_EXAMPLE = { id: '', name: 'Whole-home surge protector', description: '
 export default function SpecialFeatures({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [features, setFeatures] = useState([])
   const [loading, setLoading] = useState(true)
   const [showArchived, setShowArchived] = useState(false)

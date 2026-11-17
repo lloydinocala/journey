@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import FinancingOpportunities from './FinancingOpportunities'
+import { viewingOrg } from './utils/viewingOrg'
 
 const money = (n) => (n == null || isNaN(n) ? '—' : `$${Number(n).toFixed(2)}`)
 const fmt = (d) => (d ? new Date(d).toLocaleDateString() : '')
@@ -29,7 +30,7 @@ const STATUS_STYLE = {
 export default function FinancingCentral({ profile }) {
   const isSuper = profile?.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
   const [lenders, setLenders] = useState([])
   const [directory, setDirectory] = useState([])
   const [deals, setDeals] = useState([])

@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { AgentDraftsBanner } from './AgentInboxBadge'
 import { fetchAllRows } from './utils/csvImport'
+import { viewingOrg } from './utils/viewingOrg'
 
 // Dispatch side of incomplete-job routing. When a tech stops a job as Incomplete for
 // a reason that only needs a new visit — no one home, weather, a scheduling
@@ -17,7 +18,7 @@ const fmtDate = (d) => (d ? new Date(String(d).slice(0, 10) + 'T00:00:00').toLoc
 export default function NeedsRescheduling({ profile }) {
   const isSuper = profile?.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
   const [records, setRecords] = useState([])
   const [allJobs, setAllJobs] = useState([])
   const [loading, setLoading] = useState(true)

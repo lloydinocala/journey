@@ -6,6 +6,7 @@ import QuincyBrief from './QuincyBrief'
 import Reminders from './Reminders'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
+import { viewingOrg } from './utils/viewingOrg'
 
 // A WORKING dashboard for office staff — a queue of what needs doing, not a report.
 // Every number links to the thing to resolve. Goal: clear the board to zero.
@@ -43,7 +44,7 @@ function TypeTag({ t }) {
 export default function OperationsDashboard({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [d, setD] = useState(null)
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState(null)

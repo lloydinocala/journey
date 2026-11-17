@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 const money = (n) => (n == null || isNaN(n) ? '—' : (n < 0 ? '-' : '') + '$' + Math.abs(Number(n)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 const day = (unix) => (unix ? new Date(unix * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—')
@@ -29,7 +30,7 @@ function scheduleText(s) {
 export default function Payouts({ profile }) {
   const isSuper = profile?.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [orgId, setOrgId] = useState(profile?.org_id || '')
+  const [orgId, setOrgId] = useState(() => profile?.org_id || viewingOrg())
   const [d, setD] = useState(null)
   const [err, setErr] = useState('')
   const [loading, setLoading] = useState(true)

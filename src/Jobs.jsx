@@ -10,6 +10,7 @@ import TripChargePicker from './TripChargePicker'
 import { exportToCSV } from './utils/csvExport'
 import { fetchAllRows } from './utils/csvImport'
 import { loadOrgTz, formatTimeInZone, zonedToUtcIso, utcToZonedInputs } from './utils/tz'
+import { viewingOrg } from './utils/viewingOrg'
 
 function formatPhone(raw) {
   if (!raw) return raw
@@ -89,7 +90,7 @@ const DELETE_REASONS = ['Customer Canceled', 'Duplicate Job', 'Created in Error'
 
 export default function Jobs({ profile }) {
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [properties, setProperties] = useState([])
   const [users, setUsers] = useState([])
   const [jobs, setJobs] = useState([])

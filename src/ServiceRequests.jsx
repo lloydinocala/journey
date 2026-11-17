@@ -4,6 +4,7 @@ import OrgPicker from './OrgPicker'
 import { printServiceFlyer } from './utils/serviceFlyer'
 import ServiceRequestReport from './ServiceRequestReport'
 import { isSettingsAdmin } from './utils/settingsMap'
+import { viewingOrg } from './utils/viewingOrg'
 
 const CAT_LABEL = { repair: 'Repair', tuneup: 'Tune-up', question: 'Question' }
 const URG_COLOR = { emergency: '#DC2626', soon: '#9a6a12', flexible: '#1b7a3d' }
@@ -33,7 +34,7 @@ const byTriage = (a, b) => (computeTriage(b).score - computeTriage(a).score) || 
 export default function ServiceRequests({ profile }) {
   const isSuper = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [reqs, setReqs] = useState([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState(null)

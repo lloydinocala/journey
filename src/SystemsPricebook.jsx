@@ -3,6 +3,7 @@ import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { fetchAllRows, readFileSmart, normPrice } from './utils/csvImport'
+import { viewingOrg } from './utils/viewingOrg'
 
 const COLUMNS = [
   { key: 'system_type', label: 'System Type', required: true, width: 100, type: 'text', options: ['Split', 'Side-Discharge', 'Packaged', 'Gas', 'Apt Split', 'Apt Side-Discharge', 'Mini-Split'] },
@@ -84,7 +85,7 @@ function systemKey(f) {
 
 export default function SystemsPricebook({ profile }) {
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [equipment, setEquipment] = useState([])
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)

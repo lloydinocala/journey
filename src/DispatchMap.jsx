@@ -5,6 +5,7 @@ import OrgPicker from './OrgPicker'
 import DispatchSuggest from './DispatchSuggest'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
+import { viewingOrg } from './utils/viewingOrg'
 
 // Geocode server-side (edge function: Census -> OpenStreetMap). Avoids browser CORS.
 async function geocodeAddress(address) {
@@ -89,7 +90,7 @@ export default function DispatchMap({ profile }) {
   const nav = useNavigate()
   const isSuper = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [newItemMode, setNewItemMode] = useState(null)
   const [date, setDate] = useState(() => new URLSearchParams(window.location.search).get('date') || todayLocal())
   const [jobs, setJobs] = useState([])

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import StatusFilter from './StatusFilter'
+import { viewingOrg } from './utils/viewingOrg'
 
 const blank = { name: '', address: '', city: '', state: '', zip: '', phone: '', email: '', website_url: '', online_form_url: '', noc_required: false, noc_url: '', notes: '', county_id: '', phone_extension: '', inspection_scheduling_url: '', inspection_scheduling_phone: '' }
 const linkUrl = (u) => (u ? (/^https?:\/\//i.test(u) ? u : 'https://' + u) : null)
@@ -9,7 +10,7 @@ const linkUrl = (u) => (u ? (/^https?:\/\//i.test(u) ? u : 'https://' + u) : nul
 export default function BuildingAuthorities({ profile }) {
   const isSuper = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState(['Active'])

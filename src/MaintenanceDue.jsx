@@ -3,6 +3,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import AiAssist from './AiAssist'
 import WinBack from './WinBack'
+import { viewingOrg } from './utils/viewingOrg'
 
 function dateDisplay(val) {
   if (!val) return '—'
@@ -20,7 +21,7 @@ const MAINT_OUTREACH_SYS = 'Draft a short, friendly outreach message from an HVA
 export default function MaintenanceDue({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [visits, setVisits] = useState([])
   const [techs, setTechs] = useState([])
   const [loading, setLoading] = useState(true)

@@ -3,6 +3,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import PricebookCsvBar from './PricebookCsvBar'
 import { fetchAllRows, normalizeForMatch } from './utils/csvImport'
+import { viewingOrg } from './utils/viewingOrg'
 
 // Time & Materials parts pricebook. Serves both Residential and Commercial jobs
 // off the single shared part_items catalog (same data as the Parts Catalog /
@@ -27,7 +28,7 @@ const CSV_EXAMPLE = { id: '', generic_name: '5-ton condenser fan motor', model_n
 export default function TimeMaterials({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
 
   const [rows, setRows] = useState([])
   const [prefMap, setPrefMap] = useState({})          // item_id -> preferred_vendor_id

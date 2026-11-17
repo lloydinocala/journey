@@ -6,6 +6,7 @@ import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import { exportToCSV } from './utils/csvExport'
 import { fetchAllRows } from './utils/csvImport'
+import { viewingOrg } from './utils/viewingOrg'
 
 function formatPhone(raw) {
   if (!raw) return raw
@@ -36,7 +37,7 @@ const DEFAULT_VISIBLE = COLUMNS.map((c) => c.key)
 
 export default function Customers({ profile }) {
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [customers, setCustomers] = useState([])
   const [showArchived, setShowArchived] = useState(false)
   const [loading, setLoading] = useState(true)

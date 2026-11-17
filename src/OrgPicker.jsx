@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
+import { viewingOrg, setViewingOrg } from './utils/viewingOrg'
 
 // The super-admin "Viewing organization" choice persists across screens for the
 // session, so switching org on one screen carries to the next instead of each
 // screen silently resetting to the login org (which made boards look empty).
-const STORE_KEY = 'journey_viewing_org'
-
 export default function OrgPicker({ orgs, value, onChange }) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
@@ -14,13 +13,13 @@ export default function OrgPicker({ orgs, value, onChange }) {
 
   // On mount, adopt the previously-picked org if this screen defaulted elsewhere.
   useEffect(() => {
-    const stored = localStorage.getItem(STORE_KEY)
+    const stored = viewingOrg()
     if (stored && stored !== value) onChange(stored)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function choose(id) {
-    localStorage.setItem(STORE_KEY, id)
+    setViewingOrg(id)
     onChange(id)
     setOpen(false)
     setQuery('')

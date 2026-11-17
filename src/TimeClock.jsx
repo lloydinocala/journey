@@ -4,6 +4,7 @@ import OrgPicker from './OrgPicker'
 import TimeClockAnomalies from './TimeClockAnomalies'
 import TimeClockSecurity from './TimeClockSecurity'
 import GeofenceSites from './GeofenceSites'
+import { viewingOrg } from './utils/viewingOrg'
 
 function fmt(ts) {
   if (!ts) return '—'
@@ -28,7 +29,7 @@ function hoursBetween(a, b) {
 export default function TimeClock({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [loading, setLoading] = useState(true)
   const [events, setEvents] = useState([])
   const [breaksByEvent, setBreaksByEvent] = useState({})

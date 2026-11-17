@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 const KINDS = [['traditional', 'Traditional'], ['lease_to_own', 'Lease-to-Own'], ['bnpl', 'Buy-now-pay-later']]
 const blank = { name: '', kind: 'traditional', best_for: '', apply_url: '', dashboard_url: '', dealer_id: '', terms_note: '', min_amount: '', max_amount: '', for_service: true, for_system: true, suppress_top_tier: false, sort_order: 100, is_active: true }
@@ -9,7 +10,7 @@ const numOrNull = (v) => (v === '' || v == null || isNaN(Number(v)) ? null : Num
 export default function FinancingOptions({ profile }) {
   const isSuper = profile?.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(blank)

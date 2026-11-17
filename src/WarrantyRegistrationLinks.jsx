@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 // Warranty Registration Links — the brand → manufacturer registration-portal URL
 // list. The Warranty Registrations page reads these to show a "Register online"
@@ -10,7 +11,7 @@ import OrgPicker from './OrgPicker'
 export default function WarrantyRegistrationLinks({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [savingId, setSavingId] = useState(null)

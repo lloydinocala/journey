@@ -3,6 +3,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import ImportEngine from './ImportEngine'
 import { fetchAllRows } from './utils/csvImport'
+import { viewingOrg } from './utils/viewingOrg'
 
 function normalize(s) {
   return (s || '').toLowerCase().trim().replace(/\s+/g, ' ')
@@ -92,7 +93,7 @@ const CONFIG = {
 export default function JobImport({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
 
   useEffect(() => {
     if (isSuperAdmin) {

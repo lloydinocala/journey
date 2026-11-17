@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { isSettingsAdmin, settingsHref } from './utils/settingsMap'
 import { notifyAgentInbox } from './AgentInboxBadge'
+import { viewingOrg, setViewingOrg } from './utils/viewingOrg'
 
 // The Agent Inbox. Journey's AI agents watch for situations (a customer texted back, an
 // estimate went unanswered, an invoice is overdue, a visit needs rescheduling), draft the
@@ -26,7 +27,7 @@ export default function AgentInbox({ profile }) {
   const focus = new URLSearchParams(location.search).get('focus')
   const isSuper = profile?.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [orgId, setOrgId] = useState(profile?.org_id || '')
+  const [orgId, setOrgId] = useState(() => profile?.org_id || viewingOrg())
   const [tab, setTab] = useState('inbox')
   const [area, setArea] = useState('')
   const [skills, setSkills] = useState([])
@@ -80,7 +81,7 @@ export default function AgentInbox({ profile }) {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {isSuper && (
-            <select value={orgId} onChange={(e) => setOrgId(e.target.value)} style={{ padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 8 }}>
+            <select value={orgId} onChange={(e) => { setViewingOrg(e.target.value); setOrgId(e.target.value) }} style={{ padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 8 }}>
               {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           )}

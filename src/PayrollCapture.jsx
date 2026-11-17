@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import PayrollReconcile from './PayrollReconcile'
 import { loadPtoHours, loadTaskHoursFromJobs, loadErrandHours, loadPayMethod } from './payrollAssist'
+import { viewingOrg } from './utils/viewingOrg'
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -89,7 +90,7 @@ const PAY_TYPE_LABELS = {
 export default function PayrollCapture({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [loading, setLoading] = useState(true)
 
   const [weekStart, setWeekStart] = useState(mondayOf(new Date()))
@@ -382,7 +383,14 @@ export default function PayrollCapture({ profile }) {
         </div>
       </div>
 
-      {!loading && <PayrollReconcile employees={employees} weeks={weeks} clockHours={clockHours} />}
+      {!loading && <PayrollReconcile employees={employees} clockHours={clockHours}
+        weeks={weeks.map((w) => {
+          // Captured hours live on the week's base pay (regular + overtime), not on the week row itself.
+          const b = components[w.id]?.base
+          if (!b) return w
+          const hrs = (Number(b.hours_clocked_in) || 0) + (Number(b.overtime_hours) || 0)
+          return { ...w, hours_clocked_in: b.hours_clocked_in == null && b.overtime_hours == null ? null : +hrs.toFixed(2), task_hours_recorded: b.task_hours_recorded }
+        })} />}
 
       {loading ? (
         <p>Loading…</p>

@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import MarginWatch from './MarginWatch'
 import { fetchAllRows, normalizeForMatch, readFileSmart, normPrice } from './utils/csvImport'
+import { viewingOrg } from './utils/viewingOrg'
 
 const LOCATIONS = ['Ground Level', 'Attic or Ceiling', 'Roof or Sub-Level']
 const ACCESS_OPTS = ['Standard Access', 'Difficult Access']
@@ -12,7 +13,7 @@ const PART_SOURCES = ['', 'OEM', 'Aftermarket']
 
 export default function Pricebook({ profile, segment = 'residential' }) {
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [services, setServices] = useState([])
   const [loadingServices, setLoadingServices] = useState(true)
   const [categoryFilter, setCategoryFilter] = useState('')

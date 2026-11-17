@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { fetchAllRows, normalizeForMatch, readFileSmart } from './utils/csvImport'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 const BASE_UNITS = ['each', 'ounce', 'pound', 'foot', 'linear foot', 'gallon', 'quart', 'box', 'roll', 'kit']
 
@@ -38,7 +39,7 @@ const TEMPLATE_ROW = {
 export default function PartsCatalogImport({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const orgId = selectedOrg
 
   const [importing, setImporting] = useState(false)

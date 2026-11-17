@@ -7,6 +7,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import PricebookCsvBar from './PricebookCsvBar'
 import { fetchAllRows, normalizeForMatch } from './utils/csvImport'
+import { viewingOrg } from './utils/viewingOrg'
 
 const money = (n) => (n == null || isNaN(n) ? '—' : '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 const pct = (n) => (n == null || !isFinite(n) ? '—' : Math.round(n * 1000) / 10 + '%')
@@ -27,7 +28,7 @@ const CSV_EXAMPLE = { id: '', category: 'Supply Ducts', name: 'Clean & sanitize 
 export default function DuctPricebook({ profile }) {
   const isSuper = profile?.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [orgId, setOrgId] = useState(profile?.org_id || '')
+  const [orgId, setOrgId] = useState(() => profile?.org_id || viewingOrg())
   const [rows, setRows] = useState([])
   const [rate, setRate] = useState(0)
   const [loading, setLoading] = useState(true)

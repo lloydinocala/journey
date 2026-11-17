@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 const TOPIC_COLORS = {
   'App Usage': '#2F5DE3',
@@ -19,7 +20,7 @@ export default function ApolloLog({ profile }) {
   const isOrgAdmin = profile.role === 'org_admin'
 
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
 

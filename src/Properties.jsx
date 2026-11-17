@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom'
 import CustomerSearchSelect from './CustomerSearchSelect'
 import { warrantyFor, decodeSerial } from './Warranty'
 import EquipmentInference from './EquipmentInference'
+import { viewingOrg } from './utils/viewingOrg'
 
 function formatPhone(raw) {
   if (!raw) return raw
@@ -38,7 +39,7 @@ const FILTER_LOCATIONS = ['Ceiling', 'Wall', 'Through the door', 'In the unit', 
 
 export default function Properties({ profile }) {
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [properties, setProperties] = useState([])
   const [showArchived, setShowArchived] = useState(false)
   const [needsFiltersOnly, setNeedsFiltersOnly] = useState(false)

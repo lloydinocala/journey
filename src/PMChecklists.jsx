@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 const SYSTEM_TYPES = [
   { key: 'heat_pump', label: 'Heat Pump (Split)' },
@@ -27,7 +28,7 @@ export default function PMChecklists({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const isAdmin = isSuperAdmin || profile.role === 'org_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [templates, setTemplates] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [items, setItems] = useState([])

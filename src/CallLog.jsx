@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import AiAssist from './AiAssist'
+import { viewingOrg } from './utils/viewingOrg'
 
 const DIGEST_SYS = `You summarize an HVAC office's phone calls for the day. From the call rows given, write a short digest (2-4 lines) of what came in, then list who needs a call-back or follow-up and why. Use ONLY the rows provided — do not invent callers, numbers, or reasons. If nothing needs follow-up, say so.`
 
@@ -37,7 +38,7 @@ const TYPE_COLOR = { Customer: '#1B5E9B', Vendor: '#9C6A12', Employee: '#2E7D32'
 export default function CallLog({ profile }) {
   const isSuper = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')

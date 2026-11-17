@@ -6,6 +6,7 @@ import StationShell from './StationShell'
 import { useSignals } from './signals/useSignals'
 import QuincyBrief from './QuincyBrief'
 import TimeOffNotice from './TimeOffNotice'
+import { viewingOrg } from './utils/viewingOrg'
 
 // The Dispatch Station — the front-of-house domain. Now rendered entirely from
 // the shared signal registry (useSignals), so its tiles and the Train Station
@@ -14,7 +15,7 @@ export default function DispatchStation({ profile }) {
   const nav = useNavigate()
   const isSuper = profile?.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
 
   useEffect(() => {
     if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))

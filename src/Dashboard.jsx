@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { fetchAllRows } from './utils/csvImport'
+import { viewingOrg } from './utils/viewingOrg'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -515,7 +516,7 @@ export default function Dashboard({ profile }) {
   const showOperations = fullAccess || !!profile?.can_view_operations
 
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
 
   useEffect(() => {
     if (isSuperAdmin) {

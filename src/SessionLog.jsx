@@ -3,6 +3,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { exportToCSV } from './utils/csvExport'
 import SessionAnomalies from './SessionAnomalies'
+import { viewingOrg } from './utils/viewingOrg'
 
 function formatDuration(ms) {
   if (ms == null || ms < 0) return '—'
@@ -41,7 +42,7 @@ export default function SessionLog({ profile }) {
   const isOrgAdmin = profile.role === 'org_admin'
 
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
 

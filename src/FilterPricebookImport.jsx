@@ -8,6 +8,7 @@ import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
 import { readFileSmart } from './utils/csvImport'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 const COLS = [
   { key: 'height', label: 'Height', w: 70, num: true },
@@ -41,7 +42,7 @@ const csvTxt = (v) => { const t = (v ?? '').toString().trim(); return t === '' ?
 export default function FilterPricebookImport({ profile }) {
   const isSuperAdmin = profile?.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
 

@@ -17,6 +17,7 @@ import KpiBuilder from './KpiBuilder'
 import AiAssist from '../../AiAssist'
 import QuincyBrief from '../../QuincyBrief'
 import { investigateProps } from './investigate'
+import { viewingOrg } from '../../utils/viewingOrg'
 
 const SECTIONS = [
   ['Operations', '/operations'], ['Financials', '/financials'], ['Admin', '/admin'],
@@ -40,7 +41,7 @@ export default function CommandDashboard({ profile }) {
   const isSuperAdmin = profile?.role === 'super_admin'
   const canCustomize = isSuperAdmin || can(profile, 'customize_dashboard')
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
   const [orgName, setOrgName] = useState('')
   const [period, setPeriod] = useState('mtd')
   const [widgets, setWidgets] = useState(defaultWidgets)

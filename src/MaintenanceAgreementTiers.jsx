@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 const emptyForm = {
   name: '',
@@ -14,7 +15,7 @@ const emptyForm = {
 
 export default function MaintenanceAgreementTiers({ profile }) {
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [tiers, setTiers] = useState([])
   const [loadingTiers, setLoadingTiers] = useState(true)
   const [showArchived, setShowArchived] = useState(false)

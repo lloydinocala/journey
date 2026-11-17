@@ -5,6 +5,7 @@ import OrgPicker from './OrgPicker'
 import StationShell from './StationShell'
 import { useSignals } from './signals/useSignals'
 import QuincyBrief from './QuincyBrief'
+import { viewingOrg } from './utils/viewingOrg'
 
 // Inventory Central hub — a pure roll-up of its children (Stock, Fleet, Tools)
 // fed entirely by the signal registry via useSignals({ hub }). Insights &
@@ -13,7 +14,7 @@ export default function InventoryCentral({ profile }) {
   const nav = useNavigate()
   const isSuper = profile?.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
 
   useEffect(() => {
     if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))

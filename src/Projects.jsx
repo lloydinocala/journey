@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import CustomerSearchSelect from './CustomerSearchSelect'
 import QuickAddModal from './QuickAddModal'
+import { viewingOrg } from './utils/viewingOrg'
 
 // Projects = the progress-billing overlay. A project groups the stage jobs
 // (New Construction Rough-In / Trim / Start-Up, plus Punchlist) at one property
@@ -17,7 +18,7 @@ export default function Projects({ profile }) {
   const navigate = useNavigate()
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
 
   const [projects, setProjects] = useState([])
   const [jobsByProject, setJobsByProject] = useState({})

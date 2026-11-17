@@ -3,6 +3,7 @@ import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
 import { fetchAllRows, normalizeForMatch, normPrice, readFileSmart } from './utils/csvImport'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 function normKey(v) {
   const t = (v || '').toString().trim()
@@ -12,7 +13,7 @@ function normKey(v) {
 export default function PricebookImport({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const orgId = selectedOrg
 
   useEffect(() => {

@@ -3,11 +3,12 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import OrgPicker from '../../OrgPicker'
+import { viewingOrg } from '../../utils/viewingOrg'
 
 export function useOrgSelector(profile) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   useEffect(() => {
     if (isSuperAdmin) {
       supabase.from('organizations').select('id, name').order('name').then(({ data }) => {

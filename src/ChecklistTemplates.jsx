@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 const EQUIPMENT = [
   { value: '', label: 'Any equipment' },
@@ -107,7 +108,7 @@ const safeName = (n) => (n || 'checklist').replace(/[^\w\- ]+/g, '').trim() || '
 export default function ChecklistTemplates({ profile }) {
   const isSuper = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [checklists, setChecklists] = useState([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null)     // checklist row being edited

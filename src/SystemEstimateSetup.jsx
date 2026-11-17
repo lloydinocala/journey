@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 // The system types Journey ships with, in the order the office thinks about them.
 // Any additional system_type actually present in the org's equipment is merged in
@@ -14,7 +15,7 @@ const CANONICAL_TYPES = ['Apt Side-Discharge', 'Apt Split', 'Side-Discharge', 'G
 export default function SystemEstimateSetup({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [installIncludes, setInstallIncludes] = useState('')      // the default block
   const [byType, setByType] = useState({})                        // { [system_type]: text }
   const [equipTypes, setEquipTypes] = useState([])                // distinct types in equipment

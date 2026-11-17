@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 function money(val) {
   return '$' + Number(val || 0).toFixed(2)
@@ -25,7 +26,7 @@ export default function MaintenanceLifecycle({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
 
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [agreements, setAgreements] = useState([])
   const [billingHistory, setBillingHistory] = useState([])
   const [tiers, setTiers] = useState([])

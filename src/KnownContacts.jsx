@@ -3,6 +3,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { Link } from 'react-router-dom'
 import ContactImport from './ContactImport'
+import { viewingOrg } from './utils/viewingOrg'
 
 // "Known Others" — everyone who isn't a Customer, Vendor, or Employee:
 // salesmen, friends & family, and any other named contact we want on file.
@@ -21,7 +22,7 @@ const blank = { id: null, category: 'other', name: '', company: '', phone: '', p
 export default function KnownContacts({ profile }) {
   const isSuper = profile?.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
   const [rows, setRows] = useState([])
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)

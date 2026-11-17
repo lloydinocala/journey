@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import Reminders from './Reminders'
+import { viewingOrg } from './utils/viewingOrg'
 
 // Standalone home for the office To-Do list (the office_reminders feature).
 // The same Reminders component is also embedded in the Call Console.
 export default function ToDo({ profile }) {
   const isSuper = profile.role === 'super_admin'
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [orgs, setOrgs] = useState([])
 
   useEffect(() => {

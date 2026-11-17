@@ -5,6 +5,7 @@ import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import { fetchAllRows } from './utils/csvImport'
+import { viewingOrg } from './utils/viewingOrg'
 
 const WARRANTY_OPTIONS = [
   { value: 'warranty', label: 'Warranty' },
@@ -44,7 +45,7 @@ const blankPartForm = { part_description: '', part_number: '', po_number: '', ve
 export default function JobsManagement({ profile }) {
   const navigate = useNavigate()
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [loading, setLoading] = useState(true)
 
   const [incompleteRecords, setIncompleteRecords] = useState([])

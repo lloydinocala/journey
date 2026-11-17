@@ -5,6 +5,7 @@ import OrgPicker from './OrgPicker'
 import ItemSearchSelect from './ItemSearchSelect'
 import QuincyInvoiceImport from './QuincyInvoiceImport'
 import { exportToCSV } from './utils/csvExport'
+import { viewingOrg } from './utils/viewingOrg'
 
 // The smallest unit an item is sold/consumed in. Everything (stock, cost) is
 // stored in this base unit; purchase packs and sell units convert to it.
@@ -44,7 +45,7 @@ const blankOffering = {
 export default function PartsCatalog({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
 
   const [vendors, setVendors] = useState([])
   const [shopLocationId, setShopLocationId] = useState(null)

@@ -6,6 +6,7 @@
 //   G = D + E + F · % = G / C · H = C − G · retainage on (D+E) and on F.
 import { useState, useEffect } from 'react'
 import { supabase } from '../../utils/supabase'
+import { viewingOrg } from '../../utils/viewingOrg'
 
 export const money = (v) => (v == null || v === '' || isNaN(Number(v)) ? '—'
   : (Number(v) < 0 ? '−$' : '$') + Math.abs(Number(v)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
@@ -44,7 +45,7 @@ export const SOV_TEMPLATE = [
 export function useOrg(profile) {
   const isSuper = profile?.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [orgId, setOrgId] = useState(profile?.org_id || '')
+  const [orgId, setOrgId] = useState(() => profile?.org_id || viewingOrg())
   useEffect(() => {
     if (!isSuper) return
     supabase.from('organizations').select('id, name').order('name').then(({ data }) => {

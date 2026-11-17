@@ -5,6 +5,7 @@ import { can } from './utils/permissions'
 import OrgPicker from './OrgPicker'
 import QuincyBrief from './QuincyBrief'
 import CustomKpis from './CustomKpis'
+import { viewingOrg } from './utils/viewingOrg'
 
 const BRAND = '#176E7A', FAINT = '#98A2AD'
 const C = {
@@ -25,7 +26,7 @@ export default function FinancialsDashboard({ profile, embedded }) {
   const isSuper = profile?.role === 'super_admin'
   const allowed = isSuper || can(profile, 'view_financials_dashboard')
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
   const [d, setD] = useState(null)
   const [loading, setLoading] = useState(true)
 

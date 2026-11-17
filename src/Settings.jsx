@@ -21,6 +21,7 @@ import CallHandlingPrefs from './CallHandlingPrefs'
 import PayrollSettings from './PayrollSettings'
 import CollectionsSettings from './CollectionsSettings'
 import { browserTz, setActiveOrgTz, tzShortLabel } from './utils/tz'
+import { viewingOrg } from './utils/viewingOrg'
 
 // The zones an HVAC contractor in the US is realistically in. IANA names carry
 // their own DST rules, so picking the region is all the office ever has to do.
@@ -36,7 +37,7 @@ const US_TIMEZONES = [
 
 export default function Settings({ profile }) {
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [jobTypes, setJobTypes] = useState([])
   const [checklists, setChecklists] = useState([])
   const [loading, setLoading] = useState(true)

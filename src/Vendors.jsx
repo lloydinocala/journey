@@ -5,6 +5,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import VendorScorecards from './VendorScorecards'
 import { fetchAllRows } from './utils/csvImport'
+import { viewingOrg } from './utils/viewingOrg'
 
 function vendorSiteUrl(url) {
   if (!url) return null
@@ -21,7 +22,7 @@ const blankForm = {
 
 export default function Vendors({ profile, scope }) {
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState(['Active'])

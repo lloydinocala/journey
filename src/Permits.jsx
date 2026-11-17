@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 const money = (v) => (v == null ? '—' : '$' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 const STEP_LABELS = ['', 'Order equipment', 'Create job', 'AHRI verify', 'Property lookup', 'Apply permit', 'Apply NOC', 'Receive permit', 'Print & send']
@@ -28,7 +29,7 @@ export default function Permits({ profile }) {
   const isSuper = profile.role === 'super_admin'
   const nav = useNavigate()
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [approved, setApproved] = useState([])
   const [inProgress, setInProgress] = useState([])
   const [awaitingInspection, setAwaitingInspection] = useState([])

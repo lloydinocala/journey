@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import ImportEngine from './ImportEngine'
+import { viewingOrg } from './utils/viewingOrg'
 
 const CONFIG = {
   title: 'Import Customers',
@@ -44,7 +45,7 @@ const CONFIG = {
 export default function CustomerImport({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
 
   useEffect(() => {
     if (isSuperAdmin) {

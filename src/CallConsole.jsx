@@ -7,6 +7,7 @@ import NewItemDropdown from './NewItemDropdown'
 import FilterOrderModal from './FilterOrderModal'
 import QuickAddModal from './QuickAddModal'
 import AiAssist from './AiAssist'
+import { viewingOrg } from './utils/viewingOrg'
 
 const CALL_DRAFT_SYS = `You turn a phone call into a clear service request for HVAC office staff to schedule.
 From the caller and the purpose given, write: (1) a one-line complaint in plain terms; (2) suggested urgency (Emergency / Soon / Flexible) with a short reason; (3) what to schedule (visit type). Keep it short and factual. Use ONLY the facts given — if the purpose is vague, say what to confirm with the caller rather than inventing details.`
@@ -20,7 +21,7 @@ const CATEGORY_LABEL = { salesman: 'Salesman', friends_family: 'Friends & Family
 export default function CallConsole({ profile, field = false, onAdd, initialPhone = '' }) {
   const isSuper = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [takingCall, setTakingCall] = useState(false)
   const [phone, setPhone] = useState(initialPhone || '')
   const [ringing, setRinging] = useState(null)   // a call ringing on a team phone right now (store app)

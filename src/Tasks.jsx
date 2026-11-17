@@ -5,6 +5,7 @@ import NewTaskModal from './NewTaskModal'
 import OrgPicker from './OrgPicker'
 import { fetchAllRows } from './utils/csvImport'
 import { loadOrgTz, formatTimeInZone, formatDateTimeInZone, zonedToUtcIso, utcToZonedInputs } from './utils/tz'
+import { viewingOrg } from './utils/viewingOrg'
 
 const STATUS_LABEL = {
   scheduled: 'Scheduled',
@@ -66,7 +67,7 @@ function money(n) {
 
 export default function Tasks({ profile }) {
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [tasks, setTasks] = useState([])
   const [users, setUsers] = useState([])
   const [parts, setParts] = useState([])

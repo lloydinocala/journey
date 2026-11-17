@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { exportToCSV } from './utils/csvExport'
+import { viewingOrg } from './utils/viewingOrg'
 
 const ACTIONS_WIDTH = 300
 const FROZEN_KEYS = ['start_date', 'customer', 'property']
@@ -33,7 +34,7 @@ function dateDisplay(val) {
 export default function MaintenanceAgreements({ profile }) {
   const [searchParams] = useSearchParams()
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [agreements, setAgreements] = useState([])
   const [properties, setProperties] = useState([])
   const [tiers, setTiers] = useState([])

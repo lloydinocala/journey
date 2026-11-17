@@ -5,6 +5,7 @@ import { useSignals } from './signals/useSignals'
 import QuincyBrief from './QuincyBrief'
 import { can } from './utils/permissions'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 // The Maintenance Station — a domain station (same family as the Train Station).
 // STAGE 2: office view (tasks). STAGE 3: owner/admin faces — the SAME signals, framed
@@ -68,7 +69,7 @@ export default function MaintenanceStation({ profile }) {
   const [admin, setAdmin] = useState(null)
   const [loading, setLoading] = useState(true)
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
   const [wb, setWb] = useState({ open: false, loading: false, list: [], sending: null, sentIds: [], sentMsg: '', picked: null, incentive: INCENTIVES[0], msg: '', channel: 'email' })
   const firstName = (profile.full_name || '').trim().split(' ')[0] || 'there'
   const sig = useSignals({ station: 'maintenance' }, selectedOrg, nav)

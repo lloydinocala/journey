@@ -5,6 +5,7 @@ import OrgPicker from './OrgPicker'
 import NewItemDropdown from './NewItemDropdown'
 import QuickAddModal from './QuickAddModal'
 import { exportToCSV } from './utils/csvExport'
+import { viewingOrg } from './utils/viewingOrg'
 
 function formatPhone(raw) {
   if (!raw) return raw
@@ -51,7 +52,7 @@ const DEFAULT_VISIBLE = COLUMNS.map((c) => c.key)
 export default function SystemEstimates({ profile }) {
   const navigate = useNavigate()
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [estimates, setEstimates] = useState([])
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)

@@ -3,6 +3,7 @@ import Papa from 'papaparse'
 import { supabase } from './utils/supabase'
 import { fetchAllRows, normalizeForMatch, readFileSmart, normPrice } from './utils/csvImport'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 function normText(v) {
   const t = (v || '').toString().trim()
@@ -60,7 +61,7 @@ function matchKey(r) {
 export default function EquipmentImport({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const orgId = selectedOrg
 
   useEffect(() => {

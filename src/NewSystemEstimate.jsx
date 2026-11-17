@@ -5,6 +5,7 @@ import OrgPicker from './OrgPicker'
 import { hasFeature } from './utils/entitlements'
 import CustomerSearchSelect from './CustomerSearchSelect'
 import { loadServiceCallsForProperty, pickLikelyServiceCall, serviceCallLabel } from './SystemEstimate'
+import { viewingOrg } from './utils/viewingOrg'
 
 // New Estimate — any kind (Service/Repair, Duct Cleaning, System), with or without a job.
 // Estimates often come before the job: start from the customer (we remember customers by
@@ -23,7 +24,7 @@ export default function NewSystemEstimate({ profile, type, mobile }) {
   const navigate = useNavigate()
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [mode, setMode] = useState('existing') // 'existing' | 'new'
 
   const [existingCustomerId, setExistingCustomerId] = useState('')

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import AiAssist from './AiAssist'
+import { viewingOrg } from './utils/viewingOrg'
 
 // Recommends a LEAST-PRIVILEGE permission set for a role from its name + department.
 // Advisory: it fills the checkboxes for the admin to review and Save — it never
@@ -25,7 +26,7 @@ const DEPT_ORDER = ['Admin', 'Field', 'Shop', 'Front Office', 'Back Office']
 export default function RolesConfig({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [catalog, setCatalog] = useState([])
   const [tags, setTags] = useState([])
   const [permsByTag, setPermsByTag] = useState({})

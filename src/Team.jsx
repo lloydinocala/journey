@@ -3,6 +3,7 @@ import StatusFilter from './StatusFilter'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { exportToCSV } from './utils/csvExport'
+import { viewingOrg } from './utils/viewingOrg'
 
 const COLUMNS = [
   { key: 'full_name', label: 'Name', required: true },
@@ -13,7 +14,7 @@ const COLUMNS = [
 
 export default function Team({ profile }) {
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState(null)

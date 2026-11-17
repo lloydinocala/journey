@@ -3,6 +3,7 @@ import Papa from 'papaparse'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 // Bulk-load a vendor price file (e.g. a distributor catalog export) into the parts
 // reference library. Items are consolidated across vendors by manufacturer Model #;
@@ -39,7 +40,7 @@ function priceNum(v) {
 export default function VendorPriceImport({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const orgId = selectedOrg
 
   const [existingVendors, setExistingVendors] = useState([])

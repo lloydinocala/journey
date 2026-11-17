@@ -6,6 +6,7 @@ import OrgPicker from './OrgPicker'
 import StationShell, { StationKpi } from './StationShell'
 import { useSignals } from './signals/useSignals'
 import QuincyBrief from './QuincyBrief'
+import { viewingOrg } from './utils/viewingOrg'
 
 const money0 = (n) => '$' + Math.round(Number(n) || 0).toLocaleString()
 
@@ -18,7 +19,7 @@ export default function JobsStation({ profile }) {
   const opsAdmin = isSuper || can(profile, 'view_operational_metrics')
   const ownerAdmin = isSuper || can(profile, 'view_owner_metrics')
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile?.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile?.org_id || viewingOrg())
   const [money, setMoney] = useState(null)
 
   useEffect(() => {

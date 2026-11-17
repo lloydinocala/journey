@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { fetchAllRows, normalizeForMatch, readFileSmart } from './utils/csvImport'
 import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 function txt(v) { const t = (v ?? '').toString().trim(); return t === '' ? null : t }
 function num(v) {
@@ -41,7 +42,7 @@ const TEMPLATE_ROW = {
 export default function ToolsImport({ profile }) {
   const isSuperAdmin = profile.role === 'super_admin'
   const [orgs, setOrgs] = useState([])
-  const [selectedOrg, setSelectedOrg] = useState(profile.org_id || '')
+  const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
   const orgId = selectedOrg
   const [importing, setImporting] = useState(false)
   const [summary, setSummary] = useState(null)
