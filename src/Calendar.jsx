@@ -39,7 +39,8 @@ const RELEASE_OPTS = [
   ['financing', 'Financing approved'], ['override', 'Release anyway (no deposit)'],
 ]
 
-function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile, onRelease }) {
+function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile, onRelease, onUnschedule }) {
+  const [dropHover, setDropHover] = useState(false)
   const asap = jobs.filter((j) => j.requested_window === 'asap')
     .slice().sort((a, b) => (a.received_at || '9').localeCompare(b.received_at || '9'))
   const rest = jobs.filter((j) => j.requested_window !== 'asap')
@@ -86,10 +87,18 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile, onRelea
       )}
     </div>
   )
+  // Dropping a job from the calendar back onto this panel unschedules it (on hold — not deleted).
+  const onDragOver = (e) => { if (!onUnschedule) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (!dropHover) setDropHover(true) }
+  const onDragLeave = (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDropHover(false) }
+  const onDrop = (e) => {
+    e.preventDefault(); setDropHover(false)
+    const id = e.dataTransfer.getData('text/plain')
+    if (id && onUnschedule && !jobs.some((j) => j.id === id)) onUnschedule(id)
+  }
   return (
-    <div style={{
+    <div onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop} style={{
       flex: isMobile ? 'none' : '0 0 202px', width: isMobile ? '100%' : 202,
-      background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(220,38,38,.28)', borderRadius: 12,
+      background: dropHover ? '#FDECEC' : 'rgba(255,255,255,0.72)', border: dropHover ? '2px dashed #DC2626' : '1px solid rgba(220,38,38,.28)', borderRadius: 12,
       padding: 12, marginBottom: isMobile ? 16 : 0, boxSizing: 'border-box',
       position: isMobile ? 'static' : 'sticky', top: isMobile ? 'auto' : 12,
       maxHeight: isMobile ? 'none' : 'calc(100vh - 150px)', overflowY: 'auto',
@@ -99,7 +108,7 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile, onRelea
         <span style={{ fontSize: 12, color: 'var(--mist)' }}>{collapsed ? '\u25B8' : '\u25BE'}</span>
       </div>
       {!collapsed && (count === 0 ? (
-        <div style={{ fontSize: 13, color: 'var(--mist)' }}>Nothing waiting — all caught up.</div>
+        <div style={{ fontSize: 13, color: 'var(--mist)' }}>{dropHover ? 'Drop here to unschedule (on hold).' : 'Nothing waiting — all caught up.'}</div>
       ) : (
         <>
           {asap.length > 0 && (
@@ -114,7 +123,7 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile, onRelea
               {g.jobs.map(card)}
             </div>
           ))}
-          <div style={{ fontSize: 11, color: 'var(--mist)', marginTop: 6 }}>Drag a card onto the calendar to schedule &amp; assign.</div>
+          <div style={{ fontSize: 11, color: 'var(--mist)', marginTop: 6 }}>Drag a card onto the calendar to schedule &amp; assign. Drag a job from the calendar back here to unschedule it (on hold).</div>
         </>
       ))}
     </div>
@@ -393,6 +402,25 @@ export default function Calendar({ profile }) {
     loadJobs(); loadTray()
   }
 
+  // Unschedule: take a job off the calendar and put it back in Needs Dispatch, on hold (never deleted).
+  // Its date and time are cleared so it also leaves the technicians' day lists; assigned techs stay.
+  async function unscheduleJob(jobId) {
+    const { data: cur } = await supabase.from('jobs').select('id, job_number, status, date_pending').eq('id', jobId).single()
+    if (!cur || cur.date_pending) return
+    if (!['scheduled', 'unscheduled'].includes(cur.status)) {
+      setBlockMsg(`${cur.job_number} is already ${String(cur.status).replace(/_/g, ' ')}, so it can't be unscheduled.`)
+      return
+    }
+    if (!window.confirm(`Unschedule ${cur.job_number}?\n\nIt comes off the calendar and goes back to Needs Dispatch, on hold. Nothing is deleted; drag it onto the calendar again whenever it's ready.`)) return
+    setJobs((list) => list.filter((j) => j.id !== jobId))
+    const patch = { date_pending: true, job_date: null, start_time: null }
+    if (cur.status === 'scheduled') patch.status = 'unscheduled'
+    const { error } = await supabase.from('jobs').update(patch).eq('id', jobId)
+    if (error) setBlockMsg('Could not unschedule: ' + error.message)
+    setSelectedJob(null)
+    loadJobs(); loadTray()
+  }
+
   async function releaseInstall(job, mode) {
     const label = (RELEASE_OPTS.find((o) => o[0] === mode) || [mode, mode])[1]
     const note = mode === 'financing' ? window.prompt(`${job.customer_name}: Financing approved.\nLender / approval # (optional):`, '') : null
@@ -533,6 +561,7 @@ export default function Calendar({ profile }) {
               onToggle={() => setTrayCollapsed((c) => !c)}
               isMobile={isMobile}
               onRelease={releaseInstall}
+              onUnschedule={unscheduleJob}
             />
             <CalendarTodoTile orgId={selectedOrg} profile={profile} isMobile={isMobile} />
             <UnassignedTasksTile orgId={selectedOrg} isMobile={isMobile} />
@@ -561,7 +590,8 @@ export default function Calendar({ profile }) {
         </div>
       )}
 
-      <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)} />
+      <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)}
+        onUnschedule={selectedJob && !selectedJob.date_pending && selectedJob.job_date ? () => unscheduleJob(selectedJob.id) : null} />
 
       {newItemMode && (
         <QuickAddModal

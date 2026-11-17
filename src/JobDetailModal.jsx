@@ -9,7 +9,7 @@ function money(n) {
   return '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export default function JobDetailModal({ job, onClose }) {
+export default function JobDetailModal({ job, onClose, onUnschedule }) {
   const [materials, setMaterials] = useState(null)   // job-specific purchases
 
   useEffect(() => {
@@ -123,6 +123,11 @@ export default function JobDetailModal({ job, onClose }) {
           <Link to={`/jobs?job=${job.id}`} onClick={onClose} className="logout-button" style={{ textDecoration: 'none' }}>
             Open in Jobs Table
           </Link>
+          {onUnschedule && (
+            <button className="logout-button" onClick={onUnschedule} title="Take it off the calendar and put it back in Needs Dispatch, on hold. Nothing is deleted.">
+              Unschedule (on hold)
+            </button>
+          )}
           <button className="logout-button" onClick={onClose}>Close</button>
         </div>
       </div>
