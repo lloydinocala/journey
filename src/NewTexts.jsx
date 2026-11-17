@@ -175,7 +175,7 @@ export default function NewTexts({ profile, onCount }) {
                       <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: out ? 'flex-end' : 'flex-start' }}>
                         <div style={{ maxWidth: '72%', padding: '9px 13px', borderRadius: 14, fontSize: 14, lineHeight: 1.4, background: out ? BLUE : '#EEF1F4', color: out ? '#fff' : '#101418', borderBottomRightRadius: out ? 4 : 14, borderBottomLeftRadius: out ? 14 : 4, whiteSpace: 'pre-wrap' }}>{m.body}</div>
                         <div style={{ fontSize: 11, color: m.status === 'failed' ? '#B5462F' : '#9AA6B2', marginTop: 3 }}>
-                          {out ? (m.status === 'failed' ? `✗ Not sent${m.error ? ` (${m.error})` : ''}` : '✓ Sent') : 'Received'} · {fmt(m.received_at)}
+                          {out ? (m.status === 'failed' ? `✗ Not sent${m.error ? ` (${m.error})` : ''}` : m.status === 'ai' ? '✓ Sent by the AI Receptionist' : '✓ Sent') : 'Received'} · {fmt(m.received_at)}
                         </div>
                       </div>
                     )

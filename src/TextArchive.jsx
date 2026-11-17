@@ -15,7 +15,7 @@ function fmtDateTime(t) {
 // Print just the selected thread (not the whole page): opens a clean print
 // window with the conversation and triggers the browser's print dialog.
 // Who/what/delivery line under each bubble: kind, recipient, and whether it really went out.
-const KIND_LABEL = { on_my_way: 'On My Way', review: 'Review request', message: 'Technician' }
+const KIND_LABEL = { on_my_way: 'On My Way', review: 'Review request', message: 'Technician', ai: 'AI Receptionist' }
 function metaLine(m) {
   if (m.direction === 'inbound') return `Customer reply${m.recipient_name || m.to_phone ? ` from ${[m.recipient_name, m.to_phone].filter(Boolean).join(' ')}` : ''}`
   const kind = KIND_LABEL[m.kind] || 'Technician'
