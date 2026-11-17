@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import FieldShell from './FieldShell'
 import { supabase } from '../utils/supabase'
 import { usd, fmtPhone, shortWhen, callFn } from './fieldUtil'
+import MicButton from '../MicButton'
 
 // INBOX — everything that came in while you were on a roof: customer texts, online bookings,
 // service requests, approved estimates and payments. Newest first; new since your last look in bold.
@@ -111,8 +112,9 @@ export default function FieldInbox({ profile }) {
               </div>
               {open === it.key && it.kind === 'newtext' && (
                 <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 8, display: 'grid', gap: 6 }}>
-                  <textarea className="fa-textarea" rows={2} placeholder="Reply from your company number…" value={reply} onChange={(e) => setReply(e.target.value)} />
+                  <textarea className="fa-textarea" rows={3} style={{ fontSize: 17 }} placeholder="Reply from your company number… (or tap 🎤 to talk)" value={reply} onChange={(e) => setReply(e.target.value)} />
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <MicButton className="fa-small-btn" style={{ background: '#fff', color: 'var(--fa-navy)' }} value={reply} onChange={setReply} />
                     <button type="button" className="fa-small-btn" disabled={!!busy || !reply.trim()} onClick={() => sendReply(it)}>{busy === 'reply' ? 'Sending…' : 'Send'}</button>
                     <a className="fa-small-btn" style={{ background: '#fff', color: 'var(--fa-navy)', textDecoration: 'none' }} href={`tel:${last10(it.phone)}`}>Call</a>
                     <button type="button" className="fa-small-btn" style={{ background: '#fff', color: 'var(--fa-navy)' }} onClick={() => navigate('/tech/field/add', { state: { phone: it.phone } })}>+ Job</button>

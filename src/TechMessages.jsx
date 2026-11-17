@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import { IconChevronLeft } from './MobileIcons'
+import MicButton from './MicButton'
 
 function fmtTime(t) {
   const d = new Date(t)
@@ -120,12 +121,13 @@ export default function TechMessages({ profile }) {
         <div className="msg-compose">
           <textarea
             className="msg-input"
-            rows={1}
+            rows={Math.min(5, Math.max(1, Math.ceil((body.length + 1) / 26), body.split('\n').length))}
             value={body}
             placeholder={custPhone ? `Message ${custName}…` : 'Message…'}
             onChange={(e) => setBody(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
           />
+          <MicButton className="msg-mic" value={body} onChange={setBody} />
           <button className="msg-send" disabled={sending || !body.trim()} onClick={send}>{sending ? '…' : 'Send'}</button>
         </div>
         </>
