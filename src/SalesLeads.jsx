@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
 import { supabase } from './utils/supabase'
+import SalesCalendar from './SalesCalendar'
 
 // Journey's own sales leads (super admin only) — mostly contractors who called Clara.
 // "Follow-up OK" = said yes on the call (a personal phone call is fine).
@@ -12,6 +13,7 @@ export default function SalesLeads({ profile }) {
   const [rows, setRows] = useState(null)
   const [filter, setFilter] = useState('followup')
   const [open, setOpen] = useState(null)
+  const [view, setView] = useState('calendar')
 
   const load = async () => {
     const { data } = await supabase.from('sales_leads').select('*').order('created_at', { ascending: false }).limit(500)
@@ -31,8 +33,15 @@ export default function SalesLeads({ profile }) {
 
   return (
     <div className="page-container" style={{ maxWidth: 1200 }}>
-      <h1 style={{ marginBottom: 4 }}>Sales Leads</h1>
-      <p style={{ color: '#64748B', marginTop: 0 }}>Contractors who called Clara. A yes on the call covers a personal phone call; texting them needs their written YES (shown as ✓ Text OK).</p>
+      <h1 style={{ marginBottom: 4 }}>Sales</h1>
+      <p style={{ color: '#64748B', marginTop: 0 }}>Journey's own sales: the follow-up calls Clara books with you, and the contractors who called her.</p>
+      <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid #E2E8F0', marginBottom: 8 }}>
+        {[['calendar', 'Sales Calendar'], ['leads', 'Leads']].map(([k, l]) => (
+          <button key={k} onClick={() => setView(k)} style={{ background: 'none', border: 'none', borderBottom: view === k ? '3px solid #2F79C4' : '3px solid transparent', padding: '8px 12px', fontWeight: 700, color: view === k ? '#163E64' : '#64748B', cursor: 'pointer' }}>{l}</button>
+        ))}
+      </div>
+      {view === 'calendar' ? <SalesCalendar /> : <>
+      <p style={{ color: '#64748B', marginTop: 4 }}>A yes on the call covers a personal phone call; texting them for marketing needs their written YES (shown as ✓ Text OK).</p>
       <div style={{ display: 'flex', gap: 8, margin: '12px 0' }}>
         {[['followup', 'Follow-up OK'], ['callbacks', 'Callbacks booked'], ['declined', 'Said no'], ['all', 'All']].map(([k, l]) => (
           <button key={k} className={filter === k ? 'btn btn-primary' : 'btn'} onClick={() => setFilter(k)}>{l}</button>
@@ -75,6 +84,7 @@ export default function SalesLeads({ profile }) {
           </tbody>
         </table>
       </div>
+      </>}
     </div>
   )
 }

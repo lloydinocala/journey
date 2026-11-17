@@ -43,7 +43,7 @@ const PAGE_TITLES = {
   '/import': 'Data Station', '/pricebook': 'Res Flat Rate Pricebook', '/pricebook-commercial': 'Comm Flat Rate Pricebook', '/pricebook-duct-cleaning': 'Duct Cleaning Pricebook', '/systems-pricebook': 'Res Systems Pricebook', '/time-and-materials': 'Time & Materials', '/filter-pricebook': 'Filter Pricebook',
   '/needs-rescheduling': 'Needs Rescheduling', '/agent-inbox': 'Agent Inbox', '/mail': 'Inbox', '/team-communications': 'Team Communications', '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
   '/payroll': 'Payroll Capture', '/session-log': 'Sign-In Log',
-  '/organizations': 'Organizations', '/sales-leads': 'Sales Leads', '/entitlements': 'Plans & Entitlements', '/announcements': 'Announcements', '/website-announcement': 'Website Announcement', '/my': 'My Pay & Benefits',
+  '/organizations': 'Organizations', '/sales-leads': 'Sales', '/entitlements': 'Plans & Entitlements', '/announcements': 'Announcements', '/website-announcement': 'Website Announcement', '/my': 'My Pay & Benefits',
   '/features': 'Feature Directory', '/training': 'Training Manual',
 }
 export function pageTitle(pathname) {
@@ -279,7 +279,7 @@ export function buildSections(profile) {
       // Platform / super-admin-only controls, tucked here so subscriber orgs never see them.
       { label: 'Lender Directory', icon: 'directory', path: '/financing-directory', super: true },
       { label: 'Organizations', icon: 'organizations', path: '/organizations', super: true },
-      { label: 'Sales Leads', icon: 'marketing', path: '/sales-leads', super: true },
+      { label: 'Sales', icon: 'marketing', path: '/sales-leads', super: true },
       { label: 'Plans & Entitlements', icon: 'financials', path: '/entitlements', super: true },
       { label: 'Announcements', icon: 'marketing', path: '/announcements', super: true },
       { label: 'Website Announcement', icon: 'marketing', path: '/website-announcement', super: true },
