@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './utils/supabase'
 
 // Journey's sales calendar (super admin): the follow-up calls Clara books with Lloyd, plus time
-// Lloyd blocks off. Weekdays 8–5 Eastern in 30-minute slots — the same hours Clara offers.
+// Lloyd blocks off. Weekdays 8–5 Eastern in 30-minute rows; each sales call is booked for one hour.
 // Clara never offers a booked or blocked slot, and always starts from the next business day.
 const TZ = 'America/New_York'
 const SLOTS = Array.from({ length: 18 }, (_, i) => { const m = 8 * 60 + i * 30; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}` })
@@ -40,7 +40,12 @@ export default function SalesCalendar() {
   }
   useEffect(() => { load() }, [week])
 
-  const callAt = (day, slot) => calls.find((c) => etDate(new Date(c.callback_at)) === day && etTime(new Date(c.callback_at)) === slot && c.callback_status !== 'canceled')
+  // Sales calls are one hour: a call fills its start slot and the half hour after it.
+  const callAt = (day, slot) => {
+    const t = etToUtc(day, slot).getTime()
+    return calls.find((c) => c.callback_status !== 'canceled' && t >= new Date(c.callback_at).getTime() && t < new Date(c.callback_at).getTime() + 3600e3)
+  }
+  const isStart = (c, day, slot) => etTime(new Date(c.callback_at)) === slot && etDate(new Date(c.callback_at)) === day
   const blockAt = (day, slot) => { const s = etToUtc(day, slot).getTime(); return blocks.find((b) => s < new Date(b.ends_at).getTime() && s + 30 * 60e3 > new Date(b.starts_at).getTime()) }
   const today = etDate(new Date())
 
@@ -89,7 +94,7 @@ export default function SalesCalendar() {
                     <td key={d} style={{ padding: 3, height: 30 }}>
                       {c ? (
                         <div onClick={() => setSel(c)} style={{ cursor: 'pointer', background: STATUS[c.callback_status || 'booked']?.c, color: '#fff', borderRadius: 6, padding: '3px 7px', fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          📞 <b>{c.contact_name || 'Caller'}</b>{c.company_name ? ` · ${c.company_name}` : ''}
+                          {isStart(c, d, s) ? <>📞 <b>{c.contact_name || 'Caller'}</b>{c.company_name ? ` · ${c.company_name}` : ''}</> : <span style={{ opacity: .8 }}>↳ continued</span>}
                         </div>
                       ) : b ? (
                         <div title={b.note || 'Blocked'} style={{ background: '#E2E8F0', color: '#475569', borderRadius: 6, padding: '3px 7px', fontSize: 12, display: 'flex', justifyContent: 'space-between', gap: 4 }}>
