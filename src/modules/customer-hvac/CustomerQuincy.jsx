@@ -1,17 +1,19 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
+import { QuincyAction } from './QuincyBits'
 
 
 const GREETING = {
   role: 'assistant',
-  content: "Hi! I'm Quincy \u{1F44B}  Ask me anything about your heating & cooling \u2014 what a noise might be, why it's not cooling, your filters, your plan, whatever's on your mind.",
+  content: "Hi! I'm Quincy \u{1F44B}  Ask me anything about your heating & cooling \u2014 what a noise might be, why it's not cooling, your filters, your plan. I can also book a visit, reorder your filters, or explain an estimate for you.",
 }
 
 const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null
 
 export default function CustomerQuincy() {
   const nav = useNavigate()
+  const loc = useLocation()
   const [messages, setMessages] = useState([GREETING])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -26,6 +28,13 @@ export default function CustomerQuincy() {
   }, [messages, sending])
 
   useEffect(() => () => { try { recRef.current?.stop() } catch { /* noop */ } }, [])
+
+  // Opened from a "Quincy noticed…" card (e.g. "Please reorder my usual filters.") — ask it once.
+  const askedRef = useRef(false)
+  useEffect(() => {
+    const ask = loc.state?.ask
+    if (ask && !askedRef.current) { askedRef.current = true; send(null, ask) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleMic() {
     if (!SR) return
@@ -44,18 +53,21 @@ export default function CustomerQuincy() {
     try { rec.start(); setListening(true) } catch { setListening(false) }
   }
 
-  async function send(e) {
+  async function send(e, preset) {
     e?.preventDefault()
     if (listening) { try { recRef.current?.stop() } catch { /* noop */ } setListening(false) }
-    const text = input.trim()
+    const text = (preset ?? input).trim()
     if (!text || sending) return
     setError('')
     const next = [...messages, { role: 'user', content: text }]
     setMessages(next); setInput(''); setSending(true)
-    const { data, error: fnErr } = await supabase.functions.invoke('quincy-portal', { body: { messages: next } })
+    const property_id = typeof localStorage !== 'undefined' ? localStorage.getItem('cp_active_property') : null
+    const { data, error: fnErr } = await supabase.functions.invoke('quincy-portal', {
+      body: { mode: 'chat', property_id, messages: next.map(({ role, content }) => ({ role, content })) },
+    })
     setSending(false)
     if (fnErr || data?.error) { setError(data?.error || fnErr?.message || 'Quincy is having trouble right now. Please try again.'); return }
-    setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }])
+    setMessages((prev) => [...prev, { role: 'assistant', content: data.reply, action: data.action || null }])
   }
 
   return (
@@ -71,7 +83,10 @@ export default function CustomerQuincy() {
 
       <div className="cp-chat-scroll" ref={scrollRef}>
         {messages.map((m, i) => (
-          <div key={i} className={'cp-bubble ' + (m.role === 'user' ? 'me' : 'bot')}>{m.content}</div>
+          <div key={i} style={{ display: 'contents' }}>
+            <div className={'cp-bubble ' + (m.role === 'user' ? 'me' : 'bot')}>{m.content}</div>
+            {m.action && <QuincyAction action={m.action} />}
+          </div>
         ))}
         {sending && <div className="cp-bubble bot cp-bubble-typing">Thinking…</div>}
         {error && <div className="cp-bubble err">{error}</div>}

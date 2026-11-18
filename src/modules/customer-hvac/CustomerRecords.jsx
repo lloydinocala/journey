@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
+import { QuincyExplain } from './QuincyBits'
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`
 const date = (d) => d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''
@@ -145,6 +146,7 @@ export default function CustomerRecords({ customer }) {
                   <button className="cp-btn ghost sm" disabled={dlId === i.id} onClick={() => downloadPdf(i.id, i.invoice_number, false)}>{dlId === i.id ? '…' : 'Download'}</button>
                   {due && <button className="cp-btn pay sm" disabled={busyId === i.id} onClick={() => payInvoice(i.id)}>{busyId === i.id ? '…' : `Pay ${money(i.amount_due)}`}</button>}
                 </div>
+                <div style={{ marginTop: 8 }}><QuincyExplain kind="invoice" id={i.id} /></div>
               </div>
             )
           }) : <div className="cp-empty">No invoices.</div>)}
@@ -172,6 +174,7 @@ export default function CustomerRecords({ customer }) {
                     </>
                   )}
                 </div>
+                <div style={{ marginTop: 8 }}><QuincyExplain kind="estimate" id={e.id} /></div>
               </div>
             )
           }) : <div className="cp-empty">No estimates.</div>)}

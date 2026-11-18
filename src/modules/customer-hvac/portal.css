@@ -287,3 +287,28 @@
 .cp-health-why ul{margin:8px 0 6px;padding-left:18px}
 .cp-health-why li{font-size:13px;color:var(--ink);line-height:1.5;margin-bottom:3px}
 .cp-health-disc{font-size:11.5px;color:var(--muted);font-style:italic}
+
+/* ---- Quincy: noticed cards, explain panel, action cards ---- */
+.qn-wrap{margin:4px 14px 6px}
+.qn-head{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;color:var(--ink);margin:6px 2px 8px}
+.qn-head img{width:26px;height:26px;object-fit:contain}
+.qn-card{background:#fff;border-radius:16px;border-left:5px solid var(--sky);padding:12px 14px;margin-bottom:10px;box-shadow:0 6px 18px rgba(47,121,196,.14);display:flex;flex-direction:column;gap:4px}
+.qn-card.go{border-left-color:var(--go)}
+.qn-card.warn{border-left-color:var(--amber)}
+.qn-card b{font-size:15px;color:var(--ink)}
+.qn-card span{font-size:13.5px;color:var(--muted);line-height:1.4}
+.qn-cta{align-self:flex-start;margin-top:6px}
+.qx-btn{margin-top:2px}
+.qx-panel{background:#F4F9FE;border:1px solid var(--line);border-radius:14px;padding:12px 13px;margin-top:8px}
+.qx-loading{color:var(--muted);font-style:italic;font-size:13.5px}
+.qx-label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--sky-d);margin-bottom:4px}
+.qx-label img{width:18px;height:18px;object-fit:contain}
+.qx-text{font-size:14px;line-height:1.45;color:var(--ink);white-space:pre-wrap}
+.qx-take{margin-top:12px;padding-top:10px;border-top:1px dashed #BFD6EC}
+.qa-card{align-self:flex-start;max-width:92%;background:#fff;border:1.5px solid var(--sky);border-radius:16px;padding:12px 13px;display:flex;flex-direction:column;gap:4px}
+.qa-card.done{border-color:var(--go);color:var(--go-d);font-weight:700;font-size:14px}
+.qa-card b{font-size:15px;color:var(--ink)}
+.qa-sub{font-size:13px;color:var(--muted)}
+.qa-days{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.qa-dl{font-size:12.5px;font-weight:800;color:var(--ink);margin-bottom:4px}
+.qa-wins{display:flex;flex-wrap:wrap;gap:6px}

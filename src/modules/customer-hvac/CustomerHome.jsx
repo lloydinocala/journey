@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import { displayBrandName } from './brand'
+import { QuincyNotices } from './QuincyBits'
 
 function Ic({ d }) {
   return (
@@ -93,6 +94,8 @@ export default function CustomerHome({ customer, org, properties, activeProperty
           🔔 {pendingReq} service request{pendingReq > 1 ? 's' : ''} need your approval →
         </button>
       )}
+
+      <QuincyNotices />
 
       <div className="cp-sec">How can we help?</div>
       <div className="cp-feats">

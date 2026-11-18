@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import ChecklistReport from '../../ChecklistReport'
+import { QuincyExplain } from './QuincyBits'
 
 export default function CustomerReportView() {
   const { runId } = useParams()
@@ -27,6 +28,7 @@ export default function CustomerReportView() {
             <div className="noprint" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
               <button onClick={() => window.print()} style={{ background: 'var(--sky)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 600, cursor: 'pointer' }}>Save PDF / Print</button>
             </div>
+            <div className="noprint" style={{ marginBottom: 10 }}><QuincyExplain kind="report" id={runId} /></div>
             <ChecklistReport data={data} />
           </div>
         )}
