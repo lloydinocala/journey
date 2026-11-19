@@ -131,6 +131,13 @@ function DispatchTray({ jobs, onJobClick, collapsed, onToggle, isMobile, onRelea
   )
 }
 
+// Journey (Platform) org: its calendar shows the sales calls booked with Lloyd (by Clara or on journey-hvac.com),
+// read from sales_leads — not service jobs. Clicking one opens the Sales calendar, where it's managed.
+const JOURNEY_ORG = '5bb0e0a2-9a0a-4f45-96b9-69e7fe31ba8b'
+const SALES_TZ = 'America/New_York'
+const salesDay = (ts) => new Intl.DateTimeFormat('en-CA', { timeZone: SALES_TZ }).format(new Date(ts))
+const SALES_COLOR = { booked: '#2F79C4', done: '#16A34A', no_answer: '#D97706' }
+
 export default function Calendar({ profile }) {
   const [orgs, setOrgs] = useState([])
   const [selectedOrg, setSelectedOrg] = useState(() => profile.org_id || viewingOrg())
@@ -240,6 +247,26 @@ export default function Calendar({ profile }) {
         technician_names: techs.length > 0 ? techs.map((t) => t.users?.full_name).join(', ') : 'Unassigned',
       }
     })
+    if (selectedOrg === JOURNEY_ORG) {
+      // A day of slack on each side, then keep the calls whose Eastern date falls in range.
+      const from = new Date(rangeStart + 'T00:00:00Z'); from.setUTCDate(from.getUTCDate() - 1)
+      const to = new Date(rangeEnd + 'T00:00:00Z'); to.setUTCDate(to.getUTCDate() + 2)
+      const { data: calls } = await supabase.from('sales_leads')
+        .select('id, source, contact_name, company_name, callback_at, callback_status')
+        .not('callback_at', 'is', null).neq('callback_status', 'canceled')
+        .gte('callback_at', from.toISOString()).lt('callback_at', to.toISOString())
+      for (const c of calls || []) {
+        const d = salesDay(c.callback_at)
+        if (d < rangeStart || d > rangeEnd) continue
+        mapped.push({
+          id: 'sales-' + c.id, is_sales: true, job_date: d, start_time: c.callback_at, duration_hours: 1,
+          status: c.callback_status || 'booked', job_type: String(c.source || '').startsWith('website') ? 'Sales call · website' : 'Sales call · Clara',
+          customer_name: '📞 ' + (c.contact_name || 'Caller') + (c.company_name ? ' · ' + c.company_name : ''),
+          technician_names: 'Lloyd', primary_technician: { calendar_color: SALES_COLOR[c.callback_status || 'booked'] || '#2F79C4' },
+          address: '', full_address: '', is_banned: false,
+        })
+      }
+    }
     setJobs(mapped)
     setLoading(false)
   }
@@ -381,6 +408,7 @@ export default function Calendar({ profile }) {
   }
 
   async function handleGridDrop(jobId, newDateStr, newTimeStr) {
+    if (String(jobId).startsWith('sales-')) return // sales calls are moved on the Sales calendar
     if (await installPaymentBlocked(jobId)) {
       setBlockMsg("This install is waiting on payment. Use \"Release to calendar…\" on its card (deposit received or financing approved) and it will place itself on the calendar.")
       loadTray(); return
@@ -439,6 +467,7 @@ export default function Calendar({ profile }) {
   }
 
   async function handleMonthDrop(jobId, newDateStr) {
+    if (String(jobId).startsWith('sales-')) return
     if (await installPaymentBlocked(jobId)) {
       setBlockMsg("This install is waiting on payment. Use \"Release to calendar…\" on its card (deposit received or financing approved) and it will place itself on the calendar.")
       loadTray(); return
@@ -573,7 +602,7 @@ export default function Calendar({ profile }) {
                 monthDate={currentDate}
                 gridDays={days}
                 jobs={jobs.filter((j) => !j.date_pending)}
-                onJobClick={setSelectedJob}
+                onJobClick={(j) => (j && j.is_sales ? nav('/sales-leads') : setSelectedJob(j))}
                 onDayClick={handleDayClick}
                 onJobDrop={handleMonthDrop}
               />
@@ -583,7 +612,7 @@ export default function Calendar({ profile }) {
                 jobs={jobs.filter((j) => !j.date_pending)}
                 businessStart={businessStart}
                 businessEnd={businessEnd}
-                onJobClick={setSelectedJob}
+                onJobClick={(j) => (j && j.is_sales ? nav('/sales-leads') : setSelectedJob(j))}
                 onJobDrop={handleGridDrop}
               />
             )}
