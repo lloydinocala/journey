@@ -43,7 +43,7 @@ const PAGE_TITLES = {
   '/import': 'Data Station', '/pricebook': 'Res Flat Rate Pricebook', '/pricebook-commercial': 'Comm Flat Rate Pricebook', '/pricebook-duct-cleaning': 'Duct Cleaning Pricebook', '/systems-pricebook': 'Res Systems Pricebook', '/time-and-materials': 'Time & Materials', '/filter-pricebook': 'Filter Pricebook',
   '/needs-rescheduling': 'Needs Rescheduling', '/agent-inbox': 'Agent Inbox', '/mail': 'Inbox', '/team-communications': 'Team Communications', '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
   '/payroll': 'Payroll Capture', '/session-log': 'Sign-In Log',
-  '/organizations': 'Organizations', '/sales-leads': 'Sales', '/journey-followups': 'Follow-ups', '/entitlements': 'Plans & Entitlements', '/announcements': 'Announcements', '/website-announcement': 'Website Announcement', '/my': 'My Pay & Benefits',
+  '/organizations': 'Organizations', '/sales-leads': 'Sales', '/journey-followups': 'Follow-ups', '/journey-mail': "Quincy's inbox sort", '/entitlements': 'Plans & Entitlements', '/announcements': 'Announcements', '/website-announcement': 'Website Announcement', '/my': 'My Pay & Benefits',
   '/features': 'Feature Directory', '/training': 'Training Manual',
 }
 export function pageTitle(pathname) {
@@ -204,6 +204,7 @@ function journeySections() {
       { label: 'Call Console', path: '/call' },
       { label: 'Call Log', path: '/call-log' },
       { label: 'Known Others', path: '/known-contacts' },
+      { label: "Quincy's inbox sort", path: '/journey-mail', highlight: true },
       { label: 'Mail', path: '/mail' },
     ] },
     { key: 'admin', label: 'Admin', icon: 'admin', dash: '/admin', children: [
@@ -305,6 +306,7 @@ export function buildSections(profile) {
       { label: 'Organizations', icon: 'organizations', path: '/organizations', super: true },
       { label: 'Sales', icon: 'marketing', path: '/sales-leads', super: true },
       { label: 'Journey Follow-ups', icon: 'marketing', path: '/journey-followups', super: true },
+      { label: "Journey inbox sort", icon: 'marketing', path: '/journey-mail', super: true },
       { label: 'Plans & Entitlements', icon: 'financials', path: '/entitlements', super: true },
       { label: 'Announcements', icon: 'marketing', path: '/announcements', super: true },
       { label: 'Website Announcement', icon: 'marketing', path: '/website-announcement', super: true },

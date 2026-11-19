@@ -172,6 +172,7 @@ import { MARKETING_ROUTES } from './modules/marketing-hvac'
 import ShowMode from './ShowMode'
 import SalesLeads from './SalesLeads'
 import JourneyFollowups from './JourneyFollowups'
+import JourneyMailTriage from './JourneyMailTriage'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
 
 async function logSignIn(userId) {
@@ -536,6 +537,7 @@ function AuthenticatedApp() {
           <>
             <Route path="/sales-leads" element={<SalesLeads profile={profile} />} />
             <Route path="/journey-followups" element={<JourneyFollowups profile={profile} />} />
+            <Route path="/journey-mail" element={<JourneyMailTriage profile={profile} />} />
           </>
         )}
         <Route path="*" element={<Navigate to="/" replace />} />
