@@ -29,6 +29,7 @@ function Pill({ s }) { const x = STATUS[s] || STATUS.new; return <span style={{ 
 export default function SalesLeads({ profile }) {
   const isSuper = profile?.role === 'super_admin'
   const canSee = isSuper || profile?.org_id === JOURNEY_ORG
+  const canEdit = canSee
   const [rows, setRows] = useState(null)
   const [view, setView] = useState('demos')
   const [filter, setFilter] = useState('open')
@@ -111,7 +112,7 @@ export default function SalesLeads({ profile }) {
             <button key={k} className={filter === k ? 'btn btn-primary' : 'btn'} onClick={() => setFilter(k)}>{l}{counts[k] !== undefined ? ` (${counts[k]})` : ''}</button>
           ))}
           <input placeholder="Search name, company, phone, email…" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 240, marginLeft: view === 'demos' ? 8 : 0 }} />
-          {view === 'demos' && isSuper && <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => setAdding({ ...BLANK, request_date: todayET() })}>+ Demo request</button>}
+          {view === 'demos' && canEdit && <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => setAdding({ ...BLANK, request_date: todayET() })}>+ Demo request</button>}
         </div>
         {msg && <div style={{ color: '#B42318', marginBottom: 8 }}>{msg}</div>}
 
@@ -184,7 +185,7 @@ export default function SalesLeads({ profile }) {
                           </div>
                           {r.special_interests && <p style={{ margin: '4px 0' }}><b>Special interests:</b> {r.special_interests}</p>}
                           <div style={{ whiteSpace: 'pre-wrap', color: '#334155' }}>{r.notes || (r.source === 'clara' ? 'No call summary yet (it arrives a minute after the call ends).' : '')}</div>
-                          {isSuper && <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                          {canEdit && <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                             <button className="btn" onClick={() => startEdit(r)}>Edit</button>
                             {r.status !== 'signed_up' && <button className="btn" onClick={() => signUp(r)}>Mark signed up → make customer</button>}
                             {r.customer_id && <Link className="btn" to={`/customers/${r.customer_id}`}>Open customer →</Link>}

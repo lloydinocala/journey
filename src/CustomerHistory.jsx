@@ -399,6 +399,7 @@ export default function CustomerHistory({ profile }) {
   }
 
   if (!customer) return null
+  const isJ = customer.org_id === JOURNEY_ORG
 
   return (
     <div>
@@ -418,13 +419,14 @@ export default function CustomerHistory({ profile }) {
         </button>
       </div>
 
+      {/* Journey (Platform) customers are software subscribers: show their account, not HVAC history. */}
       <div className="ch-printable">
         <div className="page-header-bar">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <h2>{customer.display_name}</h2>
             {customer.is_banned && <span className="badge" style={{ background: '#a33', color: '#fff' }}>Do Not Service</span>}
           </div>
-          <button className="auth-button" style={{ width: 'auto' }} onClick={() => setReceiving(true)}>Receive Payment</button>
+          {!isJ && <button className="auth-button" style={{ width: 'auto' }} onClick={() => setReceiving(true)}>Receive Payment</button>}
         </div>
         {receiving && (
           <ReceivePayment profile={profile} orgId={customer.org_id} customerId={customer.id} customerName={customer.display_name} onClose={() => setReceiving(false)} onRecorded={loadAll} />
@@ -435,6 +437,7 @@ export default function CustomerHistory({ profile }) {
 
         {customer.org_id === JOURNEY_ORG && <JourneySubscriptionCard customerId={customer.id} />}
 
+        {!isJ && (<>
         <CustomerInsights
           customer={customer}
           properties={properties}
@@ -444,6 +447,7 @@ export default function CustomerHistory({ profile }) {
           equipment={equipment}
           warranties={warranties}
         />
+        </>)}
 
         <div style={{ display: 'flex', gap: 40, flexWrap: 'wrap', margin: '16px 0 28px' }}>
           <div>
@@ -460,6 +464,7 @@ export default function CustomerHistory({ profile }) {
             <p style={{ margin: '2px 0', color: 'var(--mist)' }}>Customer since {formatDate(customer.acquire_date)}</p>
           </div>
 
+        {!isJ && (<>
           <div>
             <h3 style={{ marginBottom: 6 }}>Properties</h3>
             {properties.length === 0 && <p style={{ color: 'var(--mist)' }}>No properties on file.</p>}
@@ -551,8 +556,10 @@ export default function CustomerHistory({ profile }) {
               {offerMsg && <p style={{ margin: '6px 0 0', fontSize: 13, color: '#2563EB' }}>{offerMsg}</p>}
             </div>
           </div>
+        </>)}
         </div>
 
+        {!isJ && (<>
         <div style={{ marginBottom: 28 }}>
           <h3 style={{ marginBottom: 6 }}>Contacts &amp; Invoice Routing</h3>
           <p style={{ color: 'var(--mist)', fontSize: 13, marginTop: 0 }}>
@@ -629,6 +636,7 @@ export default function CustomerHistory({ profile }) {
             </div>
           </form>
         </div>
+        </>)}
 
         {customer.notes && (
           <div style={{ marginBottom: 28 }}>
@@ -637,6 +645,7 @@ export default function CustomerHistory({ profile }) {
           </div>
         )}
 
+        {!isJ && (<>
         <div style={{ marginBottom: 28 }}>
           <h3 style={{ marginBottom: 10 }}>Job History</h3>
           {jobs.length === 0 ? (
@@ -762,7 +771,9 @@ export default function CustomerHistory({ profile }) {
             </div>
           )}
         </div>
+        </>)}
 
+        {!isJ && (<>
         <div>
           <h3 style={{ marginBottom: 10 }}>Warranty Registrations</h3>
           {warranties.length === 0 ? (
@@ -794,6 +805,7 @@ export default function CustomerHistory({ profile }) {
             </table>
           )}
         </div>
+        </>)}
 
         <div>
           <h3 style={{ marginBottom: 10 }}>Photos &amp; Attachments</h3>

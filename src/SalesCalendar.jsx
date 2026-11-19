@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './utils/supabase'
+import JourneyAppointmentModal, { APPT_TYPES } from './JourneyAppointmentModal'
 
 // Journey's sales calendar (super admin): the follow-up calls Clara books with Lloyd, plus time
 // Lloyd blocks off. Weekdays 8–5 Eastern in 30-minute rows; each sales call is booked for one hour.
@@ -25,18 +26,21 @@ export default function SalesCalendar() {
   const [week, setWeek] = useState(() => mondayOf(etDate(new Date())))
   const [calls, setCalls] = useState([])
   const [blocks, setBlocks] = useState([])
+  const [appts, setAppts] = useState([])
+  const [jAppt, setJAppt] = useState(null)
   const [sel, setSel] = useState(null)
   const [blockForm, setBlockForm] = useState(null)
   const days = useMemo(() => [0, 1, 2, 3, 4].map((i) => addDays(week, i)), [week])
 
   const load = async () => {
     const from = etToUtc(days[0], '00:00').toISOString(), to = etToUtc(addDays(days[4], 1), '00:00').toISOString()
-    const [{ data: c }, { data: b }] = await Promise.all([
+    const [{ data: c }, { data: b }, { data: a }] = await Promise.all([
       supabase.from('sales_leads').select('id, contact_name, company_name, phone, email, language, callback_at, callback_status, reminders_ok, confirm_sent_at, remind_day_sent_at, remind_hour_sent_at, notes')
         .gte('callback_at', from).lt('callback_at', to),
       supabase.from('sales_calendar_blocks').select('*').lt('starts_at', to).gt('ends_at', from),
+      supabase.from('journey_appointments').select('*').neq('status', 'canceled').gte('starts_at', from).lt('starts_at', to),
     ])
-    setCalls(c || []); setBlocks(b || [])
+    setCalls(c || []); setBlocks(b || []); setAppts(a || [])
   }
   useEffect(() => { load() }, [week])
 
@@ -46,6 +50,9 @@ export default function SalesCalendar() {
     return calls.find((c) => c.callback_status !== 'canceled' && t >= new Date(c.callback_at).getTime() && t < new Date(c.callback_at).getTime() + 3600e3)
   }
   const isStart = (c, day, slot) => etTime(new Date(c.callback_at)) === slot && etDate(new Date(c.callback_at)) === day
+  // Appointments booked on the Journey desk (setup, support, follow-ups…), any length.
+  const apptAt = (day, slot) => { const t = etToUtc(day, slot).getTime(); return appts.find((a) => t >= new Date(a.starts_at).getTime() && t < new Date(a.starts_at).getTime() + a.duration_min * 60e3) }
+  const apptStart = (a, day, slot) => etTime(new Date(a.starts_at)) === slot && etDate(new Date(a.starts_at)) === day
   const blockAt = (day, slot) => { const s = etToUtc(day, slot).getTime(); return blocks.find((b) => s < new Date(b.ends_at).getTime() && s + 30 * 60e3 > new Date(b.starts_at).getTime()) }
   const today = etDate(new Date())
 
@@ -65,7 +72,8 @@ export default function SalesCalendar() {
         <button className="btn" onClick={() => setWeek(mondayOf(today))}>This week</button>
         <button className="btn" onClick={() => setWeek(addDays(week, 7))}>Next ›</button>
         <b style={{ marginLeft: 8 }}>Week of {new Date(week + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}</b>
-        <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => setBlockForm({ day: days.find((d) => d >= today) || days[0], start: '12:00', end: '13:00', note: '' })}>Block time</button>
+        <button className="btn" style={{ marginLeft: 'auto' }} onClick={() => setJAppt({ day: days.find((d) => d >= today) || days[0] })}>+ Appointment</button>
+        <button className="btn btn-primary" onClick={() => setBlockForm({ day: days.find((d) => d >= today) || days[0], start: '12:00', end: '13:00', note: '' })}>Block time</button>
       </div>
 
       {blockForm && (
@@ -89,12 +97,16 @@ export default function SalesCalendar() {
               <tr key={s}>
                 <td style={{ fontSize: 12.5, color: '#64748B' }}>{label12(s)}</td>
                 {days.map((d) => {
-                  const c = callAt(d, s), b = !c && blockAt(d, s)
+                  const c = callAt(d, s), ap = !c && apptAt(d, s), b = !c && !ap && blockAt(d, s)
                   return (
                     <td key={d} style={{ padding: 3, height: 30 }}>
                       {c ? (
                         <div onClick={() => setSel(c)} style={{ cursor: 'pointer', background: STATUS[c.callback_status || 'booked']?.c, color: '#fff', borderRadius: 6, padding: '3px 7px', fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {isStart(c, d, s) ? <>📞 <b>{c.contact_name || 'Caller'}</b>{c.company_name ? ` · ${c.company_name}` : ''}</> : <span style={{ opacity: .8 }}>↳ continued</span>}
+                        </div>
+                      ) : ap ? (
+                        <div onClick={() => setJAppt(ap)} style={{ cursor: 'pointer', background: ap.status === 'done' ? '#16A34A' : (APPT_TYPES[ap.type] || APPT_TYPES.other).c, color: '#fff', borderRadius: 6, padding: '3px 7px', fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {apptStart(ap, d, s) ? <><b>{(APPT_TYPES[ap.type] || APPT_TYPES.other).l}</b> · {ap.contact_name || ap.company || ''}</> : <span style={{ opacity: .8 }}>↳ continued</span>}
                         </div>
                       ) : b ? (
                         <div title={b.note || 'Blocked'} style={{ background: '#E2E8F0', color: '#475569', borderRadius: 6, padding: '3px 7px', fontSize: 12, display: 'flex', justifyContent: 'space-between', gap: 4 }}>
@@ -110,6 +122,8 @@ export default function SalesCalendar() {
           </tbody>
         </table>
       </div>
+
+      {jAppt && <JourneyAppointmentModal appt={jAppt} onClose={() => setJAppt(null)} onSaved={load} />}
 
       {sel && (
         <div onClick={() => setSel(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>

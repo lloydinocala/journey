@@ -10,6 +10,7 @@ import CalendarMonth from './CalendarMonth'
 import JobDetailModal from './JobDetailModal'
 import CalendarTodoTile from './CalendarTodoTile'
 import UnassignedTasksTile from './UnassignedTasksTile'
+import JourneyAppointmentModal, { APPT_TYPES, etToUtc } from './JourneyAppointmentModal'
 import { loadOrgTz, zonedToUtcIso } from './utils/tz'
 import { SOURCE_LABEL, SOURCE_SHORT, fmtReceived, receivedAgo, isNewUnassigned } from './utils/bookingSource'
 import {
@@ -156,6 +157,7 @@ export default function Calendar({ profile }) {
   const [newBookings, setNewBookings] = useState([])
   const [newOpen, setNewOpen] = useState(false)
   const [newItemMode, setNewItemMode] = useState(null)
+  const [jAppt, setJAppt] = useState(null) // Journey org: appointment being created / edited
 
   const isSuperAdmin = profile.role === 'super_admin'
   const effectiveView = isMobile ? 'day' : viewMode
@@ -264,6 +266,19 @@ export default function Calendar({ profile }) {
           customer_name: '📞 ' + (c.contact_name || 'Caller') + (c.company_name ? ' · ' + c.company_name : ''),
           technician_names: 'Lloyd', primary_technician: { calendar_color: SALES_COLOR[c.callback_status || 'booked'] || '#2F79C4' },
           address: '', full_address: '', is_banned: false,
+        })
+      }
+      const { data: appts } = await supabase.from('journey_appointments')
+        .select('id, type, starts_at, duration_min, status, contact_name, company')
+        .neq('status', 'canceled').gte('starts_at', from.toISOString()).lt('starts_at', to.toISOString())
+      for (const a of appts || []) {
+        const d = salesDay(a.starts_at)
+        if (d < rangeStart || d > rangeEnd) continue
+        const t = APPT_TYPES[a.type] || APPT_TYPES.other
+        mapped.push({
+          id: 'jappt-' + a.id, is_jappt: true, appt_id: a.id, job_date: d, start_time: a.starts_at, duration_hours: a.duration_min / 60,
+          status: a.status, job_type: t.l, customer_name: (a.contact_name || a.company || 'Appointment') + (a.company && a.contact_name ? ' · ' + a.company : ''),
+          technician_names: 'Lloyd', primary_technician: { calendar_color: a.status === 'done' ? '#16A34A' : t.c }, address: '', full_address: '', is_banned: false,
         })
       }
     }
@@ -407,8 +422,19 @@ export default function Calendar({ profile }) {
     return !!(src && !src.payment_confirmed_at && !src.paid_at)
   }
 
+  // Journey org: sales calls open the Sales page; appointments open the appointment editor.
+  async function openItem(j) {
+    if (j && j.is_sales) { nav('/sales-leads'); return }
+    if (j && j.is_jappt) { const { data } = await supabase.from('journey_appointments').select('*').eq('id', j.appt_id).single(); if (data) setJAppt(data); return }
+    setSelectedJob(j)
+  }
+
   async function handleGridDrop(jobId, newDateStr, newTimeStr) {
     if (String(jobId).startsWith('sales-')) return // sales calls are moved on the Sales calendar
+    if (String(jobId).startsWith('jappt-')) { // Journey appointment: move it
+      await supabase.from('journey_appointments').update({ starts_at: etToUtc(newDateStr, String(newTimeStr).slice(0, 5)).toISOString(), updated_at: new Date().toISOString() }).eq('id', String(jobId).slice(6))
+      loadJobs(); return
+    }
     if (await installPaymentBlocked(jobId)) {
       setBlockMsg("This install is waiting on payment. Use \"Release to calendar…\" on its card (deposit received or financing approved) and it will place itself on the calendar.")
       loadTray(); return
@@ -467,7 +493,7 @@ export default function Calendar({ profile }) {
   }
 
   async function handleMonthDrop(jobId, newDateStr) {
-    if (String(jobId).startsWith('sales-')) return
+    if (String(jobId).startsWith('sales-') || String(jobId).startsWith('jappt-')) return
     if (await installPaymentBlocked(jobId)) {
       setBlockMsg("This install is waiting on payment. Use \"Release to calendar…\" on its card (deposit received or financing approved) and it will place itself on the calendar.")
       loadTray(); return
@@ -496,7 +522,12 @@ export default function Calendar({ profile }) {
       )}
       <div className="page-header-bar">
         <h2>Calendar</h2>
-        <NewItemDropdown onSelect={setNewItemMode} />
+        {selectedOrg === JOURNEY_ORG
+          ? <div style={{ display: 'flex', gap: 8 }}>
+              <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '8px 16px' }} onClick={() => setJAppt({ day: toLocalDateStr(currentDate) })}>+ New appointment</button>
+              <button className="logout-button" onClick={() => nav('/journey-followups')}>Follow-ups</button>
+            </div>
+          : <NewItemDropdown onSelect={setNewItemMode} />}
       </div>
 
       {isSuperAdmin && (
@@ -546,7 +577,7 @@ export default function Calendar({ profile }) {
         )}
       </div>
 
-      {newBookings.length > 0 && (
+      {selectedOrg !== JOURNEY_ORG && newBookings.length > 0 && (
         <div style={{ background: '#EAF2FF', border: '1px solid #93B4F0', borderLeft: '5px solid #2563EB', borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}>
           <div onClick={() => setNewOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 18 }}>🔔</span>
@@ -583,7 +614,7 @@ export default function Calendar({ profile }) {
         <p style={{ color: 'var(--mist)' }}>Loading…</p>
       ) : (
         <div style={{ display: isMobile ? 'block' : 'flex', gap: 16, alignItems: 'flex-start' }}>
-          <div style={{ flex: isMobile ? 'none' : '0 0 202px', width: isMobile ? '100%' : 202, marginBottom: isMobile ? 16 : 0 }}>
+          {selectedOrg !== JOURNEY_ORG && <div style={{ flex: isMobile ? 'none' : '0 0 202px', width: isMobile ? '100%' : 202, marginBottom: isMobile ? 16 : 0 }}>
             <DispatchTray
               jobs={trayJobs}
               onJobClick={setSelectedJob}
@@ -595,14 +626,14 @@ export default function Calendar({ profile }) {
             />
             <CalendarTodoTile orgId={selectedOrg} profile={profile} isMobile={isMobile} />
             <UnassignedTasksTile orgId={selectedOrg} isMobile={isMobile} />
-          </div>
+          </div>}
           <div style={{ flex: 1, minWidth: 0 }}>
             {effectiveView === 'month' ? (
               <CalendarMonth
                 monthDate={currentDate}
                 gridDays={days}
                 jobs={jobs.filter((j) => !j.date_pending)}
-                onJobClick={(j) => (j && j.is_sales ? nav('/sales-leads') : setSelectedJob(j))}
+                onJobClick={openItem}
                 onDayClick={handleDayClick}
                 onJobDrop={handleMonthDrop}
               />
@@ -612,7 +643,7 @@ export default function Calendar({ profile }) {
                 jobs={jobs.filter((j) => !j.date_pending)}
                 businessStart={businessStart}
                 businessEnd={businessEnd}
-                onJobClick={(j) => (j && j.is_sales ? nav('/sales-leads') : setSelectedJob(j))}
+                onJobClick={openItem}
                 onJobDrop={handleGridDrop}
               />
             )}
@@ -622,6 +653,8 @@ export default function Calendar({ profile }) {
 
       <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)}
         onUnschedule={selectedJob && !selectedJob.date_pending && selectedJob.job_date ? () => unscheduleJob(selectedJob.id) : null} />
+
+      {jAppt && <JourneyAppointmentModal appt={jAppt} profile={profile} onClose={() => setJAppt(null)} onSaved={loadJobs} />}
 
       {newItemMode && (
         <QuickAddModal

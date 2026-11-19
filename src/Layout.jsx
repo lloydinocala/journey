@@ -43,7 +43,7 @@ const PAGE_TITLES = {
   '/import': 'Data Station', '/pricebook': 'Res Flat Rate Pricebook', '/pricebook-commercial': 'Comm Flat Rate Pricebook', '/pricebook-duct-cleaning': 'Duct Cleaning Pricebook', '/systems-pricebook': 'Res Systems Pricebook', '/time-and-materials': 'Time & Materials', '/filter-pricebook': 'Filter Pricebook',
   '/needs-rescheduling': 'Needs Rescheduling', '/agent-inbox': 'Agent Inbox', '/mail': 'Inbox', '/team-communications': 'Team Communications', '/settings': 'Settings', '/team': 'Team', '/roles': 'Roles & Tags', '/time-clock': 'Time Clock',
   '/payroll': 'Payroll Capture', '/session-log': 'Sign-In Log',
-  '/organizations': 'Organizations', '/sales-leads': 'Sales', '/entitlements': 'Plans & Entitlements', '/announcements': 'Announcements', '/website-announcement': 'Website Announcement', '/my': 'My Pay & Benefits',
+  '/organizations': 'Organizations', '/sales-leads': 'Sales', '/journey-followups': 'Follow-ups', '/entitlements': 'Plans & Entitlements', '/announcements': 'Announcements', '/website-announcement': 'Website Announcement', '/my': 'My Pay & Benefits',
   '/features': 'Feature Directory', '/training': 'Training Manual',
 }
 export function pageTitle(pathname) {
@@ -191,8 +191,32 @@ const INSIGHTS_PAGES = [
 ]
 
 // Build the section tree for a given profile (entitlement + role gated).
+// Journey (Platform) org: Journey sells software, it doesn't run HVAC jobs — its people get the Journey Desk
+// (calendar, follow-ups, demo requests, subscribers, calls, mail) instead of the HVAC stations.
+const JOURNEY_ORG = '5bb0e0a2-9a0a-4f45-96b9-69e7fe31ba8b'
+function journeySections() {
+  return [
+    { key: 'journey-desk', label: 'Journey Desk', icon: 'start', dash: '/calendar', children: [
+      { label: 'Calendar', path: '/calendar', highlight: true },
+      { label: 'Follow-ups', path: '/journey-followups', highlight: true },
+      { label: 'Demo Requests & Sales', path: '/sales-leads' },
+      { label: 'Customers (subscribers)', path: '/customers' },
+      { label: 'Call Console', path: '/call' },
+      { label: 'Call Log', path: '/call-log' },
+      { label: 'Known Others', path: '/known-contacts' },
+      { label: 'Mail', path: '/mail' },
+    ] },
+    { key: 'admin', label: 'Admin', icon: 'admin', dash: '/admin', children: [
+      { label: 'Settings', icon: 'settings', path: '/settings' },
+      { label: 'Team', icon: 'workforce', path: '/team' },
+    ] },
+    { key: 'training', label: 'Training Manual', icon: 'help', path: '/training' },
+  ]
+}
+
 export function buildSections(profile) {
   const isSuper = profile?.role === 'super_admin'
+  if (!isSuper && profile?.org_id === JOURNEY_ORG) return journeySections()
   const notTech = profile?.role !== 'tech'
   const showElements = notTech
   const showTools = notTech && (isSuper || profile?.toolsEntitled)
@@ -280,6 +304,7 @@ export function buildSections(profile) {
       { label: 'Lender Directory', icon: 'directory', path: '/financing-directory', super: true },
       { label: 'Organizations', icon: 'organizations', path: '/organizations', super: true },
       { label: 'Sales', icon: 'marketing', path: '/sales-leads', super: true },
+      { label: 'Journey Follow-ups', icon: 'marketing', path: '/journey-followups', super: true },
       { label: 'Plans & Entitlements', icon: 'financials', path: '/entitlements', super: true },
       { label: 'Announcements', icon: 'marketing', path: '/announcements', super: true },
       { label: 'Website Announcement', icon: 'marketing', path: '/website-announcement', super: true },
@@ -385,6 +410,7 @@ export default function Layout({ profile }) {
   // Gated the same way the sections are (Inventory/WorkForce hidden for techs).
   const sectionTabs = useMemo(() => {
     const has = (k) => sections.some((s) => s.key === k)
+    if (has('journey-desk')) return [{ key: 'journey', label: 'Journey Desk', to: '/calendar', color: '#2E6FB5' }]
     const tabs = [
       { key: 'command', label: 'Command Center', to: '/home', color: '#2E6FB5' },
       { key: 'work', label: 'Jobs & Customers', to: '/jobs-dash', color: '#0E7C66' },
@@ -399,6 +425,7 @@ export default function Layout({ profile }) {
   const activeTabKey = useMemo(() => {
     const p = location.pathname
     if (p === '/' || p === '/home') return 'command'
+    if (openStack.includes('journey-desk')) return 'journey'
     if (openStack.includes('work')) return 'work'
     if (openStack.includes('dispatch')) return 'dispatch'
     if (openStack.includes('inventory-central')) return 'inventory-central'

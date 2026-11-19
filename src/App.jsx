@@ -171,6 +171,7 @@ import { REWARDS_HR_ROUTES, REWARDS_PAYROLL_ROUTES, REWARDS_CERT_ROUTES, MyPorta
 import { MARKETING_ROUTES } from './modules/marketing-hvac'
 import ShowMode from './ShowMode'
 import SalesLeads from './SalesLeads'
+import JourneyFollowups from './JourneyFollowups'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
 
 async function logSignIn(userId) {
@@ -531,8 +532,11 @@ function AuthenticatedApp() {
         {profile.role === 'super_admin' && (
           <Route path="/organizations" element={<Organizations />} />
         )}
-        {profile.role === 'super_admin' && (
-          <Route path="/sales-leads" element={<SalesLeads profile={profile} />} />
+        {(profile.role === 'super_admin' || profile.org_id === '5bb0e0a2-9a0a-4f45-96b9-69e7fe31ba8b') && (
+          <>
+            <Route path="/sales-leads" element={<SalesLeads profile={profile} />} />
+            <Route path="/journey-followups" element={<JourneyFollowups profile={profile} />} />
+          </>
         )}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
