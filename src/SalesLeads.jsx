@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import SalesCalendar from './SalesCalendar'
 
@@ -58,6 +59,13 @@ export default function SalesLeads({ profile }) {
     if (error) { setMsg('Could not save: ' + error.message); return false }
     await load(); return true
   }
+  // Signing up makes them a Journey customer (with a subscription record) — shown in Customers and the Call Console.
+  const signUp = async (r) => {
+    setMsg('')
+    const { error } = await supabase.rpc('journey_signup_customer', { p_lead: r.id, p_plan: r.plan_chosen && r.plan_chosen !== 'None' ? r.plan_chosen : null, p_team: r.team_size || null })
+    if (error) { setMsg('Could not create the customer: ' + error.message); return }
+    load()
+  }
   const startEdit = (r) => setEdit({ id: r.id, contact_name: r.contact_name || '', title: r.title || '', company_name: r.company_name || '', phone: fmtPhone(r.phone) || r.phone || '', email: r.email || '', special_interests: r.special_interests || '', plan_chosen: r.plan_chosen || 'None', team_size: r.team_size || '', status: r.status, lost_reason: r.lost_reason || '', notes: r.notes || '' })
   const saveEdit = async () => {
     const e = edit, digits = e.phone.replace(/\D/g, '').slice(-10)
@@ -96,7 +104,7 @@ export default function SalesLeads({ profile }) {
       </div>
 
       {view === 'calendar' ? <SalesCalendar /> : <>
-        {view === 'signups' && <p style={{ color: '#64748B', marginTop: 4 }}>Sign-ups from the website. These move to Customers once that list is built.</p>}
+        {view === 'signups' && <p style={{ color: '#64748B', marginTop: 4 }}>Sign-ups from the website. Each one is already a Journey customer — open the row to go to their record.</p>}
         {view === 'calls' && <p style={{ color: '#64748B', marginTop: 4 }}>People who called Clara but didn't ask for a demo. If one does, they move to Demo Requests on their own.</p>}
         <div style={{ display: 'flex', gap: 8, margin: '12px 0', flexWrap: 'wrap', alignItems: 'center' }}>
           {view === 'demos' && [['open', 'Open'], ['new', 'New'], ['demo_booked', 'Demo booked'], ['demo_done', 'Demo done'], ['signed_up', 'Signed up'], ['lost', 'Lost'], ['all', 'All']].map(([k, l]) => (
@@ -178,7 +186,8 @@ export default function SalesLeads({ profile }) {
                           <div style={{ whiteSpace: 'pre-wrap', color: '#334155' }}>{r.notes || (r.source === 'clara' ? 'No call summary yet (it arrives a minute after the call ends).' : '')}</div>
                           {isSuper && <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                             <button className="btn" onClick={() => startEdit(r)}>Edit</button>
-                            {r.status !== 'signed_up' && <button className="btn" onClick={() => save(r.id, { status: 'signed_up' })}>Mark signed up</button>}
+                            {r.status !== 'signed_up' && <button className="btn" onClick={() => signUp(r)}>Mark signed up → make customer</button>}
+                            {r.customer_id && <Link className="btn" to={`/customers/${r.customer_id}`}>Open customer →</Link>}
                             {r.status !== 'lost' && <button className="btn" onClick={() => { const why = window.prompt('Why was this lost? (optional)') ; if (why !== null) save(r.id, { status: 'lost', lost_reason: why || null }) }}>Mark lost</button>}
                             {r.status === 'lost' && <button className="btn" onClick={() => save(r.id, { status: 'new', lost_reason: null })}>Reopen</button>}
                           </div>}

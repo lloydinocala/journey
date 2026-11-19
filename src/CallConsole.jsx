@@ -8,6 +8,7 @@ import FilterOrderModal from './FilterOrderModal'
 import QuickAddModal from './QuickAddModal'
 import AiAssist from './AiAssist'
 import { viewingOrg } from './utils/viewingOrg'
+import JourneySubscriptionCard, { JOURNEY_ORG } from './JourneySubscriptionCard'
 
 const CALL_DRAFT_SYS = `You turn a phone call into a clear service request for HVAC office staff to schedule.
 From the caller and the purpose given, write: (1) a one-line complaint in plain terms; (2) suggested urgency (Emergency / Soon / Flexible) with a short reason; (3) what to schedule (visit type). Keep it short and factual. Use ONLY the facts given — if the purpose is vague, say what to confirm with the caller rather than inventing details.`
@@ -117,6 +118,8 @@ export default function CallConsole({ profile, field = false, onAdd, initialPhon
 
   useEffect(() => {
     if (!selected) { setDetail(null); return }
+    // Journey (Platform) org: callers are subscribers — their account card replaces properties/jobs.
+    if (selectedOrg === JOURNEY_ORG) { setDetail({ journey: true, properties: [], jobs: [], balance: 0, equipCount: 0, plan: null }); return }
     let live = true
     ;(async () => {
       const [props, plan, jobs, inv] = await Promise.all([
@@ -371,7 +374,8 @@ export default function CallConsole({ profile, field = false, onAdd, initialPhon
                   : <Link className="auth-button" style={{ width: 'auto', textDecoration: 'none', padding: '10px 20px', flex: 'none' }} to={`/customers/${selected.id}`}>Open full record →</Link>}
               </div>
 
-              {detail && (
+              {detail?.journey && <JourneySubscriptionCard customerId={selected.id} compact />}
+              {detail && !detail.journey && (
                 <>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '14px 0' }}>
                     {detail.plan

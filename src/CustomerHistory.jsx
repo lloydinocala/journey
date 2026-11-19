@@ -5,6 +5,7 @@ import { useParams, Link } from 'react-router-dom'
 import ReceivePayment from './ReceivePayment'
 import { supabase } from './utils/supabase'
 import { warrantyFor, decodeSerial } from './Warranty'
+import JourneySubscriptionCard, { JOURNEY_ORG } from './JourneySubscriptionCard'
 
 const CUST_SUMMARY_SYS = 'Summarize an HVAC customer account for office staff, using only the provided facts. Start with a 2-3 line snapshot (who they are, how long a customer, property/job/invoice volume), then flag opportunities and risks: overdue balances, a missing or expiring maintenance agreement, aging estimates, upcoming maintenance. Be specific with numbers. Under 8 short lines. No headers.'
 
@@ -431,6 +432,8 @@ export default function CustomerHistory({ profile }) {
         {customer.is_banned && customer.banned_reason && (
           <p style={{ color: '#a33', marginTop: -8 }}>Reason: {customer.banned_reason}</p>
         )}
+
+        {customer.org_id === JOURNEY_ORG && <JourneySubscriptionCard customerId={customer.id} />}
 
         <CustomerInsights
           customer={customer}
