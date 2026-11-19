@@ -9,6 +9,7 @@ import QuickAddModal from './QuickAddModal'
 import AiAssist from './AiAssist'
 import { viewingOrg } from './utils/viewingOrg'
 import JourneySubscriptionCard, { JOURNEY_ORG } from './JourneySubscriptionCard'
+import JourneyCallOutcome, { JourneyPhoneSettings } from './JourneyCallOutcome'
 
 const CALL_DRAFT_SYS = `You turn a phone call into a clear service request for HVAC office staff to schedule.
 From the caller and the purpose given, write: (1) a one-line complaint in plain terms; (2) suggested urgency (Emergency / Soon / Flexible) with a short reason; (3) what to schedule (visit type). Keep it short and factual. Use ONLY the facts given — if the purpose is vague, say what to confirm with the caller rather than inventing details.`
@@ -187,6 +188,7 @@ export default function CallConsole({ profile, field = false, onAdd, initialPhon
     setNoteSaving(false); setNoteOpen(false); setNoteBody(''); setNoteSaved(true); setTimeout(() => setNoteSaved(false), 3500)
   }
 
+  const isJ = selectedOrg === JOURNEY_ORG // Journey (Platform) org: book / follow up / log outcomes instead of service logging
   const PURPOSES = ['Book service', 'Reschedule', 'Billing question', 'Status update', 'General question', 'Vendor / supplier']
   const matchedCaller = selected
     ? { customer_id: selected.id, vendor_id: null, known_contact_id: null, caller_type: 'customer', name: selected.display_name, phone: selected.primary_phone || phone }
@@ -302,7 +304,7 @@ export default function CallConsole({ profile, field = false, onAdd, initialPhon
             <div className="section-card" style={{ padding: 18 }}>
               <p style={{ margin: '0 0 12px', fontWeight: 600 }}>No match for that number — who is calling?</p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {field
+                {isJ ? null : field
                   ? <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '9px 18px' }} onClick={() => onAdd && onAdd('customer', null, phone)}>+ New customer</button>
                   : <Link className="auth-button" style={{ width: 'auto', display: 'inline-block', textDecoration: 'none', padding: '9px 18px' }} to="/customers">+ New customer</Link>}
                 <button className="logout-button" style={{ margin: 0, padding: '9px 18px' }} onClick={() => setAddContactOpen((v) => !v)}>+ Add a contact (salesman, friend, other…)</button>
@@ -321,7 +323,7 @@ export default function CallConsole({ profile, field = false, onAdd, initialPhon
                   <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '8px 16px' }} disabled={ncSaving || !ncName.trim()} onClick={saveKnownContact}>{ncSaving ? 'Saving…' : 'Save contact'}</button>
                 </div>
               )}
-              <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+              {!isJ && <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 8 }}>Or just log this call</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   <input value={callerName} onChange={(e) => setCallerName(e.target.value)} placeholder="Caller name (optional)" style={{ padding: '8px 11px', border: '1px solid var(--border)', borderRadius: 8, minWidth: 160 }} />
@@ -337,7 +339,7 @@ export default function CallConsole({ profile, field = false, onAdd, initialPhon
                   <button className="auth-button" style={{ width: 'auto', margin: 0, padding: '8px 16px' }} disabled={logging || !purpose.trim()} onClick={logCall}>{logging ? '…' : 'Log call'}</button>
                   {loggedMsg && <span style={{ fontSize: 12.5, color: '#1a7f37', fontWeight: 700 }}>{loggedMsg}</span>}
                 </div>
-              </div>
+              </div>}
             </div>
           )}
 
@@ -444,7 +446,31 @@ export default function CallConsole({ profile, field = false, onAdd, initialPhon
               {knownMatch.phone && <div style={{ marginTop: 4, fontSize: 14.5 }}>📞 {knownMatch.phone}</div>}
             </div>
           )}
-          {matchedCaller && (
+          {isJ && !searching && digits.length >= 7 && matches && (matches.length <= 1 || selected) && (
+            <>
+              <JourneyCallOutcome phone={phone} customer={selected || null} profile={profile}
+                caller={matchedCaller ? { ...matchedCaller, known_category: knownMatch?.category || null } : null}
+                onLogged={async () => {
+                  const cid = selected?.id, vid = vendorMatch?.id
+                  if (!cid && !vid) return
+                  const base = supabase.from('call_logs').select('id, called_at, purpose, taken_by_name')
+                  const { data } = await (cid ? base.eq('customer_id', cid) : base.eq('vendor_id', vid)).order('called_at', { ascending: false }).limit(8)
+                  setCallHistory(data || [])
+                }} />
+              {callHistory.length > 0 && (
+                <div className="section-card" style={{ padding: 14, marginTop: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--mist)', marginBottom: 6 }}>Recent calls</div>
+                  {callHistory.map((c) => (
+                    <div key={c.id} style={{ fontSize: 13.5, padding: '5px 0', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                      <span>{new Date(c.called_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} {new Date(c.called_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} — {c.purpose || '—'}</span>
+                      <span style={{ color: 'var(--mist)' }}>{c.taken_by_name || ''}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+          {matchedCaller && !isJ && (
             <div className="section-card" style={{ padding: 18, marginTop: 12 }}>
               <h3 style={{ margin: '0 0 10px', fontSize: 16 }}>Log this call</h3>
               <div style={{ background: 'var(--surface-2, #f6f7f9)', borderRadius: 8, padding: '11px 13px', marginBottom: 12, fontSize: 13.5, display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 14, rowGap: 5 }}>
@@ -491,6 +517,8 @@ export default function CallConsole({ profile, field = false, onAdd, initialPhon
           )}
         </div>
       )}
+
+      {isJ && !field && <JourneyPhoneSettings />}
 
       {filterModal && selected && detail?.properties?.[0] && (
         <FilterOrderModal
