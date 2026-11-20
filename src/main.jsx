@@ -1,14 +1,46 @@
 // Must load first: lets the mic buttons use Android's voice input inside the store app.
 import './native/speechPolyfill'
+// Store apps: answer location requests from the native engine (no second permission prompt).
+import './native/geoShim'
 import './index.css'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 
+import PrefetchRunner from './native/PrefetchRunner'
+import { Capacitor } from '@capacitor/core'
+
+// Store apps: the screens are packed inside the app and kept current by Capgo live updates.
+// They open on the Field App, and tell the updater this version started fine (otherwise it
+// rolls back to the last good version).
+const NATIVE = (() => { try { return Capacitor.isNativePlatform() } catch { return false } })()
+if (NATIVE && !/[?&]journeyPrefetch=1/.test(window.location.search)) {
+  if (window.location.pathname === '/' || window.location.pathname === '/index.html') window.history.replaceState(null, '', '/tech')
+  import('@capgo/capacitor-updater').then(({ CapacitorUpdater }) => CapacitorUpdater.notifyAppReady()).catch(() => {})
+}
+
+// "Load my day" frame (native/PrefetchHost): render only the prefetcher, never the full app,
+// and make sure nothing in it can ask for location or send anything.
+const PREFETCH = /[?&]journeyPrefetch=1/.test(window.location.search)
+if (PREFETCH) {
+  try {
+    Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { getCurrentPosition() {}, watchPosition() { return 0 }, clearWatch() {} } })
+    const realFetch = window.fetch.bind(window)
+    window.fetch = (input, init = {}) => {
+      const m = (init.method || (typeof input !== 'string' && input?.method) || 'GET').toUpperCase()
+      if (m !== 'GET' && m !== 'HEAD') return Promise.resolve(new Response('null', { status: 200, headers: { 'content-type': 'application/json' } }))
+      return realFetch(input, init)
+    }
+    window.alert = () => {}; window.confirm = () => false; window.open = () => null
+  } catch { /* ignore */ }
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+  PREFETCH ? <PrefetchRunner /> : (
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  ),
 )
 
 // --- PWA: auto-update — make sure a new deploy always reaches the OPEN tab ---
@@ -18,7 +50,7 @@ import { registerSW } from 'virtual:pwa-register'
 // so the tab runs the freshly-deployed code instead of the stale cached bundle
 // it was showing. Guarded so it does NOT fire on the very first install (no prior
 // controller) and cannot loop (refreshing latch).
-if ('serviceWorker' in navigator) {
+if (!PREFETCH && !NATIVE && 'serviceWorker' in navigator) {
   const hadController = !!navigator.serviceWorker.controller
   let refreshing = false
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -53,7 +85,7 @@ async function forceUpdate() {
   window.location.reload()
 }
 async function checkVersion() {
-  if (!BUILD_ID || __updating) return
+  if (PREFETCH || NATIVE || !BUILD_ID || __updating) return
   try {
     // Fetch version.json, which is deliberately NOT precached, so the service
     // worker can't hand us a stale build number (the old index.html check could
@@ -68,9 +100,9 @@ window.addEventListener('focus', checkVersion)
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion() })
 setInterval(checkVersion, 60 * 1000)
 
-const updateSW = registerSW({
+const updateSW = (PREFETCH || NATIVE) ? null : registerSW({
   immediate: true,
-  onNeedRefresh() { updateSW(true) },   // new version available -> update + reload
+  onNeedRefresh() { updateSW && updateSW(true) },   // new version available -> update + reload
   onRegisteredSW(swUrl, r) {
     if (!r) return
     const check = () => { r.update().catch(() => {}) }

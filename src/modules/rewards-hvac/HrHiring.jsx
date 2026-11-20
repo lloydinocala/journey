@@ -7,6 +7,7 @@ import { supabase } from '../../utils/supabase'
 import { ApplicantDetail, HiringQuestions } from './HiringPanels'
 import { printHiringForm, loadQuestions } from './hiringForms'
 import { orgName as getOrgName } from './hrRecords'
+import { publicOrigin } from '../../utils/publicOrigin'
 
 const STAGE_LABEL = { applied: 'Applied', screen: 'Screening', interview: 'Interview', offer: 'Offer', hired: 'Hired', rejected: 'Rejected' }
 const blank = { name: '', email: '', phone: '', source: 'indeed', job_description_id: '' }
@@ -36,7 +37,7 @@ export default function HrHiring({ profile }) {
     setApps(a); setJds(j); setToken(o.data?.hiring_token || null); setPublicOn(o.data?.hiring_public_enabled !== false)
   }
   useEffect(() => { load() }, [org.selectedOrg])
-  const link = token ? `${window.location.origin}/apply/${token}` : ''
+  const link = token ? `${publicOrigin()}/apply/${token}` : ''
   async function copyLink() {
     try { await navigator.clipboard.writeText(link); setMsg('Application link copied — post it on your website, Indeed, Facebook, or text it to a candidate.') } catch (e) { setMsg(link) }
   }

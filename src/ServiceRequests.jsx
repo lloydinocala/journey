@@ -5,6 +5,7 @@ import { printServiceFlyer } from './utils/serviceFlyer'
 import ServiceRequestReport from './ServiceRequestReport'
 import { isSettingsAdmin } from './utils/settingsMap'
 import { viewingOrg } from './utils/viewingOrg'
+import { publicOrigin } from './utils/publicOrigin'
 
 const CAT_LABEL = { repair: 'Repair', tuneup: 'Tune-up', question: 'Question' }
 const URG_COLOR = { emergency: '#DC2626', soon: '#9a6a12', flexible: '#1b7a3d' }
@@ -155,7 +156,7 @@ export default function ServiceRequests({ profile }) {
   async function makeQr(p) {
     const { data, error } = await supabase.rpc('ensure_service_token', { p_property_id: p.id })
     if (error) { alert(error.message); return }
-    const url = `${window.location.origin}/r/${data}`
+    const url = `${publicOrigin()}/r/${data}`
     const { data: st } = await supabase.rpc('service_qr_status', { p_property_id: p.id })
     setQr({
       url,

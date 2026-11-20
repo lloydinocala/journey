@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
 import { exportToCSV } from './utils/csvExport'
 import { viewingOrg } from './utils/viewingOrg'
+import { publicOrigin } from './utils/publicOrigin'
 
 const COLUMNS = [
   { key: 'full_name', label: 'Name', required: true },
@@ -363,7 +364,7 @@ export default function Team({ profile }) {
   async function handleResetPassword(member) {
     setError('')
     const { error } = await supabase.auth.resetPasswordForEmail(member.email, {
-      redirectTo: window.location.origin,
+      redirectTo: publicOrigin(),
     })
     if (error) {
       setError(error.message)

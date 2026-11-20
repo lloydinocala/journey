@@ -96,13 +96,28 @@ export async function startGps(profile) {
     }
     const st = await BG.getState()
     if (!st.enabled) await BG.start()
+    // Tell the office what the phone allows (Always / While Using / Off), now and whenever it changes.
+    reportLocationStatus(key, await BG.getProviderState())
+    if (!providerSub) providerSub = BG.onProviderChange((e) => reportLocationStatus(key, e))
   } catch { /* plugin missing on an old app build — nothing to track with */ }
+}
+
+const AUTH_NAMES = { 0: 'not_asked', 1: 'restricted', 2: 'denied', 3: 'always', 4: 'while_using', 5: 'denied' }
+let providerSub = null
+export let lastLocationStatus = null
+function reportLocationStatus(key, e) {
+  if (!e) return
+  const status = AUTH_NAMES[e.status] || String(e.status)
+  lastLocationStatus = { status, enabled: !!e.enabled }
+  rpcWithKey('report_location_status', { p_key: key, p_status: status, p_enabled: !!e.enabled }).catch(() => {})
 }
 
 export async function stopGps() {
   if (!isNative()) return
   try {
     const BG = await bgGeo()
+    try { providerSub?.remove() } catch { /* ignore */ }
+    providerSub = null
     await BG.stop()
     await BG.destroyLocations()
   } catch { /* ignore */ }
@@ -180,4 +195,6 @@ export async function nativeSignOut() {
   } catch { /* ignore */ }
   try { localStorage.removeItem(KEY); localStorage.removeItem('journey_gps_buffer'); localStorage.removeItem(CALL_SYNC) } catch { /* ignore */ }
   if (platform() === 'android') await JourneyCalls.signOut().catch(() => {})
+  // Courtesy notice on the sign-in screen: tracking has stopped.
+  try { sessionStorage.setItem('journey_tracking_stopped', '1') } catch { /* ignore */ }
 }

@@ -6,6 +6,7 @@ import EditableDescription from './EditableDescription'
 import RoutingSummary from './RoutingSummary'
 import TierBuilder from './TierBuilder'
 import AiAssist from './AiAssist'
+import { publicOrigin } from './utils/publicOrigin'
 
 // Homeowner-facing proposal summary for an equipment-replacement estimate. Reads only
 // the line items already on the estimate (equipment, what the install includes, warranty)
@@ -916,14 +917,14 @@ export default function SystemEstimate({ profile }) {
               <input
                 type="text"
                 readOnly
-                value={window.location.origin + '/view-invoice/' + estimate.id}
+                value={publicOrigin() + '/view-invoice/' + estimate.id}
                 style={{ flex: 1, padding: '8px 10px', background: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--paper)' }}
                 onFocus={(e) => e.target.select()}
               />
               <button
                 type="button"
                 className="logout-button"
-                onClick={() => navigator.clipboard.writeText(window.location.origin + '/view-invoice/' + estimate.id)}
+                onClick={() => navigator.clipboard.writeText(publicOrigin() + '/view-invoice/' + estimate.id)}
               >
                 Copy
               </button>

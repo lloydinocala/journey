@@ -7,6 +7,7 @@ import SignaturePad from './SignaturePad'
 import RoutingSummary from './RoutingSummary'
 import { AgentDraftsBanner } from './AgentInboxBadge'
 import AiAssist from './AiAssist'
+import { publicOrigin } from './utils/publicOrigin'
 
 // Customer-facing "work performed" summary for a finished invoice — reads only the invoice
 // line items (and the diagnosis, when present) and drafts a couple of plain sentences for
@@ -807,14 +808,14 @@ async function loadLineItems(invoiceId) {
               <input
                 type="text"
                 readOnly
-                value={window.location.origin + '/view-invoice/' + invoice.id}
+                value={publicOrigin() + '/view-invoice/' + invoice.id}
                 style={{ flex: 1, padding: '8px 10px', background: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--paper)' }}
                 onFocus={(e) => e.target.select()}
               />
               <button
                 type="button"
                 className="logout-button"
-                onClick={() => navigator.clipboard.writeText(window.location.origin + '/view-invoice/' + invoice.id)}
+                onClick={() => navigator.clipboard.writeText(publicOrigin() + '/view-invoice/' + invoice.id)}
               >
                 Copy
               </button>

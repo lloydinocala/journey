@@ -7,6 +7,7 @@ import CustomerSearchSelect from './CustomerSearchSelect'
 import { IconChevronLeft } from './MobileIcons'
 import { zonedToUtcIso } from './utils/tz'
 import { printServiceFlyer } from './utils/serviceFlyer'
+import { publicOrigin } from './utils/publicOrigin'
 
 function todayISO() {
   const d = new Date()
@@ -143,7 +144,7 @@ export default function TechNewJob({ profile, mode = 'job' }) {
     setQrBusy(false)
     if (error) { alert(error.message); return }
     printServiceFlyer({
-      qrUrl: `${window.location.origin}/r/${data.token}`,
+      qrUrl: `${publicOrigin()}/r/${data.token}`,
       orgName: data.org_name,
       orgLogoUrl: data.org_logo_url,
       orgPhone: data.org_phone,

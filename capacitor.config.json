@@ -1,15 +1,9 @@
 {
   "appId": "com.ventexiq.journey",
   "appName": "Journey",
-  "webDir": "native-shell",
+  "webDir": "dist",
   "server": {
-    "url": "https://www.journey-hvac.app/tech",
-    "errorPath": "offline.html",
-    "androidScheme": "https",
-    "allowNavigation": [
-      "journey-hvac.app",
-      "www.journey-hvac.app"
-    ]
+    "androidScheme": "https"
   },
   "android": {
     "appendUserAgent": "JourneyApp/1",
@@ -25,6 +19,11 @@
         "sound",
         "alert"
       ]
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": true,
+      "appReadyTimeout": 15000,
+      "autoDeleteFailed": true
     }
   }
 }

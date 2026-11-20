@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './utils/supabase'
 import { getDeviceId, deviceLabel, devicePlatform, getPosition } from './utils/deviceId'
+import { isNative } from './native/native'
+import { showToast } from './utils/toast'
 
 // Shift-level clock with nested breaks (Option A). Records compensable
 // "hours worked" — the legally defensible number. One open shift = a
@@ -90,6 +92,8 @@ export default function ClockWidget({ userId, orgId, variant = 'mobile', onChang
     if (error) { alert('Could not clock out: ' + error.message); return }
     setOpenShift(null)
     setOpenBreak(null)
+    // Location sharing follows sign-in, not the clock — say so plainly.
+    if (isNative()) showToast('You\'re clocked out. Journey keeps sharing your location until you sign out.', 7000)
     if (onChange) onChange()
   }
 

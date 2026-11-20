@@ -5,7 +5,12 @@ import { VitePWA } from 'vite-plugin-pwa'
 const BUILD_ID = String(Date.now())
 
 export default defineConfig({
-  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
+  define: {
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
+    // Public browser Maps key (already visible in the live site's JavaScript). The fallback lets
+    // the store-app bundle built on a PC or by the live-update job match the website build.
+    'import.meta.env.VITE_GOOGLE_MAPS_API_KEY': JSON.stringify(process.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyBpgPG949IRv_nCoBBijWdWAwhnUrTDoLU'),
+  },
   plugins: [
     react(),
     { name: 'inject-build-id', transformIndexHtml() { return [{ tag: 'meta', attrs: { name: 'build-id', content: BUILD_ID }, injectTo: 'head' }] } },

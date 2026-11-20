@@ -11,7 +11,12 @@
 const DB = 'journey-offline'
 const READS = 'reads'
 const OUTBOX = 'outbox'
-const MAX_READS = 400
+const MAX_READS = 1500
+// "Load my day" renders the day's screens in a hidden frame to fill the read cache. In that frame
+// nothing may be written or sent: every save, RPC and function call is answered locally.
+const PREFETCH = typeof window !== 'undefined' && /[?&]journeyPrefetch=1/.test(window.location.search)
+let inflight = 0
+export const prefetchInflight = () => inflight
 let dbp = null
 function db() {
   if (dbp) return dbp
@@ -128,7 +133,7 @@ let flushing = false
 let flushTimer = null
 function scheduleFlush(ms) { clearTimeout(flushTimer); flushTimer = setTimeout(flush, ms) }
 export async function flush() {
-  if (flushing) return
+  if (flushing || PREFETCH) return
   flushing = true
   try {
     let items = await tx(OUTBOX, 'readonly', (s) => req(s.getAll()))
@@ -169,6 +174,16 @@ function describe(it) {
 
 // ---------- the fetch Supabase uses ----------
 export function offlineFetch(input, init = {}) {
+  const url = typeof input === 'string' ? input : input?.url || String(input)
+  const method = (init.method || (typeof input !== 'string' && input?.method) || 'GET').toUpperCase()
+  if (PREFETCH) {
+    if (method !== 'GET' && method !== 'HEAD') return Promise.resolve(new Response('null', { status: 200, headers: { 'content-type': 'application/json' } }))
+    inflight++
+    return realFetch(input, init).finally(() => { inflight-- })
+  }
+  return realFetch(input, init)
+}
+function realFetch(input, init) {
   const url = typeof input === 'string' ? input : input?.url || String(input)
   const method = (init.method || (typeof input !== 'string' && input?.method) || 'GET').toUpperCase()
   const isRest = url.includes('/rest/v1/')
@@ -213,7 +228,7 @@ export function offlineFetch(input, init = {}) {
 }
 
 // Upload as soon as a connection comes back, and check now and then.
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && !PREFETCH) {
   window.addEventListener('online', () => { emit({ offline: false }); flush() })
   window.addEventListener('offline', () => emit({ offline: true }))
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') flush() })

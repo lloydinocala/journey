@@ -30,7 +30,15 @@ function MobileSignIn() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [ok, setOk] = useState('')
+  const [ok, setOk] = useState(() => {
+    try {
+      if (sessionStorage.getItem('journey_tracking_stopped')) {
+        sessionStorage.removeItem('journey_tracking_stopped')
+        return 'You are signed out. Your location is no longer being shared or tracked.'
+      }
+    } catch { /* ignore */ }
+    return ''
+  })
   const [loading, setLoading] = useState(false)
   const [helpName, setHelpName] = useState('')
   const [helpPhone, setHelpPhone] = useState('')

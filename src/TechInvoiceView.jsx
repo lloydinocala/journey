@@ -4,6 +4,7 @@ import { supabase } from './utils/supabase'
 import InvoiceDocument from './InvoiceDocument'
 import SignaturePad from './SignaturePad'
 import { IconChevronLeft } from './MobileIcons'
+import { publicOrigin } from './utils/publicOrigin'
 
 function dataUrlToBlob(dataUrl) {
   const [meta, base64] = dataUrl.split(',')
@@ -159,7 +160,7 @@ export default function TechInvoiceView({ profile }) {
   }
 
   function payLinkUrl() {
-    return `${window.location.origin}/view-invoice/${invoiceId}`
+    return `${publicOrigin()}/view-invoice/${invoiceId}`
   }
 
   function copyPayLink() {

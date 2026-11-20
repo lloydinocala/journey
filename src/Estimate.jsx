@@ -5,6 +5,7 @@ import EditableDescription from './EditableDescription'
 import { AgentDraftsBanner } from './AgentInboxBadge'
 import AiAssist from './AiAssist'
 import { loadEstimateContext } from './estimateContext'
+import { publicOrigin } from './utils/publicOrigin'
 
 const EST_SCOPE_SYS = 'Write a short, customer-facing scope-of-work summary for an HVAC estimate, based only on the line items provided. 2 to 4 plain-language sentences a homeowner understands, describing what the work covers. Do not invent items or prices. Ready to paste into the estimate.'
 
@@ -562,14 +563,14 @@ export default function Estimate({ profile, estimateId }) {
               <input
                 type="text"
                 readOnly
-                value={window.location.origin + '/view-invoice/' + estimate.id}
+                value={publicOrigin() + '/view-invoice/' + estimate.id}
                 style={{ flex: 1, padding: '8px 10px', background: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--paper)' }}
                 onFocus={(e) => e.target.select()}
               />
               <button
                 type="button"
                 className="logout-button"
-                onClick={() => navigator.clipboard.writeText(window.location.origin + '/view-invoice/' + estimate.id)}
+                onClick={() => navigator.clipboard.writeText(publicOrigin() + '/view-invoice/' + estimate.id)}
               >
                 Copy
               </button>

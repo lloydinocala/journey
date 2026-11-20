@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import FieldShell, { todayISO, shiftISO } from './FieldShell'
 import { supabase } from '../utils/supabase'
+import { publicOrigin } from '../utils/publicOrigin'
 
 // WORKFORCE — Team (add / edit people) and Hours (the Monday–Sunday pay week from the time clock).
 const PR_TAX = 0.0765 // employer Social Security + Medicare
@@ -88,7 +89,7 @@ export function FieldTeam({ profile }) {
   }
   async function resetPw() {
     setBusy('reset'); setMsg(null)
-    const { error } = await supabase.auth.resetPasswordForEmail(m.email, { redirectTo: window.location.origin })
+    const { error } = await supabase.auth.resetPasswordForEmail(m.email, { redirectTo: publicOrigin() })
     setBusy(''); error ? bad(error.message) : ok(`Password reset email sent to ${m.email}.`)
   }
   async function archive() {
