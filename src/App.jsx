@@ -211,6 +211,10 @@ function AuthenticatedApp() {
     })
     const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession)
+      // A password-reset link signs the user in. The address fragment that marks it as a
+      // reset can be cleared before the first render, so also listen for Supabase's own
+      // recovery event; otherwise the person lands in the app and never sets a password.
+      if (event === 'PASSWORD_RECOVERY') setNeedsPassword(true)
       if (event === 'SIGNED_IN' && newSession?.user) {
         logSignIn(newSession.user.id)
       }
