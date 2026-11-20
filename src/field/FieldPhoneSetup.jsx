@@ -36,7 +36,15 @@ export default function FieldPhoneSetup({ profile }) {
         {!isNative() ? (
           <p className="fa-empty">These settings are part of the Journey app from the app store. In a web browser, calls and location can&apos;t be read by any app.</p>
         ) : !android ? (
-          <p className="fa-empty">On iPhone, Journey can&apos;t see calls. Location is turned on when Journey asks.</p>
+          <div className="fa-info">
+            <div style={{ fontWeight: 800, marginBottom: 6 }}>iPhone settings for Journey</div>
+            <div className="fa-muted" style={{ fontSize: 13, lineHeight: 1.5 }}>
+              <p style={{ margin: '0 0 8px' }}><strong>Location:</strong> set to <strong>Always</strong> (Settings → Journey HVAC → Location → Always). Journey shares your location with your company while you are signed in, including when the app is closed.</p>
+              <p style={{ margin: '0 0 8px' }}><strong>Notifications:</strong> turn on, so you get job and office alerts.</p>
+              <p style={{ margin: '0 0 8px' }}><strong>Microphone and Speech Recognition:</strong> allow when asked, for the talk-to-text buttons.</p>
+              <p style={{ margin: 0 }}><strong>Calls:</strong> Apple doesn&apos;t let any app read an iPhone&apos;s call history or name callers the way Android does, so caller ID and automatic call logging are Android-only.</p>
+            </div>
+          </div>
         ) : !st ? <p className="fa-empty">Checking…</p> : (<>
           {row(st.callerId, 'Caller ID for business calls', 'While the phone rings, Journey names customers, vendors and others from your records and lets you open them in the Call Console with one tap. It never blocks or answers calls.',
             st.callerIdAvailable ? 'Turn on' : null, () => run('cid', async () => { await JourneyCalls.requestCallerId(); await setupCalls(profile) }), 'cid')}
@@ -44,7 +52,7 @@ export default function FieldPhoneSetup({ profile }) {
           {row(st.callLog && st.contacts, 'Log calls automatically', 'After each call, Journey adds it to Call Logs (business callers and numbers it doesn\'t know yet). People saved in your phone\'s contacts who aren\'t in Journey are treated as personal and skipped.',
             'Allow', () => run('log', async () => { await JourneyCalls.requestAccess(); await syncCallLog(profile) }), 'log')}
           {row(st.notifications, 'Notifications', 'Needed to show the caller ID and the location notice.', 'Allow', () => run('log', () => JourneyCalls.requestAccess()), 'notif')}
-          {row(true, 'Location', 'Journey shares your location with your company while the app is running. Android shows a notice while it does. Set it to "Allow all the time" in the phone\'s settings if it asks.', null, null, 'gps')}
+          {row(true, 'Location', 'Journey shares your location with your company while you are signed in, including when the app is closed. Android shows a notice while it does. Set it to "Allow all the time" in the phone\'s settings if it asks.', null, null, 'gps')}
           {msg && <div className={`fa-msg ${msg.ok ? 'ok' : 'err'}`}>{msg.t}</div>}
         </>)}
       </div>

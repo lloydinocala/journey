@@ -1,7 +1,7 @@
 // Field-app terms (App Use Terms) shown on the mobile consent gate. Bump TERMS_VERSION whenever
 // the wording changes — everyone will be prompted to re-accept, and each
 // acceptance is recorded separately for the audit trail.
-export const TERMS_VERSION = '2026-11-19.1'
+export const TERMS_VERSION = '2026-11-19.2'
 
 export const TERMS = [
   {
@@ -11,6 +11,10 @@ export const TERMS = [
   {
     title: 'Location is tracked',
     body: "While you are signed in to Journey, this device's location is shared with your company at all times — on or off the clock, with the app open, in the background, closed, or after the phone restarts — for dispatch, routing, safety, and job verification. Signing out is the only way to stop it. If location sharing stops while you are signed in, you and the office are alerted and the event is recorded.",
+  },
+  {
+    title: 'Keep location and notifications on',
+    body: "While you are signed in, keep this device's location set to Always and Journey's notifications turned on. Turning off location or notifications, or otherwise blocking location sharing, while you are signed in is a violation of company policy and may result in disciplinary action, up to and including termination of employment. Each time location sharing stops, it is recorded along with the alerts sent to you.",
   },
   {
     title: 'Acceptance is required to work',
