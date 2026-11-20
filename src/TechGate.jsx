@@ -10,6 +10,7 @@ import NativeBoot from './native/NativeBoot'
 import OfflineBanner from './native/OfflineBanner'
 import PrefetchHost from './native/PrefetchHost'
 import { isNative } from './native/native'
+import LocationDisclosure, { disclosureSeen } from './native/LocationDisclosure'
 
 // Consent gate wrapping every mobile job view. Any signed-in employee who opens
 // the field app must accept the current terms (message archiving + always-on GPS)
@@ -28,6 +29,8 @@ function TechGateInner({ profile }) {
   useEffect(() => { logPackageOpen(supabase, profile, location.pathname) }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
   const [agree, setAgree] = useState(false)
   const [saving, setSaving] = useState(false)
+  // Store apps: the location disclosure must come before the phone's permission prompt.
+  const [disclosed, setDisclosed] = useState(() => !isNative() || disclosureSeen())
   const [err, setErr] = useState('')
 
   useEffect(() => { check() }, [])
@@ -70,6 +73,7 @@ function TechGateInner({ profile }) {
       </div>
     )
   }
+  if (state === 'ok' && !disclosed) return <LocationDisclosure onContinue={() => setDisclosed(true)} />
   if (state === 'ok') return (<><OfflineBanner /><PrefetchHost profile={profile} />{isNative() ? <NativeBoot profile={profile} /> : <TechLocationReporter profile={profile} />}{lockedPkg ? <LockedFeature profile={profile} featureKey={lockedPkg} mobile /> : <Outlet />}</>)
 
   return (

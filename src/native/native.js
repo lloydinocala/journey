@@ -75,6 +75,13 @@ export async function startGps(profile) {
           startOnBoot: true,
           heartbeatInterval: 600,
           notification: { title: 'Journey', text: 'Sharing your location with your company while you are signed in.' },
+          // Android 11+: shown when asking to upgrade to "Allow all the time".
+          backgroundPermissionRationale: {
+            title: 'Allow Journey to use your location all the time?',
+            message: 'While you are signed in, Journey shares your location with your company even when the app is closed or not in use, for dispatch, arrival times, routing, and job arrival and mileage records. Please choose "{backgroundPermissionOptionLabel}".',
+            positiveAction: 'Change to "{backgroundPermissionOptionLabel}"',
+            negativeAction: 'Cancel',
+          },
         },
         http: {
           url: GPS_URL,

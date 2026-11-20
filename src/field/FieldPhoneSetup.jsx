@@ -5,6 +5,12 @@ import { isNative, platform, JourneyCalls, callStatus, setupCalls, syncCallLog }
 
 // PHONE SETUP — the store app's phone permissions in one place: caller ID for business calls,
 // call history (so calls are logged), contacts, notifications, and location.
+
+// Automatic call logging reads the phone's call history, a restricted Google Play permission that
+// needs its own review. Off for the first store release (READ_CALL_LOG is out of the manifest);
+// to turn it back on, set this to true AND restore READ_CALL_LOG in AndroidManifest.xml, then file
+// Google's call-log declaration (CRM exception). Caller ID while the phone rings is unaffected.
+const CALL_LOG_IN_APP = false
 export default function FieldPhoneSetup({ profile }) {
   const navigate = useNavigate()
   const [st, setSt] = useState(null)
@@ -49,9 +55,13 @@ export default function FieldPhoneSetup({ profile }) {
           {row(st.callerId, 'Caller ID for business calls', 'While the phone rings, Journey names customers, vendors and others from your records and lets you open them in the Call Console with one tap. It never blocks or answers calls.',
             st.callerIdAvailable ? 'Turn on' : null, () => run('cid', async () => { await JourneyCalls.requestCallerId(); await setupCalls(profile) }), 'cid')}
           {!st.callerIdAvailable && <div className="fa-muted" style={{ fontSize: 12.5, margin: '0 4px' }}>Caller ID needs Android 10 or newer.</div>}
-          {row(st.callLog && st.contacts, 'Log calls automatically', 'After each call, Journey adds it to Call Logs (business callers and numbers it doesn\'t know yet). People saved in your phone\'s contacts who aren\'t in Journey are treated as personal and skipped.',
+          {CALL_LOG_IN_APP && row(st.callLog && st.contacts, 'Log calls automatically', 'After each call, Journey adds it to Call Logs (business callers and numbers it doesn\'t know yet). People saved in your phone\'s contacts who aren\'t in Journey are treated as personal and skipped.',
             'Allow', () => run('log', async () => { await JourneyCalls.requestAccess(); await syncCallLog(profile) }), 'log')}
-          {row(st.notifications, 'Notifications', 'Needed to show the caller ID and the location notice.', 'Allow', () => run('log', () => JourneyCalls.requestAccess()), 'notif')}
+          {row(st.notifications, 'Notifications', 'Needed to show the caller ID and the location notice.', 'Allow', () => run('notif', async () => {
+            if (CALL_LOG_IN_APP) { await JourneyCalls.requestAccess(); return }
+            const { PushNotifications } = await import('@capacitor/push-notifications')
+            await PushNotifications.requestPermissions()
+          }), 'notif')}
           {row(true, 'Location', 'Journey shares your location with your company while you are signed in, including when the app is closed. Android shows a notice while it does. Set it to "Allow all the time" in the phone\'s settings if it asks.', null, null, 'gps')}
           {msg && <div className={`fa-msg ${msg.ok ? 'ok' : 'err'}`}>{msg.t}</div>}
         </>)}
