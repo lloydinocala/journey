@@ -8,6 +8,7 @@ import { IconChevronLeft } from './MobileIcons'
 import { zonedToUtcIso } from './utils/tz'
 import { printServiceFlyer } from './utils/serviceFlyer'
 import { publicOrigin } from './utils/publicOrigin'
+import MicButton from './MicButton'
 
 function todayISO() {
   const d = new Date()
@@ -95,7 +96,9 @@ export default function TechNewJob({ profile, mode = 'job' }) {
         .order('street_address')
         .then(({ data }) => {
           setCustomerProperties(data || [])
-          setPropertyId('')
+          // One property on file (the usual case, and always the case right after adding a
+          // customer) — pick it, so the form never stalls on an unchosen property.
+          setPropertyId(data && data.length === 1 ? data[0].id : '')
         })
     } else {
       setCustomerProperties([])
@@ -322,7 +325,7 @@ export default function TechNewJob({ profile, mode = 'job' }) {
         {loading ? (
           <p style={{ color: 'var(--mist)' }}>Loading…</p>
         ) : (
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             {modeConfig.allowNewCustomer && (
               <div className="mode-toggle-row">
                 <button type="button" className={customerMode === 'existing' ? 'active' : ''} onClick={() => setCustomerMode('existing')}>
@@ -472,7 +475,10 @@ export default function TechNewJob({ profile, mode = 'job' }) {
                 </div>
                 <div className="mobile-field">
                   <label>Issue / Notes</label>
-                  <input type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling" />
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input type="text" value={serviceComplaint} onChange={(e) => setServiceComplaint(e.target.value)} placeholder="e.g. No cooling" style={{ flex: 1, minWidth: 0 }} />
+                    <MicButton className="msg-mic" value={serviceComplaint} onChange={setServiceComplaint} />
+                  </div>
                 </div>
                 {[
                   { label: 'Technician 1', value: technicianId, set: setTechnicianId },

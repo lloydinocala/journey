@@ -1536,8 +1536,14 @@ html { overflow-x: hidden; }
 }
 
 .mobile-field select,
+.mobile-field textarea,
 .mobile-field input[type="text"],
-.mobile-field input[type="number"] {
+.mobile-field input[type="number"],
+.mobile-field input[type="tel"],
+.mobile-field input[type="email"],
+.mobile-field input[type="date"],
+.mobile-field input[type="time"],
+.mobile-field input[type="search"] {
   width: 100%;
   padding: 9px 10px;
   border: 1px solid var(--border);
@@ -1555,6 +1561,9 @@ html { overflow-x: hidden; }
 
 .mobile-field-row .mobile-field {
   flex: 1;
+  /* Without this a select with a long option name widens the row past the screen, and the
+     Android app then shrinks the whole page to fit it (tiny text). */
+  min-width: 0;
 }
 
 .mobile-checkbox-row {
