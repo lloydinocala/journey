@@ -53,6 +53,11 @@
                 <action android:name="android.telecom.CallScreeningService" />
             </intent-filter>
         </service>
+
+        <!-- Transistorsoft Background Geolocation license (trial until purchased) -->
+        <meta-data
+            android:name="com.transistorsoft.locationmanager.license"
+            android:value="eyJhbGciOiJFZERTQSIsImtpZCI6ImVkMjU1MTktbWFpbi12MSJ9.eyJvcyI6ImFuZHJvaWQiLCJhcHBfaWQiOiJjb20udmVudGV4aXEuam91cm5leSIsIm9yZGVyX251bWJlciI6IiIsInJlbmV3YWxfdXJsIjoiIiwiY3VzdG9tZXJfaWQiOiIiLCJwcm9kdWN0IjoiY2FwYWNpdG9yLWJhY2tncm91bmQtZ2VvbG9jYXRpb24iLCJrZXlfdmVyc2lvbiI6MSwiYWxsb3dlZF9zdWZmaXhlcyI6WyIuZGV2IiwiLmRldmVsb3BtZW50IiwiLnN0YWdpbmciLCIuc3RhZ2UiLCIucWEiLCIudWF0IiwiLnRlc3QiLCIuZGVidWciXSwibWF4X2J1aWxkX3N0YW1wIjoyMDI2MTIyMCwiZ3JhY2VfYnVpbGRzIjowLCJlbnRpdGxlbWVudHMiOlsiY29yZSIsInBvbHlnb24tZ2VvZmVuY2luZyJdLCJpYXQiOjE3OTUxMzk2MjgsImV4cCI6MTc5NzczMTYyOCwidHJpYWwiOnRydWUsInRyaWFsX2RheXMiOjMwfQ.OrNR_BFPeqIC_hNpkdDX1X-2boOTZhYYwDdjyBgz_IFoNgPPGjZxkwQclyVZL7FYpqildvESioPAWTFL7rr_AA" />
     </application>
 
     <!-- Lets the app find Android's voice-typing screen (Android 11+ package visibility) -->
@@ -73,6 +78,9 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- No ads or ad tracking: make sure no library adds the advertising-ID permission -->

@@ -6,8 +6,6 @@ import { supabase, SUPABASE_URL, SUPABASE_KEY } from '../utils/supabase'
 export const isNative = () => { try { return Capacitor.isNativePlatform() } catch { return false } }
 export const platform = () => { try { return Capacitor.getPlatform() } catch { return 'web' } }
 export const JourneyCalls = registerPlugin('JourneyCalls')
-// The background-location plugin ships native code only; its JS side is just this registration.
-const BackgroundGeolocation = registerPlugin('BackgroundGeolocation')
 
 // ---------- device key ----------
 // Each phone gets its own key at sign-in, so GPS and calls can be reported from the background
@@ -44,58 +42,70 @@ async function rpcWithKey(fn, body) {
 }
 
 // ---------- constant GPS ----------
-const GPS_BUF = 'journey_gps_buffer'
-let gpsWatcher = null
-let lastKept = null
-let flushingGps = false
-const meters = (a, b) => {
-  const R = 6371000, r = Math.PI / 180
-  const s = Math.sin(((b.lat - a.lat) * r) / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(((b.lng - a.lng) * r) / 2) ** 2
-  return 2 * R * Math.asin(Math.sqrt(s))
-}
-const readBuf = () => { try { return JSON.parse(localStorage.getItem(GPS_BUF) || '[]') } catch { return [] } }
-const writeBuf = (b) => { try { localStorage.setItem(GPS_BUF, JSON.stringify(b.slice(-3000))) } catch { /* full */ } }
-
-async function flushGps(key) {
-  if (flushingGps || !key) return
-  const buf = readBuf()
-  if (!buf.length) return
-  flushingGps = true
-  try {
-    for (let i = 0; i < buf.length; i += 500) await rpcWithKey('report_locations', { p_key: key, p_points: buf.slice(i, i + 500) })
-    writeBuf(readBuf().slice(buf.length)) // keep anything that arrived meanwhile
-  } catch (e) {
-    if (e.status === 400 && /Unknown device/i.test(e.message || '')) { try { localStorage.removeItem(KEY) } catch { /* ignore */ } }
-    // No signal: the points stay on the phone and go up with the next send.
-  } finally { flushingGps = false }
+// Transistorsoft Background Geolocation: native tracking that keeps going in the background,
+// after the app is closed and after the phone restarts, for as long as the tech is signed in.
+// Points are stored on the phone (SQLite) and uploaded natively to the field-gps function,
+// so no signal / a closed app never loses them. Signing out is the only thing that stops it.
+const GPS_URL = `${SUPABASE_URL}/functions/v1/field-gps`
+let gpsReady = false
+async function bgGeo() {
+  const mod = await import('@transistorsoft/capacitor-background-geolocation')
+  return mod.default || mod.BackgroundGeolocation
 }
 
 export async function startGps(profile) {
-  if (!isNative() || gpsWatcher) return
+  if (!isNative()) return
   const key = await deviceKey(profile)
   if (!key) return
-  gpsWatcher = await BackgroundGeolocation.addWatcher({
-    backgroundTitle: 'Journey',
-    backgroundMessage: 'Sharing your location with your company while Journey is running.',
-    requestPermissions: true,
-    stale: false,
-    distanceFilter: 25,
-  }, (loc, err) => {
-    if (err || !loc) return
-    const pt = { lat: loc.latitude, lng: loc.longitude, acc: loc.accuracy, t: new Date(loc.time || Date.now()).toISOString() }
-    // Keep a point every 30 seconds, or sooner after moving 40 m.
-    if (lastKept && Date.now() - lastKept.ms < 30000 && meters(lastKept, pt) < 40) return
-    lastKept = { ...pt, ms: Date.now() }
-    const buf = readBuf(); buf.push(pt); writeBuf(buf)
-    flushGps(key)
-  }).catch(() => null)
-  setInterval(() => flushGps(key), 120000)
+  try {
+    const BG = await bgGeo()
+    if (!gpsReady) {
+      gpsReady = true
+      await BG.ready({
+        reset: true,
+        geolocation: {
+          desiredAccuracy: BG.DesiredAccuracy.High,
+          distanceFilter: 25,
+          stopTimeout: 5,
+          locationAuthorizationRequest: 'Always',
+          showsBackgroundLocationIndicator: true,
+        },
+        app: {
+          stopOnTerminate: false,
+          startOnBoot: true,
+          heartbeatInterval: 600,
+          notification: { title: 'Journey', text: 'Sharing your location with your company while you are signed in.' },
+        },
+        http: {
+          url: GPS_URL,
+          headers: { 'x-device-key': key },
+          autoSync: true,
+          batchSync: true,
+          maxBatchSize: 250,
+          rootProperty: 'locations',
+        },
+        persistence: {
+          locationTemplate: '{"lat":<%= latitude %>,"lng":<%= longitude %>,"acc":<%= accuracy %>,"t":"<%= timestamp %>","moving":<%= is_moving %>,"ev":"<%= event %>"}',
+          maxDaysToPersist: 7,
+        },
+        logger: { logLevel: BG.LogLevel.Error },
+      })
+    } else {
+      // A different tech signed in on this phone: send their points with their own key.
+      await BG.setConfig({ http: { headers: { 'x-device-key': key } } })
+    }
+    const st = await BG.getState()
+    if (!st.enabled) await BG.start()
+  } catch { /* plugin missing on an old app build — nothing to track with */ }
 }
 
 export async function stopGps() {
-  if (!gpsWatcher) return
-  try { await BackgroundGeolocation.removeWatcher({ id: gpsWatcher }) } catch { /* ignore */ }
-  gpsWatcher = null
+  if (!isNative()) return
+  try {
+    const BG = await bgGeo()
+    await BG.stop()
+    await BG.destroyLocations()
+  } catch { /* ignore */ }
 }
 
 // ---------- calls ----------
@@ -168,6 +178,6 @@ export async function nativeSignOut() {
     const saved = JSON.parse(localStorage.getItem(KEY) || 'null')
     if (saved?.key) await supabase.rpc('revoke_my_field_device', { p_key: saved.key })
   } catch { /* ignore */ }
-  try { localStorage.removeItem(KEY); localStorage.removeItem(GPS_BUF); localStorage.removeItem(CALL_SYNC) } catch { /* ignore */ }
+  try { localStorage.removeItem(KEY); localStorage.removeItem('journey_gps_buffer'); localStorage.removeItem(CALL_SYNC) } catch { /* ignore */ }
   if (platform() === 'android') await JourneyCalls.signOut().catch(() => {})
 }
