@@ -38,6 +38,8 @@
 	<string>Journey lets you choose photos from your library to attach to a job.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Journey uses the microphone when you use voice input, such as dictating job notes.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Journey turns your speech into text when you use voice input, such as dictating job notes.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
