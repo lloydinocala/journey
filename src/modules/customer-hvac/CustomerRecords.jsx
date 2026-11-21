@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import { QuincyExplain } from './QuincyBits'
+import CompanySwitcher from './CompanySwitcher'
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`
 const date = (d) => d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''
@@ -110,6 +111,7 @@ export default function CustomerRecords({ customer }) {
       <button className="cp-back" onClick={() => nav('/portal')}>‹ Home</button>
       <h2 className="cp-h2">My records</h2>
       <p className="cp-lead">Your upcoming visits, invoices, and estimates — view or download any document.</p>
+      <CompanySwitcher note="You're a customer of more than one HVAC company. Tap one to see its records." />
 
       <div className="cp-tabs">
         {TABS.map(([k, l]) => (
