@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
 import NotifySettings from './NotifySettings'
-import CompanySwitcher from './CompanySwitcher'
 import { displayBrandName } from './brand'
 
 // "Edit Personal Info". Customers may update their own contact details; name,
@@ -63,7 +62,6 @@ export default function CustomerProfile({ customer, properties, org }) {
       <h2 className="cp-h2">Edit Personal Info</h2>
       <p className="cp-lead">Keep your contact details current so we can always reach you.</p>
 
-      <CompanySwitcher note="You're a customer of more than one HVAC company. Tap one to switch." />
 
       <div className="cp-card">
         <div className="cp-label" style={{ marginTop: 0 }}>Name</div>

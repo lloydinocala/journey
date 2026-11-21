@@ -24,9 +24,17 @@ export default function CustomerRecords({ customer }) {
   const [busyId, setBusyId] = useState(null)
   const [dlId, setDlId] = useState(null)
   const [msg, setMsg] = useState('')
+  // null = the customer's current company; otherwise a past company's record (read-only history).
+  const [viewing, setViewing] = useState(null)
 
   async function loadAll() {
     setLoading(true)
+    if (viewing) {
+      const { data } = await supabase.rpc('customer_linked_records', { p_customer: viewing })
+      setJobs(data?.jobs || []); setInvoices(data?.invoices || [])
+      setLoading(false)
+      return
+    }
     const [jRes, iRes] = await Promise.all([
       supabase.from('jobs')
         .select('id, job_number, status, job_type, service_complaint, job_date, completed_at, created_at')
@@ -38,7 +46,7 @@ export default function CustomerRecords({ customer }) {
     setJobs(jRes.data || []); setInvoices(iRes.data || [])
     setLoading(false)
   }
-  useEffect(() => { loadAll() }, [customer.id])
+  useEffect(() => { loadAll() }, [customer.id, viewing])
 
   async function payInvoice(id) {
     setBusyId(id); setMsg('')
@@ -111,7 +119,7 @@ export default function CustomerRecords({ customer }) {
       <button className="cp-back" onClick={() => nav('/portal')}>‹ Home</button>
       <h2 className="cp-h2">My records</h2>
       <p className="cp-lead">Your upcoming visits, invoices, and estimates — view or download any document.</p>
-      <CompanySwitcher note="You're a customer of more than one HVAC company. Tap one to see its records." />
+      <CompanySwitcher viewing={viewing} onView={(id) => { setViewing(id); setMsg('') }} />
 
       <div className="cp-tabs">
         {TABS.map(([k, l]) => (
@@ -146,9 +154,9 @@ export default function CustomerRecords({ customer }) {
                 <div className="cp-btnrow" style={{ marginTop: 10 }}>
                   <button className="cp-btn ghost sm" onClick={() => nav(`/view-invoice/${i.id}?from=portal`)}>View invoice</button>
                   <button className="cp-btn ghost sm" disabled={dlId === i.id} onClick={() => downloadPdf(i.id, i.invoice_number, false)}>{dlId === i.id ? '…' : 'Download'}</button>
-                  {due && <button className="cp-btn pay sm" disabled={busyId === i.id} onClick={() => payInvoice(i.id)}>{busyId === i.id ? '…' : `Pay ${money(i.amount_due)}`}</button>}
+                  {due && !viewing && <button className="cp-btn pay sm" disabled={busyId === i.id} onClick={() => payInvoice(i.id)}>{busyId === i.id ? '…' : `Pay ${money(i.amount_due)}`}</button>}
                 </div>
-                <div style={{ marginTop: 8 }}><QuincyExplain kind="invoice" id={i.id} /></div>
+                {!viewing && <div style={{ marginTop: 8 }}><QuincyExplain kind="invoice" id={i.id} /></div>}
               </div>
             )
           }) : <div className="cp-empty">No invoices.</div>)}
@@ -169,14 +177,14 @@ export default function CustomerRecords({ customer }) {
                 <div className="cp-btnrow" style={{ marginTop: 10 }}>
                   <button className="cp-btn ghost sm" onClick={() => nav(`/view-invoice/${e.id}?from=portal`)}>View details</button>
                   <button className="cp-btn ghost sm" disabled={dlId === e.id} onClick={() => downloadPdf(e.id, e.invoice_number, true)}>{dlId === e.id ? '…' : 'Download'}</button>
-                  {st !== 'approved' && st !== 'declined' && (
+                  {!viewing && st !== 'approved' && st !== 'declined' && (
                     <>
                       <button className="cp-btn pay sm" disabled={busyId === e.id} onClick={() => decide(e.id, 'approved')}>Approve</button>
                       <button className="cp-btn ghost sm" disabled={busyId === e.id} onClick={() => decide(e.id, 'declined')}>Decline</button>
                     </>
                   )}
                 </div>
-                <div style={{ marginTop: 8 }}><QuincyExplain kind="estimate" id={e.id} /></div>
+                {!viewing && <div style={{ marginTop: 8 }}><QuincyExplain kind="estimate" id={e.id} /></div>}
               </div>
             )
           }) : <div className="cp-empty">No estimates.</div>)}
