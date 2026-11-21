@@ -98,8 +98,16 @@ export default function CustomerRecords({ customer }) {
     if (st === 'approved' && i.estimate_type === 'system') return true
     return false
   })
-  // Invoices of every kind EXCEPT estimates.
-  const bills = invoices.filter(i => i.kind !== 'estimate')
+  // Invoices of every kind EXCEPT estimates. Open balances first (oldest first — that's the
+  // one to settle first), then paid ones newest first.
+  const billDate = (i) => String(i.invoice_date || i.created_at || '')
+  const isDue = (i) => Number(i.amount_due) > 0
+  const bills = invoices.filter(i => i.kind !== 'estimate').sort((a, b) => {
+    if (isDue(a) !== isDue(b)) return isDue(a) ? -1 : 1
+    return isDue(a) ? billDate(a).localeCompare(billDate(b)) : billDate(b).localeCompare(billDate(a))
+  })
+  const openBills = bills.filter(isDue)
+  const openTotal = openBills.reduce((t, i) => t + Number(i.amount_due || 0), 0)
   // Upcoming + not-yet-completed appointments (open work), soonest first.
   const openJobs = jobs.filter(j => !j.completed_at && j.status !== 'completed' && j.status !== 'cancelled' && j.status !== 'canceled')
 
@@ -140,6 +148,9 @@ export default function CustomerRecords({ customer }) {
             </div>
           )) : <div className="cp-empty">No upcoming or open appointments.</div>)}
 
+          {tab === 'invoices' && openBills.length > 1 && (
+            <div className="cp-duesum"><span>{openBills.length} open invoices</span><span>{money(openTotal)} total due</span></div>
+          )}
           {tab === 'invoices' && (bills.length ? bills.map(i => {
             const due = Number(i.amount_due) > 0
             return (

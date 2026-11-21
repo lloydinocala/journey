@@ -229,9 +229,9 @@
 .cp-bubble.err{align-self:center;background:#FDECEC;color:#B0342F;border:1px solid #F5C6C6;font-size:13px}
 .cp-bubble-typing{color:var(--muted);font-style:italic}
 .cp-chat-input{display:flex;gap:8px;padding-top:8px;border-top:1px solid var(--line)}
-.cp-chat-input input{flex:1;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;font-size:15px;outline:none}
+.cp-chat-input input{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;font-size:16px;outline:none}
 .cp-chat-input input:focus{border-color:var(--sky)}
-.cp-chat-input button{border:0;background:var(--sky);color:#fff;font-weight:800;border-radius:12px;padding:0 18px;font-size:15px;cursor:pointer}
+.cp-chat-input button{flex:0 0 auto;border:0;background:var(--sky);color:#fff;font-weight:800;border-radius:12px;padding:0 18px;font-size:15px;cursor:pointer}
 .cp-chat-input button:disabled{opacity:.5}
 .cp-chat-logo{width:48px;height:48px;object-fit:contain;flex:0 0 auto;background:transparent}
 .cp-mic{border:1.5px solid var(--line);background:#fff;color:var(--sky-d);border-radius:12px;width:46px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto}
@@ -312,3 +312,17 @@
 .qa-days{display:flex;flex-direction:column;gap:8px;margin-top:6px}
 .qa-dl{font-size:12.5px;font-weight:800;color:var(--ink);margin-bottom:4px}
 .qa-wins{display:flex;flex-wrap:wrap;gap:6px}
+
+/* iOS zooms the whole page when a text field under 16px is focused, and the page stays
+   zoomed — that's what pushed Quincy's Send / Book Service off the right edge. Keep every
+   portal field at 16px+, and never let the portal scroll sideways. */
+.cp-root input,.cp-root textarea,.cp-root select{font-size:max(16px,1em)}
+.cp-root{overflow-x:hidden}
+/* System Health — the reasons sit right under the score; next steps are separate, equal-weight. */
+.cp-health-reasons{margin:8px 0 0;padding-left:18px;text-align:left}
+.cp-health-reasons li{font-size:13px;color:var(--ink);line-height:1.45;margin-bottom:3px}
+.cp-health-next{margin:4px 0 8px}
+.cp-health-next-label{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.cp-health-next .cp-btnrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+/* Invoices: open-balance summary */
+.cp-duesum{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;margin:0 0 12px;border-radius:12px;background:#FDF1F0;border:1px solid #F5C6C6;color:#8E2A22;font-weight:700;font-size:14.5px}

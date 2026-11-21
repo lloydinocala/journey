@@ -6,7 +6,7 @@ import { QuincyAction } from './QuincyBits'
 
 const GREETING = {
   role: 'assistant',
-  content: "Hi! I'm Quincy \u{1F44B}  Ask me anything about your heating & cooling \u2014 what a noise might be, why it's not cooling, your filters, your plan. I can also book a visit, reorder your filters, or explain an estimate for you.",
+  content: "Hi! I'm Quincy \u{1F44B}  Ask me anything about your heating & cooling \u2014 what a noise might be, why it's not cooling, your filters, your plan. I can also book a visit, help with your filters, or explain an estimate for you.",
 }
 
 const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null

@@ -70,8 +70,11 @@ function systemHealth(w) {
     partsExpired ? 'Parts warranty has expired — repairs now come at full cost.' : 'Still within the manufacturer parts-warranty window.',
   ]
   if (likelyR22) reasons.push('Likely uses R‑22 refrigerant (phased out and costly to service) — based on its age.')
-  const cta = band === 'green' ? { label: 'Book a tune-up', to: '/portal/book/pm' } : { label: 'Get a free estimate', to: '/portal/book/system_quote' }
-  return { score, band, color, verdict, summary, reasons, cta, showQuincy: band !== 'green' }
+  // Next steps sit BELOW the analysis, all equal weight — the score is information, not a sales pitch.
+  const next = band === 'green'
+    ? [{ label: 'Book a tune-up', to: '/portal/book/pm' }]
+    : [{ label: 'Ask Quincy about it', to: '/portal/quincy' }, { label: 'Book a tune-up', to: '/portal/book/pm' }, { label: 'Replacement estimate (free)', to: '/portal/book/system_quote' }]
+  return { score, band, color, verdict, summary, reasons, next }
 }
 
 export default function CustomerEquipment({ customer, properties, activePropertyId }) {
@@ -129,19 +132,20 @@ export default function CustomerEquipment({ customer, properties, activeProperty
                     <div className="cp-health-label">System Health</div>
                     <div className="cp-health-verdict" style={{ color: h.color }}>{h.verdict}</div>
                     <div className="cp-health-sub">{h.summary}</div>
-                    <div className="cp-health-cta">
-                      <button className="cp-btn" style={{ width: 'auto', padding: '8px 16px', margin: 0 }} onClick={() => nav(h.cta.to)}>{h.cta.label}</button>
-                      {h.showQuincy && <button className="cp-btn ghost" style={{ width: 'auto', padding: '8px 16px', margin: 0 }} onClick={() => nav('/portal/quincy')}>Ask Quincy</button>}
-                    </div>
+                    <ul className="cp-health-reasons">{h.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
+                    <div className="cp-health-disc">A general guide based on age &amp; warranty — only an on-site inspection is definitive.</div>
                   </div>
                 </div>
               )}
               {h && (
-                <details className="cp-health-why">
-                  <summary>Why this score</summary>
-                  <ul>{h.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
-                  <div className="cp-health-disc">A general guide based on age &amp; warranty — only an on-site inspection is definitive.</div>
-                </details>
+                <div className="cp-health-next">
+                  <div className="cp-health-next-label">Your options</div>
+                  <div className="cp-btnrow">
+                    {h.next.map((o) => (
+                      <button key={o.to} className="cp-btn ghost sm" onClick={() => nav(o.to)}>{o.label}</button>
+                    ))}
+                  </div>
+                </div>
               )}
 
               <div className="cp-inforow">
