@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../utils/supabase'
+import NotifySettings from './NotifySettings'
+import { displayBrandName } from './brand'
 
 // "Edit Personal Info". Customers may update their own contact details; name,
 // address and billing identity stay office-managed (they anchor service and
 // invoicing), so those are shown read-only with a note to call.
-export default function CustomerProfile({ customer, properties }) {
+export default function CustomerProfile({ customer, properties, org }) {
   const nav = useNavigate()
   const [form, setForm] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -99,6 +101,9 @@ export default function CustomerProfile({ customer, properties }) {
       <p className="cp-note">
         Heads up: your email is also how you sign in. If you change it, use the new address next time you log in.
       </p>
+
+      <div style={{ height: 22 }} />
+      <NotifySettings mode="settings" brandName={displayBrandName(org?.name)} onOpenUrl={(url) => nav(url)} />
 
       <div className="cp-card" style={{ marginTop: 28, borderLeft: '4px solid var(--danger)' }}>
         <div className="cp-label" style={{ marginTop: 0 }}>Delete my account</div>

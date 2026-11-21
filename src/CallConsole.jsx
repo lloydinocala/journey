@@ -123,11 +123,12 @@ export default function CallConsole({ profile, field = false, onAdd, initialPhon
     if (selectedOrg === JOURNEY_ORG) { setDetail({ journey: true, properties: [], jobs: [], balance: 0, equipCount: 0, plan: null }); return }
     let live = true
     ;(async () => {
-      const [props, plan, jobs, inv] = await Promise.all([
+      const [props, plan, jobs, inv, bday] = await Promise.all([
         supabase.from('properties').select('id, street_address, unit, city, state, zip').eq('customer_id', selected.id),
         supabase.from('maintenance_agreements').select('status, billing_cycle, tier:maintenance_agreement_tiers(name)').eq('customer_id', selected.id).eq('status', 'active'),
         supabase.from('jobs').select('id, job_number, job_date, status, job_type, date_pending').eq('customer_id', selected.id).is('deleted_at', null).neq('status', 'cancelled').order('job_date', { ascending: false }).limit(6),
         supabase.from('invoices').select('amount_due, paid_at, kind').eq('bills_to_customer_id', selected.id).eq('kind', 'invoice').is('deleted_at', null).is('paid_at', null),
+        supabase.from('customers').select('birthday_month, birthday_day').eq('id', selected.id).maybeSingle(),
       ])
       const properties = props.data || []
       const propIds = properties.map((p) => p.id)
@@ -138,7 +139,11 @@ export default function CallConsole({ profile, field = false, onAdd, initialPhon
       }
       const balance = (inv.data || []).reduce((s, i) => s + (Number(i.amount_due) || 0), 0)
       if (!live) return
-      setDetail({ properties, plan: (plan.data || [])[0] || null, jobs: jobs.data || [], balance, equipCount })
+      // The customer gave their birthday in the app to confirm who they are when they call.
+      const b = bday.data
+      const verifyBirthday = b?.birthday_month && b?.birthday_day
+        ? `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][b.birthday_month - 1]} ${b.birthday_day}` : null
+      setDetail({ properties, plan: (plan.data || [])[0] || null, jobs: jobs.data || [], balance, equipCount, verifyBirthday })
     })()
     return () => { live = false }
   }, [selected])
@@ -370,6 +375,11 @@ export default function CallConsole({ profile, field = false, onAdd, initialPhon
                     {selected.secondary_phone && <div>📞 {selected.secondary_phone} <span style={{ color: 'var(--mist)', fontSize: 12 }}>(alt)</span></div>}
                     {selected.email_1 && <div>✉️ {selected.email_1}</div>}
                   </div>
+                  {detail?.verifyBirthday && (
+                    <div title="Before discussing the account, ask the caller for their birthday (month and day)." style={{ marginTop: 8, display: 'inline-block', background: '#EEF4FF', border: '1px solid #C7D7FE', borderRadius: 8, padding: '4px 10px', fontSize: 13.5 }}>
+                      🔐 To verify, ask for their birthday: <b>{detail.verifyBirthday}</b>
+                    </div>
+                  )}
                 </div>
                 {field
                   ? <button className="fa-small-btn" style={{ flex: 'none' }} onClick={() => onAdd && onAdd(null, selected, phone)}>+Add</button>

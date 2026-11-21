@@ -22,6 +22,7 @@ const COLUMNS = [
   { key: 'first_name', label: 'First Name' },
   { key: 'last_name', label: 'Last Name' },
   { key: 'spouse_name', label: 'Spouse Name' },
+  { key: 'birthday', label: 'Birthday' },
   { key: 'primary_phone', label: 'Phone' },
   { key: 'secondary_phone', label: 'Phone 2' },
   { key: 'email_1', label: 'Email' },
@@ -34,6 +35,10 @@ const COLUMNS = [
 ]
 
 const DEFAULT_VISIBLE = COLUMNS.map((c) => c.key)
+
+// Month and day only (no year). Used for the customer app's birthday note.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const birthdayText = (c) => (c.birthday_month && c.birthday_day ? `${MONTHS[c.birthday_month - 1]} ${c.birthday_day}` : '')
 
 export default function Customers({ profile }) {
   const [orgs, setOrgs] = useState([])
@@ -61,6 +66,8 @@ export default function Customers({ profile }) {
   const [editFirstName, setEditFirstName] = useState('')
   const [editLastName, setEditLastName] = useState('')
   const [editSpouseName, setEditSpouseName] = useState('')
+  const [editBdayMonth, setEditBdayMonth] = useState('')
+  const [editBdayDay, setEditBdayDay] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [editSecondaryPhone, setEditSecondaryPhone] = useState('')
   const [editEmail, setEditEmail] = useState('')
@@ -92,7 +99,7 @@ export default function Customers({ profile }) {
       const data = await fetchAllRows(() =>
         supabase
           .from('customers')
-          .select('id, display_name, company, first_name, last_name, spouse_name, primary_phone, secondary_phone, email_1, email_2, acquire_date, notes, created_at, is_active, is_banned, banned_reason')
+          .select('id, display_name, company, first_name, last_name, spouse_name, birthday_month, birthday_day, primary_phone, secondary_phone, email_1, email_2, acquire_date, notes, created_at, is_active, is_banned, banned_reason')
           .eq('org_id', orgId)
           .eq('is_active', !showArchived)
           .order('created_at', { ascending: false })
@@ -147,6 +154,8 @@ export default function Customers({ profile }) {
     setEditFirstName(c.first_name || '')
     setEditLastName(c.last_name || '')
     setEditSpouseName(c.spouse_name || '')
+    setEditBdayMonth(c.birthday_month ? String(c.birthday_month) : '')
+    setEditBdayDay(c.birthday_day ? String(c.birthday_day) : '')
     setEditPhone(c.primary_phone || '')
     setEditSecondaryPhone(c.secondary_phone || '')
     setEditEmail(c.email_1 || '')
@@ -164,6 +173,8 @@ export default function Customers({ profile }) {
         first_name: editFirstName.trim() || null,
         last_name: editLastName.trim() || null,
         spouse_name: editSpouseName.trim() || null,
+        birthday_month: editBdayMonth && editBdayDay ? Number(editBdayMonth) : null,
+        birthday_day: editBdayMonth && editBdayDay ? Number(editBdayDay) : null,
         primary_phone: editPhone.trim() || null,
         secondary_phone: editSecondaryPhone.trim() || null,
         email_1: editEmail.trim() || null,
@@ -245,6 +256,7 @@ export default function Customers({ profile }) {
         { key: 'first_name', label: 'First Name' },
         { key: 'last_name', label: 'Last Name' },
         { key: 'spouse_name', label: 'Spouse Name' },
+        { label: 'Birthday', value: (c) => birthdayText(c) },
         { key: 'primary_phone', label: 'Phone' },
         { key: 'secondary_phone', label: 'Phone 2' },
         { key: 'email_1', label: 'Email' },
@@ -345,6 +357,7 @@ export default function Customers({ profile }) {
                 {visibleColumns.includes('spouse_name') && (
                   <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('spouse_name')}>Spouse Name{sortArrow('spouse_name')}</th>
                 )}
+                {visibleColumns.includes('birthday') && <th>Birthday</th>}
                 {visibleColumns.includes('primary_phone') && (
                   <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('primary_phone')}>Phone{sortArrow('primary_phone')}</th>
                 )}
@@ -415,6 +428,18 @@ export default function Customers({ profile }) {
                     {visibleColumns.includes('spouse_name') && (
                       <td><input type="text" value={editSpouseName} onChange={(e) => setEditSpouseName(e.target.value)} /></td>
                     )}
+                    {visibleColumns.includes('birthday') && (
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <select value={editBdayMonth} onChange={(e) => setEditBdayMonth(e.target.value)} aria-label="Birthday month">
+                          <option value="">Month</option>
+                          {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                        </select>{' '}
+                        <select value={editBdayDay} onChange={(e) => setEditBdayDay(e.target.value)} aria-label="Birthday day">
+                          <option value="">Day</option>
+                          {Array.from({ length: 31 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
+                        </select>
+                      </td>
+                    )}
                     {visibleColumns.includes('primary_phone') && (
                       <td><input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} /></td>
                     )}
@@ -460,6 +485,7 @@ export default function Customers({ profile }) {
                     {visibleColumns.includes('first_name') && <td>{c.first_name || '—'}</td>}
                     {visibleColumns.includes('last_name') && <td>{c.last_name || '—'}</td>}
                     {visibleColumns.includes('spouse_name') && <td>{c.spouse_name || '—'}</td>}
+                    {visibleColumns.includes('birthday') && <td>{birthdayText(c) || '—'}</td>}
                     {visibleColumns.includes('primary_phone') && <td>{formatPhone(c.primary_phone) || '—'}</td>}
                     {visibleColumns.includes('secondary_phone') && <td>{formatPhone(c.secondary_phone) || '—'}</td>}
                     {visibleColumns.includes('email_1') && <td>{c.email_1 || '—'}</td>}

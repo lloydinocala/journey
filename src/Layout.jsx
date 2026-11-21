@@ -289,6 +289,7 @@ export function buildSections(profile) {
     { label: 'Approval Queue', icon: 'approval', path: '/marketing/queue' },
     { label: 'Channels & Assets', icon: 'channels', path: '/marketing/channels' },
     { label: 'Reviews', icon: 'reviews', path: '/marketing/reviews' },
+    { label: 'Customer App Messages', icon: 'marketing', path: '/customer-app-messages' },
   ]
   const commandCenter = { key: 'command-center', label: 'Marketing Center', icon: 'marketing', dash: '/marketing', children: commandCenterItems }
 
@@ -298,6 +299,7 @@ export function buildSections(profile) {
     key: 'admin', label: 'Admin', icon: 'admin', dash: '/admin',
     children: [
       { label: 'Settings', icon: 'settings', path: '/settings' },
+      { label: 'Customer App Messages', icon: 'marketing', path: '/customer-app-messages' },
       { label: 'Financing Central', icon: 'financials', path: '/financing-central' },
       { label: 'Payouts', icon: 'money', path: '/payouts' },
       { label: 'Financing Options', icon: 'money', path: '/financing-options' },

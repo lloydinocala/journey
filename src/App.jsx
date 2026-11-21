@@ -147,6 +147,7 @@ import FieldMileage from './field/FieldMileage'
 import FieldPhoneSetup from './field/FieldPhoneSetup'
 import { isFieldAdmin } from './MobileNav'
 import TechNewJob from './TechNewJob'
+import CustomerAppMessages from './CustomerAppMessages'
 import TechApollo from './TechApollo'
 import TechInvoiceView from './TechInvoiceView'
 import TechMessages from './TechMessages'
@@ -404,6 +405,7 @@ function AuthenticatedApp() {
        : <CommandCenter profile={profile} />
    } />
         <Route path="/customers" element={<Customers profile={profile} />} />
+        <Route path="/customer-app-messages" element={<CustomerAppMessages profile={profile} />} />
         <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
         <Route path="/text-archive" element={<TextArchive profile={profile} />} />
         <Route path="/jobs-management" element={<JobsManagement profile={profile} />} />

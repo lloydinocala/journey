@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './utils/supabase'
 
+// "Does Not Apply" is for jobs where location doesn't matter (duct cleaning,
+// estimates). It is priced the same as Ground Level.
+const NOT_APPLY = 'Does Not Apply'
+
 export default function TripChargePicker({ orgId, value, onChange }) {
   const [tripTypes, setTripTypes] = useState([])
   const [selectedTypeId, setSelectedTypeId] = useState('')
@@ -57,20 +61,24 @@ export default function TripChargePicker({ orgId, value, onChange }) {
       .then(({ data }) => setVariants(data || []))
   }, [selectedTypeId])
 
+  const realLocations = [...new Set(variants.map((v) => v.location))].filter(Boolean)
+  const groundLevel = realLocations.find((l) => /ground/i.test(l)) || realLocations[0] || ''
+  const priceLocation = location === NOT_APPLY ? groundLevel : location
+
   useEffect(() => {
-    if (!selectedTypeId || !location || !access || !hours) return
-    const match = variants.find((v) => v.location === location && v.access === access && v.hours === hours)
+    if (!selectedTypeId || !priceLocation || !access || !hours) return
+    const match = variants.find((v) => v.location === priceLocation && v.access === access && v.hours === hours)
     if (match && match.id !== value) {
       onChange(match.id)
     } else if (!match && value) {
       onChange(null)
     }
-  }, [selectedTypeId, location, access, hours, variants])
+  }, [selectedTypeId, priceLocation, access, hours, variants])
 
-  const locations = [...new Set(variants.map((v) => v.location))].filter(Boolean)
+  const locations = realLocations.length ? [NOT_APPLY, ...realLocations] : []
   const accessOpts = [...new Set(variants.map((v) => v.access))].filter(Boolean)
   const hoursOpts = [...new Set(variants.map((v) => v.hours))].filter(Boolean)
-  const resolvedPrice = variants.find((v) => v.location === location && v.access === access && v.hours === hours)
+  const resolvedPrice = variants.find((v) => v.location === priceLocation && v.access === access && v.hours === hours)
 
   if (loading) return <p style={{ color: 'var(--mist)', fontSize: 13 }}>Loading trip charges…</p>
 

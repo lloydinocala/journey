@@ -17,6 +17,8 @@ import CustomerProfile from './CustomerProfile'
 import CustomerQuincy from './CustomerQuincy'
 import CustomerServiceRequests from './CustomerServiceRequests'
 import { displayBrandName, rememberBrand } from './brand'
+import NotifySettings from './NotifySettings'
+import { inCustomerApp, enablePush } from './customerPush'
 
 // Self-contained customer app. Mounted at /portal/* in App.jsx, OUTSIDE the
 // staff AuthenticatedApp — its own auth context, its own data boundary (RLS).
@@ -26,6 +28,8 @@ export default function CustomerPortal() {
   const [properties, setProperties] = useState([])
   const [activePropertyId, setActivePropertyId] = useState(null)
   const [org, setOrg] = useState(null)
+  const [welcome, setWelcome] = useState(false) // first sign-in: notifications + birthday screen
+  const navigate = useNavigate()
 
   // Give the homeowner portal its OWN installable identity while mounted, so the
   // phone treats it as a separate app from the staff (Tech) app on the same domain:
@@ -105,6 +109,18 @@ export default function CustomerPortal() {
       const b = Array.isArray(brand) ? (brand[0] || null) : (brand || null)
       setOrg(b)
       rememberBrand(b) // so this device's sign-in screen shows their contractor next time
+      // First sign-in on this phone: ask about notifications (in the app) and an optional birthday.
+      // Already answered: in the app, keep this phone registered for the notifications they chose.
+      const { data: prefs } = await supabase.rpc('customer_notify_prefs_get')
+      if (!live) return
+      let asked = false
+      try { asked = localStorage.getItem('cp_welcome_done') === '1' } catch { /* ignore */ }
+      if (inCustomerApp()) {
+        if (!prefs?.consent_at) setWelcome(true)
+        else enablePush((url) => navigate(url))
+      } else if (!asked && !prefs?.birthday_month) {
+        setWelcome(true)
+      }
     })()
     return () => { live = false }
   }, [session])
@@ -139,6 +155,16 @@ export default function CustomerPortal() {
 
   const activeProperty = properties.find((p) => p.id === activePropertyId) || properties[0] || null
 
+  if (welcome) return (
+    <div className="cp-app">
+      <div className="cp-scroll">
+        <div className="cp-wrap" style={{ paddingTop: 24 }}>
+          <NotifySettings mode="welcome" brandName={displayBrandName(org?.name)} onDone={() => setWelcome(false)} onOpenUrl={(url) => navigate(url)} />
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="cp-app">
       <div className="cp-scroll">
@@ -152,7 +178,7 @@ export default function CustomerPortal() {
           <Route path="book/:type" element={<CustomerBook customer={customer} properties={properties} activePropertyId={activePropertyId} />} />
           <Route path="request/:type" element={<CustomerRequest customer={customer} properties={properties} />} />
           <Route path="filters" element={<CustomerFilters customer={customer} properties={properties} activePropertyId={activePropertyId} />} />
-          <Route path="profile" element={<CustomerProfile customer={customer} properties={properties} />} />
+          <Route path="profile" element={<CustomerProfile customer={customer} properties={properties} org={org} />} />
           <Route path="plan" element={<CustomerPlan customer={customer} properties={properties} activeProperty={activeProperty} />} />
           <Route path="quincy" element={<CustomerQuincy />} />
           <Route path="requests" element={<CustomerServiceRequests />} />

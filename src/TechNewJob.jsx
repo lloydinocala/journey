@@ -32,6 +32,7 @@ export default function TechNewJob({ profile, mode = 'job' }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [confirmed, setConfirmed] = useState('')
   const [error, setError] = useState('')
 
   const [customerMode, setCustomerMode] = useState(handoff.customer?.id || !handoff.phone ? 'existing' : 'new')
@@ -303,7 +304,9 @@ export default function TechNewJob({ profile, mode = 'job' }) {
       }
 
       setSaving(false)
-      navigate(modeConfig.destination(newJobId))
+      // Show a clear confirmation in the middle of the screen, then open the new job.
+      setConfirmed(mode === 'job' ? 'Job creation confirmed' : 'Estimate creation confirmed')
+      setTimeout(() => navigate(modeConfig.destination(newJobId)), 1400)
     } catch (err) {
       // A dropped connection (or any unexpected throw) lands here: the write did not
       // reach the server, so nothing was created. The form's fields are all still set.
@@ -314,6 +317,14 @@ export default function TechNewJob({ profile, mode = 'job' }) {
 
   return (
     <div className="mobile-shell">
+      {confirmed && (
+        <div role="status" aria-live="assertive" style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.45)', padding: 24 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: '26px 28px', maxWidth: 320, width: '100%', textAlign: 'center', boxShadow: '0 12px 40px rgba(0,0,0,0.25)' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#E7F6EC', color: '#1E7B3A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: 30, fontWeight: 800 }}>✓</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#1E7B3A' }}>{confirmed}</div>
+          </div>
+        </div>
+      )}
       <div className="mobile-header job-detail-header">
         <button className="mobile-back" onClick={() => navigate(-1)}><IconChevronLeft /></button>
         <div className="job-detail-header-text">
@@ -524,9 +535,11 @@ export default function TechNewJob({ profile, mode = 'job' }) {
               </div>
             )}
 
-            <button className="action-btn primary" style={{ width: '100%', padding: '13px 0', fontSize: 14 }} type="submit" disabled={saving}>
+            <button className="action-btn primary" style={{ width: '100%', padding: '13px 0', fontSize: 14 }} type="submit" disabled={saving || !!confirmed}>
               {saving ? 'Creating…' : modeConfig.submitLabel}
             </button>
+            {/* Room below the button so Android's on-screen Home/Back bar never covers it */}
+            <div aria-hidden="true" style={{ height: 'calc(96px + var(--safe-area-inset-bottom, 0px))' }} />
           </form>
         )}
       </div>
