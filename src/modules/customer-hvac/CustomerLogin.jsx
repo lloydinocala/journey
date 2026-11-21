@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { supabase } from '../../utils/supabase'
 import { savedBrand } from './brand'
 
-// Passwordless sign-in with a 6-digit CODE (not a link). The customer types the
+// Passwordless sign-in with an emailed CODE (not a link). The customer types the
 // code into the app, so the session is created in the app itself — it works even
 // when the email is on another device, and it never bounces out to a browser.
 // App-store reviewers can't receive an emailed code, so this one demo login uses a password.
 // It is a customer of the "Sunshine Comfort (Demo)" company only — no real customer data.
-const REVIEW_EMAIL = 'app.review@journey-hvac.app'
+const REVIEW_EMAILS = ['app.review@journey-hvac.app', 'appreview@journey-hvac.com']
 
 export default function CustomerLogin() {
   // First time on a device: neutral. After a customer has signed in once, show their contractor.
@@ -18,12 +18,12 @@ export default function CustomerLogin() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
-  const isReview = email.trim().toLowerCase() === REVIEW_EMAIL
+  const isReview = REVIEW_EMAILS.includes(email.trim().toLowerCase())
 
   async function sendCode() {
     const e = email.trim().toLowerCase()
     if (!e) return
-    if (e === REVIEW_EMAIL) {
+    if (REVIEW_EMAILS.includes(e)) {
       if (!password) return
       setBusy(true); setError('')
       const { error: err } = await supabase.auth.signInWithPassword({ email: e, password })
@@ -61,7 +61,7 @@ export default function CustomerLogin() {
           <>
             <h2 className="cp-h2" style={{ marginTop: 0 }}>Enter your code</h2>
             <p className="cp-lead" style={{ marginBottom: 10 }}>
-              We emailed a 6-digit code to <b>{email.trim().toLowerCase()}</b>. Enter it here to sign in —
+              We emailed a sign-in code to <b>{email.trim().toLowerCase()}</b>. Enter it here to sign in —
               no link to open, no browser.
             </p>
             <input
@@ -85,7 +85,7 @@ export default function CustomerLogin() {
         ) : (
           <>
             <h2 className="cp-h2" style={{ marginTop: 0 }}>Welcome back</h2>
-            <p className="cp-lead">Enter the email we have on file and we'll send you a 6-digit sign-in code.</p>
+            <p className="cp-lead">Enter the email we have on file and we'll send you a sign-in code.</p>
             <input
               className="cp-input" type="email" inputMode="email" autoComplete="email"
               placeholder="you@email.com" value={email}
