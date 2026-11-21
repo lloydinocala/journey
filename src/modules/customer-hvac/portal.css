@@ -316,7 +316,7 @@
 /* iOS zooms the whole page when a text field under 16px is focused, and the page stays
    zoomed — that's what pushed Quincy's Send / Book Service off the right edge. Keep every
    portal field at 16px+, and never let the portal scroll sideways. */
-.cp-root input,.cp-root textarea,.cp-root select{font-size:max(16px,1em)}
+.cp-root input,.cp-root textarea,.cp-root select,.cp-app input,.cp-app textarea,.cp-app select,.cp-login input,.cp-login textarea,.cp-login select{font-size:max(16px,1em)}
 .cp-root{overflow-x:hidden}
 /* System Health — the reasons sit right under the score; next steps are separate, equal-weight. */
 .cp-health-reasons{margin:8px 0 0;padding-left:18px;text-align:left}
