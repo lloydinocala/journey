@@ -1018,6 +1018,8 @@ html { overflow-x: hidden; }
   background: var(--route-blue);
   color: #fff;
   padding: 16px 16px 14px;
+  /* Keep titles below the iPhone clock/notch in the store apps. */
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
   flex-shrink: 0;
 }
 

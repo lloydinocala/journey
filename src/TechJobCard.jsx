@@ -211,6 +211,7 @@ export default function TechJobCard({ profile }) {
   const [noSig, setNoSig] = useState(false)
   const [sigReason, setSigReason] = useState('')
   const [scanNotice, setScanNotice] = useState('')
+  const [confirmDelPhoto, setConfirmDelPhoto] = useState(null)
   const attachScanRef = useRef(null)
 
   const [banners, setBanners] = useState([])
@@ -349,6 +350,21 @@ export default function TechJobCard({ profile }) {
     setPhotos((rows) => rows.map((r) => (r.id === p.id ? { ...r, share_on_doc: next } : r)))
     const { error } = await supabase.from('attachments').update({ share_on_doc: next }).eq('id', p.id)
     if (error) setPhotos((rows) => rows.map((r) => (r.id === p.id ? { ...r, share_on_doc: !next } : r)))
+  }
+  // Delete a photo (e.g. one picked by mistake). Two taps: the first arms it, the second deletes
+  // the record and the file. The photo disappears at once; if the server refuses, it comes back.
+  async function deletePhoto(p) {
+    if (confirmDelPhoto !== p.id) {
+      setConfirmDelPhoto(p.id)
+      setTimeout(() => setConfirmDelPhoto((c) => (c === p.id ? null : c)), 4000)
+      return
+    }
+    setConfirmDelPhoto(null)
+    const before = photos
+    setPhotos((rows) => rows.filter((r) => r.id !== p.id))
+    const { error } = await supabase.from('attachments').delete().eq('id', p.id)
+    if (error) { setPhotos(before); return }
+    await supabase.storage.from('job-photos').remove([p.file_path])
   }
   async function loadInvoice() {
     const { data } = await supabase.from('invoices').select('id, invoice_number, job_total, amount_due, paid_at, sent_at, org_id').eq('job_id', jobId).eq('kind', 'invoice').maybeSingle()
@@ -1535,6 +1551,7 @@ export default function TechJobCard({ profile }) {
                       <input type="checkbox" checked={p.share_on_doc !== false} onChange={() => togglePhotoShare(p)} />
                       On estimate
                     </label>
+                    <button type="button" onClick={() => deletePhoto(p)} style={{ fontSize: 11, border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontWeight: confirmDelPhoto === p.id ? 700 : 400, color: confirmDelPhoto === p.id ? '#B00020' : '#8A93A6' }}>{confirmDelPhoto === p.id ? 'Tap again to delete' : 'Delete'}</button>
                   </div>
                 ))}
                 <div className="jc-photo-add" onClick={() => capturePhoto('pre', 'camera')}>+</div>
@@ -1719,6 +1736,7 @@ export default function TechJobCard({ profile }) {
                       <input type="checkbox" checked={p.share_on_doc !== false} onChange={() => togglePhotoShare(p)} />
                       On invoice
                     </label>
+                    <button type="button" onClick={() => deletePhoto(p)} style={{ fontSize: 11, border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontWeight: confirmDelPhoto === p.id ? 700 : 400, color: confirmDelPhoto === p.id ? '#B00020' : '#8A93A6' }}>{confirmDelPhoto === p.id ? 'Tap again to delete' : 'Delete'}</button>
                   </div>
                 ))}
                 <div className="jc-photo-add" onClick={() => capturePhoto('post', 'camera')}>+</div>

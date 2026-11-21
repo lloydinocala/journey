@@ -168,9 +168,9 @@ export default function InvoiceDocument({ data, footer }) {
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', background: primary, color: 'white', padding: '8px 14px', borderRadius: '6px 6px 0 0', fontSize: 13, fontWeight: 600 }}>
           <div style={{ flex: 3 }}>{isDuct ? 'Duct Cleaning Services' : 'Services'}</div>
-          <div style={{ flex: 1, textAlign: 'right' }}>Qty</div>
-          <div style={{ flex: 1, textAlign: 'right' }}>Unit Price</div>
-          <div style={{ flex: 1, textAlign: 'right' }}>Amount</div>
+          <div style={{ flex: 1, textAlign: 'right', paddingLeft: 8 }}>Qty</div>
+          <div style={{ flex: 1, textAlign: 'right', paddingLeft: 8 }}>Unit Price</div>
+          <div style={{ flex: 1, textAlign: 'right', paddingLeft: 8 }}>Amount</div>
         </div>
         {bodyItems.filter((li) => !(li.is_custom && li.custom_status === 'pending')).map((li, idx) => (
           <div
@@ -188,9 +188,9 @@ export default function InvoiceDocument({ data, footer }) {
             {(li.category === 'INSTALLATION' || li.category === 'WARRANTY') && !(Number(li.unit_price) > 0) ? (
               <div style={{ flex: 3 }} />
             ) : (<>
-            <div style={{ flex: 1, textAlign: 'right', color: '#64748B' }}>{li.quantity}</div>
-            <div style={{ flex: 1, textAlign: 'right', color: '#64748B' }}>${li.unit_price.toFixed(2)}</div>
-            <div style={{ flex: 1, textAlign: 'right', fontWeight: 600 }}>${(li.quantity * li.unit_price).toFixed(2)}</div>
+            <div style={{ flex: 1, textAlign: 'right', color: '#64748B', paddingLeft: 8, whiteSpace: 'nowrap' }}>{li.quantity}</div>
+            <div style={{ flex: 1, textAlign: 'right', color: '#64748B', paddingLeft: 8, whiteSpace: 'nowrap' }}>${li.unit_price.toFixed(2)}</div>
+            <div style={{ flex: 1, textAlign: 'right', fontWeight: 600, paddingLeft: 8, whiteSpace: 'nowrap' }}>${(li.quantity * li.unit_price).toFixed(2)}</div>
             </>)}
           </div>
         ))}
