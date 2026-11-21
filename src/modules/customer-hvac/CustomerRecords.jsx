@@ -144,7 +144,7 @@ export default function CustomerRecords({ customer }) {
                   {due ? <span className="cp-pill due">Due {money(i.amount_due)}</span> : <span className="cp-pill paid">Paid</span>}
                 </div>
                 <div className="cp-btnrow" style={{ marginTop: 10 }}>
-                  <a className="cp-btn ghost sm" href={`/view-invoice/${i.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>View invoice</a>
+                  <button className="cp-btn ghost sm" onClick={() => nav(`/view-invoice/${i.id}?from=portal`)}>View invoice</button>
                   <button className="cp-btn ghost sm" disabled={dlId === i.id} onClick={() => downloadPdf(i.id, i.invoice_number, false)}>{dlId === i.id ? '…' : 'Download'}</button>
                   {due && <button className="cp-btn pay sm" disabled={busyId === i.id} onClick={() => payInvoice(i.id)}>{busyId === i.id ? '…' : `Pay ${money(i.amount_due)}`}</button>}
                 </div>
@@ -167,7 +167,7 @@ export default function CustomerRecords({ customer }) {
                   </span>
                 </div>
                 <div className="cp-btnrow" style={{ marginTop: 10 }}>
-                  <a className="cp-btn ghost sm" href={`/view-invoice/${e.id}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>View details</a>
+                  <button className="cp-btn ghost sm" onClick={() => nav(`/view-invoice/${e.id}?from=portal`)}>View details</button>
                   <button className="cp-btn ghost sm" disabled={dlId === e.id} onClick={() => downloadPdf(e.id, e.invoice_number, true)}>{dlId === e.id ? '…' : 'Download'}</button>
                   {st !== 'approved' && st !== 'declined' && (
                     <>

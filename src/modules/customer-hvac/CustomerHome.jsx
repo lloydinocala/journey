@@ -11,6 +11,7 @@ function Ic({ d }) {
   )
 }
 const I = {
+  book: <><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M8 2v4M16 2v4M3 10h18M12 13v5M9.5 15.5h5" /></>,
   schedule: <><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M8 2v4M16 2v4M3 10h18" /></>,
   plan: <><path d="M9 12l2 2 4-4" /><path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z" /></>,
   quincy: <><path d="M4 5h16a1 1 0 011 1v10a1 1 0 01-1 1H9l-4 4v-4H4a1 1 0 01-1-1V6a1 1 0 011-1z" /><path d="M8 10h.01M12 10h.01M16 10h.01" /></>,
@@ -42,7 +43,8 @@ export default function CustomerHome({ customer, org, properties, activeProperty
 
   const feats = [
     { k: 'equip', tone: '', label: 'See My Equipment Details', sub: 'Your system, warranties & coverage at a glance', to: '/portal/equipment' },
-    { k: 'schedule', tone: '', label: 'Schedule My Appointment', sub: 'Repair, tune-up, or estimate — booked in a minute', to: '/portal/schedule' },
+    { k: 'schedule', tone: '', label: 'My Upcoming Appointments', sub: 'Visits booked in the next 30 days', to: '/portal/appointments' },
+    { k: 'book', tone: '', label: 'Schedule My Appointment', sub: 'Repair, tune-up, or estimate — booked in a minute', to: '/portal/schedule' },
     { k: 'plan', tone: 'pm', label: 'Preventive Maintenance', sub: 'Protect your comfort, avoid surprise breakdowns', to: '/portal/plan' },
     { k: 'records', tone: '', label: 'Access My Service Records', sub: 'Every visit, invoice & estimate in one place', to: '/portal/records' },
     { k: 'reports', tone: '', label: 'View My Service Reports', sub: 'Your maintenance reports & system health', to: '/portal/reports' },

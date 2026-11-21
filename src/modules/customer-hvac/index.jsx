@@ -5,6 +5,7 @@ import './portal.css'
 import CustomerLogin from './CustomerLogin'
 import CustomerHome from './CustomerHome'
 import CustomerRecords from './CustomerRecords'
+import CustomerAppointments from './CustomerAppointments'
 import CustomerReports from './CustomerReports'
 import CustomerReportView from './CustomerReportView'
 import CustomerRequest from './CustomerRequest'
@@ -174,6 +175,7 @@ export default function CustomerPortal() {
       <div className="cp-scroll">
         <Routes>
           <Route index element={<CustomerHome customer={customer} org={org} properties={properties} activePropertyId={activePropertyId} setActivePropertyId={setActivePropertyId} />} />
+          <Route path="appointments" element={<CustomerAppointments customer={customer} />} />
           <Route path="records" element={<CustomerRecords customer={customer} properties={properties} />} />
           <Route path="reports" element={<CustomerReports />} />
           <Route path="report/:runId" element={<CustomerReportView />} />

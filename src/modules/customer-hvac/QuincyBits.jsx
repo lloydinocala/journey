@@ -34,7 +34,8 @@ export function QuincyNotices() {
           <span>{n.body}</span>
           {n.cta && (
             <button className="cp-btn sm qn-cta" onClick={() => {
-              if (n.cta.to) nav(n.cta.to)
+              if (n.cta.invoice) nav(`/view-invoice/${n.cta.invoice}?from=portal`)
+              else if (n.cta.to) nav(n.cta.to)
               else if (n.cta.ask) nav('/portal/quincy', { state: { ask: n.cta.ask } })
               else if (n.cta.explain) setOpen(open === n.id ? null : n.id)
             }}>{n.cta.label}</button>

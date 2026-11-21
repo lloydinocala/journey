@@ -165,20 +165,6 @@ export default function CustomerFilters({ customer, properties, activePropertyId
     setOrderMode('requested'); setDone(true)
   }
 
-  if (done) return (
-    <div className="cp-wrap">
-      <div className="cp-center">
-        <div style={{ fontSize: 46 }}>✅</div>
-        <h2 className="cp-h2">{orderMode === 'invoiced' ? 'Invoice on its way' : 'Filter request received'}</h2>
-        <p className="cp-lead" style={{ maxWidth: 360 }}>
-          {orderMode === 'invoiced'
-            ? 'We’ve emailed your filter invoice with a secure link to pay by card. Thank you!'
-            : 'We’ll confirm pricing and delivery, and reach out if we need anything. Thanks!'}
-        </p>
-        <button className="cp-btn" style={{ maxWidth: 260 }} onClick={() => nav('/portal')}>Back to home</button>
-      </div>
-    </div>
-  )
 
   function reloadSubs() {
     if (!propId) { setSubs([]); return }
@@ -205,6 +191,20 @@ export default function CustomerFilters({ customer, properties, activePropertyId
   async function setSubStatus(id, status) { await supabase.from('filter_subscriptions').update({ status }).eq('id', id); reloadSubs() }
   async function cancelSub(id) { if (!window.confirm('Cancel this auto-ship?')) return; await supabase.from('filter_subscriptions').update({ status: 'canceled' }).eq('id', id); reloadSubs() }
 
+  if (done) return (
+    <div className="cp-wrap">
+      <div className="cp-center">
+        <div style={{ fontSize: 46 }}>✅</div>
+        <h2 className="cp-h2">{orderMode === 'invoiced' ? 'Invoice on its way' : 'Filter request received'}</h2>
+        <p className="cp-lead" style={{ maxWidth: 360 }}>
+          {orderMode === 'invoiced'
+            ? 'We’ve emailed your filter invoice with a secure link to pay by card. Thank you!'
+            : 'We’ll confirm pricing and delivery, and reach out if we need anything. Thanks!'}
+        </p>
+        <button className="cp-btn" style={{ maxWidth: 260 }} onClick={() => nav('/portal')}>Back to home</button>
+      </div>
+    </div>
+  )
   return (
     <div className="cp-wrap">
       <button className="cp-back" onClick={() => nav('/portal')}>‹ Home</button>

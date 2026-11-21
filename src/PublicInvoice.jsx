@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import InvoiceDocument from './InvoiceDocument'
 import PMReportDocument from './PMReportDocument'
 
 export default function PublicInvoice() {
   const { invoiceId } = useParams()
+  const navBack = useNavigate()
+  const [qs] = useSearchParams()
+  // Opened from the customer portal/app: show a way back (otherwise the page is a dead end in the app).
+  const fromPortal = qs.get('from') === 'portal'
   const [downloading, setDownloading] = useState(false)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -276,7 +280,13 @@ export default function PublicInvoice() {
     }}>
       {/* Hide the interactive controls when the document is printed/saved as a PDF. */}
       <style>{`@media print { .cp-noprint { display: none !important; } }`}</style>
-      <div className="cp-noprint" style={{ maxWidth: 800, margin: '0 auto 10px', display: 'flex', justifyContent: 'flex-end' }}>
+      <div className="cp-noprint" style={{ maxWidth: 800, margin: '0 auto 10px', display: 'flex', justifyContent: fromPortal ? 'space-between' : 'flex-end', alignItems: 'center', paddingTop: fromPortal ? 'env(safe-area-inset-top, 0px)' : 0 }}>
+        {fromPortal && (
+          <button onClick={() => (window.history.length > 1 ? navBack(-1) : navBack('/portal/records'))}
+            style={{ background: '#fff', border: '1px solid #D5DCE6', borderRadius: 999, padding: '9px 16px', fontSize: 15, fontWeight: 700, color: '#0F2440', cursor: 'pointer' }}>
+            ‹ Back
+          </button>
+        )}
         <button onClick={downloadPdf} disabled={downloading}
           style={{ border: '1px solid #CBD5E1', background: '#fff', color: '#334155', fontWeight: 700, fontSize: 13.5, borderRadius: 10, padding: '9px 16px', cursor: 'pointer', opacity: downloading ? 0.7 : 1 }}>
           {downloading ? 'Preparing…' : '⬇ Download PDF'}
