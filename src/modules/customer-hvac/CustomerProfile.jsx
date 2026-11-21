@@ -16,6 +16,8 @@ export default function CustomerProfile({ customer, properties, org }) {
   const [delStep, setDelStep] = useState(0) // 0 closed · 1 asking to confirm
   const [delBusy, setDelBusy] = useState(false)
   const [delErr, setDelErr] = useState('')
+  const [companies, setCompanies] = useState([])
+  const [switching, setSwitching] = useState('')
 
   useEffect(() => {
     let live = true
@@ -25,6 +27,21 @@ export default function CustomerProfile({ customer, properties, org }) {
       .then(({ data }) => { if (live && data) setForm(data) })
     return () => { live = false }
   }, [customer.id])
+
+  // Customers of more than one HVAC company (same email at each) can choose which one the app shows.
+  useEffect(() => {
+    let live = true
+    supabase.rpc('customer_portal_list').then(({ data }) => { if (live) setCompanies(data || []) })
+    return () => { live = false }
+  }, [])
+
+  async function switchTo(id) {
+    setSwitching(id)
+    const { error: err } = await supabase.rpc('customer_portal_switch', { p_customer: id })
+    if (err) { setSwitching(''); setError(err.message); return }
+    try { localStorage.removeItem('cp_brand'); localStorage.removeItem('cp_active_property') } catch (_) {}
+    window.location.assign('/portal')
+  }
 
   const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setSaved(false) }
 
@@ -61,6 +78,26 @@ export default function CustomerProfile({ customer, properties, org }) {
       <button className="cp-back" onClick={() => nav('/portal')}>‹ Home</button>
       <h2 className="cp-h2">Edit Personal Info</h2>
       <p className="cp-lead">Keep your contact details current so we can always reach you.</p>
+
+      {companies.length > 1 && (
+        <div className="cp-card">
+          <div className="cp-label" style={{ marginTop: 0 }}>Your HVAC companies</div>
+          <p className="cp-note" style={{ marginTop: 4 }}>
+            You're a customer of more than one company that uses this app. Choose whose service you want to see.
+          </p>
+          {companies.map((c) => (
+            <button
+              key={c.customer_id}
+              className={c.is_current ? 'cp-btn' : 'cp-btn ghost'}
+              style={{ marginTop: 8 }}
+              disabled={c.is_current || !!switching}
+              onClick={() => switchTo(c.customer_id)}
+            >
+              {c.org_name}{c.is_current ? ' ✓ (showing now)' : switching === c.customer_id ? ' — switching…' : ''}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="cp-card">
         <div className="cp-label" style={{ marginTop: 0 }}>Name</div>

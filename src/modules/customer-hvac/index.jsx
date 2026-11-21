@@ -90,11 +90,15 @@ export default function CustomerPortal() {
     let live = true
     ;(async () => {
       // Link this auth user to their customer record (idempotent), then load it.
-      await supabase.rpc('claim_customer_portal')
+      // A customer of several contractors is linked to each; this returns the one to show now
+      // (most recent activity, or the one they picked under "Your HVAC companies").
+      const { data: cid } = await supabase.rpc('claim_customer_portal')
+      if (!live) return
+      if (!cid) { setCustomer(null); return }
       const { data: cust } = await supabase
         .from('customers')
         .select('id, org_id, first_name, last_name, display_name, company, primary_phone, secondary_phone, email_1, email_2')
-        .eq('auth_user_id', session.user.id)
+        .eq('id', cid)
         .maybeSingle()
       if (!live) return
       if (!cust) { setCustomer(null); return }
