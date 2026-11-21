@@ -1,6 +1,6 @@
 {
   "appId": "com.ventexiq.homecomfort",
-  "appName": "Home Comfort Connect",
+  "appName": "Air Care Home",
   "webDir": "shell",
   "server": {
     "url": "https://portal.journey-hvac.app/portal",
