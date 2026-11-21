@@ -254,8 +254,6 @@ export default function MaintenanceStation({ profile }) {
                   <label style={{ ...L2, marginTop: 12 }}>Send by</label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <button onClick={() => setWb((w) => ({ ...w, channel: 'email' }))} style={{ border: `1px solid ${wb.channel === 'email' ? BRAND : 'var(--border)'}`, background: wb.channel === 'email' ? BRAND : '#fff', color: wb.channel === 'email' ? '#fff' : 'var(--ink,#1C2430)', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Email</button>
-                    <button disabled title="Texting coming soon" style={{ border: '1px solid var(--border)', background: '#f3f4f6', color: '#aab2bd', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 500, cursor: 'not-allowed' }}>Text</button>
-                    <span style={{ fontSize: 11.5, color: FAINT }}>Texting coming soon</span>
                   </div>
                   <button className="auth-button" style={{ width: '100%', margin: '18px 0 0', padding: '11px', fontSize: 14 }} disabled={!!wb.sending} onClick={() => sendWb(wb.picked)}>{wb.sending ? 'Sending…' : 'Send win-back offer'}</button>
                   {wb.sentMsg && <div style={{ marginTop: 12, fontSize: 13, color: wb.sentMsg.startsWith('Could') ? '#B5462F' : GREEN, fontWeight: 600 }}>{wb.sentMsg}</div>}

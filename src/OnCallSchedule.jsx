@@ -322,10 +322,6 @@ export default function OnCallSchedule({ profile }) {
                   <button type="button" onClick={doPrint} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Print Calendar</button>
                 </div>
               )}
-              <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-                <button type="button" onClick={() => setView('calendar')} title="Calendar view" style={viewBtn(view === 'calendar')}>🗓</button>
-                <button type="button" onClick={() => setView('map')} title="Map view" style={viewBtn(view === 'map')}>📍</button>
-              </div>
             </div>
 
             {issues.length > 0 && view === 'calendar' && (

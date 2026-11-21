@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from './utils/supabase'
+import { Capacitor } from '@capacitor/core'
 
 // A subscriber's own Journey-HVAC subscription (what THEY pay Journey), billed through Journey's
 // Stripe account by the platform-billing edge function.
@@ -25,7 +26,14 @@ async function call(body) {
   return data
 }
 
-export function JourneyBillingPanel({ orgId, token, office, onChanged }) {
+// Journey is never sold or paid for inside the store apps (Apple/Google rules) — only on the website.
+const NATIVE = (() => { try { return Capacitor.isNativePlatform() } catch { return false } })()
+export function JourneyBillingPanel(props) {
+  if (NATIVE) return null
+  return <BillingPanelInner {...props} />
+}
+
+function BillingPanelInner({ orgId, token, office, onChanged }) {
   const [interval, setInterval] = useState('month')
   const [d, setD] = useState(null)
   const [busy, setBusy] = useState('')

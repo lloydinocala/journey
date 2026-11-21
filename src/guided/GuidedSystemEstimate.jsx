@@ -201,7 +201,7 @@ export default function GuidedSystemEstimate({ profile, mobile }) {
         return (
           <div key={f} style={{ opacity: ok ? 1 : 0.5 }}>
             <Btn primary={i % 2 === 0} disabled={!ok} onClick={() => { if (f !== fam) setSelBrands([]); setFam(f); go('brands') }}>{Plan.familyLabel(f)}</Btn>
-            <div style={{ textAlign: 'center', fontSize: 12.5, color: C.navy, fontWeight: 600, marginTop: 4 }}>{ok ? Plan.familySub(f) : 'Pricing coming soon for this size.'}</div>
+            <div style={{ textAlign: 'center', fontSize: 12.5, color: C.navy, fontWeight: 600, marginTop: 4 }}>{ok ? Plan.familySub(f) : 'No pricing set up for this size.'}</div>
           </div>
         )
       })}

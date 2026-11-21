@@ -41,9 +41,6 @@ export default function OrgHome({ profile }) {
       <h1 style={{ fontSize: 40, fontWeight: 800, color: primary, margin: 0, letterSpacing: '-0.5px' }}>
         {org?.name || ' '}
       </h1>
-      <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 14 }}>
-        Your home dashboard is coming soon.
-      </p>
     </div>
   )
 }

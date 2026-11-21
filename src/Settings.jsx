@@ -16,6 +16,8 @@ import TextingSettings from './TextingSettings'
 import PayMethodSettings from './PayMethodSettings'
 import TimeOffSettings from './TimeOffSettings'
 import { JourneyBillingPanel } from './JourneyBilling'
+import { Capacitor } from '@capacitor/core'
+const IN_STORE_APP = (() => { try { return Capacitor.isNativePlatform() } catch { return false } })()
 import { HiringQuestionsSettings } from './modules/rewards-hvac/HiringPanels'
 import CallHandlingPrefs from './CallHandlingPrefs'
 import PayrollSettings from './PayrollSettings'
@@ -771,7 +773,7 @@ export default function Settings({ profile }) {
       </SettingsSection>
 
       <SettingsSection id="financials" isAdmin={isAdmin} highlight={highlight}>
-      {selectedOrg && (
+      {selectedOrg && !IN_STORE_APP && (
         <div id="settings-journey_billing" style={{ marginBottom: 28 }}>
           <h3 style={{ fontSize: 16, marginBottom: 6 }}>Your Journey subscription</h3>
           <p style={{ color: 'var(--mist)', fontSize: 14, marginTop: 0, marginBottom: 12 }}>What your company pays Journey-HVAC each month or year, and the card it's charged to.</p>
