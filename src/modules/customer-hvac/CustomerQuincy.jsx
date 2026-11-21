@@ -11,6 +11,12 @@ const GREETING = {
 
 const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null
 
+// Quincy sometimes marks a phrase as **bold**; show it bold instead of showing the asterisks.
+function withBold(text) {
+  return String(text || '').split(/(\*\*[^*]+\*\*)/g).map((part, k) =>
+    /^\*\*[^*]+\*\*$/.test(part) ? <b key={k}>{part.slice(2, -2)}</b> : part.replace(/\*\*/g, ''))
+}
+
 export default function CustomerQuincy() {
   const nav = useNavigate()
   const loc = useLocation()
@@ -84,7 +90,7 @@ export default function CustomerQuincy() {
       <div className="cp-chat-scroll" ref={scrollRef}>
         {messages.map((m, i) => (
           <div key={i} style={{ display: 'contents' }}>
-            <div className={'cp-bubble ' + (m.role === 'user' ? 'me' : 'bot')}>{m.content}</div>
+            <div className={'cp-bubble ' + (m.role === 'user' ? 'me' : 'bot')}>{m.role === 'user' ? m.content : withBold(m.content)}</div>
             {m.action && <QuincyAction action={m.action} />}
           </div>
         ))}

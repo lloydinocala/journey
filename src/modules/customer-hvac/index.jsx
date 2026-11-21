@@ -163,7 +163,7 @@ export default function CustomerPortal() {
   if (welcome) return (
     <div className="cp-app">
       <div className="cp-scroll">
-        <div className="cp-wrap" style={{ paddingTop: 24 }}>
+        <div className="cp-wrap" style={{ paddingTop: 'calc(24px + env(safe-area-inset-top, 0px))' }}>
           <NotifySettings mode="welcome" brandName={displayBrandName(org?.name)} onDone={() => setWelcome(false)} onOpenUrl={(url) => navigate(url)} />
         </div>
       </div>
