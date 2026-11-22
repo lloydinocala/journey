@@ -297,6 +297,9 @@ export default function TechJobCard({ profile }) {
 
   // Stop / incomplete
   const [showStopModal, setShowStopModal] = useState(false)
+  // Customer asked for a call from the tech: On My Way / Start waits until the call is logged.
+  const [callGate, setCallGate] = useState(null) // the status the tech was trying to move to
+  const [callSaving, setCallSaving] = useState(false)
   const [incompleteReason, setIncompleteReason] = useState('')
   const [incompleteNote, setIncompleteNote] = useState('')
   const [savingStop, setSavingStop] = useState(false)
@@ -327,6 +330,7 @@ export default function TechJobCard({ profile }) {
     const { data } = await supabase.from('jobs').select(`
       id, org_id, property_id, customer_id, job_number, segment, status, start_time, duration_hours, job_type,
       service_complaint, internal_notes, auth_diagnose_only, auth_limit_amount, service_estimate_not_needed, plan_options_sent_at, plan_options_declined_at, read_notes_before_job, no_charge, no_charge_reason,
+      call_customer_first, customer_called_at, customer_call_result,
       tech_email_edited_at, tech_phone_edited_at, diagnosis_note, diagnosis_recorded_at, pre_photo_skip_reason, arrival_at, paused_at, paused_seconds,
       properties ( street_address, unit, city, state, zip, gate_code, expected_system_count ),
       customers ( display_name, spouse_name, primary_phone, secondary_phone, email_1 ),
@@ -674,7 +678,13 @@ export default function TechJobCard({ profile }) {
   function handleBack() { if (timingLocked) { flashLock(); return } navigate('/tech') }
 
   // ---- status transitions ----
+  const callPending = !!(job?.call_customer_first && !job?.customer_called_at)
   async function updateStatus(newStatus) {
+    if (!job) return
+    if (callPending && (newStatus === 'on_my_way' || (newStatus === 'in_progress' && status === 'scheduled'))) { setCallGate(newStatus); return }
+    return updateStatusRaw(newStatus)
+  }
+  async function updateStatusRaw(newStatus) {
     if (!job) return
     setSaving(true)
     const patch = { status: newStatus }
@@ -698,6 +708,24 @@ export default function TechJobCard({ profile }) {
       }
     }
     setSaving(false)
+  }
+
+  // Number to call: the "Call back at" number the caller gave, else the customer's phone.
+  const callBackRaw = (String(job?.service_complaint || '').match(/^Call back at: (.*)$/m) || [])[1] || job?.customers?.primary_phone || ''
+  const callBackDigits = String(callBackRaw).replace(/\D/g, '').slice(-10)
+  const callBackShown = callBackDigits.length === 10 ? `(${callBackDigits.slice(0, 3)}) ${callBackDigits.slice(3, 6)}-${callBackDigits.slice(6)}` : ''
+  async function logCustomerCall(result) {
+    if (!job) return
+    setCallSaving(true)
+    const patch = { customer_called_at: new Date().toISOString(), customer_called_by: uid || null, customer_call_result: result }
+    const { error } = await supabase.from('jobs').update(patch).eq('id', jobId)
+    setCallSaving(false)
+    if (error) return
+    const next = callGate
+    setJob((p) => ({ ...p, ...patch }))
+    setCallGate(null)
+    // Carry on with what the tech was doing (On My Way / Start My Time) — unless they're not going.
+    if (next && result !== 'not_needed') updateStatusRaw(next)
   }
 
   async function pauseJob() {
@@ -1240,8 +1268,9 @@ export default function TechJobCard({ profile }) {
         {/* Property image with dispatched banner overlays */}
         <a className="jc-property" href={dmaps || undefined} target="_blank" rel="noreferrer" style={{ pointerEvents: dmaps ? 'auto' : 'none' }}>
           {mapImg ? <img src={mapImg} alt="Property" className="jc-property-img" /> : <div className="jc-property-fallback"><IconPin /> Property photo</div>}
-          {(warningBanner || messageBanner || job?.auth_diagnose_only || repairLimit != null || job?.read_notes_before_job) && (
+          {(warningBanner || messageBanner || job?.auth_diagnose_only || repairLimit != null || job?.read_notes_before_job || callPending) && (
             <div className="jc-img-banners">
+              {callPending && <div className="jc-img-banner warning">📞 Customer asked for a call from you — call before heading out</div>}
               {job?.read_notes_before_job && <div className="jc-img-banner warning">Read Private Notes before going to job</div>}
               {job?.auth_diagnose_only && <div className="jc-img-banner estimate-only">Create Estimate Only</div>}
               {repairLimit != null && <div className="jc-img-banner repair-limit">Repairs Limited to ${repairLimit.toLocaleString()}</div>}
@@ -1938,6 +1967,28 @@ export default function TechJobCard({ profile }) {
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="jc-btn ghost" disabled={savingStop} onClick={() => setShowStopModal(false)}>Cancel</button>
               <button className="jc-btn red wide" disabled={savingStop || !incompleteReason || (incompleteReason === 'Other' && !incompleteNote.trim())} onClick={() => finishJob('incomplete', incompleteReason)}>{savingStop ? 'Saving…' : 'Stop — Mark Incomplete'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer asked for a call — must be logged before On My Way / Start My Time */}
+      {callGate && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1500 }} onClick={() => !callSaving && setCallGate(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: '100%', maxWidth: 520, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, paddingBottom: 32 }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 21 }}>📞 Call the customer first</h3>
+            <p className="jc-muted-note" style={{ marginBottom: 14 }}>
+              {job?.customers?.display_name || 'The customer'} asked for a phone call from the technician. Call them before you go.
+            </p>
+            {callBackShown
+              ? <a href={`tel:${callBackDigits}`} className="jc-btn wide" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginBottom: 14, fontSize: 19 }}>Call {callBackShown}</a>
+              : <p style={{ color: 'var(--jc-red)', fontSize: 15, marginBottom: 14 }}>No phone number on file — check the job notes or ask the office.</p>}
+            <p style={{ fontSize: 15, fontWeight: 600, margin: '0 0 8px' }}>After the call:</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button className="jc-btn wide" disabled={callSaving} onClick={() => logCustomerCall('reached')}>I talked to them — continue</button>
+              <button className="jc-btn ghost wide" disabled={callSaving} onClick={() => logCustomerCall('voicemail')}>No answer — left a message — continue</button>
+              <button className="jc-btn ghost wide" disabled={callSaving} onClick={() => logCustomerCall('not_needed')}>Talked to them — visit not needed</button>
+              <button className="jc-btn ghost" disabled={callSaving} onClick={() => setCallGate(null)}>Cancel</button>
             </div>
           </div>
         </div>
