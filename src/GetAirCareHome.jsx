@@ -8,6 +8,8 @@ import { Navigate } from 'react-router-dom'
 // is never offered as a web app here.
 export const APP_STORE_URL = 'https://apps.apple.com/us/app/air-care-home/id6837530570'
 export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.ventexiq.homecomfort'
+const IOS_STORE_APP_URL = 'itms-apps://apps.apple.com/app/id6837530570'
+const ANDROID_STORE_APP_URL = 'intent://details?id=com.ventexiq.homecomfort#Intent;scheme=market;package=com.android.vending;S.browser_fallback_url=' + encodeURIComponent(PLAY_STORE_URL) + ';end'
 
 function detectPlatform() {
   if (typeof navigator === 'undefined') return 'other'
@@ -25,8 +27,15 @@ export default function GetAirCareHome() {
   const [platform] = useState(detectPlatform)
 
   useEffect(() => {
-    if (platform === 'ios') window.location.replace(APP_STORE_URL)
-    else if (platform === 'android') window.location.replace(PLAY_STORE_URL)
+    // Plain https store links opened by a script stay in the browser (iOS shows
+    // Apple's web preview). The store apps' own address schemes open the App Store
+    // / Play Store app directly; the https link is the fallback.
+    if (platform === 'ios') {
+      window.location.href = IOS_STORE_APP_URL
+      const t = setTimeout(() => { if (!document.hidden) window.location.replace(APP_STORE_URL) }, 2500)
+      return () => clearTimeout(t)
+    }
+    if (platform === 'android') window.location.replace(ANDROID_STORE_APP_URL)
   }, [platform])
 
   if (platform === 'app') return <Navigate to="/portal" replace />
@@ -51,4 +60,12 @@ export default function GetAirCareHome() {
       </div>
     </div>
   )
+}
+
+// Wraps the customer portal (/portal/*). The portal only runs inside the Air Care
+// Home app; in any web browser — phone or computer — the visitor is sent to the
+// app stores instead.
+export function PortalGate({ children }) {
+  const [platform] = useState(detectPlatform)
+  return platform === 'app' ? children : <GetAirCareHome />
 }

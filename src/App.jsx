@@ -174,7 +174,7 @@ import ShowMode from './ShowMode'
 import SalesLeads from './SalesLeads'
 import JourneyFollowups from './JourneyFollowups'
 import JourneyMailTriage from './JourneyMailTriage'
-import GetAirCareHome from './GetAirCareHome'
+import GetAirCareHome, { PortalGate } from './GetAirCareHome'
 // import PayrollDashboard from './modules/rewards-hvac/PayrollDashboard';  // TODO: re-enable when rewards-hvac Payroll module is finished
 
 async function logSignIn(userId) {
@@ -579,7 +579,7 @@ export default function App() {
         <Route path="/r/:token" element={<ServiceHub />} />
         <Route path="/apply/:token" element={<PublicApply />} />
         <Route path="/a/:token" element={<ServiceApproval />} />
-        <Route path="/portal/*" element={<CustomerPortal />} />
+        <Route path="/portal/*" element={<PortalGate><CustomerPortal /></PortalGate>} />
         <Route path="/employee/*" element={<EmployeePortal />} />
         {isPortalHost && <Route path="/" element={<GetAirCareHome />} />}
         <Route path="*" element={isPortalHost ? <Navigate to="/portal" replace /> : isEmployeeHost ? <Navigate to="/employee" replace /> : <AuthenticatedApp />} />
