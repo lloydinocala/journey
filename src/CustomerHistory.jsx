@@ -202,6 +202,12 @@ export default function CustomerHistory({ profile }) {
     setLoading(false)
   }
 
+  // Non-photo files (saved call recordings and transcripts) open in a new tab via a short-lived link.
+  async function openAttachment(a) {
+    const { data } = await supabase.storage.from('job-photos').createSignedUrl(a.file_path, 3600)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener')
+  }
+
   async function deleteAttachment(a) {
     if (!window.confirm(`Delete "${a.caption || a.file_name || 'this file'}"? This cannot be undone.`)) return
     if (a.file_path) { try { await supabase.storage.from('job-photos').remove([a.file_path]) } catch (_) { /* ignore storage errors */ } }
@@ -828,7 +834,7 @@ export default function CustomerHistory({ profile }) {
                       ? <Link to={`/jobs?job=${g.jobId}`} style={{ color: '#2E7FC4', textDecoration: 'none' }}>{g.job.job_number}{g.job.segment > 1 ? `-${g.job.segment}` : ''}</Link>
                       : <span style={{ color: 'var(--mist)' }}>Unassigned</span>}
                     {g.job && <span style={{ fontWeight: 400, color: 'var(--mist)' }}>{' · '}{formatDate(g.job.job_date)}{g.job.job_type ? ' · ' + g.job.job_type : ''}</span>}
-                    <span style={{ fontWeight: 400, color: 'var(--mist)' }}>{'  ·  '}{g.items.length} photo{g.items.length === 1 ? '' : 's'}</span>
+                    <span style={{ fontWeight: 400, color: 'var(--mist)' }}>{'  ·  '}{g.items.length} {g.items.every((x) => x.category === 'photo') ? 'photo' : 'file'}{g.items.length === 1 ? '' : 's'}</span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
                     {g.items.map((a) => (
@@ -840,7 +846,11 @@ export default function CustomerHistory({ profile }) {
                             onClick={() => setLightbox({ url: photoUrls[a.id], caption: a.caption, date: a.taken_at })}
                             style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd', cursor: 'zoom-in' }} />
                         ) : (
-                          <div style={{ width: '100%', height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #ddd', borderRadius: 6, color: 'var(--mist)' }}>{a.file_name}</div>
+                          <div onClick={() => openAttachment(a)} title="Open"
+                            style={{ width: '100%', height: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, border: '1px solid #ddd', borderRadius: 6, color: 'var(--ink, #1f2937)', background: '#F4F8FA', cursor: 'pointer', padding: 8, textAlign: 'center', fontSize: 12 }}>
+                            <span style={{ fontSize: 30 }}>{a.category === 'call_recording' ? '🎧' : a.category === 'call_transcript' ? '📄' : '📎'}</span>
+                            <span style={{ wordBreak: 'break-word' }}>{a.file_name}</span>
+                          </div>
                         )}
                         <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--mist)' }}>{formatDate(a.taken_at)}</p>
                         {a.caption && <p style={{ margin: '2px 0 0', fontSize: 12 }}>{a.caption}</p>}
