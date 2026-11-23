@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
@@ -48,6 +48,7 @@ export default function CallLog({ profile }) {
   const [exp, setExp] = useState({ name: '', from: '', to: '', includeCleared: true })
   const [exporting, setExporting] = useState(false)
   const [expMsg, setExpMsg] = useState('')
+  const [openCall, setOpenCall] = useState(null) // AI call whose recording/transcript is showing
 
   useEffect(() => { if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || [])) }, [isSuper])
   useEffect(() => { if (selectedOrg) load(); else setLoading(false) }, [selectedOrg])
@@ -55,7 +56,7 @@ export default function CallLog({ profile }) {
   async function load() {
     setLoading(true)
     const { data } = await supabase.from('call_logs')
-      .select('id, called_at, caller_name, phone, purpose, taken_by_name, customer_id, vendor_id, known_contact_id, caller_type, route_to, follow_up, needs_callback, completed_at, known_contacts:known_contact_id ( category )')
+      .select('id, called_at, caller_name, phone, purpose, taken_by_name, customer_id, vendor_id, known_contact_id, caller_type, route_to, follow_up, needs_callback, completed_at, source, ai_details, known_contacts:known_contact_id ( category )')
       .eq('org_id', selectedOrg).is('deleted_at', null).order('called_at', { ascending: false }).limit(1000)
     setRows(data || []); setLoading(false); setClear({ mode: 'idle', count: 0, msg: '' })
   }
@@ -178,7 +179,8 @@ export default function CallLog({ profile }) {
           {list.map((r) => {
             const label = typeLabel(r)
             return (
-              <tr key={r.id} style={r.completed_at ? { background: '#EDF5EE' } : (r.needs_callback || r.follow_up) ? { background: '#FCF6E9' } : undefined}>
+              <Fragment key={r.id}>
+              <tr style={r.completed_at ? { background: '#EDF5EE' } : (r.needs_callback || r.follow_up) ? { background: '#FCF6E9' } : undefined}>
                 <td style={{ textAlign: 'center' }}><input type="checkbox" checked={!!r.needs_callback} onChange={() => toggleFlag(r, 'needs_callback')} title="Flag for call-back" style={{ width: 17, height: 17, cursor: 'pointer' }} /></td>
                 <td style={{ whiteSpace: 'nowrap' }}>{new Date(r.called_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} {new Date(r.called_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</td>
                 <td>{callerCell(r)}</td>
@@ -189,6 +191,12 @@ export default function CallLog({ profile }) {
                 <td style={{ textAlign: 'center' }}><input type="checkbox" checked={!!r.follow_up} onChange={() => toggleFlag(r, 'follow_up')} title="Flag for follow-up" style={{ width: 17, height: 17, cursor: 'pointer' }} /></td>
                 <td style={{ whiteSpace: 'nowrap' }}>{r.route_to || '—'}</td>
                 <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                  {r.ai_details?.recording_url && (
+                    <button onClick={() => setOpenCall(openCall === r.id ? null : r.id)} title="Play the recording and read the transcript"
+                      style={{ border: '1px solid #176E7A', background: openCall === r.id ? '#176E7A' : '#fff', color: openCall === r.id ? '#fff' : '#176E7A', borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700, cursor: 'pointer', marginRight: 6 }}>
+                      ▶ Recording
+                    </button>
+                  )}
                   <button onClick={() => markComplete(r)} title={r.completed_at ? 'Reopen (mark not complete)' : 'Mark this call complete'}
                     style={{ border: '1px solid ' + (r.completed_at ? '#2E7D32' : 'var(--border)'), background: r.completed_at ? '#2E7D32' : '#fff', color: r.completed_at ? '#fff' : '#2E7D32', borderRadius: 6, padding: '4px 9px', fontSize: 12, fontWeight: 700, cursor: 'pointer', marginRight: 6 }}>
                     {r.completed_at ? '✓ Done' : 'Complete'}
@@ -199,6 +207,23 @@ export default function CallLog({ profile }) {
                   </button>
                 </td>
               </tr>
+              {openCall === r.id && r.ai_details && (
+                <tr><td colSpan={10} style={{ background: '#F4F8FA', padding: '14px 18px' }}>
+                  <audio controls preload="none" src={r.ai_details.recording_url} style={{ width: '100%', maxWidth: 560, display: 'block', marginBottom: 10 }} />
+                  <div style={{ fontSize: 12.5, color: 'var(--mist)', marginBottom: 8 }}>
+                    {r.ai_details.duration_sec ? `${Math.floor(r.ai_details.duration_sec / 60)}:${String(Math.round(r.ai_details.duration_sec % 60)).padStart(2, '0')} · ` : ''}
+                    <a href={r.ai_details.recording_url} target="_blank" rel="noreferrer" download>Download recording</a>
+                  </div>
+                  {r.ai_details.summary && <p style={{ margin: '0 0 10px', fontSize: 14 }}><b>Summary:</b> {r.ai_details.summary}</p>}
+                  {r.ai_details.transcript && (
+                    <details>
+                      <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13.5, color: '#176E7A' }}>Transcript</summary>
+                      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 13.5, lineHeight: 1.5, margin: '8px 0 0', maxHeight: 360, overflow: 'auto' }}>{r.ai_details.transcript}</pre>
+                    </details>
+                  )}
+                </td></tr>
+              )}
+              </Fragment>
             )
           })}
         </tbody>
