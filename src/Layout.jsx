@@ -306,6 +306,7 @@ export function buildSections(profile) {
       // Platform / super-admin-only controls, tucked here so subscriber orgs never see them.
       { label: 'Lender Directory', icon: 'directory', path: '/financing-directory', super: true },
       { label: 'Organizations', icon: 'organizations', path: '/organizations', super: true },
+      { label: 'Subscriber Watch', icon: 'organizations', path: '/subscriber-watch', super: true },
       { label: 'Sales', icon: 'marketing', path: '/sales-leads', super: true },
       { label: 'Journey Follow-ups', icon: 'marketing', path: '/journey-followups', super: true },
       { label: "Journey inbox sort", icon: 'marketing', path: '/journey-mail', super: true },

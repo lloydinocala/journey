@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from './utils/supabase'
 import OrgPicker from './OrgPicker'
+import { SubscriberWatchSummary } from './SubscriberWatch'
 import { fetchAllRows } from './utils/csvImport'
 import { viewingOrg } from './utils/viewingOrg'
 
@@ -537,6 +538,7 @@ export default function Dashboard({ profile }) {
     <div>
       <p style={{ color: 'var(--mist)' }}>Welcome, {profile.full_name}.</p>
 
+      {isSuperAdmin && <SubscriberWatchSummary />}
       {isSuperAdmin && <PlatformHealth orgs={orgs} />}
 
       {isSuperAdmin && orgs.length > 0 && (

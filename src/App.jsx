@@ -86,6 +86,7 @@ import NewFollowupEstimate from './NewFollowupEstimate'
 import Estimates from './Estimates'
 import Announcements from './Announcements'
 import WebsiteAnnouncement from './WebsiteAnnouncement'
+import SubscriberWatch from './SubscriberWatch'
 import PublicInvoice from './PublicInvoice'
 import PublicChecklistReport from './PublicChecklistReport'
 import PublicTrack from './PublicTrack'
@@ -539,6 +540,9 @@ function AuthenticatedApp() {
         )}
         {profile.role === 'super_admin' && (
           <Route path="/organizations" element={<Organizations />} />
+        )}
+        {profile.role === 'super_admin' && (
+          <Route path="/subscriber-watch" element={<SubscriberWatch profile={profile} />} />
         )}
         {(profile.role === 'super_admin' || profile.org_id === '5bb0e0a2-9a0a-4f45-96b9-69e7fe31ba8b') && (
           <>
