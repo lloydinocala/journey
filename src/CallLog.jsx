@@ -44,6 +44,7 @@ export default function CallLog({ profile }) {
   const [search, setSearch] = useState('')
   const [range, setRange] = useState('all')
   const [clear, setClear] = useState({ mode: 'idle', count: 0, msg: '' })
+  const [clearToday, setClearToday] = useState('idle') // idle | confirm | clearing
   const [expOpen, setExpOpen] = useState(false)
   const [exp, setExp] = useState({ name: '', from: '', to: '', includeCleared: true })
   const [exporting, setExporting] = useState(false)
@@ -100,6 +101,14 @@ export default function CallLog({ profile }) {
     await supabase.from('call_logs').update({ deleted_at: new Date().toISOString() }).eq('org_id', selectedOrg).is('deleted_at', null).eq('needs_callback', false).eq('follow_up', false).lt('called_at', startToday.toISOString())
     load()
   }
+  // Today's board: clear the unflagged calls now instead of waiting for the overnight clean-up.
+  // Flagged calls (call-back / follow-up) always stay.
+  async function doClearToday() {
+    setClearToday('clearing')
+    await supabase.from('call_logs').update({ deleted_at: new Date().toISOString() }).eq('org_id', selectedOrg).is('deleted_at', null).eq('needs_callback', false).eq('follow_up', false).gte('called_at', startToday.toISOString())
+    setClearToday('idle')
+    load()
+  }
 
   // ---- CSV export: name / date-range / all, optionally including cleared calls ----
   const csvCell = (v) => {
@@ -147,6 +156,7 @@ export default function CallLog({ profile }) {
     || (termDigits && (r.phone || '').replace(/\D/g, '').includes(termDigits))
 
   const todayRows = rows.filter((r) => new Date(r.called_at).getTime() >= startMs)
+  const todayUnflagged = todayRows.filter((r) => !r.needs_callback && !r.follow_up).length
   const earlierAll = rows.filter((r) => new Date(r.called_at).getTime() < startMs)
   const earlierShown = earlierAll.filter((r) => {
     if (!matchesTerm(r)) return false
@@ -272,6 +282,17 @@ export default function CallLog({ profile }) {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
             <h3 style={{ margin: 0, fontSize: 16 }}>Today</h3>
             <span style={{ fontSize: 13, color: 'var(--mist)' }}>{todayLabel} · {todayRows.length} call{todayRows.length === 1 ? '' : 's'}</span>
+            {todayUnflagged > 0 && (clearToday === 'confirm' ? (
+              <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', background: '#FBECE8', border: '1px solid #EAC5BC', borderRadius: 8, padding: '4px 10px', marginLeft: 8 }}>
+                <span style={{ fontSize: 13, color: '#B5462F', fontWeight: 600 }}>Clear {todayUnflagged} unflagged from today?</span>
+                <button onClick={doClearToday} style={{ border: 'none', background: '#B5462F', color: '#fff', borderRadius: 6, padding: '4px 12px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Clear</button>
+                <button onClick={() => setClearToday('idle')} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 6, padding: '4px 12px', fontSize: 12.5, cursor: 'pointer' }}>Cancel</button>
+              </span>
+            ) : (
+              <button onClick={() => setClearToday('confirm')} disabled={clearToday === 'clearing'} style={{ border: '1px solid var(--border)', background: '#fff', borderRadius: 8, padding: '5px 12px', fontSize: 12.5, cursor: 'pointer', color: 'var(--mist)', marginLeft: 8 }}>
+                {clearToday === 'clearing' ? 'Clearing…' : "Clear today's unflagged"}
+              </button>
+            ))}
             {todayRows.length > 0 && (
               <span style={{ marginLeft: 'auto' }}>
                 <AiAssist compact title="Today's calls — digest & follow-ups"
