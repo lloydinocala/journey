@@ -147,6 +147,19 @@ function MoreInJourney({ profile, query }) {
   )
 }
 
+// Download what's on screen (the search applies) as a .csv that opens in Excel or Google Sheets.
+function exportCsv(list) {
+  const cell = (v) => { const t = String(v == null ? '' : v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t }
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const lines = [['Feature', 'Navigation heading', 'Navigation page', 'Link'], ...list.map((r) => [r.feature, r.heading, r.page, origin + r.path])]
+  const csv = '\uFEFF' + lines.map((l) => l.map(cell).join(',')).join('\r\n')
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const a = document.createElement('a')
+  a.href = url; a.download = `feature-directory-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 export default function FeatureDirectory({ profile }) {
   const [q, setQ] = useState('')
   const rows = useMemo(() => flattenNav(buildSections(profile), profile), [profile])
@@ -165,6 +178,11 @@ export default function FeatureDirectory({ profile }) {
       <input type="text" autoFocus value={q} onChange={(e) => setQ(e.target.value)}
         placeholder="Search features — e.g. “invoice”, “payroll”, “fleet”…"
         style={{ padding: '10px 12px', width: '100%', maxWidth: 480, marginBottom: 16 }} />
+      <button type="button" className="btn" onClick={() => exportCsv(filtered)} disabled={!filtered.length}
+        title={query ? 'Export the features that match your search' : 'Export every feature'}
+        style={{ marginLeft: 10, marginBottom: 16, verticalAlign: 'top' }}>
+        ⬇ Export .csv{query ? ` (${filtered.length})` : ''}
+      </button>
       <div style={{ overflowX: 'auto' }}>
         <div className="grid-table" style={{ gridTemplateColumns: '1.4fr 1.2fr 1.3fr 0.6fr', minWidth: 720 }}>
           <div className="grid-cell grid-head">Feature</div>
