@@ -4,6 +4,8 @@ import { AgentDraftsBanner } from './AgentInboxBadge'
 import { supabase } from './utils/supabase'
 import { can } from './utils/permissions'
 import NewTexts, { useNewTextCount } from './NewTexts'
+import OrgPicker from './OrgPicker'
+import { viewingOrg } from './utils/viewingOrg'
 
 const BLUE = '#215F9A'
 
@@ -47,7 +49,9 @@ function printThread(t) {
   setTimeout(() => { try { w.print() } catch (e) { /* ignore */ } }, 300)
 }
 
-// Office-side archive of the per-job text threads. Read-only, org-scoped (RLS).
+// Office-side archive of the per-job text threads. Read-only, org-scoped: RLS limits each company to its own
+// texts, and every query also filters by the company being viewed (super admins pick it with OrgPicker,
+// the same "Viewing organization" choice as the other pages).
 // Access limited to Reception/Dispatch (view_text_archive); Admin can delete.
 export default function TextArchive({ profile }) {
   const [rows, setRows] = useState([])
@@ -61,18 +65,29 @@ export default function TextArchive({ profile }) {
   const canDelete = can(profile, 'delete_text_archive')
   // "New texts" = texts to the company's number that aren't part of a job thread.
   const canNewTexts = can(profile, 'dispatch_messaging_poc')
+  const isSuper = profile?.role === 'super_admin'
+  const [orgs, setOrgs] = useState([])
+  const [orgId, setOrgId] = useState(() => profile?.org_id || viewingOrg())
   const [tab, setTab] = useState(() => { try { return new URLSearchParams(window.location.search).get('new') ? 'new' : 'jobs' } catch (e) { return 'jobs' } })
-  const initialNew = useNewTextCount(canNewTexts)
+  const initialNew = useNewTextCount(canNewTexts && !!orgId, orgId)
   const [newCount, setNewCount] = useState(null)
   const newBadge = newCount == null ? initialNew : newCount
 
-  useEffect(() => { if (canView) load(); else setLoading(false) }, [])
+  useEffect(() => {
+    if (!isSuper) return
+    supabase.from('organizations').select('id, name').order('name').then(({ data }) => {
+      setOrgs(data || [])
+      if (!orgId && data && data.length) setOrgId(data[0].id)
+    })
+  }, [])
+  useEffect(() => { setSelectedJob((j) => (orgId ? j : null)); if (canView && orgId) load(); else setLoading(false) }, [orgId])
 
   async function load() {
     setLoading(true)
     const { data } = await supabase
       .from('job_texts')
       .select('id, body, direction, created_at, archived_at, flagged_at, job_id, kind, status, error, to_phone, recipient_name, jobs ( job_number, segment, deleted_at, customers ( display_name ), job_technicians ( users ( full_name ) ) )')
+      .eq('org_id', orgId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
     setRows(data || [])
@@ -150,6 +165,13 @@ export default function TextArchive({ profile }) {
     <div>
       <div className="page-title">Text Archive</div>
 
+      {isSuper && (
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'var(--mist)', marginBottom: 6 }}>Viewing organization</label>
+          <OrgPicker orgs={orgs} value={orgId} onChange={(id) => { setNewCount(null); setSelectedJob(null); setOrgId(id) }} />
+        </div>
+      )}
+
       {canNewTexts && (
         <div style={{ display: 'flex', gap: 6, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
           {[['jobs', 'Job threads'], ['new', 'New texts']].filter(([k]) => k === 'new' || canView).map(([k, label]) => (
@@ -160,7 +182,7 @@ export default function TextArchive({ profile }) {
         </div>
       )}
 
-      {(tab === 'new' && canNewTexts) || !canView ? <NewTexts profile={profile} onCount={setNewCount} /> : (<>
+      {(tab === 'new' && canNewTexts) || !canView ? (orgId ? <NewTexts key={orgId} profile={profile} orgId={orgId} onCount={setNewCount} /> : null) : (<>
       <div style={{ display: 'flex', gap: 14, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 20 }}>
         <div className="field" style={{ marginBottom: 0, minWidth: 300 }}>
           <label>Search by customer, tech, or job #</label>

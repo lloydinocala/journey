@@ -12,17 +12,20 @@ const last10 = (p) => String(p || '').replace(/\D/g, '').slice(-10)
 const pretty = (p) => { const d = last10(p); return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : (p || '') }
 const fmt = (t) => { const d = new Date(t); return isNaN(d) ? '' : d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) }
 
-export function useNewTextCount(enabled) {
+// orgId: the company being viewed. RLS already limits regular users to their own company; the filter
+// also keeps a super admin's view to the company picked in the Text Archive.
+export function useNewTextCount(enabled, orgId) {
   const [n, setN] = useState(0)
   useEffect(() => {
     if (!enabled) return
-    supabase.from('sms_inbound_unmatched').select('from_phone').eq('direction', 'inbound').eq('status', 'new').limit(500)
-      .then(({ data }) => setN(new Set((data || []).map((r) => last10(r.from_phone))).size))
-  }, [enabled])
+    let q = supabase.from('sms_inbound_unmatched').select('from_phone').eq('direction', 'inbound').eq('status', 'new')
+    if (orgId) q = q.eq('org_id', orgId)
+    q.limit(500).then(({ data }) => setN(new Set((data || []).map((r) => last10(r.from_phone))).size))
+  }, [enabled, orgId])
   return n
 }
 
-export default function NewTexts({ profile, onCount }) {
+export default function NewTexts({ profile, onCount, orgId }) {
   const isSuper = profile?.role === 'super_admin'
   const [rows, setRows] = useState([])
   const [orgNames, setOrgNames] = useState({})
@@ -37,9 +40,10 @@ export default function NewTexts({ profile, onCount }) {
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase.from('sms_inbound_unmatched')
+    let q = supabase.from('sms_inbound_unmatched')
       .select('id, org_id, customer_id, from_phone, to_phone, body, direction, status, error, received_at, handled_at, customers ( id, display_name )')
-      .order('received_at', { ascending: true }).limit(2000)
+    if (orgId) q = q.eq('org_id', orgId)
+    const { data } = await q.order('received_at', { ascending: true }).limit(2000)
     setRows(data || [])
     if (isSuper) {
       const ids = [...new Set((data || []).map((r) => r.org_id).filter(Boolean))]
