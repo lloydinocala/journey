@@ -19,7 +19,7 @@ import CustomerQuincy from './CustomerQuincy'
 import CustomerServiceRequests from './CustomerServiceRequests'
 import { displayBrandName, rememberBrand } from './brand'
 import NotifySettings from './NotifySettings'
-import { inCustomerApp, enablePush } from './customerPush'
+import { inCustomerApp, enablePush, reportPush } from './customerPush'
 
 // Self-contained customer app. Mounted at /portal/* in App.jsx, OUTSIDE the
 // staff AuthenticatedApp — its own auth context, its own data boundary (RLS).
@@ -120,6 +120,7 @@ export default function CustomerPortal() {
       if (!live) return
       let asked = false
       try { asked = localStorage.getItem('cp_welcome_done') === '1' } catch { /* ignore */ }
+      reportPush(inCustomerApp() ? 'opened_app' : 'opened_browser')
       if (inCustomerApp()) {
         if (!prefs?.consent_at) setWelcome(true)
         else enablePush((url) => navigate(url))

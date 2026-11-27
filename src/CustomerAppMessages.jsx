@@ -30,6 +30,7 @@ export default function CustomerAppMessages({ profile }) {
   const [testCustomer, setTestCustomer] = useState('')
   const [appCustomers, setAppCustomers] = useState([])
   const [suspended, setSuspended] = useState(false)
+  const [phoneCheck, setPhoneCheck] = useState([])
 
   useEffect(() => {
     if (isSuper) supabase.from('organizations').select('id, name').order('name').then(({ data }) => setOrgs(data || []))
@@ -38,12 +39,13 @@ export default function CustomerAppMessages({ profile }) {
 
   async function load() {
     if (!orgId) return
-    const [{ data: t }, { data: devs }, { data: prefs }, { data: lg }, { data: o }] = await Promise.all([
+    const [{ data: t }, { data: devs }, { data: prefs }, { data: lg }, { data: o }, { data: ev }] = await Promise.all([
       supabase.from('customer_notify_templates').select('*').eq('org_id', orgId),
       supabase.from('customer_app_devices').select('customer_id, customers(display_name)').eq('org_id', orgId),
       supabase.from('customer_notify_prefs').select('greetings, news').eq('org_id', orgId),
       supabase.from('customer_push_log').select('id, created_at, kind, category, title, body, devices_sent, devices_failed, customers(display_name)').eq('org_id', orgId).order('created_at', { ascending: false }).limit(100),
       supabase.from('organizations').select('customer_push_suspended').eq('id', orgId).maybeSingle(),
+      supabase.from('customer_app_push_events').select('customer_id, in_app, platform, permission, step, error, created_at, customers(display_name)').eq('org_id', orgId).order('created_at', { ascending: false }).limit(300),
     ])
     const m = {}; (t || []).forEach((r) => { m[r.kind] = r }); setOwn(m); setEdit({})
     const people = new Map(); (devs || []).forEach((d) => people.set(d.customer_id, d.customers?.display_name || 'Customer'))
@@ -51,6 +53,8 @@ export default function CustomerAppMessages({ profile }) {
     setStats({ app: people.size, greetings: (prefs || []).filter((p) => p.greetings).length, news: (prefs || []).filter((p) => p.news).length })
     setLog(lg || [])
     setSuspended(!!o?.customer_push_suspended)
+    // Phone check: latest event per customer, newest first.
+    const seen = new Set(); setPhoneCheck((ev || []).filter((e) => (seen.has(e.customer_id) ? false : (seen.add(e.customer_id), true))))
   }
   useEffect(() => { load() }, [orgId]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -190,6 +194,33 @@ export default function CustomerAppMessages({ profile }) {
               <option value="">{appCustomers.length ? 'Choose a customer with the app…' : 'No customers have the app yet'}</option>
               {appCustomers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
+          </div>
+
+          <h2>Phone check</h2>
+          <div style={box}>
+            <p style={{ marginTop: 0, color: 'var(--mist)' }}>What happened the last time each customer opened the portal. Only the store app can get notifications; a phone's web browser or home-screen shortcut can't.</p>
+            {!phoneCheck.length ? <p style={{ margin: 0 }}>No customer has opened the portal since this check was added.</p> : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <thead><tr><th align="left">Customer</th><th align="left">Last opened</th><th align="left">Using</th><th align="left">Result</th></tr></thead>
+                <tbody>
+                  {phoneCheck.map((e) => {
+                    const ok = e.step === 'registered'
+                    const label = {
+                      registered: 'Ready for notifications', opened_app: 'Opened the store app', opened_browser: 'Using a web browser, not the store app',
+                      permission_denied: 'Notifications turned off on the phone', phone_refused: 'Phone refused to register', save_failed: 'Registration not saved', plugin_error: 'App error',
+                    }[e.step] || e.step
+                    return (
+                      <tr key={e.customer_id} style={{ borderTop: '1px solid var(--border)' }}>
+                        <td>{e.customers?.display_name || '—'}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>{new Date(e.created_at).toLocaleString()}</td>
+                        <td>{e.in_app ? `Store app (${e.platform === 'ios' ? 'iPhone' : e.platform === 'android' ? 'Android' : e.platform})` : 'Web browser'}</td>
+                        <td style={{ color: ok ? '#15803D' : e.step.startsWith('opened') ? 'inherit' : '#B91C1C' }}>{label}{e.error ? ` — ${e.error}` : ''}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
 
           <h2>Sent</h2>
