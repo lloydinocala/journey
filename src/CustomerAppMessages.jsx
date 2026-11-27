@@ -4,7 +4,7 @@ import { viewingOrg } from './utils/viewingOrg'
 
 // Customer App Messages — push notifications to Home Comfort Connect (the customer app).
 // Automatic messages (wording editable, each can be switched off), a "Send a message" composer
-// for news and offers, a test send to one customer, and a log of everything sent.
+// for Optional Messages (news and offers), a test send to one customer, and a log of everything sent.
 // Customers choose what they receive in the app; this page only reaches those who said yes.
 const FILLINS = [
   ['{first_name}', "customer's first name"],
@@ -12,7 +12,8 @@ const FILLINS = [
   ['{tech_first_name}', "the technician's first name"],
   ['{signoff}', 'tech + company, e.g. "Orlando at Air-Care Connect"'],
 ]
-const CAT_LABEL = { service: 'Service updates', greetings: 'Greetings & weather', news: 'News & offers', test: 'Test' }
+// Display names for the three categories (keys stay service / greetings / news in the database).
+const CAT_LABEL = { service: 'Service Updates', greetings: 'Goodwill', news: 'Optional Messages', test: 'Test' }
 
 export default function CustomerAppMessages({ profile }) {
   const isSuper = profile.role === 'super_admin'
@@ -66,7 +67,7 @@ export default function CustomerAppMessages({ profile }) {
   async function upsert(kind, patch) {
     const cat = defs.find((d) => d.kind === kind)?.category
     if (cat === 'greetings' && /[$%]|\b(sale|discount|off|coupon|deal|offer)\b/i.test(`${patch.title || ''} ${patch.body || ''}`)) {
-      alert('Greetings and weather messages can’t include prices, discounts or offers. Use "Send a message" for news and offers.')
+      alert('Goodwill messages can’t include prices, discounts or offers. Use "Send a message" (Optional Messages) for news and offers.')
       return
     }
     const o = own[kind] || {}
@@ -87,7 +88,7 @@ export default function CustomerAppMessages({ profile }) {
 
   async function send() {
     if (!msgTitle.trim() || !msgBody.trim()) { setResult('Add a title and a message.'); return }
-    if (!window.confirm(`Send this to the ${stats?.news || 0} customer(s) who turned on News & offers?`)) return
+    if (!window.confirm(`Send this to the ${stats?.news || 0} customer(s) who turned on Optional Messages?`)) return
     setSending(true); setResult('')
     const r = await invoke({ mode: 'campaign', title: msgTitle, body: msgBody })
     setSending(false)
@@ -124,7 +125,7 @@ export default function CustomerAppMessages({ profile }) {
           </label>
           {orgId && (
             <span style={{ marginLeft: 16 }}>
-              Greetings & offers for this company: <b style={{ color: suspended ? '#B42318' : '#067647' }}>{suspended ? 'Suspended' : 'Allowed'}</b>{' '}
+              Goodwill & Optional Messages for this company: <b style={{ color: suspended ? '#B42318' : '#067647' }}>{suspended ? 'Suspended' : 'Allowed'}</b>{' '}
               <button onClick={toggleSuspend}>{suspended ? 'Allow' : 'Suspend'}</button>
             </span>
           )}
@@ -135,11 +136,11 @@ export default function CustomerAppMessages({ profile }) {
           {stats && (
             <div style={{ ...box, display: 'flex', gap: 32 }}>
               <div><div style={{ fontSize: 26, fontWeight: 800 }}>{stats.app}</div>customers with the app</div>
-              <div><div style={{ fontSize: 26, fontWeight: 800 }}>{stats.greetings}</div>allow Greetings & weather</div>
-              <div><div style={{ fontSize: 26, fontWeight: 800 }}>{stats.news}</div>allow News & offers</div>
+              <div><div style={{ fontSize: 26, fontWeight: 800 }}>{stats.greetings}</div>allow Goodwill</div>
+              <div><div style={{ fontSize: 26, fontWeight: 800 }}>{stats.news}</div>allow Optional Messages</div>
             </div>
           )}
-          {suspended && <div style={{ ...box, borderColor: '#F5C6C0', background: '#FDECEA' }}>Greetings and News & offers are turned off for this company by Journey. Service updates still go out.</div>}
+          {suspended && <div style={{ ...box, borderColor: '#F5C6C0', background: '#FDECEA' }}>Goodwill and Optional Messages are turned off for this company by Journey. Service Updates still go out.</div>}
 
           <h2>Automatic messages</h2>
           <p style={{ color: 'var(--mist)', marginTop: -6 }}>Fill-ins: {FILLINS.map(([k, d], i) => <span key={k}>{i ? ' · ' : ''}<code>{k}</code> {d}</span>)}</p>
@@ -177,7 +178,7 @@ export default function CustomerAppMessages({ profile }) {
 
           <h2>Send a message</h2>
           <div style={box}>
-            <p style={{ marginTop: 0, color: 'var(--mist)' }}>Goes to customers who turned on <b>News & offers</b>{stats ? ` (${stats.news} right now)` : ''}. Up to 2 messages in any 7 days, sent between 9 AM and 8 PM.</p>
+            <p style={{ marginTop: 0, color: 'var(--mist)' }}>Goes to customers who turned on <b>Optional Messages</b>{stats ? ` (${stats.news} right now)` : ''}. Up to 2 messages in any 7 days, sent between 9 AM and 8 PM.</p>
             <input value={msgTitle} onChange={(e) => setMsgTitle(e.target.value)} placeholder="Title (e.g. Fall tune-ups are open)" maxLength={60} style={{ width: '100%', marginBottom: 6 }} />
             <textarea value={msgBody} onChange={(e) => setMsgBody(e.target.value)} placeholder="Your message. You can use {first_name} and {company}." maxLength={240} rows={3} style={{ width: '100%' }} />
             <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>

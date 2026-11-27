@@ -93,6 +93,8 @@ import PublicTrack from './PublicTrack'
 import PublicFeedback from './PublicFeedback'
 import CustomerFeedback from './CustomerFeedback'
 import PlatformAppFeedback from './PlatformAppFeedback'
+import PlatformAppUsage from './PlatformAppUsage'
+import AppCustomers from './AppCustomers'
 import SmsOptIn from './SmsOptIn'
 import SmsPolicy from './SmsPolicy'
 import JoinPlan from './JoinPlan'
@@ -414,6 +416,7 @@ function AuthenticatedApp() {
         <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
         <Route path="/text-archive" element={<TextArchive profile={profile} />} />
         <Route path="/customer-feedback" element={<CustomerFeedback profile={profile} />} />
+        <Route path="/app-customers" element={<AppCustomers profile={profile} />} />
         <Route path="/jobs-management" element={<JobsManagement profile={profile} />} />
         <Route path="/tasks" element={<Tasks profile={profile} />} />
         <Route path="/to-do" element={<ToDo profile={profile} />} />
@@ -550,6 +553,9 @@ function AuthenticatedApp() {
         )}
         {profile.role === 'super_admin' && (
           <Route path="/app-feedback" element={<PlatformAppFeedback profile={profile} />} />
+        )}
+        {profile.role === 'super_admin' && (
+          <Route path="/app-usage" element={<PlatformAppUsage profile={profile} />} />
         )}
         {(profile.role === 'super_admin' || profile.org_id === '5bb0e0a2-9a0a-4f45-96b9-69e7fe31ba8b') && (
           <>

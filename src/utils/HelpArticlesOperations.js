@@ -907,7 +907,7 @@ export const HELP_ARTICLES = [
           "Appointment booked in the portal: two days after the visit, so the customer has had the service. If the appointment is canceled, no text goes out.",
           "Filters ordered, or filter auto-ship set up, in the portal: two days after the order.",
           "Texts go only between 9 AM and 7 PM Eastern, from your company's own texting number, and at most one feedback text per customer every 7 days.",
-          "Customers who turned off service updates in the portal, or replied STOP, are not texted. Bookings and orders your staff enter for a customer do not trigger a text."
+          "Customers who turned off Service Updates in the app, or replied STOP, are not texted. Bookings and orders your staff enter for a customer do not trigger a text."
         ]
       },
       {
@@ -922,6 +922,44 @@ export const HELP_ARTICLES = [
       {
         "h": "Where else it goes",
         "body": "Journey, the company that makes the app, also receives the rating and comments, without the customer's name or contact details, so suggestions for the app itself can be built. The customer is told this on the feedback page. Anything about your service is yours to follow up on."
+      }
+    ]
+  },
+  {
+    "id": "app-customers",
+    "title": "App Customers (who has the customer app)",
+    "area": "Operations",
+    "keywords": [
+      "app customers",
+      "customer app",
+      "portal login",
+      "downloaded",
+      "signed in",
+      "notifications",
+      "phone registered",
+      "adoption",
+      "distribution",
+      "store app",
+      "follow up"
+    ],
+    "purpose": "A customer-by-customer list of everyone with a Customer Portal login: when the login was made, when they last signed in, whether they use the store app, their notification choices, and whether their phone gets notifications. Find it under Admin → App Customers.",
+    "sections": [
+      {
+        "h": "What each column means",
+        "items": [
+          "Login created / Last sign-in: when the customer's portal login was made and the last time they signed in. \"Never\" means the login exists but they haven't used it.",
+          "Choices saved: when they picked their notification settings, and which they allowed: Service Updates / Goodwill / Optional Messages.",
+          "Store app: iPhone or Android once they've opened the Air Care Home app (tracked from Nov 27, 2026). A customer using a web browser can't get notifications.",
+          "Phone: Registered means their phone receives notifications. Last result says what happened the last time they opened the portal, including any phone problem."
+        ]
+      },
+      {
+        "h": "Using it to help customers",
+        "items": [
+          "Use the filter to find customers who never signed in, signed in without saving choices, or have no phone registered, then reach out and help them finish setting up.",
+          "Export .csv downloads the list you're looking at.",
+          "Apple and Google never share who downloaded an app, so a customer only appears here once they sign in."
+        ]
       }
     ]
   },

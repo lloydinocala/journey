@@ -87,9 +87,9 @@ export default function NotifySettings({ brandName, mode = 'settings', onDone, o
       {mode === 'settings' && app && <div className="cp-label" style={{ marginTop: 0 }}>Notifications</div>}
       {app && (
         <>
-          <Toggle k="service" title="Service updates" text="When your technician is on the way, reminders the day before a visit, and when an invoice is ready." />
-          <Toggle k="greetings" title="Greetings & weather" text={`A birthday note and holiday greeting from ${company}, plus heads-ups before extreme heat, freezing nights and storms.`} />
-          <Toggle k="news" title="News & offers" text={`Occasional news and offers from ${company}. At most a couple a week.`} />
+          <Toggle k="service" title="Service Updates" text="When your technician is on the way, reminders the day before a visit, and when an invoice is ready." />
+          <Toggle k="greetings" title="Goodwill" text={`A birthday note and holiday greeting from ${company}, plus heads-ups before extreme heat, freezing nights and storms.`} />
+          <Toggle k="news" title="Optional Messages" text={`Occasional news and offers from ${company}. At most a couple a week.`} />
           {status === 'denied' && <p className="cp-note">Notifications are turned off for this app in your phone’s settings. To get them, open your phone’s Settings, find this app, and turn on Notifications.</p>}
         </>
       )}
