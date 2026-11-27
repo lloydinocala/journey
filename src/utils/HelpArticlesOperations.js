@@ -882,6 +882,50 @@ export const HELP_ARTICLES = [
     ]
   },
   {
+    "id": "customer-feedback",
+    "title": "Customer Feedback (Customer Portal)",
+    "area": "Operations",
+    "keywords": [
+      "feedback",
+      "customer feedback",
+      "survey",
+      "rating",
+      "stars",
+      "suggestions",
+      "customer portal",
+      "app feedback",
+      "review",
+      "experience",
+      "improve",
+      "team communications"
+    ],
+    "purpose": "What your customers say about the Customer Portal app. Two days after a customer books an appointment or orders filters in the portal, they get a text with a private link asking how the app worked for them and what would make it better. Their answers, with their name, show up here under WorkForce → Team Communications → Customer Feedback.",
+    "sections": [
+      {
+        "h": "When the text goes out",
+        "items": [
+          "Appointment booked in the portal: two days after the visit, so the customer has had the service. If the appointment is canceled, no text goes out.",
+          "Filters ordered, or filter auto-ship set up, in the portal: two days after the order.",
+          "Texts go only between 9 AM and 7 PM Eastern, from your company's own texting number, and at most one feedback text per customer every 7 days.",
+          "Customers who turned off service updates in the portal, or replied STOP, are not texted. Bookings and orders your staff enter for a customer do not trigger a text."
+        ]
+      },
+      {
+        "h": "Reading the feedback",
+        "items": [
+          "Each response shows the customer (linked to their record), their phone and email, what they did in the app, their 1 to 5 star rating, and anything they wrote about their experience or suggested adding to the app.",
+          "Mark reviewed moves a response to the Reviewed tab; Move back to New undoes it.",
+          "The top line shows how many responses you have, the average rating, how many customers were texted but haven't answered yet, and how many texts are scheduled.",
+          "If your company's email sender is verified, the office email address on your Company Profile also gets an email for each response."
+        ]
+      },
+      {
+        "h": "Where else it goes",
+        "body": "Journey, the company that makes the app, also receives the rating and comments, without the customer's name or contact details, so suggestions for the app itself can be built. The customer is told this on the feedback page. Anything about your service is yours to follow up on."
+      }
+    ]
+  },
+  {
     "id": "system-estimate-builder",
     "title": "Building a System Estimate",
     "area": "Operations",

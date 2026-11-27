@@ -85,7 +85,7 @@ export default function PublicFeedback() {
         style={{ marginTop: 22, width: '100%', padding: '15px 18px', fontSize: 17, fontWeight: 700, color: '#fff', background: brand, border: 'none', borderRadius: 10, cursor: 'pointer', opacity: busy ? 0.7 : 1 }}>
         {busy ? 'Sending…' : 'Send to the office'}
       </button>
-      <p style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 14 }}>Your answers go to {info.org_name} with your name, so we can follow up if needed.</p>
+      <p style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 14 }}>Your answers go to {info.org_name} with your name, so they can follow up if needed, and to Journey, the company that makes this app, without your name or contact details, to help improve it.</p>
     </div>
   )
 }

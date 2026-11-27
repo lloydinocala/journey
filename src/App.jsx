@@ -92,6 +92,7 @@ import PublicChecklistReport from './PublicChecklistReport'
 import PublicTrack from './PublicTrack'
 import PublicFeedback from './PublicFeedback'
 import CustomerFeedback from './CustomerFeedback'
+import PlatformAppFeedback from './PlatformAppFeedback'
 import SmsOptIn from './SmsOptIn'
 import SmsPolicy from './SmsPolicy'
 import JoinPlan from './JoinPlan'
@@ -546,6 +547,9 @@ function AuthenticatedApp() {
         )}
         {profile.role === 'super_admin' && (
           <Route path="/subscriber-watch" element={<SubscriberWatch profile={profile} />} />
+        )}
+        {profile.role === 'super_admin' && (
+          <Route path="/app-feedback" element={<PlatformAppFeedback profile={profile} />} />
         )}
         {(profile.role === 'super_admin' || profile.org_id === '5bb0e0a2-9a0a-4f45-96b9-69e7fe31ba8b') && (
           <>
