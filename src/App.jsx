@@ -90,6 +90,8 @@ import SubscriberWatch from './SubscriberWatch'
 import PublicInvoice from './PublicInvoice'
 import PublicChecklistReport from './PublicChecklistReport'
 import PublicTrack from './PublicTrack'
+import PublicFeedback from './PublicFeedback'
+import CustomerFeedback from './CustomerFeedback'
 import SmsOptIn from './SmsOptIn'
 import SmsPolicy from './SmsPolicy'
 import JoinPlan from './JoinPlan'
@@ -410,6 +412,7 @@ function AuthenticatedApp() {
         <Route path="/customer-app-messages" element={<CustomerAppMessages profile={profile} />} />
         <Route path="/customers/:customerId" element={<CustomerHistory profile={profile} />} />
         <Route path="/text-archive" element={<TextArchive profile={profile} />} />
+        <Route path="/customer-feedback" element={<CustomerFeedback profile={profile} />} />
         <Route path="/jobs-management" element={<JobsManagement profile={profile} />} />
         <Route path="/tasks" element={<Tasks profile={profile} />} />
         <Route path="/to-do" element={<ToDo profile={profile} />} />
@@ -576,6 +579,7 @@ export default function App() {
         <Route path="/view-invoice/:invoiceId" element={<PublicInvoice />} />
         <Route path="/view-report/:runId" element={<PublicChecklistReport />} />
         <Route path="/track/:token" element={<PublicTrack />} />
+        <Route path="/feedback/:token" element={<PublicFeedback />} />
         <Route path="/sms-signup" element={<SmsOptIn />} />
         <Route path="/sms-policy" element={<SmsPolicy />} />
         <Route path="/join-plan/:propertyId" element={<JoinPlan />} />

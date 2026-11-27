@@ -28,7 +28,7 @@ const PAGE_TITLES = {
   '/train-station': 'Train Station', '/dispatch': 'Dispatch Station',
   '/call': 'Call Console', '/call-log': 'Call Log', '/known-contacts': 'Known Others', '/service-requests': 'Service Requests',
   '/calendar': 'Calendar', '/dispatch-map': 'Map View', '/filter-orders': 'Filter Orders',
-  '/text-archive': 'Text Archive', '/on-call': 'On-Call Schedule',
+  '/text-archive': 'Text Archive', '/customer-feedback': 'Customer Feedback', '/on-call': 'On-Call Schedule',
   '/jobs-dash': 'Jobs Dashboard', '/jobs-management': 'Jobs Management', '/jobs': 'Jobs',
   '/tasks': 'Tasks', '/to-do': 'To-Do', '/customers': 'Customers', '/properties': 'Properties',
   '/system-estimates': 'System Estimates', '/estimates': 'Job Estimates', '/invoices': 'Invoices', '/projects': 'Projects',
@@ -271,6 +271,7 @@ export function buildSections(profile) {
     { key: 'team-comms', label: 'Team Communications', icon: 'log', dash: '/team-communications', children: [
       { label: 'Call Messages', path: '/team-communications' },
       { label: 'Text Archive', path: '/text-archive', perm: 'view_text_archive' },
+      { label: 'Customer Feedback', path: '/customer-feedback', perm: 'view_text_archive' },
     ] },
   ]
   if (showHR) wfStations.push({ key: 'rewards', label: 'Human Resources', icon: 'idcard', dash: '/rewards', children: REWARDS_HR_NAV.items })
