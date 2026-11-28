@@ -10,6 +10,7 @@ import {
 import { loadStateRules, computeStateWithholding } from './stateTax'
 import { useOrgSelector, OrgBar, FlagChip } from './shared'
 import PayrollAnomalyCheck from './PayrollAnomalyCheck'
+import PayrollExport from './PayrollExport'
 
 const DELIVERY = [
   { v: 'manual', l: 'Manual (record only)' },
@@ -270,6 +271,8 @@ export default function PreparePayroll({ profile }) {
             FICA + employer FUTA/SUTA). Move this amount into your dedicated tax account now — the guided deposit calendar,
             941/940 forms, and one-click direct payment come in the Tax Center (Phase R3).
           </p>
+
+          <PayrollExport orgId={org.selectedOrg} weekStart={weekStart} weekEnd={addDays(weekStart, 6)} rows={rows} />
         </>
       )}
     </div>

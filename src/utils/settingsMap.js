@@ -20,7 +20,7 @@ export const SETTINGS_SECTIONS = [
 // Route prefix → settings section. Longest matching prefix wins.
 const ROUTE_SECTIONS = {
   '/jobs': 'work', '/jobs-dash': 'work', '/jobs-management': 'work', '/tasks': 'work',
-  '/customers': 'work', '/properties': 'work', '/estimates': 'work', '/system-estimates': 'work',
+  '/customers': 'work', '/lead-board': 'work', '/properties': 'work', '/estimates': 'work', '/system-estimates': 'work',
   '/invoices': 'work', '/payments-to-confirm': 'work',
   '/dispatch': 'dispatch', '/calendar': 'dispatch', '/dispatch-map': 'dispatch', '/call': 'dispatch',
   '/call-log': 'dispatch', '/service-requests': 'dispatch', '/filter-orders': 'dispatch',

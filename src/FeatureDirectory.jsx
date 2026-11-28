@@ -45,6 +45,7 @@ const EXTRA_FEATURES = [
   { feature: 'Online Booking Rules (install & duct cleaning dates)', heading: 'Admin', page: 'Settings → Dispatch → Online booking rules', path: '/settings?section=dispatch', show: isOwner },
   { feature: 'Business Hours & Holidays', heading: 'Admin', page: 'Settings → Dispatch → Business hours', path: '/settings?section=dispatch', show: isOwner },
   { feature: 'Card Payments (Stripe) & Payouts Setup', heading: 'Admin', page: 'Settings → Financials', path: '/settings?section=financials', show: isOwner },
+  { feature: 'Payroll Provider Export (Gusto / ADP files)', heading: 'WorkForce', page: 'Payroll → Prepare Payroll → Send to your payroll provider', path: '/rewards/payroll/prepare#export', pkg: 'workforce', show: isOwner },
   { feature: 'QuickBooks Connection', heading: 'Admin', page: 'Settings → Financials → QuickBooks', path: '/settings?section=financials', show: isOwner },
   // Field App (opened from the "Field App" button at the bottom of the menu)
   { feature: 'Field App — Job Cards', heading: 'Field App', page: 'Job Cards', path: '/tech', show: isOwner },
