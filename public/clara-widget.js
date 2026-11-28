@@ -8,6 +8,7 @@
  * data-text   the company's texting number (optional — shows a "Text us" button)
  * data-label  voice button wording (optional)      data-color  button color (optional)
  * data-voice  "off" to show only the Text us button
+ * data-position  "left" to sit in the bottom-left corner (default: bottom-right)
  * The call is started by Journey's server (web-call), so no keys are ever in the page.
  */
 (function () {
@@ -18,6 +19,7 @@
   var label = (me && me.getAttribute('data-label')) || 'Talk to us'
   var color = (me && me.getAttribute('data-color')) || '#00A6D6'
   var voiceOn = !(me && me.getAttribute('data-voice') === 'off') && !!org
+  var onLeft = !!(me && me.getAttribute('data-position') === 'left')
   var API = 'https://gatndtsmjrxdgxquvydw.supabase.co/functions/v1/web-call'
   var SDK = 'https://esm.sh/retell-client-js-sdk@3.0.4'
   var isPhone = /iPhone|iPad|Android|Mobile/i.test(navigator.userAgent)
@@ -33,6 +35,7 @@
   var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st)
 
   var wrap = document.createElement('div'); wrap.className = 'jw-wrap'
+  if (onLeft) { wrap.style.right = 'auto'; wrap.style.left = '18px'; wrap.style.alignItems = 'flex-start' }
   var panel = null, client = null, busy = false
 
   function svgMic() { return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>' }
