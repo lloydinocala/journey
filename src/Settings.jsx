@@ -13,6 +13,7 @@ import ServiceRequestSettings from './ServiceRequestSettings'
 import TaskSettings from './TaskSettings'
 import AgentSettings from './AgentSettings'
 import TextingSettings from './TextingSettings'
+import TextAssistantSettings from './TextAssistantSettings'
 import PayMethodSettings from './PayMethodSettings'
 import TimeOffSettings from './TimeOffSettings'
 import { JourneyBillingPanel } from './JourneyBilling'
@@ -595,6 +596,7 @@ export default function Settings({ profile }) {
       </SettingsSection>
 
       <SettingsSection id="agents" isAdmin={isAdmin} highlight={highlight}>
+      <TextAssistantSettings orgId={selectedOrg} />
       <AgentSettings orgId={selectedOrg} />
       </SettingsSection>
 
